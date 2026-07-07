@@ -1,0 +1,68 @@
+[project]
+name = "omni-hla-pilot"
+version = "0.1.0"
+description = "Pixi environments for chr6-only HLA calling smoke test: SpecHLA (short-read) + SpecImmune (long-read)"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+# Two separate environments, mirroring upstream's two separate conda envs.
+# Run `pixi install -e spechla` / `pixi install -e specimmune` independently.
+[environments]
+spechla = ["spechla"]
+specimmune = ["specimmune"]
+
+# --- SpecHLA (short-read) ---
+# Direct deps only, loosely pinned per SpecHLA's own CONDA_PACKAGING_PROPOSAL.md
+# recommendation (their exact pins like samtools=1.3.1 are outdated; samtools>=1.10
+# is the one real hard requirement, for ExtractHAIRs' htslib API usage).
+# bcftools/novoalign/fermikit/inchworm are NOT listed here on purpose -- SpecHLA
+# vendors its own copies in bin/ and calls them by relative path, not $PATH.
+[feature.spechla.dependencies]
+python = "3.8.*"
+perl = "*"
+cmake = ">=3.16"
+samtools = ">=1.10"
+bwa = "0.7.17.*"
+bowtie2 = ">=2.3"
+bedtools = ">=2.26"
+blast = ">=2.12"
+ucsc-blat = "*"
+freebayes = ">=1.2"
+minimap2 = ">=2.17"
+pbmm2 = "*"
+pbsv = "*"
+longshot = "*"
+numpy = "1.22.*"
+scipy = ">=1.8"
+biopython = ">=1.79"
+pysam = ">=0.19"
+pulp = "2.6.*"
+
+# --- SpecImmune (long-read) ---
+# Scoped to what the HLA-typing entry point (main.py -i HLA) is expected to need.
+# Left mostly unpinned -- deliberately not porting the full 400-pin export.
+# Likely to need 1-2 additions once we actually run it; that's expected.
+[feature.specimmune.dependencies]
+python = "3.8.*"
+bwa = "*"
+minimap2 = "*"
+bowtie2 = "*"
+samtools = "*"
+bcftools = "*"
+pbmm2 = "*"
+pbsv = "*"
+longshot = "*"
+whatshap = "*"
+sniffles = "*"
+hifiasm = "*"
+biopython = "*"
+pysam = "*"
+pyfaidx = "*"
+seqtk = "*"
+numpy = "*"
+pandas = "*"
+scipy = "*"
+
+[feature.specimmune.pypi-dependencies]
+dysgu = "==1.6.2"
+edlib = "*"

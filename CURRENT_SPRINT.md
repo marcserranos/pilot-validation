@@ -39,7 +39,8 @@ TASK_CONTEXT.md describes the full project: direct HLA allele calling (SpecHLA/S
 - Exact compute backend to use for the pilot (Workbench-native compute is the likely answer; GPU resources like Hugging Face A100/B100 are probably a mismatch since HLA calling is CPU/IO-bound, not GPU-bound).
 - Whether 4-field allele resolution is actually required downstream, or whether 2-field is sufficient for the PRS/epistasis modeling — affects compute/accuracy tradeoffs.
 - Reference panel choice and its effect on miscalls in non-European ancestries.
-- No `pixi.toml`/pixi manifest exists yet for SpecHLA's dependencies (third-party tools like SamTools, BWA, Freebayes, etc.) — needs to be authored before the first real pipeline run.
+- `pixi.toml` drafted (2026-07-07) with two separate pixi environments (`spechla`, `specimmune`), mirroring upstream's two separate conda envs rather than one merged environment — avoids forcing a single solve across two tool stacks that were never designed to coexist. Deps are loosely pinned (not a full port of the upstream exact-pin `environment.yml` files, which are outdated/overly strict per SpecHLA's own `CONDA_PACKAGING_PROPOSAL.md`). Not yet validated — first `pixi install` run is part of the smoke test.
+- SpecHLA is not actually conda/bioconda-installable today (confirmed via its `CONDA_PACKAGING_PROPOSAL.md`): it vendors pre-compiled binaries (`bin/bcftools`, `bin/novoalign`, `bin/fermikit/`) called by hardcoded relative path, not `$PATH`. pixi supplies the surrounding toolchain only; SpecHLA itself is still cloned from source and run via `bash index.sh` / `script/whole/SpecHLA.sh` per README.HLA.md.
 
 ## How to use this doc
 This file plus TASK_CONTEXT.md should be handed together to any new LLM/agent session: TASK_CONTEXT.md for the full project's scientific premise, this file for what's actively being worked on right now. Replace this file's content as the sprint progresses rather than appending indefinitely.
