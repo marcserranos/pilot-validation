@@ -1,49 +1,75 @@
 # Current Sprint Context — Omni-HLA Genomics
 
-*Companion to TASK_CONTEXT.md. That file is the permanent project framing; this one is the live snapshot of where we are right now and what's immediately in front of us. Update/replace as the sprint moves.*
+*Companion to TASK_CONTEXT.md. That file is the permanent project framing; this one is the live snapshot of where we are right now. Rewritten 2026-07-07 to consolidate a long trial-and-error session into a compact reference — see git history if the blow-by-blow is ever needed.*
 
-## Status
-Access to the All of Us Researcher Workbench has just been granted (via UCSC-affiliated credentials, supervisor-sponsored). Registered Tier + Controlled Tier (genomic data) access is in progress. Data is read in-place in the cloud environment — no local download needed. This is a new compute/data environment for us; expect a learning-curve phase before the first real pipeline runs.
+## Status (2026-07-07)
+
+Controlled Tier access confirmed working. pixi-based environments for SpecHLA (short-read) and SpecImmune (long-read) are built and validated on the Workbench VM. SpecHLA is fully proven end-to-end against synthetic test data. SpecImmune's environment is installed; the tool itself is mid-setup (building its local HLA reference db) — first real run still pending. Real AoU data has not been touched yet. Decision on record: smoke-test on 2-3 real individuals before scaling to the full ~100-person pilot.
+
+**Next up:** find the AoU WGS CRAM/BAM file-manifest access pattern and the chr6-slicing approach (a research task is running in parallel on this), then run the smoke test against real data for those 2-3 people.
+
+## Repo & environment structure
+
+- This repo (`pilot-validation`, public on GitHub: `marcserranos/pilot-validation`) holds only docs + `pixi.toml`. No participant data and no code that touches real data belongs here — see the data-egress caveat under Open Questions.
+- Workbench app `HLAcalling_pilot_v0_m` (Standard VM, 4 vCPU / 25GB RAM / 88GB disk, Ubuntu 24.04, us-central1-a). On that VM:
+  - `~/repos/pilot-validation` — this repo (manually `git clone`d, see quirk #3 below)
+  - `~/tools/SpecHLA` — upstream SpecHLA, built via `bash index.sh` inside `pixi shell -e spechla`. Has one local source patch not tracked in git (see "Fixes already made" below).
+  - `~/tools/SpecImmune` — upstream SpecImmune, HLA reference db build in progress.
+  - Two pixi environments in `pixi.toml`: `spechla` and `specimmune`. Activate with `pixi shell -e <name>` — **must be run from inside `~/repos/pilot-validation`** (see quirk #1).
+
+## Workbench quirks & gotchas — read before doing anything new
+
+1. **`pixi shell` only works from the manifest's directory.** `cd ~/repos/pilot-validation` first, always. Run it elsewhere and it fails silently into a *plain, non-activated* shell (no error) — every SpecHLA/SpecImmune command then breaks with confusing "command not found" errors. Check for the `(omni-hla-pilot:<env>)` prompt prefix before trusting the shell.
+2. **`pixi shell` sometimes misses its 3-second hook window.** It'll print a fallback line like `. /tmp/pixi_env_XXX.sh` — just run that line manually to finish activation.
+3. **Workbench's "Add repository" auto-clone feature never actually worked** in this session — registering the repo, restarting the app, even making the repo public didn't get it cloned into `~/repos/`. Don't waste time debugging it; just `git clone` manually.
+4. **`Failed to get AoU version: no AoU resources in workspace`** prints on every fresh shell — this is benign noise, unrelated to real data access (confirmed: a real BigQuery query against the CDR returned actual participant rows despite this message).
+5. **The CDR is not exposed via shell env vars** in this Workbench flavor (`env | grep -i cdr` → nothing). It lives in a separate GCP project from the workspace's own (`wb-silky-artichoke-2408`, dataset `C2025Q4R6` as of this writing) and is accessed via BigQuery with an explicit fully-qualified table path — the Cohort/Dataset Builder auto-generates this in exported notebook snippets, that's the intended access pattern.
+6. **No sudo** (`jupyter` user not in sudoers) — can't apt-install anything. Work around missing system tools rather than installing them (see the `less` fix below).
+7. **samtools in the `spechla` pixi env (v1.21) has built-in Google Cloud Storage support** (`gs+http, gs+https, gs` URL handlers in its htslib build) — meaning it may be able to slice a `gs://`-hosted CRAM/BAM by region directly without downloading the whole file, given a reachable `.crai`/`.bai` index. Relevant for chr6-only slicing; not yet confirmed in practice.
+8. **Two collaborators, two siloed apps, no conflict.** Aleix (`aleixruf@researchallofus.org`) works in parallel on his own app instance in the same workspace. Check his `hla-pilot-cohort-snapshot` resource before redoing work — the actual stratified ~100-person ancestry selection may already exist there.
+
+## Fixes already made to `pixi.toml` — don't rediscover these
+
+- `arpack` — required by SpecHLA's SpecHap build (cmake fails without it); missing from upstream's own `environment.yml`.
+- `pandas` — required by SpecHLA's `g_group_annotation.py`.
+- `less` could not be added via pixi (conda-forge's `less` needs a newer `libzlib` than `blast`/`bwa` allow — unresolvable solver conflict) and can't be apt-installed (no sudo). **Fixed by patching SpecHLA's source directly** — `less $fa | grep -v ">"` is just a `cat`-equivalent misuse, so: `sed -i 's/less \$fa/cat \$fa/g' ~/tools/SpecHLA/script/whole/annoHLA.pl`. **This patch lives only on the VM, not in git** — reapply if SpecHLA is ever re-cloned fresh.
+- SpecImmune needs its HLA reference db built locally, it's not shipped in the repo: `python scripts/make_db.py -o ./db -i HLA`, run once from `~/tools/SpecImmune` inside `pixi shell -e specimmune`.
+
+## Known unresolved issues (tracked, non-blocking)
+
+- A second, unlocated `less` call fires during SpecHLA's long-read phasing path (seen during HLA_DRB1 phasing in the hybrid test) — didn't block the run, low priority to chase.
+- Real segfaults hit SpecHLA's long-read linkage-extraction step for some genes (DPB1/DQA1/DQB1/DRB1) in hybrid short+long mode. The pipeline falls back to short-read-only phasing for those genes rather than crashing — the run still completes with plausible output, but long-read data may not actually be contributing phasing info for affected genes. **Needs real investigation before trusting hybrid-mode result quality at scale** — possibly thread-count related (`Requested more threads for alignment (5) than system-wide available (4)`).
+- SpecImmune has not yet produced a successful run (db build in progress as of this writing).
 
 ## Package management
-We manage the SpecHLA environment and its dependencies with [pixi](https://pixi.sh), not conda. Upstream SpecHLA docs (see README.HLA.md) only describe conda-based setup (`conda create`/`conda env create -f environment.yml`) — when standing up the environment on the Workbench, translate that to a pixi-managed environment instead of following the conda steps literally. No `pixi.toml` exists in this repo yet; creating one is still open work.
 
-
+We manage SpecHLA's and SpecImmune's dependencies with [pixi](https://pixi.sh), not conda, as two separate pixi environments (`spechla`, `specimmune`) in one `pixi.toml` — mirroring how upstream ships them as two separate, never-designed-to-coexist conda envs. Deps are loosely pinned rather than a full port of upstream's exact-pin `environment.yml` files (SpecHLA's own `CONDA_PACKAGING_PROPOSAL.md` says its pins are outdated/overly strict; SpecImmune's has 400+ auto-exported pins not worth hand-porting). SpecHLA itself is not conda-packageable today — it vendors pre-compiled binaries (`bin/bcftools`, `bin/novoalign`, `bin/fermikit/`) called by hardcoded relative path, not `$PATH` — pixi supplies only the surrounding toolchain; the tool itself is cloned from source and built via `bash index.sh`.
 
 ## Where this sits in the bigger picture
-TASK_CONTEXT.md describes the full project: direct HLA allele calling (SpecHLA/SpecImmune) across the All of Us cohort (short-read + long-read sub-cohort, now 535,000+ and 14,000+ individuals respectively as of CDRv9), used for ancestry-stratified allele frequency studies and non-linear PRS/epistasis modeling on autoimmune disease phenotypes. The earlier plan to validate the pipeline on a small 1000 Genomes Project pilot (public, matched short-/long-read samples) before touching AoU has been dropped — we are moving directly into the AoU dataset itself, using its own short-read/long-read overlap population for methods characterization instead of an external reference cohort.
+
+TASK_CONTEXT.md describes the full project: direct HLA allele calling (SpecHLA/SpecImmune) across the All of Us cohort (short-read + long-read sub-cohort, 535,000+ and 14,000+ individuals respectively as of CDRv9), used for ancestry-stratified allele frequency studies and non-linear PRS/epistasis modeling on autoimmune disease phenotypes. The earlier plan to validate on a 1000 Genomes Project pilot before touching AoU was dropped — we're validating directly on AoU's own short-read/long-read overlap population instead.
 
 ## Immediate objectives (this sprint)
 
-1. **Environment onboarding** — get comfortable in the Researcher Workbench: Cohort Builder, Dataset Builder, Jupyter/RStudio notebooks, how cloud compute is billed/allocated, how to read data in-place rather than downloading.
+1. ~~Environment onboarding~~ — done: Workbench, Cohort Builder, BigQuery access, pixi/SpecHLA/SpecImmune setup all working.
+2. **AoU small-n pilot (methods validation, in-cohort)** — in progress:
+   - ~~Identify AoU individuals with both short-read and long-read WGS~~ — done: cohort `HLA_Pilot_Matched_SR_LR_100` built, 9,358 candidates (SR+LR matched, 6 races selected).
+   - Smoke-test on 2-3 individuals first (decided 2026-07-07, given this is the first real run on this setup) before committing to the full ~100.
+   - Run SpecHLA + SpecImmune on short-read and long-read data for the same individuals, sliced to chr6 HLA region only.
+   - Compare allele calls across technologies: discordance rate per gene, per ancestry group, at 2-field vs 4-field resolution.
+   - Stratify sample picks across ancestry superpopulations on purpose once past the smoke test.
+3. **Metaparameter characterization** (not yet started): coverage, long-read vs short-read error profiles, region padding effect on accuracy/runtime, compute efficiency levers, workspace/cloud quirks (this doc now covers the last one).
+4. **Basic population QC pass** at scale (not yet started).
+5. **Cost estimation** for the full-cohort run (not yet started — needs #3 first).
 
-2. **AoU small-n pilot (methods validation, in-cohort)**
-   - Identify AoU individuals with *both* short-read and long-read WGS via the Cohort Builder/Dataset Builder (the long-read sub-cohort, 14,000+ as of CDRv9). Done: cohort `HLA_Pilot_Matched_SR_LR_100` built in Cohort Builder, 9,358 candidates (SR+LR matched, 6 races selected).
-   - Decision (2026-07-07): since this is the first time running SpecHLA/SpecImmune on this Workbench setup, smoke-test the full pipeline (chr6 slicing → SpecHLA → SpecImmune) on 2-3 individuals first before committing to the full ~100. Cheap to redo if the pixi env, ref genome build, or region coordinates are wrong; avoids burning compute finding that out at n=100.
-   - Run SpecHLA on short-read and long-read data for the same ~100 individuals, sliced to the chr6 HLA region only (not whole-genome) for speed.
-   - Compare allele calls across technologies: discordance rate per HLA gene, per ancestry group, at 2-field vs 4-field resolution.
-   - Stratify sample picks across ancestry superpopulations on purpose (not just default EUR-heavy samples) to test where short-read underperforms most.
+## Open questions
 
-3. **Metaparameter characterization** — before scaling, understand and document:
-   - **Coverage**: supervisors want as high as feasible, no need to deliberately oversample beyond what's available.
-   - **Long-read vs short-read error profiles**: where each technology fails (e.g., Class II genes, paralog confusion, rare alleles, non-European haplotypes).
-   - **Region padding**: how much flanking sequence around the core MHC region affects call accuracy and runtime.
-   - **Compute efficiency levers**: chr6-slicing before calling, parallelization strategy, coverage subsampling tradeoffs.
-   - **Workspace/cloud quirks**: how the Workbench's compute is provisioned and billed, data-reading patterns specific to this environment, any gotchas discovered during onboarding.
-
-4. **Basic population QC pass** on the data we're about to retrieve at scale — sanity-check ancestry composition, coverage distributions, phenotype (EHR) data quality/completeness before committing to the full-cohort pull (535,000+ short-read, 14,000+ long-read as of CDRv9).
-
-5. **Cost estimation** — once the above is characterized, produce a cost projection for the full-cohort (535,000+ short-read, 14,000+ long-read) HLA calling run on Workbench compute.
-
-## Open questions / things still being figured out
-- Exact compute backend to use for the pilot (Workbench-native compute is the likely answer; GPU resources like Hugging Face A100/B100 are probably a mismatch since HLA calling is CPU/IO-bound, not GPU-bound).
-- Whether 4-field allele resolution is actually required downstream, or whether 2-field is sufficient for the PRS/epistasis modeling — affects compute/accuracy tradeoffs.
+- **Data egress / compliance**: HLA genotypes are highly polymorphic per person (closer to a fingerprint than most variants) — even small derived result files may count as data requiring All of Us egress/publication review before leaving the Workbench, regardless of file size. Not yet confirmed with whoever sponsored Controlled Tier access. Until confirmed, default to doing comparison/visualization *inside* the Workbench, not downloading results locally.
+- Exact WGS CRAM/BAM manifest table/schema for chr6 slicing — researched, see `AOU_DATA_ACCESS_NOTES.md`. Headline risk to test first: AoU's own IGV docs say direct `gs://` streaming is blocked by "data exfiltration controls" (workaround: `gsutil cp` locally first) — unclear yet whether this also blocks `samtools view gs://...` run from inside the VM itself, or only affects external viewer tools. First live test should be exactly this, with the `gsutil cp`-then-slice-locally fallback ready.
+- Whether 4-field allele resolution is actually required downstream, or 2-field is sufficient.
 - Reference panel choice and its effect on miscalls in non-European ancestries.
-- `pixi.toml` drafted (2026-07-07) with two separate pixi environments (`spechla`, `specimmune`), mirroring upstream's two separate conda envs rather than one merged environment — avoids forcing a single solve across two tool stacks that were never designed to coexist. Deps are loosely pinned (not a full port of the upstream exact-pin `environment.yml` files, which are outdated/overly strict per SpecHLA's own `CONDA_PACKAGING_PROPOSAL.md`).
-- Both `pixi install -e spechla` and `pixi install -e specimmune` solved and installed cleanly on first try (2026-07-07, on the Workbench VM: 4 vCPU / 25GB RAM / 88GB free disk, Ubuntu 24.04). Sanity-checked spechla's binaries (samtools, minimap2, bedtools, blastn, blat, freebayes, bowtie2, pbmm2, pbsv, longshot) and Python imports (numpy, scipy, Bio, pysam, pulp) all resolve. specimmune throws a harmless warning about pip-installed `pysam` (pulled in transitively by `dysgu`) overwriting the conda-installed `pysam`'s files — cosmetic, not yet known to cause runtime issues.
-- SpecHLA cloned from source into `~/tools/SpecHLA` on the VM and `bash index.sh` completed successfully (2026-07-07) inside the `pixi shell -e spechla` environment — bowtie2 indexes for the HLA reference built, SpecHap + ExtractHAIRs compiled via cmake. Needed one dependency fix: `arpack` was missing from the pixi manifest (required by SpecHap's build, per SpecHLA's own `CONDA_PACKAGING_PROPOSAL.md` host deps) — added to `pixi.toml`. `"The installation is finished! Please start use SpecHLA."` — ready for the built-in example/test suite next, before touching real AoU data.
-- Workflow note: `pixi shell -e spechla` only works when run from inside `~/repos/pilot-validation` (where `pixi.toml` lives) — running it from another directory silently drops you into a *non-activated* plain shell instead of erroring loudly, causing confusing "command not found" errors downstream. Always confirm the `(omni-hla-pilot:spechla)` prompt prefix is present before running SpecHLA commands. Also: `pixi shell` sometimes fails to hook the current shell within its 3s timeout — when that happens it prints a fallback line like `. /tmp/pixi_env_XXX.sh`; just run that line manually to finish activation.
-- SpecHLA is not actually conda/bioconda-installable today (confirmed via its `CONDA_PACKAGING_PROPOSAL.md`): it vendors pre-compiled binaries (`bin/bcftools`, `bin/novoalign`, `bin/fermikit/`) called by hardcoded relative path, not `$PATH`. pixi supplies the surrounding toolchain only; SpecHLA itself is still cloned from source and run via `bash index.sh` / `script/whole/SpecHLA.sh` per README.HLA.md.
+- Exact compute backend for scaling (Workbench-native likely; GPU resources are probably a mismatch since HLA calling is CPU/IO-bound).
 
 ## How to use this doc
-This file plus TASK_CONTEXT.md should be handed together to any new LLM/agent session: TASK_CONTEXT.md for the full project's scientific premise, this file for what's actively being worked on right now. Replace this file's content as the sprint progresses rather than appending indefinitely.
+
+Hand this file plus TASK_CONTEXT.md to any new session or agent: TASK_CONTEXT.md for the scientific premise, this file for current status, repo layout, and — critically — the quirks section, so nobody has to rediscover them. Keep rewriting this file compactly as the sprint progresses rather than appending indefinitely.
