@@ -21,6 +21,7 @@ specimmune = ["specimmune"]
 python = "3.8.*"
 perl = "*"
 cmake = ">=3.16"
+arpack = "*"
 samtools = ">=1.10"
 bwa = "0.7.17.*"
 bowtie2 = ">=2.3"
