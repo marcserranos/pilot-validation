@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "omni-hla-pilot"
 version = "0.1.0"
 description = "Pixi environments for chr6-only HLA calling smoke test: SpecHLA (short-read) + SpecImmune (long-read)"
