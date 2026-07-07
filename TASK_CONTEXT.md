@@ -69,7 +69,7 @@ For the AI agent and collaborators, prioritize reading the following literature 
 
 ## 6. Initial Sandbox & Prototyping Tasks (The Technical Spike)
 Before scaling pipelines to the full AoU environment, the following engineering tasks must be completed[cite: 1]:
-1. **Environment Setup:** Build the environment from source using the provided `environment.yml` and ensure your compiler meets the `GCC 9.4.0+` prerequisite[cite: 2].
+1. **Environment Setup:** Build the environment from source using [pixi](https://pixi.sh) (not conda — see CURRENT_SPRINT.md) and ensure your compiler meets the `GCC 9.4.0+` prerequisite[cite: 2].
 2. **Database Indexing:** Run `bash index.sh` to construct local reference indexes[cite: 2].
 3. **Execution Verification:** Navigate to the `example/` folder and execute `bash test_all.sh`[cite: 2].
 4. **Output Validation:** Confirm successful generation of `hla.result.txt` and check that the resulting allele strings match known control samples[cite: 2].

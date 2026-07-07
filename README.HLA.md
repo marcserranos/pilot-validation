@@ -1,3 +1,10 @@
+> **Note:** This file is an unmodified reference copy of SpecHLA's own upstream
+> documentation (from https://github.com/deepomicslab/SpecHLA), kept here for
+> command/argument/output reference. For *this* project, we manage the
+> environment and dependencies with [pixi](https://pixi.sh) instead of conda —
+> the `conda create` / `conda env create` steps below do not reflect how we
+> actually set up SpecHLA here. See CURRENT_SPRINT.md for our pixi-based setup.
+
 # SpecHLA: full-resolution HLA typing from sequencing data
 
 SpecHLA is a software package leveraging reads binning and local assembly to
