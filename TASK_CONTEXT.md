@@ -39,6 +39,8 @@ Existing corporate pipelines evaluating the *All of Us* cohort have critical fla
 > 
 > **Our Solution:** Direct short-read allele calling via `SpecHLA` significantly outperforms imputation, maximizes discovery power for autoimmune traits, and delivers accurate predictions across non-European ancestries[cite: 1, 2].
 
+**Update (2026-07-08) — a closer, more relevant baseline than the imputation strawman above:** All of Us itself already runs a direct HLA-calling ensemble (HLA-HD + Polysolver + OptiType) on every short-read participant, per its official "How the All of Us Genomic and multi-omic data are organized" documentation (v9). This is a materially stronger comparator than SNP2HLA imputation — it's already direct calling, not imputation — so the honest framing of this project's edge is no longer just "direct calling beats imputation" but **"does SpecHLA/SpecImmune's direct calling outperform AoU's own already-computed direct-calling ensemble, especially on long-read data and non-European ancestries, where AoU has no long-read HLA callset at all."** The pilot's Stage A methods bake-off (see CURRENT_SPRINT.md) is designed to answer this empirically — a 3-way comparison of AoU-native-SR, SpecHLA-SR, and SpecImmune-LR — rather than presupposing which method wins.
+
 ---
 
 ## 4. Software Stack & Ecosystem
