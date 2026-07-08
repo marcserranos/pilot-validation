@@ -17,6 +17,16 @@
 
 **Full run (read-binning + typing/consensus/annotation + visualization attempt)**: **52 minutes wall-clock** total, on 4 vCPUs. Visualization step itself fails (missing `rsvg-convert`/`inkscape`, no sudo) but this is a small tail cost after the real work is done, not counted as wasted typing time.
 
+### Config: `bwa` (default) — 2 more people, 2026-07-08
+
+Same config as above, different people, for a cross-person baseline sanity check before trusting the 52min number as "typical":
+| Person | Real | User | Sys |
+|---|---|---|---|
+| 2522883 | 49m50.867s | 171m20.521s | 1m13.252s |
+| 1253627 | 48m21.136s | 165m15.980s | 1m10.806s |
+
+**All three bwa-config runs (52min, 49m51s, 48m21s) cluster tightly** — the baseline looks consistent across people, not a one-off. Both hit the same expected cosmetic visualization-PDF failure at the end (`Exception: No converter found for conversion to pdf`) — harmless, typing results already written by that point.
+
 ### Config: `--align_method_1 minimap2` (everything else identical) — 2026-07-08
 
 **Controlled test**: same person, same FASTQ, same `-j 4`, only `--align_method_1` changed from `bwa` to `minimap2`.

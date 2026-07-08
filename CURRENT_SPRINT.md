@@ -2,11 +2,23 @@
 
 *Companion to TASK_CONTEXT.md. That file is the permanent project framing; this one is the live snapshot of where we are right now. Rewritten 2026-07-07 to consolidate a long trial-and-error session into a compact reference — see git history if the blow-by-blow is ever needed.*
 
-## Status (2026-07-07)
+## Status (2026-07-08, end of session)
 
-Controlled Tier access confirmed working. pixi-based environments for SpecHLA (short-read) and SpecImmune (long-read) are built and validated on the Workbench VM. SpecHLA is fully proven end-to-end against synthetic test data. SpecImmune's environment is installed; the tool itself is mid-setup (building its local HLA reference db) — first real run still pending. Real AoU data has not been touched yet. Decision on record: smoke-test on 2-3 real individuals before scaling to the full ~100-person pilot.
+Full pipeline (data access → chr6 region slice → FASTQ → typing → comparison) is proven end-to-end on real AoU data. Person 1017156's complete 3-way bake-off (AoU-native, SpecHLA-SR, SpecImmune-LR) is done: 6/8 classical genes concordant, 2 real discordances found — detail in `SMOKE_TEST_PICKS.local.md` (gitignored, real genotype data, never goes here). Two more smoke-test people (2522883, 1253627) have SpecImmune-LR done; SpecHLA-SR for both is the next step, queued but not yet run as of end of session.
 
-**Next up:** find the AoU WGS CRAM/BAM file-manifest access pattern and the chr6-slicing approach (a research task is running in parallel on this), then run the smoke test against real data for those 2-3 people.
+**Pick up here next session** — literal next commands, nothing else needs rediscovering:
+```bash
+cd ~/repos/pilot-validation
+pixi shell -e spechla
+cd ~/tools/SpecHLA
+{ time bash script/whole/SpecHLA.sh -n 2522883 -1 ~/pipeline_outputs/2522883/R1.fastq.gz -2 ~/pipeline_outputs/2522883/R2.fastq.gz -o ~/pipeline_outputs/2522883/spechla_output/ ; } 2> ~/pipeline_outputs/2522883/spechla_timing.txt
+{ time bash script/whole/SpecHLA.sh -n 1253627 -1 ~/pipeline_outputs/1253627/R1.fastq.gz -2 ~/pipeline_outputs/1253627/R2.fastq.gz -o ~/pipeline_outputs/1253627/spechla_output/ ; } 2> ~/pipeline_outputs/1253627/spechla_timing.txt
+python3 ~/repos/pilot-validation/compare_hla_results.py 2522883
+python3 ~/repos/pilot-validation/compare_hla_results.py 1253627
+```
+Then: look at cross-person patterns across all 3 people's 3-way tables before drawing any conclusion about which method(s) to carry to n=25/100 — n=1 wasn't enough, n=3 might not be either, but it's the next real signal.
+
+**One open thread, not urgent but not forgotten**: `--align_method_1 minimap2` gives SpecImmune a 3.25x speedup but caused a real DPB1 accuracy regression on person 1017156 (see `COMPUTE_OPTIMIZATION_LOG.md`) — unresolved whether that's a one-off or systematic. Don't adopt it as default without testing on another person first.
 
 ## Repo & environment structure
 
@@ -61,12 +73,14 @@ TASK_CONTEXT.md describes the full project: direct HLA allele calling (SpecHLA/S
 
 ## Progress log
 
-- **2026-07-08: first real chr6 region slices succeeded, both srWGS and lrWGS, for smoke-test person 1017156.**
-  - srWGS CRAM → `chr6:29,500,000-33,500,000` via the gcsfuse mount (quirk #11) + a locally-downloaded copy of the public hg38 reference (`~/ref/Homo_sapiens_assembly38.fasta` — `-T` against the `gs://` reference path also failed with a different error than the CRAM's, same general class of remote-access flakiness; downloading the ~3GB static reference once was simpler than debugging further). Result: 79MB BAM, 1,219,708 reads.
-  - lrWGS BAM (BI/Revio platform, `pooled/longreads/v8_delta/BI/revio/bam/1017156/GRCh38/1017156.bam`, 21.8GB full file) → same region, **no `-T` needed** since BAM isn't reference-compressed (unlike CRAM) — one less moving part. Result: 28.8MB BAM, 3,213 reads.
-  - Confirms the full access chain (gcsfuse mount → region slice) works end-to-end for both data types.
-  - FASTQ conversion done for both (paired short-read + singletons; single-file long-read).
-  - **First complete 3-way bake-off done for one person (1017156): AoU-native, SpecHLA-SR, SpecImmune-LR all ran successfully end-to-end on real data.** SpecHLA took ~minutes; SpecImmune took 52 min wall-clock on the 4-vCPU test VM (see `COMPUTE_OPTIMIZATION_LOG.md`). **Headline result: 6 of 8 classical genes fully concordant across all three methods.** Of the 2 discordant genes, one has the two independent methods (SpecHLA-SR + SpecImmune-LR) agreeing against AoU-native — suggestive AoU's ensemble may be the outlier there, not SpecHLA. The other has SpecImmune-LR alone disagreeing with the other two (calling a locus homozygous that both others call heterozygous) — more concerning since SpecImmune-LR is this pilot's "presumed most-accurate reference," worth a closer look at read depth for that locus before scaling. **n=1 — no pipeline-superiority conclusions yet.** Actual allele calls and the full comparison table live in `SMOKE_TEST_PICKS.local.md` (gitignored), not here, per the participant-data policy above. Next: repeat for the other 2 smoke-test people (2037879, 1413564) before drawing any conclusions about which method(s) to carry to the larger run.
+- **2026-07-08 — full pipeline proven end-to-end on real AoU data, one person's 3-way bake-off complete, two more in progress.**
+  - Built and confirmed the real access chain: gcsfuse mount (quirk #11) → chr6 region slice (`chr6:29,500,000-33,500,000`, CRAM needs `-T` against a locally-downloaded reference at `~/ref/Homo_sapiens_assembly38.fasta`, BAM doesn't) → FASTQ conversion. Wrapped into a reusable script (`slice_and_fastq.sh`) so this never needs re-deriving.
+  - **Person 1017156: full 3-way bake-off complete** (AoU-native, SpecHLA-SR, SpecImmune-LR). 6/8 classical genes concordant across all three; 2 real discordances found, one suggesting AoU-native might be the outlier (2 independent methods agree against it), one suggesting SpecImmune-LR might be (it alone disagrees with both others). n=1 — not enough to conclude anything about method superiority yet. Full detail in `SMOKE_TEST_PICKS.local.md` (gitignored).
+  - Tested a SpecImmune speed optimization (`--align_method_1 minimap2` vs default `bwa`): 3.25x faster, but caused a real per-locus accuracy regression (DPB1) on this person — logged in `COMPUTE_OPTIMIZATION_LOG.md`, not adopted as default pending more testing.
+  - **Two originally-picked smoke-test candidates (2037879, 1413564) turned out to have no real aligned lrWGS BAM delivered** despite passing the BigQuery eligibility flag — see quirk #13. Replaced with 2522883 and 1253627, both confirmed to have real files before committing compute time to them.
+  - Built `compare_hla_results.py` to auto-generate the 3-way comparison table per person (reads the AoU-native TSV + both tools' result files directly, no manual transcription) — removes a source of error now that we're repeating this across people.
+  - **2522883 and 1253627: SpecImmune-LR done** (bwa config, 49m51s and 48m21s respectively — consistent with person 1017156's 52min, suggesting that baseline is typical, not a fluke). **SpecHLA-SR for both is the literal next step — see "Pick up here" above.**
+  - Moved pipeline outputs from `/tmp` to `~/pipeline_outputs/<person_id>/` (quirk #12) so they're visible in the Jupyter file browser.
 
 ## Immediate objectives (this sprint)
 
@@ -82,7 +96,7 @@ TASK_CONTEXT.md describes the full project: direct HLA allele calling (SpecHLA/S
    So it's a clean 3-way comparison: **AoU-native-SR vs. SpecHLA-SR vs. SpecImmune-LR**, not a 2×2 grid.
    - ~~Identify AoU individuals with both short-read and long-read WGS~~ — done: cohort `HLA_Pilot_Matched_SR_LR_100` built, 9,358 candidates (SR+LR matched, 6 races selected).
    - Smoke-test/bake-off on **2-3 individuals** (confirmed 2026-07-08, not increased despite AoU-native being free — SpecHLA/SpecImmune compute+debugging time is still the actual bottleneck, not sample count).
-   - **Smoke-test individuals selected (2026-07-08).** Picked via an ad-hoc BigQuery query (same `has_whole_genome_variant`/`has_lr_whole_genome_variant` flags as the named cohort below) against the full SR+LR-eligible pool (15,400 candidates), *not* drawn from the named `HLA_Pilot_Matched_SR_LR_100` cohort — decided this is fine for a 3-person smoke test since ancestry stratification only matters for the later n=25/100 run, which will use the named cohort. CRAM URIs and long-read `grch38_bam` URIs confirmed real for all 3 via the manifest join. **Actual `person_id`s and AoU-native HLA calls are kept in `SMOKE_TEST_PICKS.local.md` (gitignored, not committed) — see that file, not this one, for the real values.** This repo is public on GitHub; per the repo-scope rule above, participant-level data (even just IDs paired with genotype calls) does not belong in a tracked file.
+   - **Smoke-test individuals: final 3 as of 2026-07-08.** Picked via an ad-hoc BigQuery query (same `has_whole_genome_variant`/`has_lr_whole_genome_variant` flags as the named cohort below) against the full SR+LR-eligible pool (15,400 candidates), *not* drawn from the named `HLA_Pilot_Matched_SR_LR_100` cohort — decided this is fine for a 3-person smoke test since ancestry stratification only matters for the later n=25/100 run, which will use the named cohort. Two originally-picked candidates were swapped out for lacking a real delivered BAM (see quirk #13) — filter to `/revio/`-path manifest entries for any future picks. **Actual `person_id`s and AoU-native HLA calls are kept in `SMOKE_TEST_PICKS.local.md` (gitignored, not committed) — see that file, not this one, for the real values.** This repo is public on GitHub; per the repo-scope rule above, participant-level data (even just IDs paired with genotype calls) does not belong in a tracked file.
    - Run all three methods above on the same 2-3 individuals, sliced to chr6 HLA region only for the two compute-heavy methods.
    - Compare allele calls across all three: discordance rate per gene, per ancestry group, at 2-field vs 4-field resolution. **Terminology decision (2026-07-08): call SpecImmune-LR the "presumed most-accurate reference," not "ground truth"** — there's no independently-validated clinical-grade typing set in this pilot to check any method against; long reads are presumed better for this hyper-polymorphic region, not proven-correct in an absolute sense. Keep that distinction explicit in any write-up.
    - Once trade-offs (accuracy proxy, runtime, compute cost) are understood from the bake-off, decide which method(s) to carry to the larger n=25/100 stratified run.
