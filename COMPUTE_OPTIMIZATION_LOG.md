@@ -38,3 +38,20 @@
 ## SpecHLA — person 1017156, short-read, chr6-sliced FASTQ
 
 Timing not yet captured with this level of detail — add on a future run.
+
+## Queued experiment — region padding narrowing (not yet run)
+
+Current slice window: `chr6:29,500,000-33,500,000` (4Mb), ~440kb padding on each side beyond
+where the 8 classical genes actually sit (real span ~29.94Mb-33.06Mb, HLA-A to HLA-DPB1).
+
+**Hypothesis**: a narrower window could speed up slicing/FASTQ/typing further, on top of the
+minimap2 speedup already found -- but risks read-pair dropout and boundary alignment artifacts,
+especially given HLA's structural variability person-to-person and the phasing ambiguity already
+observed on DRB1/DQB1 even with the current generous padding.
+
+**Proposed test methodology** (same controlled approach as the bwa-vs-minimap2 test): same person,
+same everything else, only the region window size changed. Compare full result-file diffs (not
+just runtime) to catch any accuracy regression, not just speed -- exactly like the DPB1 regression
+found when testing minimap2. Do not adopt a narrower default without this kind of check first.
+
+**Not started as of 2026-07-08.**

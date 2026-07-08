@@ -24,7 +24,7 @@ LR_BAM_PATH="$3"
 REGION="chr6:29500000-33500000"
 REF=~/ref/Homo_sapiens_assembly38.fasta
 MOUNT=~/mnt/aou-controlled
-OUTDIR="/tmp/pipeline_${PERSON_ID}"
+OUTDIR="$HOME/pipeline_outputs/${PERSON_ID}"
 mkdir -p "$OUTDIR"
 
 echo "=== [$PERSON_ID] Slicing srWGS CRAM to $REGION ==="
