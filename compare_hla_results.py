@@ -52,7 +52,16 @@ CSV_FIELDS = [
 
 
 def load_aou_native(tsv_path: str, person_id: str) -> dict:
-    df = pd.read_csv(tsv_path, sep="\t", dtype=str)
+    if not os.path.exists(tsv_path):
+        print(f"WARNING: AoU-native TSV not found at {tsv_path} (mount down?) "
+              f"-- logging with NA for AoU columns", file=sys.stderr)
+        return {g: ("NA", "NA") for g in CLASSICAL_GENES}
+    try:
+        df = pd.read_csv(tsv_path, sep="\t", dtype=str)
+    except Exception as e:
+        print(f"WARNING: failed to read AoU-native TSV ({e}) "
+              f"-- logging with NA for AoU columns", file=sys.stderr)
+        return {g: ("NA", "NA") for g in CLASSICAL_GENES}
     row = df[df["research_id"] == str(person_id)]
     if row.empty:
         print(f"WARNING: person {person_id} not found in {tsv_path}", file=sys.stderr)
