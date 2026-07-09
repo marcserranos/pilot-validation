@@ -7,10 +7,10 @@ Usage:
       [--spechla-result PATH] [--specimmune-result PATH] [--aou-tsv PATH]
 
 Defaults assume the slice_and_fastq.sh + SpecHLA/SpecImmune conventions used in this
-project (see CURRENT_SPRINT.md / slice_and_fastq.sh):
+project (see ENVIRONMENT.md / slice_and_fastq.sh):
   --spechla-result    ~/pipeline_outputs/<person_id>/spechla_output/<person_id>/hla.result.txt
   --specimmune-result ~/pipeline_outputs/<person_id>/specimmune_output/<person_id>/<person_id>.HLA.final.type.result.formatted.txt
-  --aou-tsv           ~/mnt/aou-controlled/v9/wgs/short_read/snpindel/hla_variants/hla_genotypes.tsv
+  --aou-tsv           ~/mnt/aou-controlled/v9/wgs/short_read/snpindel/aux/hla_variants/hla_genotypes.tsv
 
 Prints a markdown table to stdout and writes it to
 ~/pipeline_outputs/<person_id>/comparison.md -- paste that file's contents back into chat,
@@ -50,7 +50,7 @@ def load_spechla(result_path: str) -> dict:
     if not os.path.exists(result_path):
         print(f"WARNING: SpecHLA result not found at {result_path}", file=sys.stderr)
         return {g: ("NA", "NA") for g in CLASSICAL_GENES}
-    df = pd.read_csv(result_path, sep="\t", dtype=str)
+    df = pd.read_csv(result_path, sep="\t", dtype=str, comment="#")
     row = df.iloc[0]
     return {g: (row.get(f"HLA_{g}_1", "NA"), row.get(f"HLA_{g}_2", "NA")) for g in CLASSICAL_GENES}
 
@@ -104,7 +104,7 @@ def main():
     ap.add_argument(
         "--aou-tsv",
         default=os.path.expanduser(
-            "~/mnt/aou-controlled/v9/wgs/short_read/snpindel/hla_variants/hla_genotypes.tsv"
+            "~/mnt/aou-controlled/v9/wgs/short_read/snpindel/aux/hla_variants/hla_genotypes.tsv"
         ),
     )
     args = ap.parse_args()
