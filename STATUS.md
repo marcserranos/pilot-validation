@@ -8,19 +8,38 @@
 
 **Stage-A bake-off complete for all 3 smoke-test people** (1017156, 2522883, 1253627). Confidence-adjudicated (raw 54% concordance was an undercount — several "SpecImmune outliers" were `One_guess` tie-break artifacts, not real disagreements). Two real residual findings survive: **DQA1 = AoU-native systematic outlier 3/3** (robust — corroborated by both a short-read and a long-read method independently), and one confident SpecImmune DPA1 divergence. Full detail: EXPERIMENTS.md 2026-07-09 entries, raw genotypes in `SMOKE_TEST_PICKS.local.md`. **Comparison script rewritten** — no longer declares a verdict/winner, just reports raw calls + confidence.
 
-**RUNNING NOW (unattended):** `run_aligner_pad_sweep.sh 2522883` — combined bwa-vs-minimap2 x 5-padding-level sweep for SpecImmune-LR, launched via `nohup`, ~5h expected. Full design in EXPERIMENTS.md's "combined aligner x padding sweep" entry. **If you're a fresh session reading this: check `~/pipeline_outputs/2522883/sweep/progress.log` first** to see whether it finished, is still running, or stalled (possible VM-sleep interruption, see Watch/blockers).
+**Sweep first attempt FAILED silently (2026-07-09)** — `run_aligner_pad_sweep.sh 2522883` ran to completion (all 10 configs, ~2h) but 9/10 produced zero real output: it was launched from a `spechla`-activated shell, and SpecImmune's pipeline needs `sniffles`, which only exists in the `specimmune` env — every gene failed with `sniffles: command not found`, but `main.py` still exited 0, so the script logged false successes. **Fixed** (ENVIRONMENT.md quirk #15): script now always invokes SpecImmune via `pixi run -e specimmune` and verifies the output file exists before declaring success. Garbage sweep dir + CSV rows need clearing before rerun (see Pick up here).
 
 ## Pick up here
 
-**If the sweep is still running or just finished:** read `~/pipeline_outputs/2522883/sweep/progress.log` and `comparisons.md`, report status. If complete, analyze the 10-config matrix in `~/pipeline_outputs/2522883/comparison_log.csv` — does padding degrade accuracy before pad40k ("theoretical minimum")? Does minimap2's speedup hold with less noise at smaller windows? Fold real findings into EXPERIMENTS.md.
-
-**If the sweep hasn't been started yet:** on the VM (after remount, see Watch/blockers), run:
+**Rerun the sweep with the fix** — first clear the garbage from the failed attempt, pull the fix, smoke-test the env-pinning, then relaunch:
 ```bash
-cd ~/repos/pilot-validation && git pull   # picks up run_aligner_pad_sweep.sh + rewritten compare script
+# 1. clear garbage from the failed attempt
+rm -rf ~/pipeline_outputs/2522883/sweep
+rm -f ~/pipeline_outputs/2522883/comparison_log.csv ~/pipeline_outputs/2522883/comparison_*.md
+
+# 2. pull the fix
+cd ~/repos/pilot-validation && git pull
+
+# 3. cheap smoke test BEFORE committing to another multi-hour run
+pixi run --manifest-path ~/repos/pilot-validation/pixi.toml -e specimmune -- which sniffles
+# ^ must print a path. If it doesn't, STOP and report back -- don't relaunch yet.
+
+# 4. relaunch, detached
+mkdir -p ~/pipeline_outputs/2522883/sweep
 nohup bash run_aligner_pad_sweep.sh 2522883 > ~/pipeline_outputs/2522883/sweep/nohup.out 2>&1 &
 disown
+
+# 5. confirm alive
+sleep 5 && tail -20 ~/pipeline_outputs/2522883/sweep/progress.log
 ```
-Then check in later with `tail -f ~/pipeline_outputs/2522883/sweep/progress.log`.
+**This time, also verify after the FIRST new config finishes** (fullpad_minimap2, expect ~15-20min) that its actual result file exists before trusting the rest to run unattended:
+```bash
+ls ~/pipeline_outputs/2522883/sweep/fullpad_minimap2/specimmune_output/2522883/2522883.HLA.final.type.result.formatted.txt
+```
+If that's missing again, stop the sweep (`pkill -f run_aligner_pad_sweep`) and report back rather than letting it burn hours on more broken runs.
+
+Once genuinely running with real output, check in later with `tail -f ~/pipeline_outputs/2522883/sweep/progress.log`.
 
 **Once the sweep is analyzed**, the earlier two analysis steps are still open:
 1. Check SpecImmune per-locus confidence on any remaining unadjudicated outlier calls (the rewritten compare script now surfaces this directly, no manual digging needed).

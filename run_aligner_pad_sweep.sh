@@ -12,8 +12,15 @@
 #       the aligner swap and doesn't trade away bwa's accuracy.
 #
 # Usage: bash run_aligner_pad_sweep.sh <person_id>
-# Prereqs: spechla pixi env active (samtools) is fine for the whole run -- SpecImmune is
-#   invoked via its own absolute path, no need to switch pixi envs mid-script.
+# Prereqs: any pixi env active is fine for slicing (samtools is present in spechla).
+#   SpecImmune itself is ALWAYS invoked via `pixi run -e specimmune`, regardless of which
+#   env launched this script -- SpecImmune's long-read pipeline shells out to `sniffles`
+#   (SV caller), which only exists on PATH inside the `specimmune` env. An earlier version
+#   of this script assumed the active shell's env didn't matter -- it does; running from
+#   `spechla` caused every SpecImmune call to fail deep inside its pipeline (sniffles: command
+#   not found) while main.py still exited 0, silently producing zero real output across an
+#   entire sweep (see EXPERIMENTS.md 2026-07-09 postmortem). Fixed by never trusting the
+#   ambient shell env for this step.
 #   ~/pipeline_outputs/<person_id>/chr6_LR.bam and LR.fastq must already exist (i.e.
 #   slice_and_fastq.sh + the full-pad bwa SpecImmune baseline already ran for this person).
 #
@@ -34,6 +41,7 @@ PERSON_ID="${1:?Usage: bash run_aligner_pad_sweep.sh <person_id>}"
 OUTDIR="$HOME/pipeline_outputs/$PERSON_ID"
 LR_BAM="$OUTDIR/chr6_LR.bam"
 SPECIMMUNE_DIR="$HOME/tools/SpecImmune"
+PIXI_MANIFEST="$HOME/repos/pilot-validation/pixi.toml"
 SWEEP_DIR="$OUTDIR/sweep"
 PROGRESS="$SWEEP_DIR/progress.log"
 mkdir -p "$SWEEP_DIR"
@@ -86,9 +94,11 @@ run_one() {
 
   local specout="$rundir/specimmune_output"
   local timing="$rundir/timing.txt"
-  log "$label: SpecImmune starting"
+  local result_file="$specout/$PERSON_ID/$PERSON_ID.HLA.final.type.result.formatted.txt"
+  log "$label: SpecImmune starting (via pixi run -e specimmune)"
   ( cd "$SPECIMMUNE_DIR" && \
-    { time python3 scripts/main.py -n "$PERSON_ID" -o "$specout" -j 4 -y pacbio-hifi \
+    { time pixi run --manifest-path "$PIXI_MANIFEST" -e specimmune -- \
+        python3 scripts/main.py -n "$PERSON_ID" -o "$specout" -j 4 -y pacbio-hifi \
         -i HLA -r "$fastq" --db ./db --align_method_1 "$aligner" --visualization "" ; } \
       2> "$timing" )
   local rc=$?
@@ -96,11 +106,18 @@ run_one() {
     log "$label: FAILED (exit $rc) -- see $timing -- continuing to next config"
     return
   fi
+  # main.py can exit 0 even when an internal step (e.g. sniffles) failed deep in its
+  # pipeline -- never trust exit code alone (see the sniffles/wrong-env postmortem above).
+  # Verify the actual expected output file exists before declaring success.
+  if [ ! -f "$result_file" ]; then
+    log "$label: FAILED -- exit 0 but expected output missing at $result_file -- see $timing -- continuing to next config"
+    return
+  fi
   log "$label: SpecImmune done ($(grep real "$timing" | tail -1))"
 
   python3 "$HOME/repos/pilot-validation/compare_hla_results.py" "$PERSON_ID" \
     --run-label "$label" \
-    --specimmune-result "$specout/$PERSON_ID/$PERSON_ID.HLA.final.type.result.formatted.txt" \
+    --specimmune-result "$result_file" \
     >> "$SWEEP_DIR/comparisons.md" 2>>"$PROGRESS"
   log "$label: DONE"
 }

@@ -90,7 +90,9 @@ Pulled per-call SpecImmune confidence (`Match_info` = allele|score|identity, `Re
 
 ---
 
-## 2026-07-09 (cont.) — combined aligner x padding sweep, IN PROGRESS (unattended, `run_aligner_pad_sweep.sh`)
+## 2026-07-09 (cont.) — combined aligner x padding sweep — FIRST ATTEMPT INVALID (wrong pixi env), fixed, rerun queued
+
+**First run's results are garbage — do not use.** All 9 new configs "completed" (exit 0, plausible timings 10-23min) but every SpecImmune result file was missing. Root cause: the sweep was launched from an active `spechla` shell, and the script wrongly assumed that didn't matter ("SpecImmune invoked via its own absolute path, no need to switch pixi envs"). SpecImmune's long-read pipeline shells out to `sniffles` (SV caller), which only exists on `PATH` in the `specimmune` env — every gene failed with `sniffles: command not found`, cascading into missing-VCF errors, but `main.py` still exited 0, so the script's own success check passed. See ENVIRONMENT.md quirk #15 for the full writeup. **Fixed:** the script now always invokes SpecImmune via `pixi run -e specimmune` (env-independent regardless of the launching shell) and explicitly verifies the output file exists before declaring success — exit code 0 is no longer trusted alone. Sweep dir + garbage CSV rows cleared; rerun queued (same design, no changes needed below).
 
 Supersedes the two queued items below (minimap2-on-2nd-person, region-padding-narrowing) with one combined, controlled experiment: person 2522883, 5 padding levels x 2 aligners (`--align_method_1 bwa`/`minimap2`, `--align_method_2` held at default) = 9 new SpecImmune runs + 1 reused baseline, run in series via `run_aligner_pad_sweep.sh`, launched unattended (`nohup`) while Marc is away for ~5h.
 
