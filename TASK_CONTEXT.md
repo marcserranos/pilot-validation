@@ -1,5 +1,9 @@
 # Project Omni-HLA Genomics: High-Resolution Allele Calling & Non-Linear PRS on the All of Us Biobank
 
+> **Role:** the scientific premise & aims — why this project exists and what it's trying to prove. The permanent framing, distinct from the live pilot state.
+> **Edit:** almost never — deliberate, structural changes only. For current work see STATUS.md; for the "why" behind choices see DECISIONS.md.
+> **Read:** first, once.
+
 ## Executive Summary
 This repository contains the pipeline and analytical frameworks for executing full-resolution HLA typing and advanced Polygenic Risk Score (PRS) modeling on the *All of Us* (AoU) Biobank[cite: 1, 2]. By moving away from traditional, inaccurate HLA imputation and instead utilizing direct, short-read and long-read allele calling via SpecHLA, this project aims to deliver state-of-the-art disease risk stratification across diverse ancestral populations[cite: 1].
 
