@@ -41,8 +41,20 @@ All three cluster tightly → **~50 min is a consistent per-person baseline** on
 
 ---
 
+## 2026-07-09 — SpecHLA-SR timing baseline (first capture)
+
+Default SpecHLA short-read config, chr6-sliced FASTQ, 4 vCPU VM.
+
+| Person | Real | User | Sys |
+|---|---|---|---|
+| 2522883 | 21m8.218s | 60m46.152s | 0m22.426s |
+| 1253627 | 19m40.039s | 56m54.781s | 0m24.992s |
+
+**SpecHLA-SR (~20 min) is ~2.5× faster than SpecImmune-LR (~50 min)** on the same people/VM — first head-to-head runtime signal between the two tools. Two benign warnings reproduced and confirmed harmless: `sh: 11: less: not found` (the unlocated 2nd `less` call, see ENVIRONMENT known-issues) and `blastn … reduced to 4 to match available CPUs` (SpecHLA hardcodes `bwa mem -t 5` on this 4-core VM). Neither affected output — full allele tables produced for all 8 classical genes for both people.
+
+---
+
 ## Queued experiments (not yet run)
 
-- **SpecHLA-SR timing baseline** — not yet captured; first data point comes from the 2522883/1253627 runs in progress (2026-07-09).
 - **minimap2 on a 2nd person** — resolve whether the DPB1 regression is one-off or systematic.
 - **Region-padding narrowing.** Current window `chr6:29.5–33.5 Mb` (4 Mb) carries ~440 kb pad each side beyond the 8 classical genes (real span ~29.94–33.06 Mb, HLA-A→HLA-DPB1). Hypothesis: a narrower window speeds slicing/FASTQ/typing further, on top of any binning-aligner speedup — but risks read-pair dropout and boundary alignment artifacts, especially given HLA's structural variability person-to-person and the DRB1/DQB1 phasing ambiguity already seen even with the current generous padding. Method: same controlled approach (same person, only the window changed; diff full result files, not just runtime). Don't adopt a narrower default without this check.

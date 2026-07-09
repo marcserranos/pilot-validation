@@ -6,25 +6,23 @@
 
 ## As of 2026-07-09
 
-Full pipeline proven end-to-end on real AoU data. Bake-off state:
-- **Person 1017156** — complete 3-way (AoU-native / SpecHLA-SR / SpecImmune-LR): 6/8 classical genes concordant, 2 discordances (allele detail in `SMOKE_TEST_PICKS.local.md`).
-- **2522883, 1253627** — SpecImmune-LR done; **SpecHLA-SR running now** (launched this session).
+Full pipeline proven end-to-end on real AoU data. **All three smoke-test people now have SpecHLA-SR + SpecImmune-LR done.** Bake-off state:
+- **Person 1017156** — complete 3-way: 6/8 classical genes concordant, 2 discordances (allele detail in `SMOKE_TEST_PICKS.local.md`).
+- **2522883, 1253627** — SpecHLA-SR done this session (timings logged to EXPERIMENTS.md: 21m8s / 19m40s); SpecImmune-LR done last session. **3-way comparison table not yet generated** — was blocked on the gcsfuse mount being gone after the VM slept (now remounted).
 
 ## Pick up here
 
-SpecHLA-SR for 2522883 and 1253627 is running (or just finished). When it's done:
+Mount is warm again. Generate the two remaining comparison tables:
 ```bash
 python3 ~/repos/pilot-validation/compare_hla_results.py 2522883
 python3 ~/repos/pilot-validation/compare_hla_results.py 1253627
 ```
-Then paste both `~/pipeline_outputs/<id>/comparison.md` back to fold into `SMOKE_TEST_PICKS.local.md`, and look at **cross-person patterns across all 3 people** before concluding anything about method choice for the n=25/100 scale-up. n=1 wasn't enough; n=3 might not be either, but it's the next real signal.
-
-If the SpecHLA runs weren't actually launched (pixi activation hiccup — quirk #2), the full command block is in ENVIRONMENT.md's runbook (steps 2 & 4); substitute each id.
+Then fold both `~/pipeline_outputs/<id>/comparison.md` into `SMOKE_TEST_PICKS.local.md`, and look at **cross-person patterns across all 3 people** before concluding anything about method choice for the n=25/100 scale-up. n=1 wasn't enough; n=3 might not be either, but it's the next real signal.
 
 ## Watch / blockers
 
-- pixi 3s-timeout activation hiccup (quirk #2) swallowed the run commands once this session — confirm the `(omni-hla-pilot:spechla)` prompt, and paste run commands *separately* from the `pixi shell` line.
-- The two SpecHLA-SR runs give our **first SR timing baseline** — log both to EXPERIMENTS.md when they finish.
+- **VM sleeps after ~1h idle (quirk #14)** — every session starts with the mount gone; remount (quirk #11) and `ls`-verify before running anything that reads bucket data. Most session-start `FileNotFoundError`s are just this.
+- Paste the `gcsfuse` mount and the consumer command *separately* — chaining them in one paste races (quirks #2, #14).
 
 ## Parallel thread (non-blocking)
 
