@@ -270,6 +270,26 @@ Both fixes are packaged as `patch_specimmune_for_gene_restriction.py` (idempoten
 
 **Full local typing-run comparison hit a wall — a real, but orthogonal, macOS-specific issue, not a restriction problem.** After fixing both bugs above and installing minimap2/samtools/bwa/blast/seqtk locally (none were present), typing runs against both DBs hit a third, different failure: a malformed line in a per-gene depth file (`ValueError: invalid literal for int() with base 10: '0HLA-B*40:10:01:02'`), landing on a *different* random classical gene each rerun (HLA-B, then HLA-C) — consistent with a nondeterministic race under parallel (`-j 6`) execution, most likely a `samtools sort`/temp-file collision specific to this local macOS/Homebrew samtools build. Traced far enough to rule out a code-level shared-file bug (each gene's depth file has its own unique path) and to confirm it hits *both* the full-panel and restricted DB equally (so it's not something my change introduced). Not chased further: single-threaded (`-j 1`) avoids the race but is impractically slow locally (~75s per gene's minimap2 step alone on this test machine), and this exact tool/samtools combination has already completed dozens of real runs on the VM this project without ever hitting this — the VM environment is the right place to finish this validation, not further local debugging with diminishing returns.
 
+## 2026-07-10 (cont.) — Experiment C, bwa leg complete: restricted DB was SLOWER and less accurate at 2/8 genes (n=1)
+
+Ran `run_experiment_c_comparison.sh 2522883` (restricted DB, same FASTQ/padding/aligner as the pad100k_bwa baseline — DB is the only variable). **This disconfirms the "restriction is a free lunch" hypothesis, at least at n=1** — reporting it straight, not spun.
+
+**Runtime: 26m3s, slower than the pad100k_bwa baseline's 21m11s** — a ~5min regression, opposite direction from the hypothesis.
+
+**Read counts per gene inflated substantially in the restricted run**, most at A (9→38, +29) and DRB1 (71→120, +49); milder at DQB1 (+7), DPB1 (+5), DQA1 (+5); flat at B/C/DPA1. Working hypothesis: reads ambiguous between a classical gene and one of its removed pseudogene/paralog relatives (A has several close class-I pseudogene relatives — H, J, K, L, N, P, V, Y, T, U, W; DRB1 has DRB3/4/5) get partly absorbed by those non-classical competitors in the full panel. Remove the competitors and the same reads reassign to the nearest classical gene — more volume to process per gene, apparently outweighing the time saved by not indexing ~22 unused genes. Not proven, just the most plausible mechanism given the pattern.
+
+**Real accuracy cost at 2 of 8 genes, not just noise:**
+- **Gene A**: restricted called `A*24:667`/`A*32:101Q` — completely different from the baseline's `A*02:804`/`A*31:01:02:01`, and identity is blank (uncalculated/unclear) on both haplotypes where baseline had a real score on one.
+- **DRB1**: restricted called `DRB1*11:01:01:05`/`DRB1*04:03:01:01` vs baseline's `DRB1*04:05:01:01`/`DRB1*15:01:01:01` — different alleles, again blank identity. SpecHLA's independent short-read call (`DRB1*15:02:01:01`/`DRB1*04:05:01:01`) matches the *baseline* SpecImmune call much better than the restricted one — the baseline looks more trustworthy here.
+- **DPB1**: hap1 call unchanged; hap2 identity dropped (0.9997→0.9873) and flipped from untied to tied among 15 candidates — a real confidence loss, not a changed top pick.
+- **B, C, DQA1, DQB1, DPA1 (5/8): unaffected** — same calls, same or near-identical identity.
+
+**Mechanism confirmed working structurally, independent of the accuracy result:** `individual_ref/` under the restricted run contains exactly the 8 classical gene directories, nothing else — the restriction itself does what it's supposed to; the cost shows up in read reassignment, not leakage.
+
+**n=1 — directional only.** Same-FASTQ minimap2 leg (`run_experiment_c_comparison_minimap2.sh`, reusing the pad100k_minimap2 baseline) queued next, run sequentially after this one (not concurrently, to keep the timing measurement clean). If minimap2 shows the same pattern (slower + A/DRB1 miscalls), that's a much stronger signal restriction genuinely costs something at these two loci specifically, not a one-off.
+
+---
+
 **Ready for the VM, in order:**
 1. `patch_specimmune_for_gene_restriction.py` — apply both fixes to `~/tools/SpecImmune` (idempotent).
 2. `build_restricted_specimmune_db.sh` — filters the *already-downloaded* IMGT source FASTAs sitting in the existing `~/tools/SpecImmune/db/HLA/` (no re-download) to the 8 classical genes, builds `~/tools/SpecImmune/db_classical8/`, and verifies only 8 gene directories exist.
