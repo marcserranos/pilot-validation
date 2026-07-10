@@ -100,7 +100,20 @@ run_one() {
     log "$label: FAILED -- exit 0 but expected output missing at $result_file -- see $timing -- continuing"
     return
   fi
-  log "$label: SpecHLA done ($(grep real "$timing" | tail -1))"
+  # File existing is not enough -- SpecHLA can silently skip/abort per-gene processing under
+  # starved input, exit 0, and finish fast with a mostly-empty result (this is the exact
+  # failure mode this script exists to trigger -- log it explicitly rather than treating file
+  # existence as success). See ENVIRONMENT.md quirk #18.
+  local completeness
+  completeness=$(pixi run --manifest-path "$PIXI_MANIFEST" -e spechla -- python3 -c "
+import pandas as pd
+df = pd.read_csv('$result_file', sep='\t', dtype=str, comment='#')
+row = df.iloc[0]
+genes = ['A','B','C','DRB1','DQA1','DQB1','DPA1','DPB1']
+called = sum(1 for g in genes for h in ('1','2') if str(row.get(f'HLA_{g}_{h}', '-')).strip() not in ('-','NA','nan',''))
+print(f'{called}/16')
+" 2>>"$PROGRESS")
+  log "$label: SpecHLA done ($(grep real "$timing" | tail -1)) -- gene-haplotype completeness: $completeness"
 
   pixi run --manifest-path "$PIXI_MANIFEST" -e spechla -- python3 "$COMPARE" "$PERSON_ID" \
     --run-label "$label" \
