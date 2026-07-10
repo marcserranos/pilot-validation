@@ -39,8 +39,15 @@ def print_heatmap_table(hz_df):
     pivot = hz_df.pivot(index="gene", columns="ancestry", values="homozygosity_pct")
     cols = [a for a in ANCESTRY_ORDER if a in pivot.columns]
     pivot = pivot.reindex(index=CLASSICAL_GENES, columns=cols)
+
     print("## Locus x ancestry homozygosity (%)\n")
-    print(pivot.to_markdown())
+    header = "| gene | " + " | ".join(cols) + " |"
+    sep = "|---|" + "|".join(["---"] * len(cols)) + "|"
+    print(header)
+    print(sep)
+    for gene in pivot.index:
+        row = " | ".join("n/a" if pd.isna(v) else f"{v:.2f}" for v in pivot.loc[gene])
+        print(f"| {gene} | {row} |")
     print()
     return pivot
 
