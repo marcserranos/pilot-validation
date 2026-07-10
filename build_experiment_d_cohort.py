@@ -118,6 +118,9 @@ def main():
     anc = pd.read_csv(anc_path, sep="\t", dtype=str, usecols=lambda c: c in ("research_id", "ancestry_pred"))
     require_cols(anc, ["research_id", "ancestry_pred"], "ancestry TSV")
     anc = anc.rename(columns={"research_id": "person_id", "ancestry_pred": "ancestry"})
+    # The TSV ships lowercase labels (afr/amr/...) -- normalize to the uppercase group names
+    # used everywhere downstream (ANCESTRY_GROUPS here, GROUPS in analyze_experiment_d.py).
+    anc["ancestry"] = anc["ancestry"].astype(str).str.strip().str.upper()
 
     # --- CRAM manifest (largest, ~535k rows; read only the two columns we need) ---
     print(f"Reading CRAM manifest: {cram_path}", file=sys.stderr)

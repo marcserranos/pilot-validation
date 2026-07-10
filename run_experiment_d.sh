@@ -35,7 +35,10 @@ COHORT="${1:?Usage: bash run_experiment_d.sh <cohort.tsv>}"
 
 # ---- tunables ----
 SPECHLA_PAD=10000                 # Experiment B: zero degradation across pad2000-pad10000; 10k = safety margin
-SPECIMMUNE_ALIGNER=bwa            # proven default (DECISIONS.md); minimap2 not yet confirmed
+SPECIMMUNE_ALIGNER=minimap2       # 2026-07-11: chosen over bwa for LR — no evidence bwa is more
+                                  # accurate (DPB1 "regression" was n=1, didn't reproduce), SpecImmune's
+                                  # own README examples + typing-stage default use minimap2, the AoU LR
+                                  # BAMs are pbmm2(minimap2)-aligned, and it's ~30% faster. See DECISIONS.md.
 MIN_SPECHLA=8                     # of 16 gene-haplotype slots -- below = catastrophic failure, redo/flag
 MIN_SPECIMMUNE=4                  # of 8 classical genes with >=1 haplotype
 MAX_ATTEMPTS=4                    # per person, across reruns -- backstop against infinite retry of a broken person
