@@ -288,6 +288,34 @@ Ran `run_experiment_c_comparison.sh 2522883` (restricted DB, same FASTQ/padding/
 
 **n=1 — directional only.** Same-FASTQ minimap2 leg (`run_experiment_c_comparison_minimap2.sh`, reusing the pad100k_minimap2 baseline) queued next, run sequentially after this one (not concurrently, to keep the timing measurement clean). If minimap2 shows the same pattern (slower + A/DRB1 miscalls), that's a much stronger signal restriction genuinely costs something at these two loci specifically, not a one-off.
 
+## 2026-07-10 (cont.) — Experiment C, minimap2 leg complete: same pattern, cross-aligner confirmed — restriction does not work as hoped
+
+Ran `run_experiment_c_comparison_minimap2.sh 2522883` (sequentially, after the bwa job fully finished, to keep timing clean). **Confirms the bwa result was not a fluke.**
+
+**Runtime, both aligners slower under restriction:**
+
+| Aligner | Baseline (full DB) | Restricted DB | Delta |
+|---|---|---|---|
+| bwa | 21m11s | 26m3.4s | +4m52s (+23%) |
+| minimap2 | 14m29s | 17m9.9s | +2m41s (+18.5%) |
+
+**Read-count inflation is nearly identical in shape across both aligners** — dominated by Gene A (+29 bwa / +28 minimap2) and DRB1 (+49 / +52), everything else flat or mild (DQA1 +5/+10, DQB1 +7/+2, DPB1 +5/+2, B/C/DPA1 ~0). Same genes, same magnitude, regardless of aligner — this is the DB restriction driving it, not aligner behavior.
+
+**Accuracy hit is cross-aligner reproducible, which is the important part:**
+- **Gene A: both aligners converge on the exact same wrong alleles under restriction** — `A*24:667`/`A*32:101Q` in both bwa and minimap2, replacing each aligner's own clean baseline call (`A*24:02:01:01`/`A*31:01:02:01`-family, matching SpecHLA). Identical wrong answer regardless of aligner rules out aligner noise as the explanation.
+- **DRB1: both aligners' second haplotype shifts from the `*15` allele family to the `*11` family** under restriction — not byte-identical alleles between aligners, but the same group-level shift in both.
+- **B, C, DPA1: clean and unaffected in both aligners** — robust to restriction.
+- **DQB1 (minimap2) / DPB1 (bwa): mild hap2 confidence erosion** (identity drop + newly tied) — present at one locus per aligner, not symmetric across both — a weaker, secondary effect.
+
+**Mechanism now well-supported by the specific genes affected, not just plausible:** A and DRB1 are exactly the two classical genes with the most/closest pseudogene relatives in the removed panel (A: ~10 related class-I pseudogenes — E/F/G/H/J/K/L/N/P/S/T/U/V/W/Y; DRB1: DRB3/DRB4/DRB5, near-identical paralogs). Removing those decoy references, which previously absorbed ambiguous cross-mapping reads in the full panel, appears to redirect those reads onto the wrong allele within the remaining classical gene.
+
+**Conclusion: gene-panel restriction to exactly these 8 genes, as currently implemented (simple FASTA filtering), should NOT be adopted.** Slower in both aligners (+18-23%) and produces real, reproducible miscalls at 2 of 8 loci (A, DRB1) — the opposite of the original hypothesis that motivated this experiment. n=1 person, but cross-aligner agreement on both the runtime direction and the specific genes/alleles affected makes this a substantially stronger signal than either run alone.
+
+**Options going forward (not decided, for discussion):**
+1. Drop gene-panel restriction as a lever entirely — treat this as a real, informative negative result, move to Experiment D.
+2. Design a "smarter" restricted panel that keeps the specific pseudogene/paralog competitors that appear to matter for A and DRB1 (e.g., retain E/F/G/H/J/K/L/N/P/S/T/U/V/W/Y for A, DRB3/4/5 for DRB1) while still dropping the genes with no apparent interaction (MICA/MICB/TAP1/TAP2/HFE, DMA/DMB/DOA/DOB/DRA, DQA2/DPA2/DPB2) — could preserve some runtime benefit without the accuracy cost, but is real new design/validation work, not a quick follow-up.
+3. Confirm this pattern on a 2nd/3rd person before finalizing either call — still n=1.
+
 ---
 
 **Ready for the VM, in order:**
@@ -321,3 +349,18 @@ Design:
 - **Use whichever optimized config validates from Experiments B/C by the time D starts** (padding level, aligner, gene-panel restriction) — but don't block D indefinitely waiting on B/C either; launch the pilot once a reasonable attempt at both has been made. Marc's expectation: if B and C both land, total compute drops from the current ~38-55hr estimate to "under a day," under $10 — a working target, not yet confirmed.
 - **Explicitly designed to help resolve two carried-over open findings** from the original 3-person bake-off, not just produce a generic concordance number: is AoU-native's DQA1 discordance (3/3 people so far) ancestry-correlated or universal? Is the one confident SpecImmune DPA1 divergence ancestry-specific or general? Look for these patterns specifically.
 - Rough compute estimate pre-optimization: ~56-80 people x ~41min/person (SpecHLA + SpecImmune at pad100k) ~ 38-55 hours serial.
+
+## 2026-07-11 — Experiment D pipeline built and staged for launch (results pending)
+
+Three new scripts implement the fused ancestry-stratified 3-way comparison as a single unattended, resumable run. No results yet — this entry records the design + config so the eventual results entry has its provenance.
+
+**Scope chosen: ~8-10 people × all 6 genetic-ancestry groups (~56), across multiple nights via resumability** (departs from the roadmap's literal "pilot one group first" — the resumable orchestrator + per-person isolation + ntfy person-1 ping make a full-cohort launch safe: a bad person can't sink the run, and person 1's result is checkable ~25 min in before trusting the batch).
+
+**Config (applies the resolved B/C decisions, no new decision):** SpecHLA short-read at **pad10000** (Experiment B validated zero degradation across the pad2000-pad10000 band; 10k for margin), SpecImmune long-read at **pad100k / `--align_method_1 bwa`** (Experiment C's validated LR default). **Gene-panel restriction deliberately NOT used** — rejected in Experiment C (slower + miscalls at A/DRB1). Each person therefore doubles as an "n≥1 more person" confirmation of B's and C's n=1 padding optimizations; watch the concordance for any config-induced drift.
+
+**Robustness design (the point of the build — "launch once and forget," incl. across nights):**
+- `build_experiment_d_cohort.py` derives the cohort straight from the mounted v9 manifests (CRAM `manifest.csv` + LR `manifest.tsv` + ancestry `ancestry_preds.tsv`), applies the `/revio/` filter (quirk #13), inner-joins on person_id, picks N per ancestry deterministically (sorted, first-N — stable across re-derives). No notebook/BigQuery step. Prints per-ancestry availability (MID/SAS expected thin in the LR sub-cohort). Refuses to overwrite an existing cohort.tsv without `--force`.
+- `run_experiment_d.sh` — no `set -e`; every person written to disk immediately; resumable at per-step granularity (SR fastq / LR fastq / SpecHLA / SpecImmune each skipped if already present-and-complete). "Complete" = per-gene completeness ≥ threshold (SpecHLA ≥ 8/16, SpecImmune ≥ 4/8), never exit code or file existence alone (quirks #17, #18). `ensure_mount()` remounts + ls-verifies if the FUSE layer dropped. `expd.done` marker skips finished people; `MAX_ATTEMPTS=4` per person backstops against infinite retry of a deterministically-broken person. All samtools/SpecHLA/SpecImmune calls are `pixi run -e <env>`-pinned so the run is independent of which shell launched it. Optional `ntfy.sh` pings per person + on completion.
+- `analyze_experiment_d.py` — reads the accumulated per-person `comparison_log.csv` rows (run_label `experiment_d`), dedups (person,gene) to the latest timestamp, joins ancestry from cohort.tsv. Concordance is 2-field unordered genotype match with a `norm2()` that maps every method's format (`A*01:01:01:01`, `01:01`, `DRB1*15:01`) to a comparable 2-field key — verified that SpecImmune's deeper long-read resolution still matches short-read at 2-field (so it isn't penalized as a disagreement, per the DECISIONS.md "don't dismiss over-resolution" caution) and that uncallable slots drop out of denominators rather than counting as disagreements. NOT a naive vote (AoU+SpecHLA share short-read data). Emits, per locus × ancestry: full 3-way agreement, three pairwise agreements, and the two targeted patterns — AoU-native lone-outlier rate (the DQA1 question) and SpecImmune divergence-from-agreeing-SR-pair rate, raw + confidence-filtered (not-tied & identity ≥ 0.99, the DPA1 question). Markdown + 2 PNG heatmaps + counts CSV under `~/pipeline_outputs/experiment_d/analysis/`, aggregate-only (keep on VM per egress caveat).
+
+Per-person budget ~25 min → ~56 people ≈ 23-33h wall. Launch sequence in STATUS.md.
