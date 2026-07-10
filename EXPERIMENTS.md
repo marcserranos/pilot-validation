@@ -148,6 +148,24 @@ Script: `experiment_a_aou_stats.py` (repo root). Outputs are aggregate-only (no 
 
 ---
 
+## 2026-07-10 (cont.) — Experiment A extension: locus x ancestry heatmap + PCA scatter
+
+Ran `experiment_a_ext_ancestry_clustering.py` (full 535,658 for the heatmap, 50,000-person subsample for the scatter).
+
+**DPA1's homozygosity "outlier" status is not locus-uniform — it's a strong ancestry gradient.** afr 27.0%, amr 60.1%, eas 39.0%, eur 67.7%, mid 64.6%, sas 50.3% — a ~2.5x range, tracking almost exactly the expected Out-of-Africa serial-bottleneck direction (African populations retain the deepest ancestral genetic diversity; non-African populations show reduced diversity from the bottleneck, which shows up as more homozygosity at a locus with few common alleles to begin with). This direction argues *against* simple reference-panel bias as the primary driver — GRCh38's EUR lean would be expected to push the opposite way, inflating apparent homozygosity in populations most divergent from the reference (afr), not least. **Reframes the earlier "confident SpecImmune-DPA1 divergence" finding (2026-07-09):** the underlying AoU-native homozygosity pattern at DPA1 looks like real population structure, not an obvious AoU-native calling artifact — though this doesn't resolve whether the specific SpecImmune-vs-AoU-native divergence itself is ancestry-driven; that still needs Experiment D.
+
+A weaker version of the same afr-low/other-high gradient shows at DPB1 (13.5% → 19.8-23.9%), A (6.3% → 9-14%), and DRB1 (6.1-6.2% afr/amr → 8.3-10.9% elsewhere) — consistent with genome-wide diversity differences by ancestry, not something DP/DQ-region-specific.
+
+**DQA1 (the standing AoU-outlier locus from the 3-person bake-off) does NOT show this gradient** — flat at 18.0-19.1% across afr/amr/eas/eur/sas, with only mid elevated (24.2%, n=195 in this subsample / 2,151 full cohort — small group, noisier). Reinforces the earlier hypothesis that DQA1's discordance is method/database-specific (AoU's ensemble likely leaning on HLA-HD alone at this locus), not a population-diversity signal the way DPA1's is.
+
+**PCA scatter (n=50,000 subsample):** left panel (colored by ancestry) reproduces the expected textbook ancestry-PCA fan structure — afr and eur as separated poles, amr spread between them (consistent with real-world admixture), eas as a tight distinct cluster, sas/mid clustering near the eur-amr boundary. Good sanity check that the ancestry variable behaves as expected; not novel on its own. Right panel (colored by per-person cross-locus homozygosity count, 0-8) shows no obvious strong visual clustering at this resolution/alpha — the real signal is in the aggregated heatmap, not visible at the individual-point level.
+
+**Caveat:** all of this is still AoU-native's *internal* self-consistency by ancestry — it doesn't yet tell us whether the SpecHLA/SpecImmune-vs-AoU-native discordances themselves are ancestry-correlated. That's still Experiment D's job.
+
+Outputs (VM-local, not committed — view via Jupyter file browser): `~/pipeline_outputs/experiment_a_ext/locus_ancestry_homozygosity_heatmap.png`, `~/pipeline_outputs/experiment_a_ext/pca_ancestry_homozygosity_scatter.png`.
+
+---
+
 ## Roadmap locked 2026-07-09 — four experiments, in order, for the next session
 
 Agreed with Marc after the aligner x padding sweep. Read this whole section before starting any of them — each has design notes and quirks that took real debugging to discover once already (don't rediscover). Order below is the intended sequence: A is cheap/parallel-anytime; B and C are compute-optimization investigations that should ideally land before D's big spend, but D is **not blocked waiting indefinitely** on them (see D's own notes). The two standalone confirmation items from the previous entry (pad100k floor, minimap2/DPB1 non-regression on a 3rd person) are folded into Experiment B/D's scope, not separate tasks.
