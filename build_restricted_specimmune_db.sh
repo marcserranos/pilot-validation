@@ -22,7 +22,7 @@ FULL_DB="$SPECIMMUNE_DIR/db"
 PIXI_MANIFEST="$HOME/repos/pilot-validation/pixi.toml"
 
 GEN_SRC="$FULL_DB/HLA/hla_gen.fasta"
-NUC_SRC="$FULL_DB/HLA/hla_nuc.fasta"
+NUC_SRC="$FULL_DB/HLA_CDS/hla_nuc.fasta"
 
 if [ ! -f "$GEN_SRC" ] || [ ! -f "$NUC_SRC" ]; then
   echo "FATAL: expected source FASTAs not found at:"

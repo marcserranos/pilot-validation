@@ -75,39 +75,35 @@ replace_once(
     "make_db.py fix 2/2 (--HLA_exon_fa branch)",
 )
 
+## Split into two small, independent replacements (rather than one big block) so a
+## trailing-whitespace difference on an unrelated line (e.g. the "def" line itself,
+## confirmed to vary between the GitHub copy and at least one VM checkout) can't block
+## the whole patch. Neither of these two snippets touches a line with observed drift.
+
 replace_once(
     align_mod,
-    '''def cout_read_num(fastq):
-    ## the input fastq is gziped, count the reads num in it, and return it to the variable
+    '''    ## the input fastq is gziped, count the reads num in it, and return it to the variable
     f = open(fastq, "rb")
     count = 0
     for line in f:
         count += 1
     f.close()
-    return count/4
-
-def subsample_fastq(gene, read_num, my_folder):
-    fastq = my_folder.reads_dir + "/" + gene + ".long_read.fq.gz"
-    sub_fastq = my_folder.reads_dir + "/" + gene + ".long_read.sub.fq"
-    read_count = cout_read_num(fastq)
-    if read_count <= read_num:
-        os.system(f"zcat {fastq} > {sub_fastq}")''',
-    '''def cout_read_num(fastq):
-    ## the input fastq is gziped, count the reads num in it, and return it to the variable
+    return count/4''',
+    '''    ## the input fastq is gziped, count the reads num in it, and return it to the variable
     import gzip
     count = 0
     with gzip.open(fastq, "rb") as f:
         for line in f:
             count += 1
-    return count/4
+    return count/4''',
+    "alignment_modules.py fix 1/2 (gzip-aware read count)",
+)
 
-def subsample_fastq(gene, read_num, my_folder):
-    fastq = my_folder.reads_dir + "/" + gene + ".long_read.fq.gz"
-    sub_fastq = my_folder.reads_dir + "/" + gene + ".long_read.sub.fq"
-    read_count = cout_read_num(fastq)
-    if read_count <= read_num:
-        os.system(f"gzip -dc {fastq} > {sub_fastq}")''',
-    "alignment_modules.py fix (gzip read-count + decompression)",
+replace_once(
+    align_mod,
+    '        os.system(f"zcat {fastq} > {sub_fastq}")',
+    '        os.system(f"gzip -dc {fastq} > {sub_fastq}")',
+    "alignment_modules.py fix 2/2 (portable decompression)",
 )
 
 print("Done.")
