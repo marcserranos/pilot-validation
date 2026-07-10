@@ -97,7 +97,7 @@ Genomics bucket: **`gs://vwb-aou-datasets-controlled/`** — **requester-pays**:
 
 ## Fixes already made — don't rediscover these
 
-- `pixi.toml`: added `arpack` (SpecHLA's SpecHap cmake build needs it; missing from upstream's `environment.yml`), `pandas` (SpecHLA's `g_group_annotation.py`), `pypdf2` (SpecImmune PDF-report step).
+- `pixi.toml`: added `arpack` (SpecHLA's SpecHap cmake build needs it; missing from upstream's `environment.yml`), `pandas` (SpecHLA's `g_group_annotation.py`), `pypdf2` (SpecImmune PDF-report step), `matplotlib` (2026-07-10, `experiment_a_ext_ancestry_clustering.py`'s PNG plots — `Agg` backend, no display server needed). Run `pixi install -e spechla` (or just `pixi run`, which installs on demand) after pulling to pick it up.
 - `less` couldn't be added via pixi (solver conflict: conda-forge `less` needs a newer `libzlib` than `blast`/`bwa` allow) and can't be apt-installed (no sudo). **Patched SpecHLA source instead** — `less $fa | grep -v ">"` is just a `cat` misuse: `sed -i 's/less \$fa/cat \$fa/g' ~/tools/SpecHLA/script/whole/annoHLA.pl`. **This patch lives only on the VM, not in git** — reapply if SpecHLA is re-cloned.
 - SpecImmune needs its HLA reference db built locally (not shipped): `python scripts/make_db.py -o ./db -i HLA`, once from `~/tools/SpecImmune` in `pixi shell -e specimmune`.
 

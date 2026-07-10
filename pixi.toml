@@ -23,6 +23,7 @@ perl = "*"
 cmake = ">=3.16"
 arpack = "*"
 pandas = "*"
+matplotlib = "*"  # added 2026-07-10 for experiment_a_ext_ancestry_clustering.py (PNG plots only, no display needed)
 samtools = ">=1.10"
 bwa = "0.7.17.*"
 bowtie2 = ">=2.3"

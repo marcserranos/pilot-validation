@@ -130,6 +130,24 @@ Full per-gene, per-config raw values (allele calls, identity, read counts, ambig
 
 **Outputs:** `~/pipeline_outputs/<id>/sweep/progress.log`, `~/pipeline_outputs/<id>/sweep/comparisons.md` (10 human-readable matrices), `~/pipeline_outputs/<id>/comparison_log.csv` (master long-format log). Comparison script (rewritten 2026-07-09) reports raw calls + confidence, no verdict — see DECISIONS.md.
 
+## 2026-07-10 — Experiment A complete: AoU-native distribution stats (n=535,658)
+
+Ran `experiment_a_aou_stats.py` over the full `hla_genotypes.tsv` (535,658 research_ids) joined to `ancestry_preds.tsv` (535,658/535,658 joined, 100%).
+
+**Missingness — effectively zero, not "assumed near-full."** All 8 classical genes: 0.0% missing (either or both alleles). 535,649/535,658 (99.998%) fully resolved across all 8 loci. The earlier "never actually measured" note in the roadmap is resolved: coverage is as complete as data gets.
+
+**Resolution ceiling: capped at 3-field, universally, zero 4-field ever observed.** Every gene resolves to 3-field in 99.4-100% of calls, with a 0-0.6% 2-field remainder, and **not a single 4-field call across the entire cohort**. This answers the open "2-field vs 4-field" question in DECISIONS.md for the AoU-native arm specifically: it structurally cannot deliver 4-field resolution — that has to come from SpecHLA/SpecImmune if the downstream aims need it.
+
+**Homozygosity per locus — DPA1 is a striking outlier.** A: 11.4%, B: 5.65%, C: 9.43%, DRB1: 7.53%, DQA1: 18.28%, DQB1: 14.4%, DPA1: **57.43%**, DPB1: 20.45%. DPA1 sits at ~3x the next-highest locus. New candidate mechanistic lead for the one confirmed SpecImmune-DPA1 divergence from the 3-person bake-off (2026-07-09 entry above): either DPA1 genuinely has low allelic diversity in this cohort (plausible, known in HLA population genetics), or AoU's ensemble has a reference-bias tendency toward over-calling homozygosity at this locus. Worth raising as a specific testable hypothesis, not just an unexplained discrepancy.
+
+**DQA1 by genetic ancestry (first ancestry-resolved look at the standing open finding):** missingness stays 0.0% in every group (not an availability problem). Homozygosity: afr 18.08% (n=100,798), amr 19.05% (n=107,928), eas 18.25% (n=15,893), eur 18.03% (n=302,712), sas 18.33% (n=6,176) — all tight. **mid 24.17% (n=2,151)** — elevated, but n is much smaller than the other groups, so directional only. Does not yet resolve whether the AoU-native DQA1 discordance itself (vs. SpecHLA/SpecImmune) is ancestry-correlated — that needs Experiment D's actual 3-way comparison; this is only a distributional check of AoU-native's own self-consistency by ancestry.
+
+**Presentation asset:** 4-panel visual built (stat tiles + resolution-depth stacked bar + homozygosity bar with DPA1 highlighted + DQA1-by-ancestry bar with mid highlighted) — see chat history 2026-07-10, not saved as a repo file (regenerate from the numbers above if needed for the deck).
+
+Script: `experiment_a_aou_stats.py` (repo root). Outputs are aggregate-only (no participant-level data printed).
+
+---
+
 ## Roadmap locked 2026-07-09 — four experiments, in order, for the next session
 
 Agreed with Marc after the aligner x padding sweep. Read this whole section before starting any of them — each has design notes and quirks that took real debugging to discover once already (don't rediscover). Order below is the intended sequence: A is cheap/parallel-anytime; B and C are compute-optimization investigations that should ideally land before D's big spend, but D is **not blocked waiting indefinitely** on them (see D's own notes). The two standalone confirmation items from the previous entry (pad100k floor, minimap2/DPB1 non-regression on a 3rd person) are folded into Experiment B/D's scope, not separate tasks.
