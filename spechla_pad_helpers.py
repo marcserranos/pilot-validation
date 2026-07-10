@@ -73,6 +73,24 @@ def cmd_windows(args):
     print(" ".join(f"chr6:{s}-{e}" for s, e in merged))
 
 
+def cmd_truncated_windows(args):
+    # Deliberate positive control (2026-07-10): the padding sweep only ever shrank the
+    # flanking margin around each gene cluster -- the clusters themselves (kb to tens of
+    # kb) were never touched, which is the real reason zero degradation was observed even
+    # at the "subfloor" padding level. This truncates INTO each cluster around its
+    # midpoint, well below a single fragment's length, to confirm the pipeline can and
+    # does break when the window is genuinely inadequate -- a sanity check, not a refined
+    # floor estimate.
+    width = args.width
+    half = width // 2
+    windows = []
+    for s, e in GENE_CLUSTERS:
+        mid = (s + e) // 2
+        windows.append((max(1, mid - half), mid + half))
+    merged = merge_windows(windows)
+    print(" ".join(f"chr6:{s}-{e}" for s, e in merged))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -80,6 +98,12 @@ def main():
     w = sub.add_parser("windows")
     w.add_argument("--pad", type=int, required=True)
     w.set_defaults(func=cmd_windows)
+    t = sub.add_parser("truncated-windows")
+    t.add_argument("--width", type=int, required=True,
+                    help="Total window width (bp) centered on each gene cluster's midpoint, "
+                         "ignoring the cluster's own natural extent. Meant to be small enough "
+                         "to guarantee degradation, not a refined estimate.")
+    t.set_defaults(func=cmd_truncated_windows)
     args = ap.parse_args()
     args.func(args)
 

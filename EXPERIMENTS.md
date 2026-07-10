@@ -166,6 +166,47 @@ Outputs (VM-local, not committed — view via Jupyter file browser): `~/pipeline
 
 ---
 
+## 2026-07-10 (cont.) — Experiment B complete: SpecHLA (short-read) padding sweep
+
+Person 2522883, same 4 gene-cluster coordinates as the LR sweep, single variable (padding only — SpecHLA hardcodes bwa internally, no aligner axis for this tool). Real fragment-size distribution measured first (`samtools stats` IS histogram, n=621,201 pairs): median 419bp, p95 586bp, p99 649bp, max 688bp — tight, as expected for standard short-insert Illumina WGS. Derived floor_pad=650bp (p99 rounded up) and subfloor_pad=325bp (floor/2, risky control) — both far smaller than the LR sweep's 34kb floor, confirming the roadmap's warning that reusing LR pad levels here would have been meaningless.
+
+### Runtime + read-count scaling
+
+| Pad level | Reads sliced | Properly paired | Runtime (real) |
+|---|---|---|---|
+| pad500000 | 1,101,569 | 98.47% | 18m33.8s |
+| pad200000 | 561,771 | 98.33% | 11m40.3s |
+| pad100000 | 303,398 | 98.08% | 8m6.9s |
+| pad40000 | 156,671 | 97.83% | 5m38.2s |
+| pad10000 | 87,236 | 97.56% | 4m35.2s |
+| pad2000 | 70,719 | 97.74% | 4m22.3s |
+| pad_floor_650 | 67,522 | 97.82% | 4m14.5s |
+| pad_subfloor_325 | 66,832 | 97.81% | 4m14.4s |
+
+(fullpad baseline reused from 2026-07-09, ~21m8s — a single contiguous 4Mb window, not directly read-count-comparable to these carved multi-region windows.)
+
+**Runtime plateaus hard below ~2-10kb padding, around 4m14s** — a ~4.4x speedup from pad500000 to the subfloor. Read count plateaus even harder (67,522 → 66,832, effectively flat from pad2000 down to the risky subfloor). Short-read mirror of the LR sweep's fixed-overhead finding: SpecHLA has a substantial runtime floor independent of input size once the window is already narrow.
+
+**Mate-pair dropout is real but small, and never propagates into call changes.** Properly-paired % declines mildly and non-monotonically from 98.47% (pad500000) to a minimum of 97.56% (pad10000), then recovers to ~97.8% at the narrowest levels — a real ~1-point range, not the cliff the roadmap worried about. Untested hypothesis: coarser windows capture more non-classical-gene flanking sequence (repetitive/pseudogene-dense), which may itself carry a different baseline pairing rate than the gene bodies — worth checking on a 2nd person.
+
+**Zero call changes at any of the 8 genes, across all 9 configurations (fullpad down to 325bp).** Every gene's SpecHLA allele calls are identical from the full 4Mb window down to 325bp padding, including the historically hardest loci (DRB1, DPB1). Materially different from the LR sweep, which found real degradation at DRB1 and Gene A at narrow padding. Short fragments (~400-650bp) need only ~2kb of padding around the gene bodies to capture essentially all informative read pairs (read count is already >95% saturated by pad2000 vs pad500000) — padding beyond that adds flanking reads, not gene-body signal.
+
+**Recommendation: pad2000 (or pad10000 for extra safety margin) looks like a strong, well-evidenced new default for SpecHLA specifically** — ~4.3-4.6min runtime vs ~18.5min+ at pad500000, no observed accuracy cost. **n=1 person — directional, confirm on a 2nd/3rd person before adopting**, same caveat as the LR sweep's pad100k call. **This is a SpecHLA-specific recommendation — do not conflate with the LR sweep's pad100k finding for SpecImmune; the two tools/read-types have entirely different floors (650bp vs 34kb) and were evaluated on different window mechanics.**
+
+**Cosmetic-only note:** at pad_subfloor_325, gene C's two SpecHLA alleles print in swapped order (`C*07:02:01:01,C*01:02:01:01` vs every other config's `C*01:02:01:01,C*07:02:01:01`) — same unordered genotype, not a discordance, just hap1/hap2 label ordering (SpecHLA doesn't guarantee consistent ordering across independent runs).
+
+Outputs: `~/pipeline_outputs/2522883/spechla_sweep/progress.log`, `comparisons.md` (9 matrices); `~/pipeline_outputs/2522883/comparison_log.csv` (master long-format log, now spans both the 2026-07-09 LR sweep and this SR sweep).
+
+## 2026-07-10 (cont.) — correction to Experiment B: wrong QC metric, and a missing positive control
+
+Marc pushed back on the "zero degradation, even below the floor" result as suspicious, correctly. Two real problems found on review, not just a shallow write-up:
+
+**(1) The mate-dropout QC metric was wrong, not just imperfect.** `run_spechla_pad_sweep.sh` measured `samtools flagstat`'s "properly paired %" on the sliced BAM — but that flag is set during the *original* genome-wide alignment and is structurally insensitive to this script's own region-slicing. It could never have detected the thing it was built to check. The real signal was already sitting unused in the log: `samtools fastq`'s own "discarded N singletons" count. Recomputed as a rate (discarded / reads sliced): pad500000 1.21%, pad200000 1.29%, pad100000 1.55%, pad40000 1.82%, pad10000 2.19%, pad2000 2.04%, pad_floor_650 1.96%, pad_subfloor_325 2.02%. **There is a real mate-dropout signal — it roughly doubles as padding narrows** — the original write-up's "mate-dropout is real but small" conclusion happened to be directionally right, but for the wrong reason (a metric that couldn't see it, not one that saw a small effect). Fixed in `run_spechla_pad_sweep.sh` for future reruns; the fix is a general lesson (verify a QC metric actually responds to the manipulation being tested), not SpecHLA-specific.
+
+**(2) The padding sweep only ever tested the flanking margin, never the gene body itself.** Gene clusters are large relative to the padding range tested (Gene A ~8.3kb; the DRB1/DQA1/DQB1 cluster ~90kb) — shrinking padding from 500,000bp to 325bp changes the margin around the gene, not the gene body where the diagnostic exons live. Once fragments are short enough (~650bp) to not need much margin, there's no mechanistic reason to expect further degradation from margin alone. So "zero degradation at 325bp padding" is plausible and not obviously a bug — but nothing in the original design could tell that apart from something silently broken (e.g. cached results being reused). **Fix: a genuine positive control, `run_spechla_truncation_sanity_check.sh`**, which truncates *into* each gene cluster around its midpoint (widths 5000/1000/650/300/100bp, deliberately below what a single fragment needs) rather than shrinking the margin. If this also shows zero degradation, that's real evidence of a pipeline bug; if it shows real degradation (missing calls, garbage identity, or SpecHLA erroring outright), that validates the original padding-sweep result rather than undermining it. New helper subcommand: `spechla_pad_helpers.py truncated-windows --width W`. Not yet run — queued as the next immediate step, ahead of Experiment C/D.
+
+---
+
 ## Roadmap locked 2026-07-09 — four experiments, in order, for the next session
 
 Agreed with Marc after the aligner x padding sweep. Read this whole section before starting any of them — each has design notes and quirks that took real debugging to discover once already (don't rediscover). Order below is the intended sequence: A is cheap/parallel-anytime; B and C are compute-optimization investigations that should ideally land before D's big spend, but D is **not blocked waiting indefinitely** on them (see D's own notes). The two standalone confirmation items from the previous entry (pad100k floor, minimap2/DPB1 non-regression on a 3rd person) are folded into Experiment B/D's scope, not separate tasks.

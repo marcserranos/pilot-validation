@@ -8,8 +8,13 @@
 #       (samtools stats' IS histogram) and derives the floor/subfloor pad levels from it,
 #       instead of guessing.
 #   (2) Short reads are paired -- a narrow window can silently drop one mate of a pair. This
-#       script checks properly-paired % per config (samtools flagstat), which the LR sweep
-#       never needed (long reads aren't paired).
+#       script checks the real mate-dropout rate per config (`samtools fastq`'s own
+#       "discarded N singletons" count, as a fraction of reads sliced) -- NOT
+#       `samtools flagstat`'s "properly paired %", which reflects flags from the ORIGINAL
+#       genome-wide alignment and can't detect anything this script's own slicing does
+#       (an earlier version used flagstat and it was structurally blind to the thing it
+#       claimed to check -- see EXPERIMENTS.md 2026-07-10 correction). The LR sweep never
+#       needed this at all (long reads aren't paired).
 #   (3) No aligner dimension -- SpecHLA hardcodes bwa internally (ENVIRONMENT.md), unlike
 #       SpecImmune's --align_method_1/2. Padding is the only variable here.
 #   (4) SpecHLA's own README says to clear previous results before rerunning -- this script
@@ -94,14 +99,27 @@ run_one() {
 
   local bam="$rundir/sliced.bam"
   samtools view -b "$SR_BAM" $windows -o "$bam" 2>>"$PROGRESS"
-  local nreads pp_pct
+  local nreads
   nreads=$(samtools view -c "$bam" 2>>"$PROGRESS")
-  pp_pct=$(samtools flagstat "$bam" 2>>"$PROGRESS" | awk '/properly paired/ {print $6}' | tr -d '(%')
-  log "$label: sliced $nreads reads, properly-paired=${pp_pct:-NA}%"
+  log "$label: sliced $nreads reads"
 
   samtools sort -n -o "$rundir/namesorted.bam" "$bam" 2>>"$PROGRESS"
+  # The real mate-dropout signal is `samtools fastq`'s own "discarded N singletons" line
+  # (a mate whose partner fell outside this window) -- NOT `samtools flagstat`'s "properly
+  # paired %", which reflects flags set during the ORIGINAL genome-wide alignment and is
+  # structurally insensitive to this script's own region-slicing (see EXPERIMENTS.md
+  # 2026-07-10 correction -- an earlier version of this script used flagstat and it never
+  # had a chance to detect what it claimed to check).
+  local fastq_log="$rundir/fastq.log"
   samtools fastq -1 "$rundir/R1.fastq.gz" -2 "$rundir/R2.fastq.gz" -0 /dev/null \
-    -s "$rundir/singletons.fastq.gz" -F 0x900 "$rundir/namesorted.bam" 2>>"$PROGRESS"
+    -s "$rundir/singletons.fastq.gz" -F 0x900 "$rundir/namesorted.bam" 2>"$fastq_log"
+  cat "$fastq_log" >> "$PROGRESS"
+  local discarded
+  discarded=$(grep -oP 'discarded \K[0-9]+(?= singletons)' "$fastq_log" || echo 0)
+  local dropout_pct
+  dropout_pct=$(pixi run --manifest-path "$PIXI_MANIFEST" -e spechla -- python3 -c \
+    "print(f'{$discarded / max($nreads, 1) * 100:.3f}')")
+  log "$label: mate-dropout rate = ${discarded}/${nreads} = ${dropout_pct}%"
 
   local specout="$rundir/spechla_output"
   local timing="$rundir/timing.txt"
