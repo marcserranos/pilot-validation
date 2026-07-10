@@ -251,6 +251,32 @@ Design:
 6. Reuse the same 4 gene-cluster coordinates already pinned via Ensembl REST (A | C+B | DRB1+DQA1+DQB1 | DPA1+DPB1) — no need to re-derive.
 7. Run on person 2522883 (same as the LR sweep) for direct comparability, same single-variable-at-a-time methodology.
 
+## 2026-07-10 (cont.) — Experiment C investigated locally: restriction confirmed feasible, two real upstream bugs found and fixed
+
+Cloned SpecImmune from GitHub locally (not the VM) and read the actual source, per Marc's explicit instruction to investigate and iterate freely on a local copy before touching the VM, since this optimization is bottlenecked by SpecImmune's own code, not by anything VM-specific.
+
+**Mechanism confirmed by reading the source, not guessing:** `make_db.py`'s `--HLA_fa`/`--HLA_exon_fa` flags accept a custom reference FASTA in place of the auto-downloaded IMGT file — `create_HLA_directories_and_save_sequences()` builds one directory + index per gene found in *whatever FASTA it's given*, nothing else. Every per-gene stage in the actual typing pipeline (`read_binning.py`, `long_read_typing.py`, `refine_typing.py`, `select_best_reference_alleleV2.py`, `visualization.py`) discovers its gene list dynamically via `get_folder_list(db_folder)` — a plain `os.listdir()` on the `--db` directory — confirmed by `db_objects.py`'s `My_db` class (`full_db`, `cal_gene_len()`, etc. all keyed off the same directory listing). The one file still using the hardcoded 37-gene list (`get_ref.py`) is dead code — its only call site in `main.py` is commented out. **A restricted DB genuinely restricts processing, with no code changes needed to the typing pipeline itself.** This reverses the 2026-07-08 "ruled out" assessment.
+
+**Two real, previously-undiscovered bugs found and fixed (not specific to gene restriction, but the first one blocked it entirely):**
+1. `make_db.py`'s `--HLA_fa`/`--HLA_exon_fa` branches referenced `local_release_version`/`local_g_group_annotation` before assigning them — `UnboundLocalError`, 100% reproducible on every call. **This is almost certainly why the 2026-07-08 assessment called it "not worth speculative effort"** — the documented lever was broken from the start, so nobody could have tried it successfully. Fixed by assigning the paths in that branch too (mirrors the default-download branch).
+2. `alignment_modules.py`'s `cout_read_num()` opened a gzipped FASTQ with plain `open(path, "rb")` and counted raw compressed bytes as newline-delimited lines — a nonsense count on any platform, silently miscalibrating the subsample-vs-copy branching in `subsample_fastq()`. Fixed to use `gzip.open()`; also switched the shell-out from `zcat` to `gzip -dc` (more portable — macOS's BSD `zcat` failed outright on this exact invocation locally, producing empty subsampled files and cascading into a `TypeError` deep in `refine_typing.py`).
+
+Both fixes are packaged as `patch_specimmune_for_gene_restriction.py` (idempotent, checks before touching a file) — same "patch lives on the VM, documented here, not upstream" pattern as the existing SpecHLA `less`→`cat` patch (ENVIRONMENT.md Fixes list).
+
+**Real, measured local evidence (SpecImmune's own shipped `test/HLA/test_HLA_lite.fastq.gz` + known-truth `test.HLA.hap.alleles.txt`, both DBs built from the identical downloaded IMGT release for a clean comparison):**
+- Restricted DB (8 genes): directory build confirmed exactly 8 gene subdirectories under `HLA/` and `HLA_CDS/` (no MICA/TAP1/HFE/DRB3-5/etc.) — **built in ~107s**.
+- Full DB (~37 genes): confirmed all ~37 gene subdirectories — **built in ~225s**.
+- **~2.1x faster at the DB-build stage alone**, before even running a typing comparison.
+
+**Full local typing-run comparison hit a wall — a real, but orthogonal, macOS-specific issue, not a restriction problem.** After fixing both bugs above and installing minimap2/samtools/bwa/blast/seqtk locally (none were present), typing runs against both DBs hit a third, different failure: a malformed line in a per-gene depth file (`ValueError: invalid literal for int() with base 10: '0HLA-B*40:10:01:02'`), landing on a *different* random classical gene each rerun (HLA-B, then HLA-C) — consistent with a nondeterministic race under parallel (`-j 6`) execution, most likely a `samtools sort`/temp-file collision specific to this local macOS/Homebrew samtools build. Traced far enough to rule out a code-level shared-file bug (each gene's depth file has its own unique path) and to confirm it hits *both* the full-panel and restricted DB equally (so it's not something my change introduced). Not chased further: single-threaded (`-j 1`) avoids the race but is impractically slow locally (~75s per gene's minimap2 step alone on this test machine), and this exact tool/samtools combination has already completed dozens of real runs on the VM this project without ever hitting this — the VM environment is the right place to finish this validation, not further local debugging with diminishing returns.
+
+**Ready for the VM, in order:**
+1. `patch_specimmune_for_gene_restriction.py` — apply both fixes to `~/tools/SpecImmune` (idempotent).
+2. `build_restricted_specimmune_db.sh` — filters the *already-downloaded* IMGT source FASTAs sitting in the existing `~/tools/SpecImmune/db/HLA/` (no re-download) to the 8 classical genes, builds `~/tools/SpecImmune/db_classical8/`, and verifies only 8 gene directories exist.
+3. `run_experiment_c_comparison.sh <person_id>` — reuses the exact same FASTQ as the existing pad100k-bwa baseline from the LR sweep (isolating the DB as the sole variable), runs SpecImmune against the restricted DB, checks per-gene completeness (same lesson as Experiment B — file existence isn't sufficient), lists what actually landed in `individual_ref/` (directly answers whether restriction leaks non-classical genes), and diffs against the existing baseline via `compare_hla_results.py`.
+
+---
+
 ### Experiment C — SpecImmune gene-panel restriction (investigate feasibility, potentially bigger than B)
 
 Goal: SpecImmune currently types ~30 loci (8 classical + 22 non-classical/pseudogenes we never use downstream). If restricting to just the 8 is buildable, this could be a bigger lever than padding — a real chunk of its runtime is fixed per-gene overhead (index-building, seen as dozens of `bwa index`/`minimap2` calls per gene in every log) that scales with gene *count*, not input size.
