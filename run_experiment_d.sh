@@ -228,7 +228,7 @@ SPECHLA_WINDOWS=$(pixi run --manifest-path "$PIXI_MANIFEST" -e spechla -- \
 log "SpecHLA windows (pad${SPECHLA_PAD}): $SPECHLA_WINDOWS"
 log "SpecImmune windows (pad100k): $SPECIMMUNE_WINDOWS"
 
-while IFS=$'\t' read -r pid ancestry cram_rel lr_rel; do
+while IFS=$'\t' read -r pid ancestry cram_rel lr_rel bam_source; do
   [ -z "${pid:-}" ] && continue
   process_person "$pid" "$ancestry" "$cram_rel" "$lr_rel"
 done < <(tail -n +2 "$COHORT")
