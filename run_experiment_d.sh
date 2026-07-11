@@ -204,6 +204,13 @@ process_person() {
        --specimmune-result "$si_res" \
        >> "$pdir/comparison_experiment_d.md" 2>>"$PROGRESS"; then
     touch "$pdir/expd.done"; rm -f "$pdir/expd.attempts"
+    # Disk hygiene (2026-07-11, after a disk-full at ~person 10): the calls are now captured in
+    # comparison_log.csv + the KB-sized result files, so drop the regenerable slices/FASTQs and the
+    # bulky tool intermediates (>1MB). Without this a person leaves ~3GB behind and 60 need ~180GB;
+    # with it, disk stays flat. Re-slicing a pruned person costs ~5s if ever needed.
+    rm -f "$pdir"/expd_sr_sliced.bam "$pdir"/expd_sr_namesorted.bam "$pdir"/expd_lr_sliced.bam \
+          "$pdir"/expd_R1.fastq.gz "$pdir"/expd_R2.fastq.gz "$pdir"/expd_singletons.fastq.gz "$pdir"/expd_LR.fastq
+    find "$pdir/expd_spechla_output" "$pdir/expd_specimmune_output" -type f -size +1M -delete 2>/dev/null
     log "[$pid $ancestry] === DONE (SpecHLA $sh_n/16, SpecImmune $si_n/8) ==="
     DONE=$((DONE+1)); notify "Experiment D: $pid ($ancestry) done [$DONE done / $FAIL failed / $SKIP skip]"
   else
