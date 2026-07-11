@@ -102,37 +102,48 @@ def main():
                 f"remount and `ls`-verify before running anything that reads the bucket.)")
 
     # --- long-read manifest first (smallest, ~15k rows; it's the binding constraint) ---
-    # BAM resolution rule (ENVIRONMENT.md quirk #13, full investigation 2026-07-11): the manifest
-    # mixes rows from two release increments. Every row whose BAM path is rooted under `v8_delta`
-    # has checked out as a real, sliceable aligned BAM -- confirmed via samtools quickcheck + header
-    # + a real HLA-window read count, across THREE different platform labels (revio, ont, sequel2e)
-    # and multiple centers (BCM, JHU). Every row rooted under `v9_delta` (checked for pacbio- and
-    # ont-labeled rows, at BCM/JHU/UW) instead points at a de novo phased assembly + variant-call
-    # product with no aligned BAM published -- a different data product for that increment, not a
-    # missing file. The dividing line is the release folder, NOT the platform label -- an earlier
-    # version of this resolver special-cased platform=='revio'/'sequel2' and missed this.
-    # The BAM column also isn't consistent: most rows use `grch38_bam`, but the `sequel2` platform's
-    # real BAM lives under `grch38_haplotagged_bam` instead (a different column, same v8_delta root).
-    # Finally: ~879 of 14,521 people have MULTIPLE manifest rows (different center/platform per AoU's
-    # own docs -- "some samples have two rows... need research_id+center+platform to uniquely
-    # identify"). A person's newest row can be the unusable v9_delta kind while an older row for the
-    # SAME person resolves fine (confirmed directly: person 1008366's `revio` row is the broken
-    # v9_delta/pacbio pattern, but their separate `ont-r10.4.1` row is a real v8_delta BAM) -- so
-    # resolution must be done per ROW first, then deduplicated to any resolving row per person.
+    # BAM resolution (ENVIRONMENT.md quirk #13, full investigation 2026-07-11): after TWO rounds of
+    # path-pattern guessing each missed a real source (a `/revio/`-only filter missed `sequel2`'s
+    # real BAM under a different column; a `/v8_delta/`-folder filter then missed it AGAIN, because
+    # `sequel2`'s real files apparently live under yet another release folder, not literally
+    # `v8_delta`) -- this resolver stops pattern-matching release-folder names entirely and instead
+    # verifies each candidate file's existence directly against the mount. Ground truth, not a guess.
+    # Checks both known BAM-holding columns (`grch38_bam`, then `grch38_haplotagged_bam` -- confirmed
+    # 2026-07-11 that at least the `sequel2` platform publishes its real BAM under the latter).
+    # ~879 of 14,521 people have multiple manifest rows (different center/platform per AoU's own
+    # docs); a person's newest row can be unusable while an older row for the same person resolves
+    # fine (confirmed: person 1008366's `revio` row is a dead path, but their separate `ont-r10.4.1`
+    # row is real) -- so resolution happens per ROW first, then dedupes to any resolving row per person.
+    # This does one os.path.exists() per candidate column per row (up to ~2x15,424 mount stats) --
+    # takes a few minutes over gcsfuse, not instant like the old pattern-match version. That's expected.
     print(f"Reading LR manifest: {lr_path}", file=sys.stderr)
     lr = pd.read_csv(lr_path, sep="\t", dtype=str)
     require_cols(lr, ["research_id", "center", "platform", "grch38_bam", "grch38_haplotagged_bam"], "LR manifest")
     n_lr_total, n_people_total = len(lr), lr["research_id"].nunique()
+    print(f"  Verifying real file existence for {n_lr_total} rows against the mount "
+          f"(ground truth, not a path-pattern guess -- this will take a few minutes, not hung)",
+          file=sys.stderr)
 
-    def resolve_bam(row):
+    def find_existing_bam(row):
         for col in ("grch38_bam", "grch38_haplotagged_bam"):
             v = row.get(col)
-            if isinstance(v, str) and "/v8_delta/" in v:
-                return v, f"v8_delta_via_{col}"
-        return None, "no_v8_delta_row"
+            if not isinstance(v, str) or not v:
+                continue
+            rel_path = strip_bucket(v)
+            if rel_path is None:
+                continue
+            if os.path.exists(os.path.join(args.mount, rel_path)):
+                return v, col
+        return None, "no_existing_file_found"
 
-    resolved = lr.apply(resolve_bam, axis=1, result_type="expand")
-    lr["_bam_uri"], lr["bam_source"] = resolved[0], resolved[1]
+    uris, sources = [], []
+    for i, row in enumerate(lr.to_dict("records")):
+        if i and i % 2000 == 0:
+            print(f"    ...checked {i}/{n_lr_total}", file=sys.stderr)
+        uri, src = find_existing_bam(row)
+        uris.append(uri)
+        sources.append(src)
+    lr["_bam_uri"], lr["bam_source"] = uris, sources
     print("  BAM resolution by source (per row, before per-person dedup):", file=sys.stderr)
     for src, n in lr["bam_source"].value_counts().items():
         print(f"    {src}: {n}", file=sys.stderr)
