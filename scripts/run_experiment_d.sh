@@ -54,8 +54,8 @@ OUTROOT="$HOME/pipeline_outputs"
 EXPDIR="$OUTROOT/experiment_d"
 PROGRESS="$EXPDIR/progress.log"
 PIXI_MANIFEST="$HOME/repos/pilot-validation/pixi.toml"
-HELPERS="$HOME/repos/pilot-validation/spechla_pad_helpers.py"
-COMPARE="$HOME/repos/pilot-validation/compare_hla_results.py"
+HELPERS="$HOME/repos/pilot-validation/scripts/spechla_pad_helpers.py"
+COMPARE="$HOME/repos/pilot-validation/scripts/compare_hla_results.py"
 SPECHLA_DIR="$HOME/tools/SpecHLA"
 SPECIMMUNE_DIR="$HOME/tools/SpecImmune"
 BILLING="wb-glacial-potato-8710"
@@ -234,5 +234,5 @@ while IFS=$'\t' read -r pid ancestry cram_rel lr_rel bam_source; do
 done < <(tail -n +2 "$COHORT")
 
 log "================ Experiment D run complete: $DONE done, $FAIL failed, $SKIP skipped ================"
-log "Aggregate analysis: python3 ~/repos/pilot-validation/analyze_experiment_d.py $COHORT"
+log "Aggregate analysis: python3 ~/repos/pilot-validation/scripts/analyze_experiment_d.py $COHORT"
 notify "Experiment D FINISHED: $DONE done, $FAIL failed, $SKIP skipped"

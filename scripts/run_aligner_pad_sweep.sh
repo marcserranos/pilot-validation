@@ -115,7 +115,7 @@ run_one() {
   fi
   log "$label: SpecImmune done ($(grep real "$timing" | tail -1))"
 
-  python3 "$HOME/repos/pilot-validation/compare_hla_results.py" "$PERSON_ID" \
+  python3 "$HOME/repos/pilot-validation/scripts/compare_hla_results.py" "$PERSON_ID" \
     --run-label "$label" \
     --specimmune-result "$result_file" \
     >> "$SWEEP_DIR/comparisons.md" 2>>"$PROGRESS"
@@ -126,7 +126,7 @@ log "=== sweep starting for person $PERSON_ID ==="
 
 # Reuse the already-completed full-pad bwa baseline -- no rerun, just fold it into the matrix.
 log "fullpad_bwa: reusing existing baseline (no rerun)"
-python3 "$HOME/repos/pilot-validation/compare_hla_results.py" "$PERSON_ID" \
+python3 "$HOME/repos/pilot-validation/scripts/compare_hla_results.py" "$PERSON_ID" \
   --run-label "fullpad_bwa" >> "$SWEEP_DIR/comparisons.md" 2>>"$PROGRESS"
 
 for pad_label in fullpad pad200k pad100k pad40k pad5k; do

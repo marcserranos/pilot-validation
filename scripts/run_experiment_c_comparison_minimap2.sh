@@ -31,7 +31,7 @@ PERSON_ID="${1:?Usage: bash run_experiment_c_comparison_minimap2.sh <person_id>}
 OUTDIR="$HOME/pipeline_outputs/$PERSON_ID"
 SPECIMMUNE_DIR="$HOME/tools/SpecImmune"
 PIXI_MANIFEST="$HOME/repos/pilot-validation/pixi.toml"
-COMPARE="$HOME/repos/pilot-validation/compare_hla_results.py"
+COMPARE="$HOME/repos/pilot-validation/scripts/compare_hla_results.py"
 RESTRICTED_DB="$SPECIMMUNE_DIR/db_classical8"
 
 BASELINE_FASTQ="$OUTDIR/sweep/pad100k_minimap2/LR.fastq"
