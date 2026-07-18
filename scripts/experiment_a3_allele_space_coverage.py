@@ -50,7 +50,27 @@ import pandas as pd
 CLASSICAL_GENES = ["A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
 NULL = {"", "NA", "-", "nan", "None", ".", "na"}
 TOP_N_GROUPS = 15  # per-gene groups to print in the compact "tree-ready" table
-VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
+# Allelelist_history.txt's real header (confirmed 2026-07-18, VM run) encodes each IMGT release
+# as a plain digit string, NOT dotted (e.g. "3650", "3380", "116"), newest-first, e.g.:
+#   HLA_ID,3650,3640,3630,...,3000,2280,...,2000,116
+# Decode rule (validated against two independently-known anchors -- SpecHLA's DB 3.38.0 and
+# SpecImmune's DB 3.64.0, DECISIONS.md -- both decode correctly below): last digit = patch,
+# preceding 2 digits = minor, remaining leading digit(s) = major. The oldest column ("116", only
+# 3 digits) predates the patch-digit convention -- treated as patch=0.
+VERSION_RE = re.compile(r"^\d{3,4}$")
+
+
+def decode_version(colname):
+    """'3380' -> '3.38.0', '3650' -> '3.65.0', '116' -> '1.16.0' (patch assumed 0, pre-patch-era)."""
+    s = colname.strip()
+    if len(s) >= 4:
+        major, minor, patch = s[:-3], s[-3:-1], s[-1]
+    elif len(s) == 3:
+        major, minor, patch = s[:-2], s[-2:], "0"
+    else:
+        return s
+    return f"{major}.{minor}.{patch}"
 
 
 def strip_star(a):
@@ -217,22 +237,20 @@ def version_inference(history_path, cat_df, aou_df):
         return
 
     cols = header_line.split(",")
-    version_cols = [c for c in cols if VERSION_RE.match(c.strip())]
-    print(f"Detected {len(cols)} columns; {len(version_cols)} look like release-version strings "
-          f"(e.g. {version_cols[:3]}{'...' if len(version_cols) > 3 else ''}).\n")
+    id_col = cols[0].strip()
+    version_cols = [c for c in cols[1:] if VERSION_RE.match(c.strip())]
+    print(f"Detected {len(cols)} columns; {len(version_cols)} look like IMGT release codes "
+          f"(e.g. {version_cols[:3]}{'...' if len(version_cols) > 3 else ''} -> decoded "
+          f"{[decode_version(v) for v in version_cols[:3]]}).\n")
     if len(version_cols) < 2:
         print("SKIPPED -- fewer than 2 version-looking columns detected; the assumed schema "
-              "(one column per IMGT release) doesn't hold for this file as fetched. Needs a "
-              "manual look at the real header before this section can run:\n")
+              "(one column per IMGT release, digit-coded) doesn't hold for this file as fetched. "
+              "Needs a manual look at the real header before this section can run:\n")
         print(f"```\n{header_line[:500]}\n```\n")
         return
 
-    id_col = cols[0].strip()
     print(f"Using '{id_col}' as the row key (assumed = AlleleID).\n")
-
-    def vtuple(v):
-        return tuple(int(x) for x in v.split("."))
-    version_cols_sorted = sorted(version_cols, key=vtuple)
+    version_cols_sorted = sorted(version_cols, key=lambda c: int(c))  # ascending = oldest first
 
     hist = pd.read_csv(history_path, comment="#", dtype=str)
     if id_col not in hist.columns:
@@ -241,17 +259,17 @@ def version_inference(history_path, cat_df, aou_df):
         return
 
     cat_ids = set(cat_df["AlleleID"])
-    hist = hist[hist[id_col].isin(cat_ids)]
+    hist = hist[hist[id_col].isin(cat_ids)].reset_index(drop=True)
     print(f"Matched {len(hist)} / {len(cat_ids)} classical-gene AlleleIDs into the history file.\n")
 
-    def earliest_release(row):
-        for v in version_cols_sorted:
-            val = row.get(v)
-            if pd.notna(val) and str(val).strip() not in NULL:
-                return v
-        return None
-
-    hist["_first_release"] = hist.apply(earliest_release, axis=1)
+    # Vectorized (not row-by-row .apply) -- notna, ascending-chronological column order, first
+    # True per row via argmax on the boolean matrix.
+    block = hist[version_cols_sorted]
+    notna = (block.notna() & (block != "")).to_numpy()
+    first_idx = notna.argmax(axis=1)
+    any_true = notna.any(axis=1)
+    hist["_first_release"] = [version_cols_sorted[i] if a else None
+                              for i, a in zip(first_idx, any_true)]
     id_to_release = dict(zip(hist[id_col], hist["_first_release"]))
     id_to_gene_allele = dict(zip(cat_df["AlleleID"], zip(cat_df["gene"], cat_df["allele_full"])))
 
@@ -272,11 +290,12 @@ def version_inference(history_path, cat_df, aou_df):
     newest_used = None
     for key in aou_observed_2f:
         rel = allele_to_release.get(key)
-        if rel and (newest_used is None or vtuple(rel) > vtuple(newest_used)):
+        if rel and (newest_used is None or int(rel) > int(newest_used)):
             newest_used = rel
 
     print(f"**Newest IMGT release that introduced a 2-field allele-group AoU actually called: "
-          f"{newest_used or 'not determined'}**\n")
+          f"{decode_version(newest_used) if newest_used else 'not determined'}"
+          f"{f' (raw code {newest_used})' if newest_used else ''}**\n")
     print("This is a LOWER BOUND on AoU's underlying reference DB version -- it must be at "
           "least this new to have named this group. It is NOT an upper bound: AoU's DB could be "
           "newer and simply never have called an even-more-recent group in this cohort. Compare "
