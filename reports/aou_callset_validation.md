@@ -22,9 +22,22 @@ checks [pending] to confirm the calls behave like real HLA data.
 | **Resolution** | 2–3 field (variable by evidence) |
 | **No long-read equivalent** | AoU provides no lrWGS HLA callset — this is short-read only |
 
-**Open provenance item:** AoU's *own* QC methodology (sensitivity/precision from GiaB control
-samples) is documented in the **"All of Us Genomic Quality Report v9"** — we have located only
-archived v6–v8 so far. Retrieving v9 is the one outstanding step to fully close the origin axis.
+**AoU's own QC methodology — found (2026-07-18).** Now titled *"All of Us Genomics &
+Multi-omics Quality Report"* for CDR v9 (`C2025Q4R6`, released to the Workbench 2026-06-26),
+[publicly accessible, no Workbench login required](https://support.researchallofus.org/hc/en-us/articles/50655639562900-All-of-Us-Genomics-Multi-omics-Quality-Report).
+145 pages. Ground truth: **8 GIAB/NIST reference samples** (HG-001/NA12878 ×2, HG-002/3/4
+Ashkenazi trio, HG-005 Han/Chinese ancestry). Reported srWGS SNP/indel accuracy (Table 8, p.27-28,
+against GIAB v4.2.1 high-confidence regions): **SNV sensitivity 0.984–0.9865 / precision
+0.9991–0.9997; indel sensitivity 0.9708–0.9904 / precision 0.9961–0.9988**, across all 8 samples.
+
+**Important negative finding: HLA is not locus-specifically benchmarked anywhere in this
+report.** HLA calls are named only as an existing auxiliary data product; the "challenging
+medically relevant genes" QC section (p.71-72) covers KCNE1/CBS/MAP2K3, not HLA/chr6 MHC. AoU's
+own general-genome accuracy numbers above give confidence in the *underlying variant calls*, but
+say nothing about the HLA-calling ensemble's own accuracy at this locus — **our n=60 3-way pilot
+remains the only HLA-specific reliability evidence that exists for this callset**, AoU-produced
+or otherwise. Worth stating explicitly to supervisors: this isn't a gap in our homework, it's a
+real gap in the field's documentation of this specific dataset.
 
 ## 2. Exhaustiveness — coverage & completeness
 
