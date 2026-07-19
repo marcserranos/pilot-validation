@@ -4,40 +4,58 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-07-12 — Experiment D running on the VM; repo reorganized locally, not yet synced
+## As of 2026-07-19 — AoU-native callset validation report complete; Marc ran additional experiments on the VM not yet documented here
 
-**Experiments A, B, C are done** (see EXPERIMENTS.md for results). **Experiment D (fused ancestry-stratified 3-way comparison) is live on the VM right now** — a 60-person cohort (10 per ancestry group: AFR/AMR/EAS/EUR/MID/SAS), launched via `nohup bash scripts/run_experiment_d.sh ...`, using **SpecImmune with minimap2** (switched from bwa — no evidence bwa was more accurate, minimap2 matches SpecImmune's own README examples and is ~30% faster; DECISIONS.md). Mid-run, the VM's disk filled at ~person 10 (each person leaves ~3GB of intermediates); fixed with an auto-prune step added to `run_experiment_d.sh` after every person completes, so disk now stays flat. **Check progress:** `grep "run complete" ~/pipeline_outputs/experiment_d/nohup.out` (final tally) or `ls ~/pipeline_outputs/*/expd.done 2>/dev/null | wc -l` (people done so far).
+**Experiments A, B, C, D are all done** (see EXPERIMENTS.md). Experiment D's n=60 headline: no
+single method wins outright — AoU-native is safer than our own SpecHLA at DRB1; SpecHLA is
+better at DQA1. Full resolution-tier writeup already in EXPERIMENTS.md/DECISIONS.md. The
+2026-07-12 repo reorg (context/scripts/reference folders) has long since synced to the VM — not
+a live concern anymore.
 
-**Long-read BAM manifest investigation (2026-07-11–12): closed, with an honest floor, not a ceiling.** While building Experiment D's cohort, discovered the `v9/wgs/long_read/manifest.tsv` has far more usable people than the original `/revio/`-path filter found — went through three rounds of "found the real rule" before landing on direct file-existence verification (`build_experiment_d_cohort.py`'s `find_existing_bam()`) as the only reliable method, after each pattern-based rule missed a real data source. **Confirmed floor: 2,763 of 14,521 people** have a real, sliceable BAM (up from 1,031) — but this is explicitly *not* treated as the ceiling; AoU's own release notes claim "14,000+ long-read genomes," in tension with only ~19% being sliceable, and the open question (where are the rest?) is logged in DECISIONS.md with concrete next checks. Full history — including two self-caught mistakes along the way — in ENVIRONMENT.md quirk #13. **Does not affect the currently-running 60-person job**, which was drawn from the original pool before this was discovered; a corrected, much larger cohort (`cohort_v3_verified.tsv`, already built on the VM) is ready for a future iteration once the ancestry-bias question is worth scaling up.
+**New thread (supervisor-requested, started 2026-07-18): validating the AoU-native callset
+itself** (separate from Experiment D's cross-tool comparison) — origin, exhaustiveness, and
+quality/reliability of the 535,658-person pre-computed HLA table. **This is now a complete,
+ready-to-send draft: `reports/aou_callset_validation.md`.** Built from:
+- `experiment_a2_callset_quality.py` — allelic diversity, external frequency concordance
+  (checked against 3 published anchors, all consistent), Hardy-Weinberg proxy (DRB1 and B flagged
+  as least reliable even within single ancestry groups — independent, population-genetics-based
+  corroboration of Experiment D's DRB1 finding, by a completely different method).
+- `experiment_a3_allele_space_coverage.py` — catalogued-vs-observed allele space (99.96% of
+  observed alleles match the IMGT catalogue), and an IMGT DB-version lower bound for AoU's
+  ensemble (>= release 3.60.0, decoded from `Allelelist_history.txt`'s digit-coded release
+  columns — decode rule cross-validated against SpecHLA's known 3.38.0 and SpecImmune's known
+  3.64.0 DB versions, both landed correctly).
+- The AoU v9 "Genomics & Multi-omics Quality Report" (public, no Workbench login) — found and
+  folded into Section 1: strong general-genome GIAB accuracy, but **HLA is not locus-specifically
+  benchmarked anywhere in it** — this project's own evidence remains the only HLA-specific
+  reliability check that exists for this dataset.
 
-**Repo reorganized into folders (2026-07-12), on the Mac only — NOT yet synced to the VM.** New layout: `context/` (the 5-6 files a new session must fully ingest — this file plus TASK_CONTEXT/ENVIRONMENT/DECISIONS/EXPERIMENTS.md and the gitignored SMOKE_TEST_PICKS.local.md), `scripts/` (all 18 pipeline `.py`/`.sh` files), `reference/` (unchanged — upstream tool docs + AoU PDF), `pixi.toml` stays at repo root. See root `README.md` for the full explanation of the new layout and how the context-update system works. All internal script path references (`compare_hla_results.py`, `spechla_pad_helpers.py`, `analyze_experiment_d.py`) were updated to their new `scripts/` location and syntax-checked; `pixi.toml` references were deliberately left pointing at the repo root.
+Both new scripts + the report + doc updates are committed and pushed (`origin/main`, through
+commit `d2c858b`) — confirmed in sync with the VM as of the last check this session.
 
 ## Pick up here
 
-**Do NOT `git pull` this reorg onto the VM until the live Experiment D job has fully finished.** `run_experiment_d.sh` is an actively-running background process there; its already-loaded copy references the *old* file locations for `compare_hla_results.py`/`spechla_pad_helpers.py`. Overwriting those files' locations mid-run (via `git pull`) would break every subsequent person's processing with `FileNotFoundError`, and editing the running script file itself is separately unsafe (undefined bash behavior in an active loop). Sequence once the job is confirmed done:
+**Open, unresolved as of this session's end: Marc ran unspecified additional pipelines/experiments
+on the VM in parallel with the callset-validation work above, and this has NOT yet been described
+to or reconciled with this repo's context docs.** Do not assume what they were. Next session:
+ask Marc directly what was run, check `ls ~/pipeline_outputs/` on the VM for anything unfamiliar,
+and check `cd ~/repos/pilot-validation && git status --short && git log --oneline -3` on the VM
+itself (not just the Mac/GitHub) in case anything was committed directly from there.
 
-```bash
-# 1. Confirm the job is actually finished first:
-grep "run complete" ~/pipeline_outputs/experiment_d/nohup.out
-
-# 2. Only then, sync the reorg:
-cd ~/repos/pilot-validation && git pull
-
-# 3. Sanity-check the new layout resolved cleanly:
-ls context/ scripts/ reference/
-
-# 4. Analyze the finished cohort:
-python3 scripts/analyze_experiment_d.py ~/pipeline_outputs/experiment_d/cohort.tsv
-```
-
-If the job is still running, just keep checking back later — nothing needs to happen until it's done. If any commands from before the reorg are still in your terminal history referencing old paths (e.g. `python3 build_experiment_d_cohort.py`), they'll need a `scripts/` prefix after the pull.
+Once reconciled, remaining open items from the callset-validation report (not blocking, just not
+yet done): a tighter EUR-only-vs-EUR-only frequency concordance check (current version compares
+pooled-cohort vs. EUR-specific published figures — directionally solid, but not apples-to-apples);
+and the still-open strategic fork decision (DECISIONS.md) on how much to build directly on
+AoU-native vs. call ourselves, now better-informed by this report's per-locus reliability picture.
 
 ## Watch / blockers
 
-- **VM sleeps after ~1h idle (quirk #14)** — every new session starts with the mount gone; remount (quirk #11) and `ls`-verify before running anything that reads bucket data. (Not a concern for the currently-running job — it stays busy and won't idle-sleep.)
+- **VM sleeps after ~1h idle (quirk #14)** — every new session starts with the mount gone; remount (quirk #11) and `ls`-verify before running anything that reads bucket data.
 - Paste the `gcsfuse` mount and the consumer command *separately* — chaining them in one paste races (quirks #2, #14).
+- **`~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart; the mount, background processes, and activated pixi shell do not** — includes `~/ref/imgt/Allelelist.txt`/`Allelelist_history.txt` (no need to re-curl after a restart).
 - **Any automated SpecImmune call must use `pixi run -e specimmune`** (quirk #15) and verify its output file exists — never trust exit code 0 alone. Same discipline applies to SpecHLA (quirk #18) and to any QC metric.
-- **Disk fills fast without pruning** (quirk #19) — `run_experiment_d.sh` now auto-prunes after each person; `scripts/prune_pipeline_outputs.sh --dry-run` cleans up old cruft on demand.
+- **Bash `>` redirects need the target directory to exist first** — `mkdir -p <dir>` before any `... > <dir>/file` command; Python's own `os.makedirs()` inside the script runs too late for bash's own redirect setup.
 - **pad100k (SpecImmune-LR) and pad2000-10000 (SpecHLA-SR) are two separate, tool-specific recommendations** — don't conflate them.
 - **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a specific new reason.
 - **The long-read BAM pool (2,763) is a floor, not a settled ceiling** — see DECISIONS.md open question before assuming that's the whole story for a future larger cohort.
+- **DRB1's SpecHLA-pad10000 padding-degradation hypothesis is still open, untested** (DECISIONS.md, 2026-07-12 entry) — re-run SpecHLA at wider padding for already-processed people if this becomes a priority.
