@@ -28,9 +28,17 @@ participant-level row. Same egress discipline as every other script in this repo
 Inputs:
   --tsv               hla_genotypes.tsv (mounted path)
   --ancestry-tsv       AoU genetic-ancestry TSV (mounted path)
-  --phenotype-csv      person_id,case  (0/1) -- built by you from a Workbench BigQuery query
-                       against condition_occurrence (see scripts/build_phenotype_csv_template.sql
-                       for the query shape; concept_id must be looked up via Athena first).
+  --phenotype-csv      person_id,case (0/1) for every person in --tsv. Built directly in a
+                       Workbench notebook, no separate template file: look up the disease's
+                       standard SNOMED concept_id via Athena (athena.ohdsi.org, public, no
+                       AoU login), then query condition_occurrence for
+                       `SELECT DISTINCT person_id WHERE condition_concept_id = <id>` against
+                       the CDR (project `wb-silky-artichoke-2408`, dataset `C2025Q4R6` --
+                       no WORKSPACE_CDR env var in this Workbench, see ENVIRONMENT.md quirk #5),
+                       mark case=1 for matches. Confirmed concept_ids in use: Celiac disease
+                       = 194992 (SNOMED 396331005, maps from ICD-10CM K90.0); Narcolepsy with
+                       cataplexy = 437854 (SNOMED 193042000, maps from ICD-10CM G47.411 --
+                       deliberately distinct from "without cataplexy", concept 43531721).
   --disease            celiac | narcolepsy
 
 Usage (via `pixi run -e spechla`):
@@ -42,6 +50,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+from scipy import sparse
 from scipy.stats import fisher_exact
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -137,30 +146,58 @@ def untargeted_ml_check(df, anc_col, top_n=15):
           "join + phenotype pipeline is sound -- not just a re-check of something we told it to "
           "find.\n")
 
-    feature_cols = {}
+    # Sparse construction, not a dense DataFrame: at real cohort scale (535k people x ~2,373
+    # distinct alleles, per experiment_a3) a dense float64 matrix is ~10GB, and StandardScaler
+    # would make a second full copy on top of it -- enough to OOM-kill a 25GB VM (confirmed
+    # 2026-07-20, "Killed" with no traceback = the kernel OOM killer, not a Python exception).
+    # Each person carries at most 2 non-zero alleles per gene, so this matrix is >99% zeros --
+    # build it as a scipy.sparse CSR matrix instead, which costs memory proportional to actual
+    # non-zero entries, not rows x columns.
+    n = len(df)
+    row_chunks, col_chunks = [], []
+    feature_names = []
+    col_offset = 0
+    callable_mask = pd.Series(True, index=df.index)
+    positions = np.arange(n)
+
     for gene in CLASSICAL_GENES:
         c1, c2 = f"{gene}_1", f"{gene}_2"
         a1 = df[c1].map(to2field)
         a2 = df[c2].map(to2field)
-        alleles = pd.concat([a1, a2]).dropna().unique()
-        for al in alleles:
-            colname = f"{gene}*{al}"
-            feature_cols[colname] = ((a1 == al).astype(float) + (a2 == al).astype(float))
+        callable_mask &= a1.notna() & a2.notna()
 
-    X = pd.DataFrame(feature_cols, index=df.index)
-    callable_mask = pd.Series(True, index=df.index)
-    for gene in CLASSICAL_GENES:
-        c1, c2 = f"{gene}_1", f"{gene}_2"
-        callable_mask &= df[c1].map(to2field).notna() & df[c2].map(to2field).notna()
+        alleles = sorted(pd.concat([a1, a2]).dropna().unique())
+        allele_to_col = {al: col_offset + i for i, al in enumerate(alleles)}
+        feature_names.extend(f"{gene}*{al}" for al in alleles)
+
+        for a in (a1, a2):
+            valid = a.notna().values
+            row_chunks.append(positions[valid])
+            col_chunks.append(a[valid].map(allele_to_col).to_numpy())
+
+        col_offset += len(alleles)
+
+    row_idx = np.concatenate(row_chunks)
+    col_idx = np.concatenate(col_chunks)
+    data = np.ones(len(row_idx), dtype=np.float32)
+    # COO -> CSR summing duplicate (row, col) entries is exactly what gives dosage=2 for a
+    # homozygous person (both haplotype columns map to the same allele -> same coordinate twice).
+    X_alleles = sparse.coo_matrix((data, (row_idx, col_idx)), shape=(n, col_offset)).tocsr()
 
     if anc_col:
-        anc_dummies = pd.get_dummies(df[anc_col], prefix="ancestry")
-        X = pd.concat([X, anc_dummies], axis=1)
+        anc_dummies = pd.get_dummies(df[anc_col], prefix="ancestry", dummy_na=False)
+        feature_names.extend(anc_dummies.columns)
+        X_anc = sparse.csr_matrix(anc_dummies.to_numpy(dtype=np.float32))
+        X = sparse.hstack([X_alleles, X_anc], format="csr")
+    else:
+        X = X_alleles
 
-    mask = callable_mask & df["case"].notna()
-    X, y = X.loc[mask].fillna(0), df.loc[mask, "case"].astype(int)
+    mask = (callable_mask & df["case"].notna()).to_numpy()
+    idx = np.where(mask)[0]
+    X = X[idx]
+    y = df["case"].iloc[idx].astype(int)
 
-    print(f"Rows used: {len(X)} ({int(y.sum())} cases / {int((1-y).sum())} controls). "
+    print(f"Rows used: {X.shape[0]} ({int(y.sum())} cases / {int((1-y).sum())} controls). "
           f"Features: {X.shape[1]} (allele dosages + ancestry dummies).\n")
 
     if y.nunique() < 2 or int(y.sum()) < 10:
@@ -168,11 +205,11 @@ def untargeted_ml_check(df, anc_col, top_n=15):
               "regression. Report the case count above and reconsider phenotype extraction.\n")
         return
 
-    Xs = StandardScaler(with_mean=False).fit_transform(X)  # sparse-friendly, dosage stays >=0
+    Xs = StandardScaler(with_mean=False).fit_transform(X)  # with_mean=False keeps this sparse
     model = LogisticRegression(penalty="l1", solver="liblinear", C=0.1, max_iter=2000)
     model.fit(Xs, y)
 
-    coefs = pd.Series(model.coef_[0], index=X.columns).sort_values()
+    coefs = pd.Series(model.coef_[0], index=feature_names).sort_values()
     nonzero = coefs[coefs != 0]
     print(f"Non-zero coefficients after L1 shrinkage: {len(nonzero)} / {len(coefs)}\n")
 
