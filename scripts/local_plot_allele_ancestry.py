@@ -19,13 +19,18 @@ Usage:
       --out-dir ~/Downloads/aou_plots
 
 Produces 3 PNGs in --out-dir:
-  1. <gene>_ancestry_stacked.png   -- top alleles for --gene, stacked bar = ancestry SHARE of
-     carriers (not a single dominant-ancestry color -- the full composition).
+  1. <gene>_ancestry_stacked.png   -- top alleles for --gene (selected by raw carrier count),
+     stacked bar = RELATIVE PREVALENCE across ancestries -- each group's own within-group
+     frequency, normalized to sum to 100%. NOT raw carrier-count composition, which is
+     mechanically dominated by cohort size (56.5% EUR) regardless of biology -- see
+     compute_enriched_dominance()'s docstring for why this matters.
   2. <gene>_top_per_ancestry.png   -- most common alleles WITHIN each of the 6 ancestry groups,
-     small multiples, for --gene.
+     small multiples, for --gene. Already unbiased by construction (ranks within one group at a
+     time, never compares raw counts across groups of different sizes) -- unchanged.
   3. allele_space_sunburst.png     -- two-level sunburst, ALL 8 genes: inner ring = gene (sized
      by total carriers), outer ring = each gene's top allele groups (sized by carriers, colored
-     by dominant ancestry, remainder folded into "other").
+     by the ancestry with the HIGHEST RELATIVE PREVALENCE for that allele -- same enrichment
+     logic as (1), not tree_data.csv's own dominant_ancestry column, which is raw-share-biased).
 """
 import argparse
 import math
@@ -44,21 +49,61 @@ GENE_GRAY = "#888780"
 ANCESTRY_ORDER = ["afr", "amr", "eas", "eur", "mid", "sas"]
 
 
+MIN_CARRIERS_FOR_DOMINANCE = 20  # below this, a group's "highest frequency" is too noisy to trust
+
+
+def compute_enriched_dominance(freq_df, min_carriers=MIN_CARRIERS_FOR_DOMINANCE):
+    """For each (gene, allele), find the ancestry with the HIGHEST WITHIN-GROUP frequency --
+    where this allele is proportionally most prevalent -- NOT the ancestry contributing the
+    most raw carriers. Raw carrier counts are mechanically dominated by whichever ancestry is
+    largest in the cohort (EUR, 56.5%) regardless of biology: an allele at 2000/302712 EUR
+    (0.7%) would outrank one at 200/210 AFR (95%) by raw count alone. Within-group frequency
+    (already computed per-ancestry in allele_freq_by_ancestry.csv) removes that bias.
+
+    Ancestries with fewer than `min_carriers` actual carriers of THIS allele are excluded from
+    winning "dominant" status (falls back to the best-eligible group, or the raw-best if none
+    clear the bar) -- MID (n=2,151) and SAS (n=6,176) are small enough that a single family
+    cluster could otherwise masquerade as a real population signal.
+    """
+    freq_df = freq_df.copy()
+    freq_df["carriers_approx"] = freq_df["freq"] * 2 * freq_df["n_individuals"]
+
+    out = {}
+    for (gene, allele), sub in freq_df.groupby(["gene", "allele"]):
+        eligible = sub[sub["carriers_approx"] >= min_carriers]
+        pool = eligible if len(eligible) else sub
+        best = pool.loc[pool["freq"].idxmax()]
+        total_freq = sub["freq"].sum()
+        out[(gene, allele)] = {
+            "dominant_ancestry": best["ancestry"],
+            "dominant_freq_pct": round(100 * best["freq"], 2),
+            "relative_share_pct": round(100 * best["freq"] / total_freq, 1) if total_freq else None,
+            "low_confidence": len(eligible) == 0,
+        }
+    return out
+
+
 def plot_ancestry_stacked(freq_df, gene, out_path, top_n=12):
-    """Top alleles for `gene` by total carrier copies, stacked bar = full ancestry composition
-    (share of that allele's copies coming from each ancestry group) -- not a single color."""
+    """Top alleles for `gene` by total carrier count (selection only), stacked bar = RELATIVE
+    PREVALENCE across ancestries -- each group's own within-group frequency, normalized to sum
+    to 100% across the 6 groups. NOT raw carrier-count composition (that version is mechanically
+    dominated by cohort size regardless of biology -- see compute_enriched_dominance). This
+    shows where the allele is proportionally most common: e.g. 95% prevalence in a 210-person
+    AFR subgroup shows as AFR-dominant here even if EUR contributes more raw carriers overall."""
     g = freq_df[freq_df.gene == gene].copy()
-    g["copies"] = g["freq"] * 2 * g["n_individuals"]
-    totals = g.groupby("allele")["copies"].sum().sort_values(ascending=False)
+    g["carriers_approx"] = g["freq"] * 2 * g["n_individuals"]
+    totals = g.groupby("allele")["carriers_approx"].sum().sort_values(ascending=False)
     top_alleles = totals.head(top_n).index.tolist()
 
     pivot = g[g.allele.isin(top_alleles)].pivot_table(
-        index="allele", columns="ancestry", values="copies", fill_value=0)
+        index="allele", columns="ancestry", values="freq", fill_value=0)
     pivot = pivot.reindex(top_alleles)
     for a in ANCESTRY_ORDER:
         if a not in pivot.columns:
             pivot[a] = 0.0
     pivot = pivot[ANCESTRY_ORDER]
+    # Normalize each allele's row of WITHIN-GROUP frequencies to sum to 100% -- this is the fix:
+    # every ancestry's own prevalence counts equally, independent of that group's cohort size.
     shares = pivot.div(pivot.sum(axis=1), axis=0) * 100
 
     fig, ax = plt.subplots(figsize=(9, 0.5 * len(top_alleles) + 2))
@@ -67,8 +112,8 @@ def plot_ancestry_stacked(freq_df, gene, out_path, top_n=12):
         ax.barh(shares.index, shares[anc], left=left, color=ANCESTRY_COLORS[anc], label=anc)
         left += shares[anc]
     ax.invert_yaxis()
-    ax.set_xlabel("Share of carriers, by ancestry (%)")
-    ax.set_title(f"{gene} -- top {len(top_alleles)} alleles, ancestry composition")
+    ax.set_xlabel("Relative prevalence across ancestries (%) -- NOT raw carrier share")
+    ax.set_title(f"{gene} -- top {len(top_alleles)} alleles by carriers, ancestry ENRICHMENT")
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=6, frameon=False)
     ax.set_xlim(0, 100)
     fig.tight_layout()
@@ -100,10 +145,12 @@ def _pt(deg, r):
     return r * math.cos(rad), r * math.sin(rad)
 
 
-def plot_sunburst(tree_df, out_path, top_n_per_gene=6):
+def plot_sunburst(tree_df, dominance, out_path, top_n_per_gene=6):
     """Two-level sunburst: inner ring = genes (sized by total carriers), outer ring = each
-    gene's top allele groups (sized by carriers, colored by dominant ancestry, 'other' folds
-    the remainder). Pure matplotlib (Wedge patches) -- no extra dependencies."""
+    gene's top allele groups (sized by carriers, colored by the ancestry where that allele is
+    proportionally most prevalent -- from compute_enriched_dominance, NOT tree_df's own
+    dominant_ancestry column, which is raw-carrier-share-based and cohort-size-biased. 'other'
+    folds the remainder. Pure matplotlib (Wedge patches) -- no extra dependencies."""
     genes = sorted(tree_df["gene"].unique())
     gene_totals = tree_df.groupby("gene")["n_individuals"].sum()
     total = gene_totals.sum()
@@ -128,7 +175,11 @@ def plot_sunburst(tree_df, out_path, top_n_per_gene=6):
         sub = tree_df[tree_df.gene == gene].sort_values("n_individuals", ascending=False)
         top = sub.head(top_n_per_gene)
         other_n = sub["n_individuals"].iloc[top_n_per_gene:].sum()
-        segs = list(zip(top["group_2field"], top["n_individuals"], top["dominant_ancestry"]))
+        segs = []
+        for _, row in top.iterrows():
+            d = dominance.get((gene, row["group_2field"]))
+            segs.append((row["group_2field"], row["n_individuals"],
+                        d["dominant_ancestry"] if d else None))
         if other_n > 0:
             segs.append(("other", other_n, None))
 
@@ -149,7 +200,7 @@ def plot_sunburst(tree_df, out_path, top_n_per_gene=6):
     handles = [mpatches.Patch(color=c, label=a) for a, c in ANCESTRY_COLORS.items()]
     handles.append(mpatches.Patch(color=GENE_GRAY, label="gene ring"))
     ax.legend(handles=handles, loc="lower left", bbox_to_anchor=(-0.05, -0.05),
-             fontsize=9, title="Outer ring = dominant ancestry", frameon=False)
+             fontsize=9, title="Outer ring = ancestry, highest relative prevalence", frameon=False)
     ax.set_title("AoU-native HLA calls -- allele space by gene and ancestry", fontsize=13)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
@@ -169,12 +220,13 @@ def main():
 
     freq_df = pd.read_csv(os.path.expanduser(args.freq_csv))
     tree_df = pd.read_csv(os.path.expanduser(args.tree_csv))
+    dominance = compute_enriched_dominance(freq_df)
 
     plot_ancestry_stacked(freq_df, args.gene,
                           os.path.join(args.out_dir, f"{args.gene}_ancestry_stacked.png"))
     plot_top_per_ancestry(freq_df, args.gene,
                           os.path.join(args.out_dir, f"{args.gene}_top_per_ancestry.png"))
-    plot_sunburst(tree_df, os.path.join(args.out_dir, "allele_space_sunburst.png"))
+    plot_sunburst(tree_df, dominance, os.path.join(args.out_dir, "allele_space_sunburst.png"))
 
 
 if __name__ == "__main__":
