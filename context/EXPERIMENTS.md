@@ -386,6 +386,28 @@ Full cohort finished cleanly: 60/60 done, 0 failed. Total compute: 20.6 hours ac
 
 Script: `scripts/analyze_experiment_d_resolution.py`. Aggregate counts only (no genotypes) — output pasted to chat by Marc, not committed.
 
+## 2026-07-18/19 — AoU-native callset validation (origin, exhaustiveness, quality)
+
+Supervisor-requested check on the AoU-native HLA callset itself (535,658 people), separate from
+Experiment D's cross-tool comparison. Scripts: `experiment_a2_callset_quality.py` (diversity,
+external frequency concordance, Hardy-Weinberg proxy) and `experiment_a3_allele_space_coverage.py`
+(catalogued-vs-observed allele space, IMGT DB-version lower bound). Local plotting:
+`local_plot_allele_ancestry.py`, `local_plot_coverage.py`.
+
+Headline: callset passes every check run (real hyperpolymorphic diversity, frequencies
+consistent with 3 published anchors, 99.96% IMGT catalogue match rate). AoU's own QC report
+(GIAB-based) does not benchmark HLA specifically — this pilot is the only HLA-locus reliability
+evidence found for this dataset. DRB1 is independently flagged as the least reliable locus by a
+second method (Hardy-Weinberg excess homozygosity, survives ancestry stratification) that agrees
+with Experiment D's cross-tool finding.
+
+One real bug caught and fixed mid-analysis: initial ancestry-coloring logic ranked alleles by raw
+carrier count, which is dominated by cohort composition (56.5% EUR) rather than biology — fixed
+to rank by within-group frequency instead (see `local_plot_allele_ancestry.py`).
+
+Full writeup, tables, and figures: **`reports/aou_callset_validation.md`** (delivery-ready,
+sent to supervisors). Not duplicated here — this entry is a pointer, not a summary of the summary.
+
 ## 2026-07-12 — repo reorganized into folders (housekeeping, not an experiment)
 
 Not a result — a structural note for anyone reading older entries above, which still reference bare filenames like `run_experiment_d.sh` or `compare_hla_results.py` at what used to be the repo root. As of this date: all context docs (this file, ENVIRONMENT/STATUS/DECISIONS/TASK_CONTEXT.md, SMOKE_TEST_PICKS.local.md) live under `context/`; all pipeline `.py`/`.sh` files live under `scripts/`; `reference/` and `pixi.toml` are unchanged. See the root `README.md` for the full layout and the context-update system it documents. Every script's internal cross-references were updated and syntax-checked (`bash -n`, `py_compile`) before this was committed. Done on the Mac only — deliberately **not** synced to the VM until the then-running Experiment D job (60-person cohort) finished, since overwriting `compare_hla_results.py`/`spechla_pad_helpers.py`'s location mid-run would have broken every subsequent person's processing.
