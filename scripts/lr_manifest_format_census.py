@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Experiment E: exhaustive long-read data-format census.
+"""Exhaustive long-read data-format census (not part of the lettered A-D roadmap -- "Experiment E"
+is already taken by the disease-sanity-check thread, see EXPERIMENTS.md/reports/disease_sanity_check/).
 
 Motivation (2026-07-20 session, Marc): ENVIRONMENT.md quirk #13 and DECISIONS.md's "Where are
 the aligned BAMs for the other ~11,758 long-read people?" only ever checked TWO columns
@@ -24,8 +25,8 @@ Two multi-row-per-person subtleties already learned in Experiment D's cohort bui
 So this script reports BOTH a per-row and a per-person (union across rows) profile distribution.
 
 Usage (any pixi env with pandas; read-only, no writes to the mount):
-  python3 experiment_e_lr_data_census.py [--mount ~/mnt/aou-controlled] \
-      [--out ~/pipeline_outputs/experiment_e/census.tsv] [--sample-only N]
+  python3 lr_manifest_format_census.py [--mount ~/mnt/aou-controlled] \
+      [--out ~/pipeline_outputs/lr_data_census/census.tsv] [--sample-only N]
 
   --sample-only N   Run column auto-detection + existence-check on only the first N rows, to
                      sanity-check output shape/timing before committing to the full ~15k-row pass.
@@ -90,7 +91,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--mount", default=os.path.expanduser("~/mnt/aou-controlled"))
-    ap.add_argument("--out", default=os.path.expanduser("~/pipeline_outputs/experiment_e/census.tsv"))
+    ap.add_argument("--out", default=os.path.expanduser("~/pipeline_outputs/lr_data_census/census.tsv"))
     ap.add_argument("--sample-only", type=int, default=None,
                     help="Only process the first N manifest rows (sanity-check run).")
     args = ap.parse_args()

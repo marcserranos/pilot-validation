@@ -4,49 +4,61 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-07-20 — new thread: long-read data-format landscape (SpecImmune input + AoU LR manifest census)
+## As of 2026-07-20 (cont.) — long-read data-format landscape thread + two carried-over items resolved
 
-**New thread opened this session, not yet run.** Marc's question: for the ~14,521 people with
-an LR manifest row, only 2,763 have a confirmed real aligned BAM (ENVIRONMENT.md quirk #13) — why,
-what input formats does SpecImmune actually accept, and can the other people's data (phased
-assemblies, per DECISIONS.md) be converted to something usable? Answered the conceptual part from
-existing docs (no VM needed): SpecImmune's real required input is FASTQ reads, not BAM — any
-read-preserving container (BAM/CRAM/FASTQ/uBAM) works, but a phased assembly FASTA is an
+**Long-read format thread (this session):** Marc's question: for the ~14,521 people with an LR
+manifest row, only 2,763 have a confirmed real aligned BAM (ENVIRONMENT.md quirk #13) — why, what
+input formats does SpecImmune actually accept, and can the other people's data (phased assemblies)
+be converted to something usable? Conceptual part answered from existing docs (no VM needed):
+SpecImmune's real required input is FASTQ reads, not BAM — a phased assembly FASTA is an
 already-collapsed consensus with the read-level evidence gone, so it isn't a format-conversion
-problem — full reasoning now in DECISIONS.md's "Assembly-based HLA typing" bullet. Wrote
-`scripts/experiment_e_lr_data_census.py` (syntax-checked) to answer the exhaustive part — full
-per-person distribution of which file types actually exist, auto-detecting path-like columns
-across the *entire* LR manifest rather than just the 2 known BAM columns, same
-verify-by-real-existence discipline as quirk #13. **Not yet run — needs the VM's gcsfuse mount,
-which this session (local Mac, no bucket access) can't reach.**
+problem — see DECISIONS.md's "Assembly-based HLA typing" bullet for full reasoning, now also
+carrying a subagent literature-research lead: **Immuannot** (github.com/YingZhou001/Immuannot)
+looks like a ready-to-use tool that types HLA directly from phased assembly contigs, reportedly
+already used by HPRC on its own release data — not yet independently verified or evaluated by us.
+Wrote `scripts/lr_manifest_format_census.py` (syntax-checked) for the exhaustive per-person
+distribution question — needs the VM's gcsfuse mount, can't run from this Mac session.
+
+**Both carried-over items from 2026-07-19 turned out to be already resolved, found via git log
+during this session (see below) — not by direct investigation this session.**
+
+**Important, unresolved: possible concurrent editing.** While this session was mid-edit on this
+exact local repo path, a commit (`112372c`) landed that bundled this session's in-progress
+uncommitted changes together with unrelated work neither this session nor its subagents made.
+Content landed correctly (verified byte-for-byte), but **confirm whether another session/terminal
+is/was active on this same working directory at the same time** — if so, treat concurrent edits
+to the same files as a real risk going forward, not a one-off.
 
 ## Pick up here
 
 **Three open items, in priority order:**
 
-1. **Run `scripts/experiment_e_lr_data_census.py` on the VM** (new, this session). Suggested
-   first step: `--sample-only 50` to sanity-check the auto-detected path-like-column list against
-   the printed column report before committing to the full ~15k-row existence-check pass (a few
-   minutes per column-thousand-rows). Paste the per-person profile distribution back — this is
-   the direct answer to "what's the full distribution of long-read data formats."
-2. **What were the "new experiments" run in parallel on the VM** (mentioned mid-session, never
-   described, carried over from 2026-07-19)? Not reconciled with any context doc. Check on the VM:
-   `cd ~/repos/pilot-validation && git status --short && git log --oneline -3`, and
-   `ls ~/pipeline_outputs/` for anything unfamiliar, then this can get folded in properly.
-3. **`scripts/hla_disease_sanity_check.py` (Celiac/Narcolepsy positive-control check) references
-   a companion file that does not exist.** Its own `--help` text points to
-   `scripts/build_phenotype_csv_template.sql`; an earlier, differently-named draft
-   (`build_phenotype_csv.md`, with manual Athena/BigQuery lookup instructions) was seen once
-   this session but vanished from disk before it could be committed — cause unknown, not deleted
-   by this assistant. Neither file exists now, in git history or on disk. The script itself is
-   real, syntax-checked, and committed, but **not runnable end-to-end without one of these** —
-   flagging rather than reconstructing from a partial memory of the vanished draft. Worth a
-   decision: rebuild the companion doc, or is this thread paused for now.
+1. **Run `scripts/lr_manifest_format_census.py` on the VM** (new, this session; renamed from an
+   earlier `experiment_e_*` name that collided with the unrelated, already-committed "Experiment E:
+   Operation DQ" disease-sanity-check thread below). Suggested first step: `--sample-only 50` to
+   sanity-check the auto-detected path-like-column list against the printed column report before
+   committing to the full ~15k-row existence-check pass (a few minutes per column-thousand-rows).
+   Paste the per-person profile distribution back.
+2. **RESOLVED, not by this session — the "parallel VM experiments" mystery (carried over from
+   2026-07-19) was Aleix's `aleix/` workstream** (3 commits, `e9acd8d`/`c148c8a`): evaluating
+   HLA-Resolve as a 4th long-read caller, calibrated against real external ground truth (44
+   GIAB/HPRC samples) rather than treating SpecImmune-LR as presumed-truth the way Experiment D
+   did — directly answers a real methodological gap. Isolated under `aleix/`, doesn't touch shared
+   files. Worth reading `aleix/README.md` directly for the current phase/status rather than
+   re-deriving from this note.
+3. **RESOLVED, not by this session — `scripts/hla_disease_sanity_check.py`'s missing companion
+   file is moot; the thread finished with real results** (`reports/disease_sanity_check/README.md`
+   + `cv_results.log`, Marc's own "Experiment E: Operation DQ" commits). Celiac shows real,
+   modest, ancestry-uneven predictive signal (EUR AUROC 0.681 vs AFR 0.542); narcolepsy is
+   chance-level (AUROC 0.592) despite the model correctly finding the true haplotype partner
+   allele. Read the report directly for the full writeup — not summarized further here to avoid
+   drifting from the source.
 
-Not blocking otherwise. Next natural step once the above is resolved: the strategic fork in
-DECISIONS.md (build downstream directly on AoU-native vs. call independently), now better
-informed by both the cross-tool pilot and the callset validation report — plus, once item 1
-lands, a clearer picture of how much the long-read validation cohort could grow.
+Not blocking otherwise. Next natural step: the strategic fork in DECISIONS.md (build downstream
+directly on AoU-native vs. call independently), now informed by the cross-tool pilot, the callset
+validation report, and soon Aleix's ground-truth-anchored comparison — plus, once item 1 lands, a
+clearer picture of how much the long-read validation cohort could grow, and whether Immuannot is
+worth evaluating for the assembly-only people.
 
 ## Watch / blockers
 
