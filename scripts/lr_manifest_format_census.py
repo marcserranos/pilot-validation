@@ -51,6 +51,11 @@ KNOWN_EXTENSIONS = (
     ".fa", ".fasta", ".fa.gz", ".fasta.gz",
     ".vcf", ".vcf.gz", ".g.vcf.gz", ".gvcf", ".gvcf.gz",
     ".tbi", ".csi",
+    # Added 2026-07-20 after the first --sample-only run surfaced real manifest columns these
+    # missed: .paf/.gfa (assembly-to-reference alignment / assembly graph, assembly_hap*_aln2_hg38
+    # and assembly_*_gfa columns), .gzi (bgzip index, assembly_*_fa_gzi), .pbi (PacBio BAM index,
+    # *_bam_pbi), .snf (Sniffles' own SV-signature cache, *_sniffles_snf).
+    ".paf", ".gfa", ".gzi", ".pbi", ".snf",
 )
 
 
@@ -180,14 +185,17 @@ def main():
     # Same rescue logic as build_experiment_d_cohort.py: a person's *other* row can resolve
     # something their primary-looking row doesn't -- so union, don't just take one row.
     if "research_id" in lr.columns:
-        def union_profile(group):
+        def union_profile(profiles):
             present = set()
-            for p in group["profile"]:
+            for p in profiles:
                 if p != ("NONE_FOUND",):
                     present.update(p)
             return tuple(sorted(present)) if present else ("NONE_FOUND",)
 
-        per_person = lr.groupby("research_id").apply(union_profile, include_groups=False)
+        # Group on the "profile" Series directly (SeriesGroupBy.apply), not the whole DataFrame --
+        # avoids DataFrameGroupBy.apply's include_groups kwarg entirely, which only exists on
+        # pandas >=2.2 (the VM's pixi env has an older pandas; this form works on both).
+        per_person = lr.groupby("research_id")["profile"].apply(union_profile)
         print(f"\n=== Per-PERSON profile distribution (union across rows, n={len(per_person)} unique people) ===",
               file=sys.stderr)
         for profile, n in Counter(per_person).most_common():
