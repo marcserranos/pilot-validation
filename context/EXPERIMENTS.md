@@ -405,7 +405,7 @@ One real bug caught and fixed mid-analysis: initial ancestry-coloring logic rank
 carrier count, which is dominated by cohort composition (56.5% EUR) rather than biology — fixed
 to rank by within-group frequency instead (see `local_plot_allele_ancestry.py`).
 
-Full writeup, tables, and figures: **`reports/aou_callset_validation.md`** (delivery-ready,
+Full writeup, tables, and figures: **`reports/aou_callset_validation/README.md`** (delivery-ready,
 sent to supervisors). Not duplicated here — this entry is a pointer, not a summary of the summary.
 
 ## 2026-07-12 — repo reorganized into folders (housekeeping, not an experiment)

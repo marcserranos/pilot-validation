@@ -137,6 +137,27 @@ def load_rows(cohort, outroot):
     return allrows
 
 
+def method_max_depth(allrows):
+    """Global max field-depth each SR method's raw calls ever reach in this cohort, e.g.
+    AoU-native -> 3 (structurally capped, per Experiment A: 0 four-field calls across
+    535,658 people), SpecHLA -> 4 (reports 4-field calls routinely). Used to distinguish
+    'this method structurally never resolves this deep' (always true, every gene, every
+    person) from 'this particular call/truth pair happened to be shallow' (per-comparison,
+    informative N/A) -- conflating the two is exactly what made AoU's Field 4 column
+    confusing (Marc, 2026-07-20: "why don't we see bars though... is this a fluke?")."""
+    cols = {"aou": ("aou_1", "aou_2"), "sh": ("spechla_1", "spechla_2")}
+    depths = {}
+    for method, (c1, c2) in cols.items():
+        best = 0
+        for col in (c1, c2):
+            for v in allrows[col]:
+                f = parse_fields(v)
+                if f:
+                    best = max(best, len(f))
+        depths[method] = best
+    return depths
+
+
 def analyze(allrows):
     """Long-format counts: one row per (gene, ancestry, method, field_level) with
     n_true / n_false / n_na, counted per-allele (2 alleles per callable person-gene)."""
@@ -180,7 +201,7 @@ def rate(row):
     return 100 * row["n_true"] / d, d
 
 
-def pooled_table(df):
+def pooled_table(df, depths):
     """Gene x method x field-level, summed across ancestry."""
     g = df.groupby(["gene", "method", "field_level"], as_index=False)[
         ["n_true", "n_false", "n_na"]
@@ -188,14 +209,25 @@ def pooled_table(df):
     lines = ["## Pooled cascade -- match rate through each field, all ancestries combined\n",
              "Match rate = n_true / (n_true + n_false) among *assessable* comparisons; "
              "N/A = comparisons where one caller simply doesn't report that many fields "
-             "(e.g. AoU-native never reports Field 4).\n"]
+             "(e.g. AoU-native never reports Field 4).\n",
+             "**\"structural cap\"** means the method never independently reaches that field "
+             "at all, in anyone, anywhere in this cohort (e.g. AoU-native: max observed depth "
+             f"is {depths.get('aou', '?')} fields) -- distinct from an ordinary per-call N/A, "
+             "which just means this particular call/truth pair happened to be shallow. Cells at "
+             "or below a method's own max depth are real, measured comparisons even when they "
+             "show 0% (that 0% is inherited from an earlier field that already disagreed, per "
+             "the cascade definition above -- not fresh evidence at this depth).\n"]
     for method in METHODS:
-        lines.append(f"### {METHOD_LABEL[method]} vs SpecImmune-LR truth\n")
+        lines.append(f"### {METHOD_LABEL[method]} vs SpecImmune-LR truth "
+                     f"(max observed depth: {depths.get(method, '?')} fields)\n")
         lines.append("| Gene | " + " | ".join(FIELD_LABEL[l] for l in range(1, 5)) + " |")
         lines.append("|---|" + "---|" * 4)
         for gene in GENES:
             cells = [gene]
             for lvl in range(1, 5):
+                if lvl > depths.get(method, 4):
+                    cells.append("N/A -- structural cap")
+                    continue
                 row = g[(g.gene == gene) & (g.method == method) & (g.field_level == lvl)]
                 if row.empty:
                     cells.append("— (no data)")
@@ -239,7 +271,7 @@ def field2_ancestry_table(df):
     return "\n".join(lines)
 
 
-def plot_cascade(pooled, path):
+def plot_cascade(pooled, depths, path):
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     colors = {"aou": "#4C72B0", "sh": "#DD8452"}
     for ax, gene in zip(axes.flat, GENES):
@@ -256,10 +288,18 @@ def plot_cascade(pooled, path):
         x = range(4)
         width = 0.35
         for i, method in enumerate(METHODS):
-            heights, na_labels = [], []
+            heights, na_labels, capped = [], [], []
             for lvl in range(1, 5):
+                if lvl > depths.get(method, 4):
+                    # method structurally never reaches this field, in anyone, ever --
+                    # draw a flat hatched placeholder instead of a real (and misleading) bar
+                    heights.append(0)
+                    na_labels.append("")
+                    capped.append(True)
+                    continue
                 row = pooled[(pooled.gene == gene) & (pooled.method == method)
                              & (pooled.field_level == lvl)]
+                capped.append(False)
                 if row.empty:
                     heights.append(0)
                     na_labels.append("")
@@ -275,9 +315,15 @@ def plot_cascade(pooled, path):
             # emphasize Field 2 (index 1) with a bold outline -- the field that matters most
             bars[1].set_edgecolor("black")
             bars[1].set_linewidth(1.8)
-            # stagger AoU/SpecHLA N/A labels vertically so they never collide at low bar heights
-            for xoff, h, lab in zip(offs, heights, na_labels):
-                if lab:
+            for xoff, h, lab, cap in zip(offs, heights, na_labels, capped):
+                if cap:
+                    # fixed-height hatched marker, unambiguous "not applicable", never a bar
+                    ax.bar([xoff], [6], width=width, color="none", hatch="////",
+                           edgecolor="#aaa", linewidth=0.5)
+                    ax.text(xoff, 10, "n/a", ha="center", va="bottom",
+                             fontsize=6.5, color="#888", style="italic")
+                elif lab:
+                    # stagger AoU/SpecHLA N/A labels vertically so they never collide at low heights
                     ax.text(xoff, 6 + i * 9, lab, ha="center", va="bottom",
                              fontsize=6, color="#555", rotation=90)
         ax.set_title(gene, fontsize=11)
@@ -290,9 +336,13 @@ def plot_cascade(pooled, path):
     handles, labels = axes.flat[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False,
                bbox_to_anchor=(0.5, 0.99))
-    fig.suptitle("Experiment D -- field cascade vs SpecImmune-LR truth\n"
-                  "F2 (protein) outlined bold -- the field that actually matters; F3/F4 shown lighter",
-                  fontsize=10, y=0.935)
+    cap_note = " / ".join(f"{METHOD_LABEL[m]} caps at Field {depths.get(m)}"
+                          for m in METHODS if depths.get(m, 4) < 4)
+    subtitle = "F2 (protein) outlined bold -- the field that actually matters; F3/F4 shown lighter"
+    if cap_note:
+        subtitle += f"\nHatched \"n/a\" = method never reaches that field at all ({cap_note})"
+    fig.suptitle("Experiment D -- field cascade vs SpecImmune-LR truth\n" + subtitle,
+                  fontsize=10, y=0.94)
     fig.tight_layout(rect=[0, 0, 1, 0.88])
     fig.savefig(path, dpi=140, bbox_inches="tight")
     plt.close(fig)
@@ -338,12 +388,13 @@ def main():
     cohort = pd.read_csv(args.cohort, sep="\t", dtype=str)
     allrows = load_rows(cohort, args.outroot)
     df = analyze(allrows)
+    depths = method_max_depth(allrows)
 
     expdir = os.path.join(args.outroot, "experiment_d")
     adir = args.analysis_dir or os.path.join(expdir, "analysis")
     os.makedirs(adir, exist_ok=True)
 
-    pooled_md, pooled_df = pooled_table(df)
+    pooled_md, pooled_df = pooled_table(df, depths)
     anc_md = field2_ancestry_table(df)
 
     md = "# Experiment D -- field-level cascade (AoU-native / SpecHLA vs SpecImmune-LR truth)\n\n" \
@@ -354,7 +405,7 @@ def main():
     with open(md_path, "w") as f:
         f.write(md + "\n")
 
-    plot_cascade(pooled_df, os.path.join(adir, "experiment_d_field_cascade.png"))
+    plot_cascade(pooled_df, depths, os.path.join(adir, "experiment_d_field_cascade.png"))
     heatmap_field2(df, "aou", os.path.join(adir, "experiment_d_field2_heatmap_aou.png"))
     heatmap_field2(df, "sh", os.path.join(adir, "experiment_d_field2_heatmap_spechla.png"))
 
