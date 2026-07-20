@@ -14,9 +14,18 @@ independent checks, run together so they cross-validate each other:
 
   (B) UNTARGETED CHECK: every 2-field allele at all 8 classical genes, dosage-encoded
       (0/1/2 copies), PLUS ancestry dummies (population-stratification adjustment) ->
-      L1-penalized (LASSO) logistic regression -> top +/- coefficients (as odds ratios).
-      Answers the stronger question: does a model with ZERO disease-specific hints
-      independently rediscover the known risk allele(s) as its top signal?
+      L1-penalized (LASSO) logistic regression. Two separate questions, not one:
+        (B1) GENERALIZATION: 5-fold stratified cross-validation, out-of-fold predictions ->
+             pooled AUROC/AUPRC, a risk-decile enrichment table, PPV/sensitivity/specificity/
+             NPV at top-5%/top-10% thresholds, and the same broken out per ancestry (gated on
+             a minimum case count -- never reported for a group too small to mean anything).
+             This is the "does it actually predict on people it hasn't seen" question -- NOT
+             answered by coefficient inspection alone (2026-07-20 correction: an earlier version
+             of this check only reported in-sample coefficients, which shows what the model
+             learned but says nothing about generalization or per-ancestry transfer).
+        (B2) WHAT IT LEARNED: one final fit on all data, top +/- coefficients (as odds ratios).
+             Does a model with ZERO disease-specific hints independently rediscover the known
+             risk allele(s) as its top signal? Interpretation only -- not a performance claim.
 
 Both checks use AoU-native calls -- the only callset with population-scale coverage (our
 own SpecHLA/SpecImmune calling has only run on the n=60 pilot cohort) -- so this result is
@@ -53,9 +62,12 @@ import pandas as pd
 from scipy import sparse
 from scipy.stats import fisher_exact
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score, average_precision_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 
 CLASSICAL_GENES = ["A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
+MIN_CASES_FOR_GROUP_METRIC = 10  # below this, a per-ancestry AUROC/PPV is noise, not a number
 
 # Known risk markers per disease -- the positive-control definition (2-field, unphased).
 RISK_MARKERS = {
@@ -137,22 +149,16 @@ def positive_control_check(df, disease, anc_col):
     print()
 
 
-def untargeted_ml_check(df, anc_col, top_n=15):
-    print("## (B) Untargeted check -- L1 logistic regression over ALL alleles, all 8 genes\n")
-    print("No disease-specific hints given to the model -- features are every 2-field allele "
-          "seen at each of the 8 classical genes (dosage 0/1/2), plus ancestry dummies for "
-          "population-stratification adjustment. If the known risk allele(s) surface near the "
-          "top of the coefficient ranking below, that's independent confirmation the calling + "
-          "join + phenotype pipeline is sound -- not just a re-check of something we told it to "
-          "find.\n")
-
-    # Sparse construction, not a dense DataFrame: at real cohort scale (535k people x ~2,373
-    # distinct alleles, per experiment_a3) a dense float64 matrix is ~10GB, and StandardScaler
-    # would make a second full copy on top of it -- enough to OOM-kill a 25GB VM (confirmed
-    # 2026-07-20, "Killed" with no traceback = the kernel OOM killer, not a Python exception).
-    # Each person carries at most 2 non-zero alleles per gene, so this matrix is >99% zeros --
-    # build it as a scipy.sparse CSR matrix instead, which costs memory proportional to actual
-    # non-zero entries, not rows x columns.
+def build_feature_matrix(df, anc_col):
+    """Sparse construction, not a dense DataFrame: at real cohort scale (535k people x ~2,373
+    distinct alleles, per experiment_a3) a dense float64 matrix is ~10GB, and StandardScaler
+    would make a second full copy on top of it -- enough to OOM-kill a 25GB VM (confirmed
+    2026-07-20, "Killed" with no traceback = the kernel OOM killer, not a Python exception).
+    Each person carries at most 2 non-zero alleles per gene, so this matrix is >99% zeros --
+    build it as a scipy.sparse CSR matrix instead, which costs memory proportional to actual
+    non-zero entries, not rows x columns.
+    Returns (X, y, ancestry_arr, feature_names) restricted to rows callable at all 8 genes
+    with a non-null case label."""
     n = len(df)
     row_chunks, col_chunks = [], []
     feature_names = []
@@ -195,17 +201,107 @@ def untargeted_ml_check(df, anc_col, top_n=15):
     mask = (callable_mask & df["case"].notna()).to_numpy()
     idx = np.where(mask)[0]
     X = X[idx]
-    y = df["case"].iloc[idx].astype(int)
+    y = df["case"].iloc[idx].astype(int).to_numpy()
+    ancestry_arr = df[anc_col].iloc[idx].astype(str).to_numpy() if anc_col else None
+    return X, y, ancestry_arr, feature_names
 
-    print(f"Rows used: {X.shape[0]} ({int(y.sum())} cases / {int((1-y).sum())} controls). "
-          f"Features: {X.shape[1]} (allele dosages + ancestry dummies).\n")
 
-    if y.nunique() < 2 or int(y.sum()) < 10:
-        print("SKIPPED -- fewer than 10 cases after filtering; not enough signal for a "
-              "regression. Report the case count above and reconsider phenotype extraction.\n")
-        return
+def cross_validated_oof_predictions(X, y, n_splits=5, seed=42):
+    """Out-of-fold predicted probabilities: every person is scored by a model that never saw
+    them during training. Scaling is fit on the training fold only and applied to the held-out
+    fold -- fitting the scaler on all data first (as the interpretation-only fit below does) would
+    leak test-fold statistics into training and quietly inflate the reported performance."""
+    oof = np.zeros(len(y), dtype=np.float64)
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    for train_idx, test_idx in skf.split(X, y):
+        scaler = StandardScaler(with_mean=False)
+        X_train = scaler.fit_transform(X[train_idx])
+        X_test = scaler.transform(X[test_idx])
+        model = LogisticRegression(penalty="l1", solver="liblinear", C=0.1, max_iter=2000)
+        model.fit(X_train, y[train_idx])
+        oof[test_idx] = model.predict_proba(X_test)[:, 1]
+    return oof
 
-    Xs = StandardScaler(with_mean=False).fit_transform(X)  # with_mean=False keeps this sparse
+
+def threshold_metrics(y, proba, pct):
+    """PPV/sensitivity/specificity/NPV for "flag the top pct fraction by predicted risk"."""
+    n = len(y)
+    k = max(1, int(round(n * pct)))
+    order = np.argsort(-proba)
+    flag = np.zeros(n, dtype=bool)
+    flag[order[:k]] = True
+    tp = int((flag & (y == 1)).sum())
+    fp = int((flag & (y == 0)).sum())
+    fn = int((~flag & (y == 1)).sum())
+    tn = int((~flag & (y == 0)).sum())
+    ppv = tp / (tp + fp) if (tp + fp) else float("nan")
+    sens = tp / (tp + fn) if (tp + fn) else float("nan")
+    spec = tn / (tn + fp) if (tn + fp) else float("nan")
+    npv = tn / (tn + fn) if (tn + fn) else float("nan")
+    return k, ppv, sens, spec, npv
+
+
+def print_generalization_check(y, oof_proba, ancestry_arr):
+    print("### (B1) Generalization -- 5-fold cross-validated, out-of-fold predictions\n")
+    print("Every number below comes from predictions on people NOT used to train that "
+          "prediction -- this is the actual answer to \"does it generalize,\" not the "
+          "coefficient inspection in (B2) below.\n")
+
+    prevalence = y.mean()
+    auroc = roc_auc_score(y, oof_proba)
+    auprc = average_precision_score(y, oof_proba)
+    print(f"Pooled AUROC: {auroc:.3f} | Pooled AUPRC: {auprc:.3f} "
+          f"(baseline/prevalence = {100*prevalence:.3f}%) -- AUPRC matters more than AUROC "
+          f"here given how rare the outcome is; plain accuracy is not reported because "
+          f"predicting \"nobody has it\" already scores {100*(1-prevalence):.1f}%.\n")
+
+    print("**Risk-decile enrichment** (rank-based bins -- decile 1 = highest predicted risk)\n")
+    print("| Decile | n | observed case rate | enrichment vs baseline |")
+    print("|---|---|---|---|")
+    order = np.argsort(-oof_proba)
+    for i, bin_idx in enumerate(np.array_split(order, 10), start=1):
+        rate = y[bin_idx].mean()
+        enrich = rate / prevalence if prevalence > 0 else float("nan")
+        print(f"| {i} | {len(bin_idx)} | {100*rate:.3f}% | {enrich:.1f}x |")
+    print()
+
+    print("**Threshold metrics** (flagging the top X% by predicted risk as \"high-risk\")\n")
+    print("| Threshold | n flagged | PPV | Sensitivity | Specificity | NPV |")
+    print("|---|---|---|---|---|---|")
+    for pct in (0.05, 0.10):
+        k, ppv, sens, spec, npv = threshold_metrics(y, oof_proba, pct)
+        print(f"| top {int(pct*100)}% | {k} | {100*ppv:.2f}% | {100*sens:.2f}% | "
+              f"{100*spec:.2f}% | {100*npv:.2f}% |")
+    print()
+
+    if ancestry_arr is not None:
+        print("**Per-ancestry generalization** (same OOF predictions, evaluated within each "
+              f"group; groups with fewer than {MIN_CASES_FOR_GROUP_METRIC} cases or "
+              f"{MIN_CASES_FOR_GROUP_METRIC} controls are flagged as insufficient rather than "
+              "given a number that would just be noise)\n")
+        print("| Ancestry | n | cases | AUROC | AUPRC | top-10%-within-group PPV | sensitivity |")
+        print("|---|---|---|---|---|---|---|")
+        for label in sorted(pd.unique(ancestry_arr)):
+            m = ancestry_arr == label
+            y_g, p_g = y[m], oof_proba[m]
+            n_g, cases_g = len(y_g), int(y_g.sum())
+            if cases_g < MIN_CASES_FOR_GROUP_METRIC or (n_g - cases_g) < MIN_CASES_FOR_GROUP_METRIC:
+                print(f"| {label} | {n_g} | {cases_g} | insufficient cases | -- | -- | -- |")
+                continue
+            auroc_g = roc_auc_score(y_g, p_g)
+            auprc_g = average_precision_score(y_g, p_g)
+            _, ppv_g, sens_g, _, _ = threshold_metrics(y_g, p_g, 0.10)
+            print(f"| {label} | {n_g} | {cases_g} | {auroc_g:.3f} | {auprc_g:.3f} | "
+                  f"{100*ppv_g:.2f}% | {100*sens_g:.2f}% |")
+        print()
+
+
+def print_learned_coefficients(X, y, feature_names, top_n=15):
+    print("### (B2) What the model learned -- one fit on all data, for interpretation only\n")
+    print("Not a performance claim (see (B1) above for that) -- this just asks whether the "
+          "model, given zero disease-specific hints, lands on real biology.\n")
+
+    Xs = StandardScaler(with_mean=False).fit_transform(X)
     model = LogisticRegression(penalty="l1", solver="liblinear", C=0.1, max_iter=2000)
     model.fit(Xs, y)
 
@@ -213,19 +309,40 @@ def untargeted_ml_check(df, anc_col, top_n=15):
     nonzero = coefs[coefs != 0]
     print(f"Non-zero coefficients after L1 shrinkage: {len(nonzero)} / {len(coefs)}\n")
 
-    print(f"### Top {top_n} risk-associated features (positive coefficient = higher odds)\n")
+    print(f"#### Top {top_n} risk-associated features (positive coefficient = higher odds)\n")
     print("| Feature | Coefficient | Odds ratio (approx, per copy) |")
     print("|---|---|---|")
     for feat, coef in coefs.sort_values(ascending=False).head(top_n).items():
         print(f"| {feat} | {coef:.3f} | {np.exp(coef):.2f} |")
     print()
 
-    print(f"### Top {top_n} protective-associated features (negative coefficient)\n")
+    print(f"#### Top {top_n} protective-associated features (negative coefficient)\n")
     print("| Feature | Coefficient | Odds ratio (approx, per copy) |")
     print("|---|---|---|")
     for feat, coef in coefs.sort_values().head(top_n).items():
         print(f"| {feat} | {coef:.3f} | {np.exp(coef):.2f} |")
     print()
+
+
+def untargeted_ml_check(df, anc_col, top_n=15):
+    print("## (B) Untargeted check -- L1 logistic regression over ALL alleles, all 8 genes\n")
+    print("No disease-specific hints given to the model -- features are every 2-field allele "
+          "seen at each of the 8 classical genes (dosage 0/1/2), plus ancestry dummies for "
+          "population-stratification adjustment.\n")
+
+    X, y, ancestry_arr, feature_names = build_feature_matrix(df, anc_col)
+
+    print(f"Rows used: {X.shape[0]} ({int(y.sum())} cases / {int((1-y).sum())} controls). "
+          f"Features: {X.shape[1]} (allele dosages + ancestry dummies).\n")
+
+    if len(np.unique(y)) < 2 or int(y.sum()) < 10:
+        print("SKIPPED -- fewer than 10 cases after filtering; not enough signal for a "
+              "regression. Report the case count above and reconsider phenotype extraction.\n")
+        return
+
+    oof_proba = cross_validated_oof_predictions(X, y)
+    print_generalization_check(y, oof_proba, ancestry_arr)
+    print_learned_coefficients(X, y, feature_names, top_n=top_n)
 
 
 def main():
