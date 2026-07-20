@@ -55,6 +55,7 @@ Usage (via `pixi run -e spechla`):
       --phenotype-csv <celiac_cases.csv> --disease celiac
 """
 import argparse
+import os
 import sys
 
 import numpy as np
@@ -323,6 +324,8 @@ def print_learned_coefficients(X, y, feature_names, top_n=15):
         print(f"| {feat} | {coef:.3f} | {np.exp(coef):.2f} |")
     print()
 
+    return coefs
+
 
 def untargeted_ml_check(df, anc_col, top_n=15):
     print("## (B) Untargeted check -- L1 logistic regression over ALL alleles, all 8 genes\n")
@@ -338,11 +341,27 @@ def untargeted_ml_check(df, anc_col, top_n=15):
     if len(np.unique(y)) < 2 or int(y.sum()) < 10:
         print("SKIPPED -- fewer than 10 cases after filtering; not enough signal for a "
               "regression. Report the case count above and reconsider phenotype extraction.\n")
-        return
+        return None
 
     oof_proba = cross_validated_oof_predictions(X, y)
     print_generalization_check(y, oof_proba, ancestry_arr)
-    print_learned_coefficients(X, y, feature_names, top_n=top_n)
+    return print_learned_coefficients(X, y, feature_names, top_n=top_n)
+
+
+class Tee:
+    """Duplicates writes to multiple streams -- lets every print() reach both the terminal
+    (so you can watch it live) and a results file (so the actual record doesn't depend on
+    anyone's memory of a chat transcript)."""
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for s in self.streams:
+            s.write(data)
+
+    def flush(self):
+        for s in self.streams:
+            s.flush()
 
 
 def main():
@@ -354,7 +373,11 @@ def main():
                     help="CSV with person_id,case (0/1) for every person in --tsv")
     ap.add_argument("--disease", required=True, choices=list(RISK_MARKERS.keys()))
     ap.add_argument("--id-col", default="research_id")
+    ap.add_argument("--out-dir", default=os.path.expanduser("~/pipeline_outputs/disease_sanity_check"),
+                    help="Where to write the results file + full coefficient CSV. "
+                         "Aggregate-only output, safe to commit into the repo afterward.")
     args = ap.parse_args()
+    os.makedirs(args.out_dir, exist_ok=True)
 
     df = pd.read_csv(args.tsv, sep="\t", dtype=str)
     anc = pd.read_csv(args.ancestry_tsv, sep=None, engine="python", dtype=str)
@@ -384,12 +407,30 @@ def main():
 
     n_total = len(df)
     n_labeled = df["case"].notna().sum()
-    print(f"# HLA x {args.disease} sanity check\n")
-    print(f"Loaded {n_total} people from the HLA-calls TSV; {n_labeled} have a phenotype label "
-          f"({int(df['case'].sum())} cases, {int(n_labeled - df['case'].sum())} controls).\n")
 
-    positive_control_check(df, args.disease, anc_col)
-    untargeted_ml_check(df, anc_col)
+    results_path = os.path.join(args.out_dir, f"{args.disease}_results.md")
+    real_stdout = sys.stdout
+    with open(results_path, "w") as f:
+        sys.stdout = Tee(real_stdout, f)
+        try:
+            print(f"# HLA x {args.disease} sanity check\n")
+            print(f"Loaded {n_total} people from the HLA-calls TSV; {n_labeled} have a "
+                  f"phenotype label ({int(df['case'].sum())} cases, "
+                  f"{int(n_labeled - df['case'].sum())} controls).\n")
+
+            positive_control_check(df, args.disease, anc_col)
+            coefs = untargeted_ml_check(df, anc_col)
+        finally:
+            sys.stdout = real_stdout
+
+    print(f"\n(full results written to {results_path})", file=sys.stderr)
+
+    if coefs is not None:
+        coefs_path = os.path.join(args.out_dir, f"{args.disease}_full_coefficients.csv")
+        coefs.rename("coefficient").rename_axis("feature").reset_index().to_csv(
+            coefs_path, index=False)
+        print(f"(full coefficient table -- all {len(coefs)} features, not just the top "
+              f"15 -- written to {coefs_path})", file=sys.stderr)
 
 
 if __name__ == "__main__":

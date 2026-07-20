@@ -1,0 +1,217 @@
+# HLA x celiac sanity check
+
+Loaded 535658 people from the HLA-calls TSV; 535658 have a phenotype label (3254 cases, 532404 controls).
+
+## (A) Positive-control check -- celiac
+
+Risk marker: DQ2.5 (DQA1*05:01+DQB1*02:01) or DQ8 (DQA1*03:01+DQB1*03:02) carrier, unphased presence (standard clinical-typing convention -- both cis- and trans-configured DQ2.5 confer risk, and AoU-native calls are not phased across genes anyway)
+
+| Group | n | carrier+case | carrier+ctrl | non-carrier+case | non-carrier+ctrl | OR | Fisher p |
+|---|---|---|---|---|---|---|---|
+| ALL (pooled) | 535658 | 2176 | 208603 | 1078 | 323801 | 3.13 | 1.486e-221 |
+| afr | 100798 | 43 | 23951 | 95 | 76709 | 1.45 | 4.559e-02 |
+| amr | 107928 | 178 | 52519 | 107 | 55124 | 1.75 | 4.352e-06 |
+| eas | 15893 | 10 | 3734 | 18 | 12131 | 1.80 | 1.775e-01 |
+| eur | 302712 | 1927 | 125559 | 849 | 174377 | 3.15 | 7.286e-187 |
+| mid | 2151 | 9 | 853 | 1 | 1288 | 13.59 | 1.668e-03 |
+| sas | 6176 | 9 | 1987 | 8 | 4172 | 2.36 | 1.152e-01 |
+
+## (B) Untargeted check -- L1 logistic regression over ALL alleles, all 8 genes
+
+No disease-specific hints given to the model -- features are every 2-field allele seen at each of the 8 classical genes (dosage 0/1/2), plus ancestry dummies for population-stratification adjustment.
+
+Rows used: 535649 (3254 cases / 532395 controls). Features: 2379 (allele dosages + ancestry dummies).
+
+### (B1) Generalization -- 5-fold cross-validated, out-of-fold predictions
+
+Every number below comes from predictions on people NOT used to train that prediction -- this is the actual answer to "does it generalize," not the coefficient inspection in (B2) below.
+
+Pooled AUROC: 0.740 | Pooled AUPRC: 0.021 (baseline/prevalence = 0.607%) -- AUPRC matters more than AUROC here given how rare the outcome is; plain accuracy is not reported because predicting "nobody has it" already scores 99.4%.
+
+**Risk-decile enrichment** (rank-based bins -- decile 1 = highest predicted risk)
+
+| Decile | n | observed case rate | enrichment vs baseline |
+|---|---|---|---|
+| 1 | 53565 | 2.294% | 3.8x |
+| 2 | 53565 | 1.027% | 1.7x |
+| 3 | 53565 | 0.597% | 1.0x |
+| 4 | 53565 | 0.521% | 0.9x |
+| 5 | 53565 | 0.450% | 0.7x |
+| 6 | 53565 | 0.428% | 0.7x |
+| 7 | 53565 | 0.267% | 0.4x |
+| 8 | 53565 | 0.196% | 0.3x |
+| 9 | 53565 | 0.170% | 0.3x |
+| 10 | 53564 | 0.125% | 0.2x |
+
+**Threshold metrics** (flagging the top X% by predicted risk as "high-risk")
+
+| Threshold | n flagged | PPV | Sensitivity | Specificity | NPV |
+|---|---|---|---|---|---|
+| top 5% | 26782 | 2.86% | 23.54% | 95.11% | 99.51% |
+| top 10% | 53565 | 2.29% | 37.77% | 90.17% | 99.58% |
+
+**Per-ancestry generalization** (same OOF predictions, evaluated within each group; groups with fewer than 10 cases or 10 controls are flagged as insufficient rather than given a number that would just be noise)
+
+| Ancestry | n | cases | AUROC | AUPRC | top-10%-within-group PPV | sensitivity |
+|---|---|---|---|---|---|---|
+| afr | 100798 | 138 | 0.542 | 0.002 | 0.20% | 14.49% |
+| amr | 107926 | 285 | 0.606 | 0.005 | 0.60% | 22.81% |
+| eas | 15892 | 28 | 0.595 | 0.003 | 0.25% | 14.29% |
+| eur | 302706 | 2776 | 0.681 | 0.023 | 2.80% | 30.55% |
+| mid | 2151 | 10 | 0.763 | 0.014 | 1.40% | 30.00% |
+| sas | 6176 | 17 | 0.691 | 0.008 | 0.81% | 29.41% |
+
+### (B2) What the model learned -- one fit on all data, for interpretation only
+
+Not a performance claim (see (B1) above for that) -- this just asks whether the model, given zero disease-specific hints, lands on real biology.
+
+Non-zero coefficients after L1 shrinkage: 833 / 2379
+
+#### Top 15 risk-associated features (positive coefficient = higher odds)
+
+| Feature | Coefficient | Odds ratio (approx, per copy) |
+|---|---|---|
+| DQB1*02:01 | 0.205 | 1.23 |
+| DRB1*03:01 | 0.115 | 1.12 |
+| DQA1*05:01 | 0.096 | 1.10 |
+| A*03:01 | 0.061 | 1.06 |
+| DRB1*13:03 | 0.060 | 1.06 |
+| B*08:01 | 0.057 | 1.06 |
+| DRB1*08:06 | 0.045 | 1.05 |
+| DRB1*04:02 | 0.043 | 1.04 |
+| B*39:11 | 0.043 | 1.04 |
+| B*40:01 | 0.043 | 1.04 |
+| DPB1*03:01 | 0.042 | 1.04 |
+| B*27:05 | 0.042 | 1.04 |
+| DRB1*08:04 | 0.036 | 1.04 |
+| DQA1*05:02 | 0.033 | 1.03 |
+| A*25:01 | 0.033 | 1.03 |
+
+#### Top 15 protective-associated features (negative coefficient)
+
+| Feature | Coefficient | Odds ratio (approx, per copy) |
+|---|---|---|
+| ancestry_afr | -0.612 | 0.54 |
+| ancestry_amr | -0.386 | 0.68 |
+| DQB1*03:01 | -0.234 | 0.79 |
+| ancestry_eas | -0.148 | 0.86 |
+| DQB1*04:02 | -0.142 | 0.87 |
+| DRB1*04:06 | -0.118 | 0.89 |
+| DQA1*01:10 | -0.115 | 0.89 |
+| B*13:01 | -0.114 | 0.89 |
+| B*40:05 | -0.088 | 0.92 |
+| DQB1*06:03 | -0.088 | 0.92 |
+| DQA1*01:02 | -0.088 | 0.92 |
+| DQB1*05:03 | -0.081 | 0.92 |
+| ancestry_sas | -0.081 | 0.92 |
+| DRB1*09:01 | -0.080 | 0.92 |
+| DQB1*03:03 | -0.080 | 0.92 |
+
+# HLA x narcolepsy sanity check
+
+Loaded 535658 people from the HLA-calls TSV; 535658 have a phenotype label (582 cases, 535076 controls).
+
+## (A) Positive-control check -- narcolepsy
+
+Risk marker: DQB1*06:02 dosage (0/1/2 copies)
+
+| Group | n | carrier+case | carrier+ctrl | non-carrier+case | non-carrier+ctrl | OR | Fisher p |
+|---|---|---|---|---|---|---|---|
+| ALL (pooled) | 535657 | 168 | 123808 | 414 | 411267 | 1.35 | 1.373e-03 |
+| afr | 100798 | 27 | 34509 | 38 | 66224 | 1.36 | 2.394e-01 |
+| amr | 107928 | 6 | 15056 | 48 | 92818 | 0.77 | 6.951e-01 |
+| eas | 15893 | 2 | 1514 | 11 | 14366 | 1.73 | 3.560e-01 |
+| eur | 302711 | 133 | 72280 | 313 | 229985 | 1.35 | 4.542e-03 |
+| mid | 2151 | 0 | 155 | 2 | 1994 | 0.00 | 1.000e+00 |
+| sas | 6176 | 0 | 294 | 2 | 5880 | 0.00 | 1.000e+00 |
+
+## (B) Untargeted check -- L1 logistic regression over ALL alleles, all 8 genes
+
+No disease-specific hints given to the model -- features are every 2-field allele seen at each of the 8 classical genes (dosage 0/1/2), plus ancestry dummies for population-stratification adjustment.
+
+Rows used: 535649 (582 cases / 535067 controls). Features: 2379 (allele dosages + ancestry dummies).
+
+### (B1) Generalization -- 5-fold cross-validated, out-of-fold predictions
+
+Every number below comes from predictions on people NOT used to train that prediction -- this is the actual answer to "does it generalize," not the coefficient inspection in (B2) below.
+
+Pooled AUROC: 0.592 | Pooled AUPRC: 0.001 (baseline/prevalence = 0.109%) -- AUPRC matters more than AUROC here given how rare the outcome is; plain accuracy is not reported because predicting "nobody has it" already scores 99.9%.
+
+**Risk-decile enrichment** (rank-based bins -- decile 1 = highest predicted risk)
+
+| Decile | n | observed case rate | enrichment vs baseline |
+|---|---|---|---|
+| 1 | 53565 | 0.172% | 1.6x |
+| 2 | 53565 | 0.146% | 1.3x |
+| 3 | 53565 | 0.140% | 1.3x |
+| 4 | 53565 | 0.142% | 1.3x |
+| 5 | 53565 | 0.106% | 1.0x |
+| 6 | 53565 | 0.091% | 0.8x |
+| 7 | 53565 | 0.075% | 0.7x |
+| 8 | 53565 | 0.088% | 0.8x |
+| 9 | 53565 | 0.056% | 0.5x |
+| 10 | 53564 | 0.071% | 0.7x |
+
+**Threshold metrics** (flagging the top X% by predicted risk as "high-risk")
+
+| Threshold | n flagged | PPV | Sensitivity | Specificity | NPV |
+|---|---|---|---|---|---|
+| top 5% | 26782 | 0.16% | 7.39% | 95.00% | 99.89% |
+| top 10% | 53565 | 0.17% | 15.81% | 90.01% | 99.90% |
+
+**Per-ancestry generalization** (same OOF predictions, evaluated within each group; groups with fewer than 10 cases or 10 controls are flagged as insufficient rather than given a number that would just be noise)
+
+| Ancestry | n | cases | AUROC | AUPRC | top-10%-within-group PPV | sensitivity |
+|---|---|---|---|---|---|---|
+| afr | 100798 | 65 | 0.519 | 0.001 | 0.09% | 13.85% |
+| amr | 107926 | 54 | 0.496 | 0.001 | 0.08% | 16.67% |
+| eas | 15892 | 13 | 0.286 | 0.001 | 0.00% | 0.00% |
+| eur | 302706 | 446 | 0.521 | 0.002 | 0.16% | 10.99% |
+| mid | 2151 | 2 | insufficient cases | -- | -- | -- |
+| sas | 6176 | 2 | insufficient cases | -- | -- | -- |
+
+### (B2) What the model learned -- one fit on all data, for interpretation only
+
+Not a performance claim (see (B1) above for that) -- this just asks whether the model, given zero disease-specific hints, lands on real biology.
+
+Non-zero coefficients after L1 shrinkage: 227 / 2379
+
+#### Top 15 risk-associated features (positive coefficient = higher odds)
+
+| Feature | Coefficient | Odds ratio (approx, per copy) |
+|---|---|---|
+| DRB1*15:01 | 0.112 | 1.12 |
+| DPB1*40:01 | 0.103 | 1.11 |
+| B*39:10 | 0.077 | 1.08 |
+| A*30:10 | 0.069 | 1.07 |
+| B*07:05 | 0.068 | 1.07 |
+| B*57:01 | 0.067 | 1.07 |
+| B*35:43 | 0.056 | 1.06 |
+| B*39:13 | 0.051 | 1.05 |
+| B*40:01 | 0.048 | 1.05 |
+| DPB1*06:01 | 0.048 | 1.05 |
+| A*25:01 | 0.047 | 1.05 |
+| DQB1*06:08 | 0.047 | 1.05 |
+| DPB1*03:01 | 0.045 | 1.05 |
+| B*40:16 | 0.040 | 1.04 |
+| A*32:01 | 0.039 | 1.04 |
+
+#### Top 15 protective-associated features (negative coefficient)
+
+| Feature | Coefficient | Odds ratio (approx, per copy) |
+|---|---|---|
+| ancestry_amr | -0.343 | 0.71 |
+| ancestry_afr | -0.305 | 0.74 |
+| C*15:05 | -0.141 | 0.87 |
+| C*08:02 | -0.110 | 0.90 |
+| DPB1*02:02 | -0.101 | 0.90 |
+| B*48:01 | -0.099 | 0.91 |
+| DPA1*01:03 | -0.093 | 0.91 |
+| A*29:02 | -0.090 | 0.91 |
+| ancestry_sas | -0.089 | 0.91 |
+| B*52:01 | -0.089 | 0.92 |
+| DPB1*02:01 | -0.087 | 0.92 |
+| B*07:02 | -0.087 | 0.92 |
+| A*02:02 | -0.080 | 0.92 |
+| B*41:01 | -0.080 | 0.92 |
+| DRB1*14:02 | -0.070 | 0.93 |
