@@ -1,0 +1,10 @@
+# Aleix workspace — ignore bulky/local outputs, but KEEP written-up results
+results/*
+!results/*.md
+!results/*.csv
+*.bam
+*.bai
+*.fastq
+*.fastq.gz
+*.cram
+.pixi/
