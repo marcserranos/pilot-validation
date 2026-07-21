@@ -17,12 +17,17 @@ read-level evidence gone, so it isn't a format-conversion problem — see DECISI
 directly from phased assembly contigs, reportedly already used by HPRC — not yet independently
 verified or evaluated by us.
 
-**Exhaustive per-person census — real incident, now fixed (ENVIRONMENT.md quirk #22).**
-`scripts/lr_manifest_format_census.py`'s first version ran ~5 hours on the VM (16 columns x
-~15,424 rows, serial existence checks) and never wrote any output before the VM restarted —
-**everything from that run is gone, nothing was recoverable** (confirmed by reading the script:
-its only file write was the very last lines of `main()`, no partial/incremental write existed
-anywhere). Rewritten and locally smoke-tested (fake mount + manifest, simulated crash-and-resume):
+**Exhaustive per-person census — real incident, now fixed (ENVIRONMENT.md quirk #22, corrected
+account).** `scripts/lr_manifest_format_census.py`'s first version ran ~5 hours on the VM (16
+columns x ~15,424 rows, serial existence checks) and only ever printed its real results to
+stderr — no file write existed until the very last lines of `main()`. **Corrected mechanism
+(Marc, 2026-07-21): the VM does not stop mid-job (quirk #14) — the run most likely completed
+successfully and printed everything, then the VM sat idle for an hour after it finished and
+stopped, wiping that terminal's scrollback.** Separately, a later `--sample-only 50` invocation
+(after the real result already existed) silently overwrote it, since the old script shared one
+output path between test and real runs. **Net effect is the same either way: nothing was
+recoverable** — no terminal capture (no tmux/screen/redirect was used) and no on-disk copy
+survived. Rewritten and locally smoke-tested (fake mount + manifest, simulated crash-and-resume):
 now checkpoints every 500 rows (fsync'd immediately), resumes automatically from the last
 completed chunk on rerun, parallelizes checks (16-worker thread pool — I/O-bound over FUSE), and
 only checks "primary" data columns (skips companion index files, ~halving the check count). A
