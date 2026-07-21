@@ -118,10 +118,19 @@ def contigs_overlapping_region(bam_path, region):
 
 def trim_assembly(fa_path, contigs, out_fa_path):
     """samtools faidx pulls the WHOLE named contig(s) (not a sub-range -- see module docstring)
-    out of the full assembly FASTA. Builds a .fai alongside fa_path on first use if missing."""
+    out of the full assembly FASTA. fa_path lives on the read-only gcsfuse mount, but samtools
+    faidx's default index locations are alongside fa_path itself -- confirmed 2026-07-21 (person
+    1001871) this fails with "Permission denied" building the .gzi/.fai next to the read-only
+    source. Fix: --fai-idx/--gzi-idx redirect the index files into out_fa_path's own (writable)
+    directory instead -- samtools still just READS fa_path off the mount, only the small index
+    files themselves move. Confirmed present in this VM's samtools via `samtools faidx --help`
+    before relying on it, not assumed."""
+    fai_idx = out_fa_path + ".src.fai"
+    gzi_idx = out_fa_path + ".src.gzi"
     with open(out_fa_path, "w") as out:
-        proc = subprocess.run(["samtools", "faidx", fa_path] + contigs,
-                               stdout=out, stderr=subprocess.PIPE, text=True)
+        proc = subprocess.run(
+            ["samtools", "faidx", "--fai-idx", fai_idx, "--gzi-idx", gzi_idx, fa_path] + contigs,
+            stdout=out, stderr=subprocess.PIPE, text=True)
     ok = proc.returncode == 0 and os.path.getsize(out_fa_path) > 0
     return ok, proc.stderr
 
