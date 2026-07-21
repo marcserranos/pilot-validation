@@ -53,6 +53,7 @@ First run: pass exactly ONE person_id and read the printed timing summary before
 to pass all 60 cohort ids in one invocation.
 """
 import argparse
+import concurrent.futures
 import glob
 import gzip
 import os
@@ -247,13 +248,121 @@ def parse_gtf(gtf_gz_path, show_raw_sample=True):
     return calls
 
 
+def process_haplotype(pid, hap, fa_rel, paf_rel, aln_rel, person_dir, immuannot_script,
+                       args, resolve_seconds, threads):
+    """One haplotype's full trim + immuannot.sh + parse, fully self-contained (returns its own
+    row/calls rather than mutating shared state) so it's safe to run hap1 and hap2 concurrently
+    in separate threads (Marc, 2026-07-21: why sum the two haps instead of running them at once?)
+    without any locking. `threads` is passed in explicitly (not read from args) because it differs
+    between sequential mode (args.threads, e.g. 4) and --parallel-haps mode (args.threads split
+    across the two concurrent haps, e.g. 2 each)."""
+    row = {"person_id": pid, "hap": hap, "resolve_seconds": round(resolve_seconds, 2),
+           "trim_method": None, "n_contigs": None,
+           "whole_contig_mb": None, "padded_mb": None, "trimmed_mb": None,
+           "contig_lookup_seconds": None, "trim_seconds": None, "immuannot_seconds": None,
+           "hap_total_seconds": None}
+    hap_t0 = time.perf_counter()
+    fa_path = os.path.join(args.mount, fa_rel)
+
+    # --- Stage 1: find trim targets. Prefer exact sub-ranges from the .paf (Marc, 2026-07-21:
+    # explored the padding-reduction margin properly -- reuses the proven-safe pad100k from
+    # the SpecImmune-LR sweep). Falls back to whole-contig via the .bam if this person's .paf
+    # is missing or has nothing recognizable overlapping the region, so nobody gets skipped
+    # just because the (optional) .paf isn't there. ---
+    targets, trim_method = None, None
+    if paf_rel:
+        paf_path = os.path.join(args.mount, paf_rel)
+        chrom, rstart, rend = parse_region(args.region)
+        regions, qlens, seen_tnames = regions_from_paf(paf_path, chrom, rstart, rend, args.pad)
+        if regions:
+            targets = [f"{c}:{s + 1}-{e}" for c, (s, e) in regions.items()]
+            trim_method = "paf_region"
+            whole_bp = sum(qlens[c] for c in regions)
+            padded_bp = sum(e - s for s, e in regions.values())
+            row["n_contigs"] = len(regions)
+            row["whole_contig_mb"] = round(whole_bp / 1e6, 2)
+            row["padded_mb"] = round(padded_bp / 1e6, 2)
+            pct = 100 * (1 - padded_bp / max(whole_bp, 1))
+            print(f"  {hap}: {len(regions)} contig(s) overlap {args.region} via .paf "
+                  f"(pad={args.pad:,}bp) -- whole-contig would be {whole_bp/1e6:.1f} MB, "
+                  f"padded sub-range is {padded_bp/1e6:.1f} MB ({pct:.0f}% smaller)",
+                  file=sys.stderr)
+        else:
+            print(f"  {hap}: .paf present but 0 contigs overlap {args.region} -- target names "
+                  f"seen in this .paf: {sorted(seen_tnames)[:10]} -- falling back to "
+                  f"whole-contig via .bam.", file=sys.stderr)
+    else:
+        print(f"  {hap}: no .paf resolved for this person -- using whole-contig fallback.",
+              file=sys.stderr)
+
+    if targets is None:
+        aln_path = os.path.join(args.mount, aln_rel)
+        contigs, err = contigs_overlapping_region(aln_path, args.region)
+        if contigs is None:
+            print(f"  {hap}: SKIP -- samtools view failed against the aln-to-hg38 BAM: {err}",
+                  file=sys.stderr)
+            return row, {}
+        if not contigs:
+            print(f"  {hap}: SKIP -- 0 contigs overlap {args.region} (checked both .paf and "
+                  f".bam). Unexpected -- worth a closer look for this specific person, not "
+                  f"assumed benign.", file=sys.stderr)
+            return row, {}
+        targets, trim_method = contigs, "bam_whole_contig"
+        row["n_contigs"] = len(contigs)
+        print(f"  {hap}: {len(contigs)} contig(s) overlap {args.region} via .bam "
+              f"(whole-contig): {contigs}", file=sys.stderr)
+
+    row["trim_method"] = trim_method
+    lookup_t1 = time.perf_counter()
+    lookup_seconds = lookup_t1 - hap_t0
+    row["contig_lookup_seconds"] = round(lookup_seconds, 2)
+    print(f"  {hap} [1/3] find trim targets ({trim_method}): {lookup_seconds:.2f}s", file=sys.stderr)
+
+    # --- Stage 2: trim (samtools faidx -- files-to-ready-for-immuannot step Marc flagged) ---
+    trimmed_fa = os.path.join(person_dir, f"{hap}.trimmed.fa")
+    ok, err = trim_assembly(fa_path, targets, trimmed_fa)
+    trim_t2 = time.perf_counter()
+    trim_seconds = trim_t2 - lookup_t1
+    row["trim_seconds"] = round(trim_seconds, 2)
+    print(f"  {hap} [2/3] trim (samtools faidx): {trim_seconds:.2f}s", file=sys.stderr)
+
+    if not ok:
+        print(f"  {hap}: SKIP -- samtools faidx trim failed: {err}", file=sys.stderr)
+        return row, {}
+    trimmed_mb = os.path.getsize(trimmed_fa) / 1e6
+    row["trimmed_mb"] = round(trimmed_mb, 1)
+    print(f"  {hap}: trimmed FASTA is {trimmed_mb:.1f} MB, ready for immuannot.sh", file=sys.stderr)
+
+    # --- Stage 3: immuannot.sh itself ---
+    outprefix = os.path.join(person_dir, hap)
+    gtf = run_immuannot(immuannot_script, args.refdir, trimmed_fa, outprefix, threads)
+    hap_t3 = time.perf_counter()
+    immuannot_seconds = hap_t3 - trim_t2
+    row["immuannot_seconds"] = round(immuannot_seconds, 2)
+    row["hap_total_seconds"] = round(hap_t3 - hap_t0, 2)
+    calls = parse_gtf(gtf) if gtf else {}
+    print(f"  {hap} [3/3] immuannot.sh (threads={threads}): {immuannot_seconds/60:.1f} min "
+          f"({len(calls)} genes called)", file=sys.stderr)
+    print(f"  {hap} stage breakdown -- lookup {lookup_seconds:.1f}s / trim {trim_seconds:.1f}s / "
+          f"immuannot {immuannot_seconds/60:.1f}min / hap total {row['hap_total_seconds']/60:.1f}min",
+          file=sys.stderr)
+    return row, calls
+
+
 def process_person(pid, lr, args, immuannot_script):
     """Returns (gene_rows, timing_rows) for one person. Every stage is timestamped separately
     (manifest resolution, contig lookup, trim, immuannot.sh) and printed as it completes -- Marc's
     2026-07-21 ask, to see exactly which stage the "BAM things" (contig lookup / trim) actually
     cost versus immuannot.sh itself, rather than one bundled number. A timing row is recorded for
     every haplotype attempt, including ones that get skipped partway through, so a slow-then-failing
-    stage is still visible in immuannot_timing.tsv, not silently dropped."""
+    stage is still visible in immuannot_timing.tsv, not silently dropped.
+
+    hap1/hap2 run SEQUENTIALLY by default (each gets the full --threads) -- total person time is
+    the SUM of both haps' immuannot.sh runtime, not the slower one alone. Pass --parallel-haps to
+    run them concurrently instead (each then gets --threads/2, minimum 1, so the two together don't
+    oversubscribe the VM's cores) -- Marc, 2026-07-21: tested on person 1001871 before deciding
+    whether to use this for the full 60-person run, same "test then decide" discipline as the pad
+    sweep. Concurrent stderr from both haps interleaves in the terminal -- expected, not a bug."""
     print(f"\n=== Person {pid} ===", file=sys.stderr)
     person_t0 = time.perf_counter()
 
@@ -282,108 +391,29 @@ def process_person(pid, lr, args, immuannot_script):
     person_dir = os.path.join(args.outroot, str(pid), "immuannot_output")
     os.makedirs(person_dir, exist_ok=True)
 
-    gene_calls = {}
-    timing_rows = []
-    for hap in ("hap1", "hap2"):
-        row = {"person_id": pid, "hap": hap, "resolve_seconds": round(resolve_seconds, 2),
-               "trim_method": None, "n_contigs": None,
-               "whole_contig_mb": None, "padded_mb": None, "trimmed_mb": None,
-               "contig_lookup_seconds": None, "trim_seconds": None, "immuannot_seconds": None,
-               "hap_total_seconds": None}
-        hap_t0 = time.perf_counter()
-        fa_path = os.path.join(args.mount, fa_paths[hap])
+    hap_args = {
+        hap: (pid, hap, fa_paths[hap], paf_paths.get(hap), aln_paths[hap], person_dir,
+              immuannot_script, args, resolve_seconds)
+        for hap in ("hap1", "hap2")
+    }
+    results = {}
+    if args.parallel_haps:
+        per_hap_threads = max(1, args.threads // 2)
+        print(f"  --parallel-haps: running hap1+hap2 concurrently, {per_hap_threads} threads "
+              f"each (of --threads {args.threads} total)", file=sys.stderr)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            futures = {
+                pool.submit(process_haplotype, *hap_args[hap], per_hap_threads): hap
+                for hap in ("hap1", "hap2")
+            }
+            for fut in concurrent.futures.as_completed(futures):
+                results[futures[fut]] = fut.result()
+    else:
+        for hap in ("hap1", "hap2"):
+            results[hap] = process_haplotype(*hap_args[hap], args.threads)
 
-        # --- Stage 1: find trim targets. Prefer exact sub-ranges from the .paf (Marc, 2026-07-21:
-        # explored the padding-reduction margin properly -- reuses the proven-safe pad100k from
-        # the SpecImmune-LR sweep). Falls back to whole-contig via the .bam if this person's .paf
-        # is missing or has nothing recognizable overlapping the region, so nobody gets skipped
-        # just because the (optional) .paf isn't there. ---
-        targets, trim_method = None, None
-        paf_rel = paf_paths.get(hap)
-        if paf_rel:
-            paf_path = os.path.join(args.mount, paf_rel)
-            chrom, rstart, rend = parse_region(args.region)
-            regions, qlens, seen_tnames = regions_from_paf(paf_path, chrom, rstart, rend, args.pad)
-            if regions:
-                targets = [f"{c}:{s + 1}-{e}" for c, (s, e) in regions.items()]
-                trim_method = "paf_region"
-                whole_bp = sum(qlens[c] for c in regions)
-                padded_bp = sum(e - s for s, e in regions.values())
-                row["n_contigs"] = len(regions)
-                row["whole_contig_mb"] = round(whole_bp / 1e6, 2)
-                row["padded_mb"] = round(padded_bp / 1e6, 2)
-                pct = 100 * (1 - padded_bp / max(whole_bp, 1))
-                print(f"  {hap}: {len(regions)} contig(s) overlap {args.region} via .paf "
-                      f"(pad={args.pad:,}bp) -- whole-contig would be {whole_bp/1e6:.1f} MB, "
-                      f"padded sub-range is {padded_bp/1e6:.1f} MB ({pct:.0f}% smaller)",
-                      file=sys.stderr)
-            else:
-                print(f"  {hap}: .paf present but 0 contigs overlap {args.region} -- target names "
-                      f"seen in this .paf: {sorted(seen_tnames)[:10]} -- falling back to "
-                      f"whole-contig via .bam.", file=sys.stderr)
-        else:
-            print(f"  {hap}: no .paf resolved for this person -- using whole-contig fallback.",
-                  file=sys.stderr)
-
-        if targets is None:
-            aln_path = os.path.join(args.mount, aln_paths[hap])
-            contigs, err = contigs_overlapping_region(aln_path, args.region)
-            if contigs is None:
-                print(f"  {hap}: SKIP -- samtools view failed against the aln-to-hg38 BAM: {err}",
-                      file=sys.stderr)
-                gene_calls[hap] = {}
-                timing_rows.append(row)
-                continue
-            if not contigs:
-                print(f"  {hap}: SKIP -- 0 contigs overlap {args.region} (checked both .paf and "
-                      f".bam). Unexpected -- worth a closer look for this specific person, not "
-                      f"assumed benign.", file=sys.stderr)
-                gene_calls[hap] = {}
-                timing_rows.append(row)
-                continue
-            targets, trim_method = contigs, "bam_whole_contig"
-            row["n_contigs"] = len(contigs)
-            print(f"  {hap}: {len(contigs)} contig(s) overlap {args.region} via .bam "
-                  f"(whole-contig): {contigs}", file=sys.stderr)
-
-        row["trim_method"] = trim_method
-        lookup_t1 = time.perf_counter()
-        lookup_seconds = lookup_t1 - hap_t0
-        row["contig_lookup_seconds"] = round(lookup_seconds, 2)
-        print(f"  {hap} [1/3] find trim targets ({trim_method}): {lookup_seconds:.2f}s", file=sys.stderr)
-
-        # --- Stage 2: trim (samtools faidx -- files-to-ready-for-immuannot step Marc flagged) ---
-        trimmed_fa = os.path.join(person_dir, f"{hap}.trimmed.fa")
-        ok, err = trim_assembly(fa_path, targets, trimmed_fa)
-        trim_t2 = time.perf_counter()
-        trim_seconds = trim_t2 - lookup_t1
-        row["trim_seconds"] = round(trim_seconds, 2)
-        print(f"  {hap} [2/3] trim (samtools faidx): {trim_seconds:.2f}s", file=sys.stderr)
-
-        if not ok:
-            print(f"  {hap}: SKIP -- samtools faidx trim failed: {err}", file=sys.stderr)
-            gene_calls[hap] = {}
-            timing_rows.append(row)
-            continue
-        trimmed_mb = os.path.getsize(trimmed_fa) / 1e6
-        row["trimmed_mb"] = round(trimmed_mb, 1)
-        print(f"  {hap}: trimmed FASTA is {trimmed_mb:.1f} MB, ready for immuannot.sh", file=sys.stderr)
-
-        # --- Stage 3: immuannot.sh itself ---
-        outprefix = os.path.join(person_dir, hap)
-        gtf = run_immuannot(immuannot_script, args.refdir, trimmed_fa, outprefix, args.threads)
-        hap_t3 = time.perf_counter()
-        immuannot_seconds = hap_t3 - trim_t2
-        row["immuannot_seconds"] = round(immuannot_seconds, 2)
-        row["hap_total_seconds"] = round(hap_t3 - hap_t0, 2)
-        gene_calls[hap] = parse_gtf(gtf) if gtf else {}
-        print(f"  {hap} [3/3] immuannot.sh: {immuannot_seconds/60:.1f} min "
-              f"({len(gene_calls[hap])} genes called)", file=sys.stderr)
-        print(f"  {hap} stage breakdown -- lookup {lookup_seconds:.1f}s / trim {trim_seconds:.1f}s / "
-              f"immuannot {immuannot_seconds/60:.1f}min / hap total {row['hap_total_seconds']/60:.1f}min",
-              file=sys.stderr)
-
-        timing_rows.append(row)
+    timing_rows = [results[hap][0] for hap in ("hap1", "hap2")]
+    gene_calls = {hap: results[hap][1] for hap in ("hap1", "hap2")}
 
     genes = sorted(set(gene_calls.get("hap1", {})) | set(gene_calls.get("hap2", {})))
     gene_rows = [{
@@ -422,6 +452,12 @@ def main():
     ap.add_argument("--refdir", default=os.path.expanduser("~/tools/Immuannot_refdata"))
     ap.add_argument("--outroot", default=os.path.expanduser("~/pipeline_outputs"))
     ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--parallel-haps", action="store_true",
+                    help="Run hap1 and hap2 concurrently instead of sequentially -- total "
+                         "person time trends toward the slower haplotype instead of the sum of "
+                         "both. Each hap gets --threads/2 (min 1) to avoid oversubscribing the "
+                         "VM's cores. Untested at scale as of 2026-07-21 -- verify on 1-2 people "
+                         "before using for a full 60-person run.")
     ap.add_argument("--region", default=DEFAULT_REGION,
                     help=f"GRCh38 region used to pick overlapping contigs (default {DEFAULT_REGION}).")
     ap.add_argument("--pad", type=int, default=DEFAULT_PAD,
