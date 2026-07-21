@@ -68,7 +68,7 @@ if [[ ! -s "$HR_RESULT" ]]; then
   echo "[4/4] HLA-Resolve ..."
   ( cd "$HLARESOLVE" && pixi run --manifest-path "$HR_MANIFEST" -- \
       hla_resolve --input_file "$OUT/$SAMPLE.chr6.fastq.gz" --sample_name "$SAMPLE" \
-      --platform pacbio --scheme wgs --output_dir "$HR_OUT" --threads "$THREADS" ) \
+      --platform pacbio --scheme WGS --output_dir "$HR_OUT" --threads "$THREADS" ) \
       > "$OUT/${SAMPLE}.hlaresolve.log" 2>&1
 else
   echo "[4/4] HLA-Resolve result already present, skipping."
