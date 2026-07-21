@@ -4,20 +4,32 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-07-20 (cont.) — long-read data-format landscape thread + two carried-over items resolved
+## As of 2026-07-21 — long-read format census: real 5h data-loss incident, script rewritten + re-queued
 
-**Long-read format thread (this session):** Marc's question: for the ~14,521 people with an LR
-manifest row, only 2,763 have a confirmed real aligned BAM (ENVIRONMENT.md quirk #13) — why, what
-input formats does SpecImmune actually accept, and can the other people's data (phased assemblies)
-be converted to something usable? Conceptual part answered from existing docs (no VM needed):
-SpecImmune's real required input is FASTQ reads, not BAM — a phased assembly FASTA is an
-already-collapsed consensus with the read-level evidence gone, so it isn't a format-conversion
-problem — see DECISIONS.md's "Assembly-based HLA typing" bullet for full reasoning, now also
-carrying a subagent literature-research lead: **Immuannot** (github.com/YingZhou001/Immuannot)
-looks like a ready-to-use tool that types HLA directly from phased assembly contigs, reportedly
-already used by HPRC on its own release data — not yet independently verified or evaluated by us.
-Wrote `scripts/lr_manifest_format_census.py` (syntax-checked) for the exhaustive per-person
-distribution question — needs the VM's gcsfuse mount, can't run from this Mac session.
+**Long-read format thread:** Marc's question: for the ~14,521 people with an LR manifest row,
+only 2,763 have a confirmed real aligned BAM (ENVIRONMENT.md quirk #13) — why, what input formats
+does SpecImmune actually accept, and can the other people's data (phased assemblies) be converted
+to something usable? Conceptual part answered from existing docs: SpecImmune's real required input
+is FASTQ reads, not BAM — a phased assembly FASTA is an already-collapsed consensus with the
+read-level evidence gone, so it isn't a format-conversion problem — see DECISIONS.md's
+"Assembly-based HLA typing" bullet, now also carrying a subagent literature-research lead:
+**Immuannot** (github.com/YingZhou001/Immuannot) looks like a ready-to-use tool that types HLA
+directly from phased assembly contigs, reportedly already used by HPRC — not yet independently
+verified or evaluated by us.
+
+**Exhaustive per-person census — real incident, now fixed (ENVIRONMENT.md quirk #22).**
+`scripts/lr_manifest_format_census.py`'s first version ran ~5 hours on the VM (16 columns x
+~15,424 rows, serial existence checks) and never wrote any output before the VM restarted —
+**everything from that run is gone, nothing was recoverable** (confirmed by reading the script:
+its only file write was the very last lines of `main()`, no partial/incremental write existed
+anywhere). Rewritten and locally smoke-tested (fake mount + manifest, simulated crash-and-resume):
+now checkpoints every 500 rows (fsync'd immediately), resumes automatically from the last
+completed chunk on rerun, parallelizes checks (16-worker thread pool — I/O-bound over FUSE), and
+only checks "primary" data columns (skips companion index files, ~halving the check count). A
+`--sample-only` run now always uses its own separate output/checkpoint paths, so it can never again
+silently clobber a real result (confirmed this is what happened once already — the census.tsv
+Marc retrieved after "5 hours of runtime" turned out to be the leftover 50-row sanity-check output,
+not the real result). **Queued to rerun on the VM — not yet done.**
 
 **Both carried-over items from 2026-07-19 turned out to be already resolved, found via git log
 during this session (see below) — not by direct investigation this session.**
