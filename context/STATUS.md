@@ -4,78 +4,58 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-07-21 — long-read format census: real 5h data-loss incident, script rewritten + re-queued
+## As of 2026-07-21 (cont.) — long-read census complete: the 2,763-person floor is obsolete
 
-**Long-read format thread:** Marc's question: for the ~14,521 people with an LR manifest row,
-only 2,763 have a confirmed real aligned BAM (ENVIRONMENT.md quirk #13) — why, what input formats
-does SpecImmune actually accept, and can the other people's data (phased assemblies) be converted
-to something usable? Conceptual part answered from existing docs: SpecImmune's real required input
-is FASTQ reads, not BAM — a phased assembly FASTA is an already-collapsed consensus with the
-read-level evidence gone, so it isn't a format-conversion problem — see DECISIONS.md's
-"Assembly-based HLA typing" bullet, now also carrying a subagent literature-research lead:
-**Immuannot** (github.com/YingZhou001/Immuannot) looks like a ready-to-use tool that types HLA
-directly from phased assembly contigs, reportedly already used by HPRC — not yet independently
-verified or evaluated by us.
+**Headline result, delivered:** the exhaustive long-read data-format census
+(`scripts/lr_manifest_format_census.py`, checkpointed/resumable rewrite after a real 5h
+data-loss incident — ENVIRONMENT.md quirk #22) ran clean on the full 14,521-person cohort.
+**All 14,521 people now have a real, existing aligned GRCh38 BAM** — AoU backfilled the
+previously-missing `revio`-platform BAMs sometime between 2026-07-11 and 2026-07-21, directly
+confirmed by re-checking the exact case ENVIRONMENT.md quirk #13 had named as dangling (person
+1008366's `revio` row). Full writeup, per-platform data-shape table, and caveats:
+`reports/lr_data_census/README.md`. DECISIONS.md's "Where are the aligned BAMs" open question is
+now Resolved. **The long-read validation cohort is no longer capped near ~2,763 — this changes
+the practical scope of Experiment D's successor and the MID/SAS ancestry bottleneck.**
 
-**Exhaustive per-person census — real incident, now fixed (ENVIRONMENT.md quirk #22, corrected
-account).** `scripts/lr_manifest_format_census.py`'s first version ran ~5 hours on the VM (16
-columns x ~15,424 rows, serial existence checks) and only ever printed its real results to
-stderr — no file write existed until the very last lines of `main()`. **Corrected mechanism
-(Marc, 2026-07-21): the VM does not stop mid-job (quirk #14) — the run most likely completed
-successfully and printed everything, then the VM sat idle for an hour after it finished and
-stopped, wiping that terminal's scrollback.** Separately, a later `--sample-only 50` invocation
-(after the real result already existed) silently overwrote it, since the old script shared one
-output path between test and real runs. **Net effect is the same either way: nothing was
-recoverable** — no terminal capture (no tmux/screen/redirect was used) and no on-disk copy
-survived. Rewritten and locally smoke-tested (fake mount + manifest, simulated crash-and-resume):
-now checkpoints every 500 rows (fsync'd immediately), resumes automatically from the last
-completed chunk on rerun, parallelizes checks (16-worker thread pool — I/O-bound over FUSE), and
-only checks "primary" data columns (skips companion index files, ~halving the check count). A
-`--sample-only` run now always uses its own separate output/checkpoint paths, so it can never again
-silently clobber a real result (confirmed this is what happened once already — the census.tsv
-Marc retrieved after "5 hours of runtime" turned out to be the leftover 50-row sanity-check output,
-not the real result). **Queued to rerun on the VM — not yet done.**
+Conceptual side-question (SpecImmune's real input requirement, why assembly data isn't a simple
+BAM-conversion target) already answered in DECISIONS.md's "Assembly-based HLA typing" bullet,
+which also now carries a literature-research lead: **Immuannot**
+(github.com/YingZhou001/Immuannot) looks like a ready-to-use tool that types HLA directly from
+phased assembly contigs, reportedly already used by HPRC — not yet independently verified or
+evaluated by us. ~86% of the cohort (revio/sequel2e/sequel2) has assembly data available as a
+*second*, cross-validating product now, not a fallback for otherwise-unreachable people.
 
-**Both carried-over items from 2026-07-19 turned out to be already resolved, found via git log
-during this session (see below) — not by direct investigation this session.**
+**Two real incidents this session, both now fixed and logged:** (1) the census script's original
+version had no incremental output — see ENVIRONMENT.md quirk #22 for the fix (checkpointed,
+resumable, parallelized) and its corrected root-cause account (the VM doesn't stop mid-job,
+quirk #14 — the terminal's scrollback was lost after the job *finished*, and a later
+`--sample-only` rerun separately clobbered the on-disk result via a shared-output-path bug, also
+fixed). (2) A commit (`112372c`) mid-session bundled this session's in-progress edits with
+unrelated concurrent work from Marc and Aleix, who both regularly work in this same repo
+directly — **confirmed by Marc as expected, ongoing, normal working style, not an anomaly to
+keep flagging.**
 
-**Important, unresolved: possible concurrent editing.** While this session was mid-edit on this
-exact local repo path, a commit (`112372c`) landed that bundled this session's in-progress
-uncommitted changes together with unrelated work neither this session nor its subagents made.
-Content landed correctly (verified byte-for-byte), but **confirm whether another session/terminal
-is/was active on this same working directory at the same time** — if so, treat concurrent edits
-to the same files as a real risk going forward, not a one-off.
+**Both carried-over items from 2026-07-19 were already resolved independently (found via git log,
+not by this session's own investigation):** Aleix's `aleix/hla-resolve-phase1` workstream (4th
+long-read caller, calibrated against real external ground truth) explains the earlier
+"unexplained parallel VM experiments" note; `scripts/hla_disease_sanity_check.py`'s
+disease-sanity-check thread (Celiac/narcolepsy) finished with real results independently of the
+missing-companion-file concern.
 
 ## Pick up here
 
-**Three open items, in priority order:**
-
-1. **Run `scripts/lr_manifest_format_census.py` on the VM** (new, this session; renamed from an
-   earlier `experiment_e_*` name that collided with the unrelated, already-committed "Experiment E:
-   Operation DQ" disease-sanity-check thread below). Suggested first step: `--sample-only 50` to
-   sanity-check the auto-detected path-like-column list against the printed column report before
-   committing to the full ~15k-row existence-check pass (a few minutes per column-thousand-rows).
-   Paste the per-person profile distribution back.
-2. **RESOLVED, not by this session — the "parallel VM experiments" mystery (carried over from
-   2026-07-19) was Aleix's `aleix/` workstream** (3 commits, `e9acd8d`/`c148c8a`): evaluating
-   HLA-Resolve as a 4th long-read caller, calibrated against real external ground truth (44
-   GIAB/HPRC samples) rather than treating SpecImmune-LR as presumed-truth the way Experiment D
-   did — directly answers a real methodological gap. Isolated under `aleix/`, doesn't touch shared
-   files. Worth reading `aleix/README.md` directly for the current phase/status rather than
-   re-deriving from this note.
-3. **RESOLVED, not by this session — `scripts/hla_disease_sanity_check.py`'s missing companion
-   file is moot; the thread finished with real results** (`reports/disease_sanity_check/README.md`
-   + `cv_results.log`, Marc's own "Experiment E: Operation DQ" commits). Celiac shows real,
-   modest, ancestry-uneven predictive signal (EUR AUROC 0.681 vs AFR 0.542); narcolepsy is
-   chance-level (AUROC 0.592) despite the model correctly finding the true haplotype partner
-   allele. Read the report directly for the full writeup — not summarized further here to avoid
-   drifting from the source.
+1. **Evaluate Immuannot** (DECISIONS.md, "Assembly-based HLA typing" bullet) as a second
+   long-read caller for the ~86% of the cohort with assembly data — not yet started, no design
+   work done beyond the literature lead.
+2. **Re-scope the long-read validation cohort** now that all 14,521 people (not ~2,763) are
+   viable — Experiment D's 60-person cohort and the MID/SAS ancestry bottleneck should be
+   revisited against this much larger pool before assuming the old constraints still apply.
+3. Read `aleix/README.md` directly for HLA-Resolve's current phase/status rather than
+   re-deriving it from this note — that workstream is moving independently of this thread.
 
 Not blocking otherwise. Next natural step: the strategic fork in DECISIONS.md (build downstream
 directly on AoU-native vs. call independently), now informed by the cross-tool pilot, the callset
-validation report, and soon Aleix's ground-truth-anchored comparison — plus, once item 1 lands, a
-clearer picture of how much the long-read validation cohort could grow, and whether Immuannot is
-worth evaluating for the assembly-only people.
+validation report, this census, and soon Aleix's ground-truth-anchored comparison.
 
 ## Watch / blockers
 
@@ -86,5 +66,5 @@ worth evaluating for the assembly-only people.
 - **`mkdir -p` the target directory before any `... > <dir>/file` redirect** (quirk #20).
 - **pad100k (SpecImmune-LR) and pad2000-10000 (SpecHLA-SR) are two separate, tool-specific recommendations** — don't conflate them.
 - **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a specific new reason.
-- **The long-read BAM pool (2,763) is a floor, not a settled ceiling** — see DECISIONS.md open question before assuming that's the whole story for a future larger cohort.
+- **The long-read BAM pool is now all 14,521 people, not the old 2,763 floor** (DECISIONS.md, resolved 2026-07-21) — don't cite the old number from memory; re-check DECISIONS.md if a stale "2,763" surfaces anywhere.
 - **DRB1's SpecHLA-pad10000 padding-degradation hypothesis is still open, untested** (DECISIONS.md, 2026-07-12 entry).
