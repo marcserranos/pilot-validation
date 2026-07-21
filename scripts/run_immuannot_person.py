@@ -10,16 +10,22 @@ TRIM STEP (2026-07-21, Marc: "trim the zone we need, not ridiculous paddings" be
 pilot run). A whole diploid assembly (both haplotypes, genome-wide) is far more than Immuannot
 needs to type 8 classical HLA genes on chr6 -- but assembly contigs are NOT reference-coordinate
 strings (they're de novo sequence, arbitrary contig IDs), so we can't naively slice
-"chr6:29,500,000-33,500,000" out of them the way slice_and_fastq.sh does for aligned BAMs. Instead
-we use each haplotype's OWN assembly-to-hg38 alignment file (assembly_hap{1,2}_aln2_hg38_bam --
-confirmed present alongside the raw assembly FASTA for revio/sequel2e per the census) to find
-which contig(s) actually overlap the HLA region in GRCh38 coordinates, then samtools-faidx just
-those WHOLE contigs out of the full assembly. This is deliberately the simple version: take the
-whole matching contig(s), not a sub-range within them -- no CIGAR/indel coordinate math, no risk of
-clipping a gene at a padding boundary. Still a large cut versus the full genome (typically one
-chromosome-arm-scale contig instead of the full ~1.5-3GB diploid assembly). If per-person timing
-(see below) shows this isn't enough, true sub-range trimming via the companion .paf file is the
-next lever -- not built yet, deliberately, per Marc's "try one/two, evaluate, then decide" plan.
+"chr6:29,500,000-33,500,000" out of them the way slice_and_fastq.sh does for aligned BAMs.
+
+Two-tier design, preferring the tighter one:
+  1. PREFERRED -- true sub-range extraction via each haplotype's own assembly-to-hg38 .paf file
+     (assembly_hap{1,2}_aln2_hg38_paf). A .paf line's qstart/qend/tstart/tend are the REAL aligned
+     boundaries of that block, not an estimate, so regions_from_paf() takes the union of
+     (min qstart, max qend) across every block overlapping the target region, per contig, padded
+     by --pad (default 100,000bp -- reuses the exact number EXPERIMENTS.md's SpecImmune-LR sweep
+     already proved safe: zero degradation, 3.9x smaller than full-pad) and clamped to the contig's
+     own length. Confirmed 2026-07-21 on person 1001871: cut the trimmed input further than
+     whole-contig extraction alone -- see immuannot_timing.tsv's whole_contig_mb/padded_mb columns
+     for the actual per-person reduction once run.
+  2. FALLBACK -- whole-contig extraction via the assembly-to-hg38 .bam (assembly_hap{1,2}_aln2_hg38_bam),
+     used only if this person's .paf is missing or has nothing recognizable overlapping the region.
+     No CIGAR/indel math, no risk of clipping a gene -- just less tight than tier 1.
+Both confirmed present alongside the raw assembly FASTA for revio/sequel2e per the census.
 
 Per person: resolves assembly_hap1_fa/assembly_hap2_fa AND assembly_hap1_aln2_hg38_bam/
 assembly_hap2_aln2_hg38_bam mount-relative paths from the v9 lrWGS manifest (existence-checked
@@ -61,7 +67,13 @@ BUCKET_PREFIX = "gs://vwb-aou-datasets-controlled/"
 LR_MANIFEST = "v9/wgs/long_read/manifest.tsv"
 FA_COLS = {"hap1": "assembly_hap1_fa", "hap2": "assembly_hap2_fa"}
 ALN_COLS = {"hap1": "assembly_hap1_aln2_hg38_bam", "hap2": "assembly_hap2_aln2_hg38_bam"}
+PAF_COLS = {"hap1": "assembly_hap1_aln2_hg38_paf", "hap2": "assembly_hap2_aln2_hg38_paf"}
 DEFAULT_REGION = "chr6:29500000-33500000"  # the project's standing HLA window (ENVIRONMENT.md)
+# Reuses the exact number ENVIRONMENT.md/EXPERIMENTS.md already proved safe for SpecImmune-LR
+# (pad100k: zero degradation across 8 genes, 3.9x smaller than full-pad) -- Marc, 2026-07-21:
+# "a really safe reduction" for the analogous concern here (not clipping a gene near a coordinate-
+# mapping boundary), not a new untested number.
+DEFAULT_PAD = 100_000
 
 
 def die(msg):
@@ -116,20 +128,70 @@ def contigs_overlapping_region(bam_path, region):
     return contigs, proc.stderr
 
 
-def trim_assembly(fa_path, contigs, out_fa_path):
-    """samtools faidx pulls the WHOLE named contig(s) (not a sub-range -- see module docstring)
-    out of the full assembly FASTA. fa_path lives on the read-only gcsfuse mount, but samtools
-    faidx's default index locations are alongside fa_path itself -- confirmed 2026-07-21 (person
-    1001871) this fails with "Permission denied" building the .gzi/.fai next to the read-only
-    source. Fix: --fai-idx/--gzi-idx redirect the index files into out_fa_path's own (writable)
-    directory instead -- samtools still just READS fa_path off the mount, only the small index
-    files themselves move. Confirmed present in this VM's samtools via `samtools faidx --help`
-    before relying on it, not assumed."""
+def parse_region(region_str):
+    chrom, coords = region_str.split(":")
+    start_str, end_str = coords.split("-")
+    return chrom, int(start_str), int(end_str)
+
+
+def regions_from_paf(paf_path, chrom, region_start, region_end, pad):
+    """True sub-range trim (2026-07-21, Marc: explored the padding-reduction margin properly
+    rather than dismissing it -- see EXPERIMENTS.md's SpecImmune-LR pad100k sweep for the
+    precedent this reuses). A .paf line's own qstart/qend/tstart/tend are the REAL aligned
+    boundaries of that block (not an extrapolated estimate), so padding here only has to cover
+    minor internal-indel drift and the chance a gene sits just past a block's reported edge --
+    not a coordinate system we're guessing at. For each contig with >=1 PAF block overlapping the
+    target region, takes the union of (min qstart, max qend) across its overlapping blocks, pads
+    by `pad` on each side, and clamps to [0, qlen].
+
+    Returns (regions, qlens, seen_tnames):
+      regions: {contig: (start0, end0)} -- padded/clamped sub-range, ready for a faidx region string
+      qlens: {contig: qlen} -- full contig length, from the PAF itself, no extra samtools call
+      seen_tnames: set of every target name actually seen (for diagnosing a naming mismatch,
+                   e.g. "chr6" vs "6", rather than silently returning empty and looking like "no
+                   overlap" when it's really "wrong name assumed").
+    """
+    opener = gzip.open if paf_path.endswith(".gz") else open
+    accept_chrom = {chrom, chrom[3:] if chrom.startswith("chr") else f"chr{chrom}"}
+    regions, qlens, seen_tnames = {}, {}, set()
+    with opener(paf_path, "rt") as f:
+        for line in f:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 12:
+                continue
+            qname, qlen, qstart, qend = fields[0], int(fields[1]), int(fields[2]), int(fields[3])
+            tname, tstart, tend = fields[5], int(fields[7]), int(fields[8])
+            seen_tnames.add(tname)
+            if tname not in accept_chrom:
+                continue
+            if tend <= region_start or tstart >= region_end:
+                continue
+            qlens[qname] = qlen
+            new_start, new_end = max(0, qstart - pad), min(qlen, qend + pad)
+            if qname in regions:
+                s, e = regions[qname]
+                regions[qname] = (min(s, new_start), max(e, new_end))
+            else:
+                regions[qname] = (new_start, new_end)
+    return regions, qlens, seen_tnames
+
+
+def trim_assembly(fa_path, targets, out_fa_path):
+    """samtools faidx extracts each entry in `targets` -- either a bare contig name (whole contig,
+    the fallback path) or a "contig:start-end" region string (the preferred sub-range path via
+    regions_from_paf) -- samtools faidx accepts both forms interchangeably, so this function
+    doesn't need to know which kind it got. fa_path lives on the read-only gcsfuse mount, but
+    samtools faidx's default index locations are alongside fa_path itself -- confirmed 2026-07-21
+    (person 1001871) this fails with "Permission denied" building the .gzi/.fai next to the
+    read-only source. Fix: --fai-idx/--gzi-idx redirect the index files into out_fa_path's own
+    (writable) directory instead -- samtools still just READS fa_path off the mount, only the
+    small index files themselves move. Confirmed present in this VM's samtools via
+    `samtools faidx --help` before relying on it, not assumed."""
     fai_idx = out_fa_path + ".src.fai"
     gzi_idx = out_fa_path + ".src.gzi"
     with open(out_fa_path, "w") as out:
         proc = subprocess.run(
-            ["samtools", "faidx", "--fai-idx", fai_idx, "--gzi-idx", gzi_idx, fa_path] + contigs,
+            ["samtools", "faidx", "--fai-idx", fai_idx, "--gzi-idx", gzi_idx, fa_path] + targets,
             stdout=out, stderr=subprocess.PIPE, text=True)
     ok = proc.returncode == 0 and os.path.getsize(out_fa_path) > 0
     return ok, proc.stderr
@@ -201,6 +263,8 @@ def process_person(pid, lr, args, immuannot_script):
     resolve_seconds = time.perf_counter() - resolve_t0
     print(f"  manifest path resolution: {resolve_seconds:.2f}s", file=sys.stderr)
 
+    paf_paths = resolve_cols(lr, pid, args.mount, PAF_COLS)  # optional -- not gated on below
+
     if fa_paths is None:
         print(f"  SKIP: no manifest row for {pid} at all.", file=sys.stderr)
         return [], []
@@ -222,40 +286,75 @@ def process_person(pid, lr, args, immuannot_script):
     timing_rows = []
     for hap in ("hap1", "hap2"):
         row = {"person_id": pid, "hap": hap, "resolve_seconds": round(resolve_seconds, 2),
-               "n_contigs": None, "trimmed_mb": None,
+               "trim_method": None, "n_contigs": None,
+               "whole_contig_mb": None, "padded_mb": None, "trimmed_mb": None,
                "contig_lookup_seconds": None, "trim_seconds": None, "immuannot_seconds": None,
                "hap_total_seconds": None}
         hap_t0 = time.perf_counter()
-        aln_path = os.path.join(args.mount, aln_paths[hap])
         fa_path = os.path.join(args.mount, fa_paths[hap])
 
-        # --- Stage 1: contig lookup (samtools view on the remote/mounted aln-to-hg38 BAM) ---
-        contigs, err = contigs_overlapping_region(aln_path, args.region)
+        # --- Stage 1: find trim targets. Prefer exact sub-ranges from the .paf (Marc, 2026-07-21:
+        # explored the padding-reduction margin properly -- reuses the proven-safe pad100k from
+        # the SpecImmune-LR sweep). Falls back to whole-contig via the .bam if this person's .paf
+        # is missing or has nothing recognizable overlapping the region, so nobody gets skipped
+        # just because the (optional) .paf isn't there. ---
+        targets, trim_method = None, None
+        paf_rel = paf_paths.get(hap)
+        if paf_rel:
+            paf_path = os.path.join(args.mount, paf_rel)
+            chrom, rstart, rend = parse_region(args.region)
+            regions, qlens, seen_tnames = regions_from_paf(paf_path, chrom, rstart, rend, args.pad)
+            if regions:
+                targets = [f"{c}:{s + 1}-{e}" for c, (s, e) in regions.items()]
+                trim_method = "paf_region"
+                whole_bp = sum(qlens[c] for c in regions)
+                padded_bp = sum(e - s for s, e in regions.values())
+                row["n_contigs"] = len(regions)
+                row["whole_contig_mb"] = round(whole_bp / 1e6, 2)
+                row["padded_mb"] = round(padded_bp / 1e6, 2)
+                pct = 100 * (1 - padded_bp / max(whole_bp, 1))
+                print(f"  {hap}: {len(regions)} contig(s) overlap {args.region} via .paf "
+                      f"(pad={args.pad:,}bp) -- whole-contig would be {whole_bp/1e6:.1f} MB, "
+                      f"padded sub-range is {padded_bp/1e6:.1f} MB ({pct:.0f}% smaller)",
+                      file=sys.stderr)
+            else:
+                print(f"  {hap}: .paf present but 0 contigs overlap {args.region} -- target names "
+                      f"seen in this .paf: {sorted(seen_tnames)[:10]} -- falling back to "
+                      f"whole-contig via .bam.", file=sys.stderr)
+        else:
+            print(f"  {hap}: no .paf resolved for this person -- using whole-contig fallback.",
+                  file=sys.stderr)
+
+        if targets is None:
+            aln_path = os.path.join(args.mount, aln_paths[hap])
+            contigs, err = contigs_overlapping_region(aln_path, args.region)
+            if contigs is None:
+                print(f"  {hap}: SKIP -- samtools view failed against the aln-to-hg38 BAM: {err}",
+                      file=sys.stderr)
+                gene_calls[hap] = {}
+                timing_rows.append(row)
+                continue
+            if not contigs:
+                print(f"  {hap}: SKIP -- 0 contigs overlap {args.region} (checked both .paf and "
+                      f".bam). Unexpected -- worth a closer look for this specific person, not "
+                      f"assumed benign.", file=sys.stderr)
+                gene_calls[hap] = {}
+                timing_rows.append(row)
+                continue
+            targets, trim_method = contigs, "bam_whole_contig"
+            row["n_contigs"] = len(contigs)
+            print(f"  {hap}: {len(contigs)} contig(s) overlap {args.region} via .bam "
+                  f"(whole-contig): {contigs}", file=sys.stderr)
+
+        row["trim_method"] = trim_method
         lookup_t1 = time.perf_counter()
         lookup_seconds = lookup_t1 - hap_t0
         row["contig_lookup_seconds"] = round(lookup_seconds, 2)
-        print(f"  {hap} [1/3] contig lookup (samtools view): {lookup_seconds:.2f}s", file=sys.stderr)
-
-        if contigs is None:
-            print(f"  {hap}: SKIP -- samtools view failed against the aln-to-hg38 BAM: {err}",
-                  file=sys.stderr)
-            gene_calls[hap] = {}
-            timing_rows.append(row)
-            continue
-        if not contigs:
-            print(f"  {hap}: SKIP -- 0 contigs overlap {args.region} in this haplotype's own "
-                  f"hg38 alignment. Unexpected (every revio person should have HLA region "
-                  f"covered) -- worth a closer look for this specific person, not assumed benign.",
-                  file=sys.stderr)
-            gene_calls[hap] = {}
-            timing_rows.append(row)
-            continue
-        row["n_contigs"] = len(contigs)
-        print(f"  {hap}: {len(contigs)} contig(s) overlap {args.region}: {contigs}", file=sys.stderr)
+        print(f"  {hap} [1/3] find trim targets ({trim_method}): {lookup_seconds:.2f}s", file=sys.stderr)
 
         # --- Stage 2: trim (samtools faidx -- files-to-ready-for-immuannot step Marc flagged) ---
         trimmed_fa = os.path.join(person_dir, f"{hap}.trimmed.fa")
-        ok, err = trim_assembly(fa_path, contigs, trimmed_fa)
+        ok, err = trim_assembly(fa_path, targets, trimmed_fa)
         trim_t2 = time.perf_counter()
         trim_seconds = trim_t2 - lookup_t1
         row["trim_seconds"] = round(trim_seconds, 2)
@@ -325,9 +424,18 @@ def main():
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--region", default=DEFAULT_REGION,
                     help=f"GRCh38 region used to pick overlapping contigs (default {DEFAULT_REGION}).")
+    ap.add_argument("--pad", type=int, default=DEFAULT_PAD,
+                    help=f"bp padding on each side of a .paf-mapped block before extraction "
+                         f"(default {DEFAULT_PAD:,} -- reuses the SpecImmune-LR pad100k value "
+                         f"already proven safe in EXPERIMENTS.md). Only affects the .paf-based "
+                         f"sub-range path; the .bam whole-contig fallback ignores this.")
     ap.add_argument("--time-budget-min", type=float, default=30,
                     help="Per-person minutes to compare against when printing the verdict "
                          "(informational only -- does not abort a run).")
+    ap.add_argument("--force", action="store_true",
+                    help="Re-process a person even if already present in immuannot_calls.tsv "
+                         "(default: skip -- makes a 60-person run safe to kill and re-launch "
+                         "with the exact same command).")
     args = ap.parse_args()
 
     lr_path = os.path.join(args.mount, LR_MANIFEST)
@@ -344,27 +452,46 @@ def main():
     if "research_id" not in lr.columns:
         die(f"LR manifest missing research_id column. Actual columns: {list(lr.columns)}")
 
+    calls_path = os.path.join(args.outroot, "immuannot_calls.tsv")
+    already_done = set()
+    if os.path.exists(calls_path) and not args.force:
+        already_done = set(pd.read_csv(calls_path, sep="\t", dtype=str)["person_id"].astype(str))
+        print(f"{len(already_done)} people already have calls in {calls_path} -- will be skipped "
+              f"(pass --force to redo them). This is what makes killing and re-launching a 60-"
+              f"person run with the exact same command safe.", file=sys.stderr)
+
     run_t0 = time.perf_counter()
     all_gene_rows, all_timing_rows = [], []
+    n_skipped_done = 0
     for pid in args.person_ids:
+        if str(pid) in already_done:
+            print(f"\n=== Person {pid}: SKIP -- already in {calls_path} (--force to redo) ===",
+                  file=sys.stderr)
+            n_skipped_done += 1
+            continue
         gene_rows, timing_rows = process_person(pid, lr, args, immuannot_script)
         all_gene_rows.extend(gene_rows)
         all_timing_rows.extend(timing_rows)
 
     n_ok = len({r["person_id"] for r in all_gene_rows})
-    n_skipped = len(args.person_ids) - n_ok
+    n_failed = len(args.person_ids) - n_ok - n_skipped_done
     run_total = time.perf_counter() - run_t0
-    print(f"\n=== Run summary: {n_ok}/{len(args.person_ids)} people produced calls "
-          f"({n_skipped} skipped), {run_total/60:.1f} min total "
-          f"({run_total/60/max(n_ok,1):.1f} min/person average) ===", file=sys.stderr)
+    print(f"\n=== Run summary: {n_ok} produced calls this invocation, {n_skipped_done} already "
+          f"done (skipped), {n_failed} failed/skipped this time, {run_total/60:.1f} min elapsed "
+          f"({run_total/60/max(n_ok,1):.1f} min/person average, this invocation only) ===",
+          file=sys.stderr)
 
     if all_timing_rows:
         timing_path = os.path.join(args.outroot, "immuannot_timing.tsv")
         write_incremental(pd.DataFrame(all_timing_rows), timing_path, ["person_id"])
         print(f"Timing log: {timing_path}", file=sys.stderr)
 
-    if not all_gene_rows:
+    if not all_gene_rows and n_skipped_done == 0:
         die("No people produced any calls -- check the SKIP reasons above.")
+    if not all_gene_rows:
+        print("Nothing new to write this invocation (everyone requested was already done).",
+              file=sys.stderr)
+        return
 
     out_path = os.path.join(args.outroot, "immuannot_calls.tsv")
     write_incremental(pd.DataFrame(all_gene_rows), out_path, ["person_id"])
