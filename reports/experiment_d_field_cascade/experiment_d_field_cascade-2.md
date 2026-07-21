@@ -6,20 +6,22 @@ Each field level is cumulative (matching through Field N implies Field 1..N-1 al
 
 Match rate = n_true / (n_true + n_false) among *assessable* comparisons; N/A = comparisons where one caller simply doesn't report that many fields (e.g. AoU-native never reports Field 4).
 
-### AoU-native vs SpecImmune-LR truth
+**"structural cap"** means the method never independently reaches that field at all, in anyone, anywhere in this cohort (e.g. AoU-native: max observed depth is 3 fields) -- distinct from an ordinary per-call N/A, which just means this particular call/truth pair happened to be shallow. Cells at or below a method's own max depth are real, measured comparisons even when they show 0% (that 0% is inherited from an earlier field that already disagreed, per the cascade definition above -- not fresh evidence at this depth).
+
+### AoU-native vs SpecImmune-LR truth (max observed depth: 3 fields)
 
 | Gene | Field 1 (allele group) | Field 2 (protein -- non-synonymous) | Field 3 (synonymous, coding) | Field 4 (non-coding) |
 |---|---|---|---|---|
-| A | 92% (N/A 0%) | 87% (N/A 0%) | 85% (N/A 1%) | 0% (N/A 85%) |
-| B | 93% (N/A 0%) | 88% (N/A 0%) | 82% (N/A 0%) | 0% (N/A 82%) |
-| C | 97% (N/A 0%) | 92% (N/A 0%) | 82% (N/A 0%) | 0% (N/A 82%) |
-| DRB1 | 94% (N/A 0%) | 77% (N/A 0%) | 75% (N/A 0%) | 0% (N/A 75%) |
-| DQA1 | 100% (N/A 0%) | 64% (N/A 0%) | 59% (N/A 0%) | 0% (N/A 59%) |
-| DQB1 | 97% (N/A 0%) | 83% (N/A 0%) | 83% (N/A 0%) | 0% (N/A 83%) |
-| DPA1 | 98% (N/A 0%) | 93% (N/A 0%) | 88% (N/A 0%) | 0% (N/A 88%) |
-| DPB1 | 83% (N/A 0%) | 83% (N/A 0%) | 83% (N/A 0%) | 0% (N/A 83%) |
+| A | 92% (N/A 0%) | 87% (N/A 0%) | 85% (N/A 1%) | N/A -- structural cap |
+| B | 93% (N/A 0%) | 88% (N/A 0%) | 82% (N/A 0%) | N/A -- structural cap |
+| C | 97% (N/A 0%) | 92% (N/A 0%) | 82% (N/A 0%) | N/A -- structural cap |
+| DRB1 | 94% (N/A 0%) | 77% (N/A 0%) | 75% (N/A 0%) | N/A -- structural cap |
+| DQA1 | 100% (N/A 0%) | 64% (N/A 0%) | 59% (N/A 0%) | N/A -- structural cap |
+| DQB1 | 97% (N/A 0%) | 83% (N/A 0%) | 83% (N/A 0%) | N/A -- structural cap |
+| DPA1 | 98% (N/A 0%) | 93% (N/A 0%) | 88% (N/A 0%) | N/A -- structural cap |
+| DPB1 | 83% (N/A 0%) | 83% (N/A 0%) | 83% (N/A 0%) | N/A -- structural cap |
 
-### SpecHLA vs SpecImmune-LR truth
+### SpecHLA vs SpecImmune-LR truth (max observed depth: 4 fields)
 
 | Gene | Field 1 (allele group) | Field 2 (protein -- non-synonymous) | Field 3 (synonymous, coding) | Field 4 (non-coding) |
 |---|---|---|---|---|
