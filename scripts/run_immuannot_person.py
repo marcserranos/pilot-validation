@@ -47,6 +47,7 @@ First run: pass exactly ONE person_id and read the printed timing summary before
 to pass all 60 cohort ids in one invocation.
 """
 import argparse
+import glob
 import gzip
 import os
 import re
@@ -125,8 +126,19 @@ def trim_assembly(fa_path, contigs, out_fa_path):
     return ok, proc.stderr
 
 
-def run_immuannot(immuannot_dir, refdir, contig_path, outprefix, threads):
-    script = os.path.join(immuannot_dir, "scripts", "immuannot.sh")
+def find_immuannot_script(immuannot_dir):
+    """Never hardcode the in-repo path -- confirmed 2026-07-21 the upstream repo ships immuannot.sh
+    under a VERSIONED folder (scripts.pub.v3, not plain scripts/ as its own README shows), and that
+    name could drift again on a future re-clone. Same lesson as ENVIRONMENT.md quirk #13: find the
+    real file, don't trust a documented path pattern."""
+    matches = glob.glob(os.path.join(immuannot_dir, "**", "immuannot.sh"), recursive=True)
+    if not matches:
+        return None
+    matches.sort(key=lambda p: p.count(os.sep))  # prefer the shallowest match
+    return matches[0]
+
+
+def run_immuannot(script, refdir, contig_path, outprefix, threads):
     cmd = ["bash", script, "-c", contig_path, "-r", refdir, "-o", outprefix, "-t", str(threads)]
     print(f"    Running: {' '.join(cmd)}", file=sys.stderr)
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -164,7 +176,7 @@ def parse_gtf(gtf_gz_path, show_raw_sample=True):
     return calls
 
 
-def process_person(pid, lr, args):
+def process_person(pid, lr, args, immuannot_script):
     """Returns (gene_rows, timing_rows) for one person. Every stage is timestamped separately
     (manifest resolution, contig lookup, trim, immuannot.sh) and printed as it completes -- Marc's
     2026-07-21 ask, to see exactly which stage the "BAM things" (contig lookup / trim) actually
@@ -251,7 +263,7 @@ def process_person(pid, lr, args):
 
         # --- Stage 3: immuannot.sh itself ---
         outprefix = os.path.join(person_dir, hap)
-        gtf = run_immuannot(args.immuannot_dir, args.refdir, trimmed_fa, outprefix, args.threads)
+        gtf = run_immuannot(immuannot_script, args.refdir, trimmed_fa, outprefix, args.threads)
         hap_t3 = time.perf_counter()
         immuannot_seconds = hap_t3 - trim_t2
         row["immuannot_seconds"] = round(immuannot_seconds, 2)
@@ -313,8 +325,10 @@ def main():
     if not os.path.exists(lr_path):
         die(f"manifest not found: {lr_path} -- is the gcsfuse mount up? "
             f"(ENVIRONMENT.md quirk #11/#14: remount and `ls`-verify first.)")
-    if not os.path.exists(os.path.join(args.immuannot_dir, "scripts", "immuannot.sh")):
-        die(f"immuannot.sh not found under {args.immuannot_dir} -- run setup_immuannot.sh first.")
+    immuannot_script = find_immuannot_script(args.immuannot_dir)
+    if immuannot_script is None:
+        die(f"immuannot.sh not found anywhere under {args.immuannot_dir} -- run setup_immuannot.sh first.")
+    print(f"Using immuannot.sh at: {immuannot_script}", file=sys.stderr)
 
     print(f"Reading LR manifest: {lr_path}", file=sys.stderr)
     lr = pd.read_csv(lr_path, sep="\t", dtype=str)
@@ -324,7 +338,7 @@ def main():
     run_t0 = time.perf_counter()
     all_gene_rows, all_timing_rows = [], []
     for pid in args.person_ids:
-        gene_rows, timing_rows = process_person(pid, lr, args)
+        gene_rows, timing_rows = process_person(pid, lr, args, immuannot_script)
         all_gene_rows.extend(gene_rows)
         all_timing_rows.extend(timing_rows)
 
