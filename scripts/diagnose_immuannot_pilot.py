@@ -28,10 +28,15 @@ the headline concordance metric here is FIELD 2 (protein-level, non-synonymous -
 priority), which is far more robust to renaming than fields 3/4.
 
 Aggregate-only output (counts/rates, no genotypes) -- keep raw inputs on the VM (egress caveat,
-DECISIONS.md); paste the markdown / bring it into reports/immuannot_pilot/.
+DECISIONS.md); paste the markdown / bring it (+ figures) into reports/immuannot_pilot/.
 
-Usage (any pixi env with pandas -- no matplotlib needed):
-  python3 scripts/diagnose_immuannot_pilot.py [--outroot ~/pipeline_outputs]
+Also writes 3 PNG figures (Section 6) for the written report -- computed from the exact same
+numbers as the tables above, not retyped by hand from a chat transcript.
+
+Usage (needs matplotlib -- run via `-e spechla`, not `-e specimmune` (which lacks it); this script
+only reads files, no specimmune-specific binary is needed at runtime):
+  pixi run -e spechla -- python3 scripts/diagnose_immuannot_pilot.py [--outroot ~/pipeline_outputs]
+      [--figures-dir ~/pipeline_outputs/immuannot_pilot/analysis/figures]
 """
 import argparse
 import gzip
@@ -40,6 +45,10 @@ import re
 import sys
 
 import pandas as pd
+
+import matplotlib
+matplotlib.use("Agg")  # no display server on the VM
+import matplotlib.pyplot as plt
 
 GENES = ["A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
 GROUPS = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
@@ -266,12 +275,118 @@ def load_immuannot_confidence(cohort, outroot):
     return out
 
 
+# Consistent with the project's existing figure palette (analyze_experiment_d_field_cascade.py):
+# one color per method, reused across every figure so a reader learns it once.
+IMMUANNOT_COLOR = "#4C72B0"   # blue -- same slot SpecImmune/AoU use elsewhere; here it's Immuannot
+SPECIMMUNE_COLOR = "#DD8452"  # orange
+DRB1_HIGHLIGHT = "#C44E52"    # red -- reserved for flagging DRB1 as the standout finding
+
+
+def plot_field2_by_gene(field_rate_by_gene, path):
+    """Bar chart: Field 2 (headline) overall concordance % per gene. DRB1 gets its own color --
+    not decorative, it's the one gene that's a real outlier and the figure should say so at a
+    glance, not make the reader read the numbers to notice."""
+    rates = field_rate_by_gene[2]
+    genes = GENES
+    vals = [rates[g][0] if rates[g][0] is not None else 0 for g in genes]
+    ns = [rates[g][1] for g in genes]
+    colors = [DRB1_HIGHLIGHT if g == "DRB1" else IMMUANNOT_COLOR for g in genes]
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    bars = ax.bar(genes, vals, color=colors, width=0.6)
+    for bar, v, n in zip(bars, vals, ns):
+        ax.text(bar.get_x() + bar.get_width() / 2, v + 2, f"{v:.0f}%\n(n={n})",
+                ha="center", va="bottom", fontsize=8)
+    ax.axhline(sum(vals) / len(vals), color="gray", linestyle="--", linewidth=1, alpha=0.6)
+    ax.set_ylim(0, 122)  # headroom for the "%\n(n=)" label even when a bar hits 100%
+    ax.set_yticks(range(0, 101, 20))
+    ax.set_ylabel("Field 2 (protein-level) concordance, %")
+    ax.set_title("Immuannot vs SpecImmune-LR -- Field 2 concordance by gene\n"
+                  "(cross-method agreement, NOT accuracy -- no ground truth)", fontsize=10, pad=12)
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
+def plot_confidence_comparison(si_conf_by_gene, imm_td_by_gene, path):
+    """2-panel figure, same gene order on both x-axes so a reader can visually line up 'both
+    tools are least confident at the same gene' without a shared/dual y-axis (never mix scales
+    on one axis -- SpecImmune's confidence is a %, Immuannot's is an edit-distance count)."""
+    genes = GENES
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
+
+    conf = [si_conf_by_gene[g]["confident"] for g in genes]
+    tied = [si_conf_by_gene[g]["ambiguous(tied)"] for g in genes]
+    lower = [si_conf_by_gene[g]["lower_identity"] for g in genes]
+    totals = [c + t + l for c, t, l in zip(conf, tied, lower)]
+    conf_pct = [100 * c / t if t else 0 for c, t in zip(conf, totals)]
+    tied_pct = [100 * t / tot if tot else 0 for t, tot in zip(tied, totals)]
+    lower_pct = [100 * l / tot if tot else 0 for l, tot in zip(lower, totals)]
+    ax1.bar(genes, conf_pct, color="#55A868", label="confident")
+    ax1.bar(genes, tied_pct, bottom=conf_pct, color="#C44E52", label="ambiguous (tied)")
+    ax1.bar(genes, lower_pct, bottom=[c + t for c, t in zip(conf_pct, tied_pct)],
+            color="#DD8452", label="lower identity")
+    ax1.set_ylabel("% of SpecImmune's resolved calls")
+    ax1.set_title("SpecImmune's own confidence, per gene", fontsize=10)
+    ax1.set_ylim(0, 100)
+    ax1.legend(fontsize=7, loc="upper right")
+    ax1.spines[["top", "right"]].set_visible(False)
+
+    td_vals = [imm_td_by_gene[g] if imm_td_by_gene[g] is not None else 0 for g in genes]
+    colors = [DRB1_HIGHLIGHT if g == "DRB1" else IMMUANNOT_COLOR for g in genes]
+    ax2.bar(genes, td_vals, color=colors)
+    ax2.set_ylabel("Mean template_distance (edit distance to nearest IMGT allele)")
+    ax2.set_title("Immuannot's own confidence, per gene\n(lower = more confident)", fontsize=10)
+    ax2.spines[["top", "right"]].set_visible(False)
+
+    fig.suptitle("Confidence when each caller DOES resolve a gene -- not the same scale, "
+                  "read side by side for which genes are hard for BOTH", fontsize=10, y=1.02)
+    fig.tight_layout()
+    fig.savefig(path, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_runtime(timing_df, path):
+    """2-panel: per-person total runtime distribution (60 people), and where that time actually
+    goes (trim vs immuannot.sh -- the split Marc originally asked to see broken out by stage)."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
+
+    per_person = (timing_df.groupby("person_id")["hap_total_seconds"].sum() / 60).dropna()
+    ax1.hist(per_person, bins=12, color=IMMUANNOT_COLOR, edgecolor="white")
+    ax1.axvline(per_person.median(), color=DRB1_HIGHLIGHT, linestyle="--", linewidth=1.5,
+                label=f"median {per_person.median():.1f} min")
+    ax1.set_xlabel("Total runtime per person, minutes (both haplotypes)")
+    ax1.set_ylabel("People")
+    ax1.set_title(f"Per-person runtime, n={len(per_person)}", fontsize=10)
+    ax1.legend(fontsize=8)
+    ax1.spines[["top", "right"]].set_visible(False)
+
+    reached = timing_df.dropna(subset=["immuannot_seconds"])
+    trim_med = reached["trim_seconds"].median()
+    imm_med = reached["immuannot_seconds"].median() / 60
+    ax2.bar(["median hap"], [trim_med / 60], color="#8172B2", label=f"trim ({trim_med:.0f}s)")
+    ax2.bar(["median hap"], [imm_med], bottom=[trim_med / 60], color=IMMUANNOT_COLOR,
+            label=f"immuannot.sh ({imm_med:.1f}min)")
+    ax2.set_ylabel("Minutes")
+    ax2.set_title("Where the time goes (per haplotype)", fontsize=10)
+    ax2.legend(fontsize=8, loc="upper right")
+    ax2.spines[["top", "right"]].set_visible(False)
+    ax2.set_xlim(-0.7, 0.7)
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--outroot", default=os.path.expanduser("~/pipeline_outputs"))
     ap.add_argument("--cohort", default=None)
     ap.add_argument("--analysis-dir", default=None)
+    ap.add_argument("--figures-dir", default=None,
+                    help="Default: <analysis-dir>/figures")
     args = ap.parse_args()
 
     cohort_path = args.cohort or os.path.join(args.outroot, "experiment_d", "cohort.tsv")
@@ -408,12 +523,16 @@ def main():
                 disc += 1
         return conc, disc
 
+    field_rate_by_gene = {}  # {lvl: {gene: (pct, n)}} -- captured here for Section 6's figures,
+                              # so plots are computed from the exact same numbers as the tables,
+                              # not retyped from a chat transcript.
     for lvl, label in [(1, "Field 1 (allele group)"),
                        (2, "Field 2 (protein, non-synonymous -- HEADLINE)"),
                        (3, "Field 3 (synonymous, coding -- DB-version-confounded)"),
                        (4, "Field 4 (non-coding -- DB-version-confounded)")]:
         parts += [f"### {label}", "", "| Gene | " + " | ".join(GROUPS) + " | overall |",
                   "|---|" + "---|" * (len(GROUPS) + 1)]
+        field_rate_by_gene[lvl] = {}
         for g in GENES:
             cells, tot_c, tot_d = [], 0, 0
             for grp in GROUPS:
@@ -423,6 +542,7 @@ def main():
                 cells.append(f"{100*c/n:.0f}% ({n})" if n else "-")
             tot_n = tot_c + tot_d
             overall = f"{100*tot_c/tot_n:.0f}% ({tot_n})" if tot_n else "-"
+            field_rate_by_gene[lvl][g] = (100 * tot_c / tot_n if tot_n else None, tot_n)
             parts.append(f"| {g} | " + " | ".join(cells) + f" | {overall} |")
         parts.append("")
 
@@ -467,6 +587,7 @@ def main():
               "`lower_identity(x)` = resolved but below the identity bar.", "",
               "| Gene | confident | ambiguous(tied) | lower_identity | unknown |",
               "|---|---|---|---|---|"]
+    si_conf_by_gene = {}  # captured for Section 6's figures
     for g in GENES:
         labels = {"confident": 0, "ambiguous(tied)": 0, "unknown": 0}
         lower_n = 0
@@ -479,6 +600,9 @@ def main():
                 lower_n += 1
             else:
                 labels[lbl] = labels.get(lbl, 0) + 1
+        si_conf_by_gene[g] = {"confident": labels["confident"],
+                              "ambiguous(tied)": labels["ambiguous(tied)"],
+                              "lower_identity": lower_n, "unknown": labels["unknown"]}
         parts.append(f"| {g} | {labels['confident']} | {labels['ambiguous(tied)']} | {lower_n} | "
                       f"{labels['unknown']} |")
 
@@ -493,6 +617,7 @@ def main():
               "| Gene | n with template_distance | mean template_distance | n with a real warning |",
               "|---|---|---|---|"]
     imm_conf = load_immuannot_confidence(cohort, args.outroot)
+    imm_td_by_gene = {}  # captured for Section 6's figures
     for g in GENES:
         dists, n_warned = [], 0
         for (pid, hap, gname), attrs in imm_conf.items():
@@ -507,6 +632,7 @@ def main():
             warn = str(attrs.get("template_warning", "NA")).strip()
             if warn and warn != "NA":
                 n_warned += 1
+        imm_td_by_gene[g] = sum(dists) / len(dists) if dists else None
         mean_d = f"{sum(dists)/len(dists):.2f}" if dists else "-"
         parts.append(f"| {g} | {len(dists)} | {mean_d} | {n_warned} |")
 
@@ -540,8 +666,23 @@ def main():
               f"(person, gene): both callers' alleles, SpecImmune's confidence label, the "
               f"unresolved-reason, and the Field 2 status. Open directly on the VM to see exactly "
               f"which individuals/genes drive each ancestry's numbers above -- "
-              f"e.g. `column -s, -t {detail_path} | less -S`, or filter to just the discordant "
-              f"rows: `awk -F, '$10==\"discordant\"' {detail_path}`."]
+              f"e.g. `awk -F, '$10==\"discordant\"' {detail_path}` (this VM has no `column`)."]
+
+    # ============ SECTION 6: figures (real PNGs from these exact numbers) ============
+    figdir = args.figures_dir or os.path.join(adir, "figures")
+    os.makedirs(figdir, exist_ok=True)
+    f1 = os.path.join(figdir, "field2_by_gene.png")
+    f2 = os.path.join(figdir, "confidence_comparison.png")
+    f3 = os.path.join(figdir, "runtime.png")
+    plot_field2_by_gene(field_rate_by_gene, f1)
+    plot_confidence_comparison(si_conf_by_gene, imm_td_by_gene, f2)
+    plot_runtime(timing, f3)
+    parts += ["", "## 6. Figures", "",
+              f"- `{f1}` -- Field 2 concordance by gene (the headline chart)",
+              f"- `{f2}` -- each caller's own confidence when it resolves a gene, side by side",
+              f"- `{f3}` -- per-person runtime distribution + where the time goes",
+              "", "Bring these three into `reports/immuannot_pilot/figures/` alongside the "
+              "written report."]
 
     md = "\n".join(parts) + "\n"
     out_md = os.path.join(adir, "immuannot_pilot_diagnosis.md")
@@ -550,6 +691,7 @@ def main():
     print(md)
     print(f"\n(written to {out_md} -- aggregate-only, safe to paste back / bring into the repo)",
           file=sys.stderr)
+    print(f"(figures written to {figdir})", file=sys.stderr)
 
 
 if __name__ == "__main__":
