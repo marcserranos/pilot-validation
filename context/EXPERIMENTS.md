@@ -428,6 +428,17 @@ Re-scoring of the existing Experiment D n=60 calls at cumulative field-by-field 
 
 Exhaustive per-column existence census of the full v9 lrWGS manifest (15,424 rows / 14,521 unique people, 29 primary data-bearing columns), superseding the earlier 2,763-person "floor" (see ENVIRONMENT.md quirk #13). Every person has a real `grch38_bam`; AoU backfilled the previously-missing revio BAMs between 07-11 and 07-21, confirmed by spot-checking quirk #13's own documented dangling case (person 1008366). The long-read validation cohort is no longer capped near 2,763 — all 14,521 are viable for the SpecImmune-LR pipeline. Script `lr_manifest_format_census.py` (checkpointed/resumable after a real 5h data-loss incident — quirk #22). Full per-platform data-shape table + caveats: `reports/lr_data_census/README.md`. Resolves DECISIONS.md's "where are the aligned BAMs" open question.
 
-## 2026-07-22 — Experiment F: Immuannot + parallelization / padding (IN PROGRESS — results not yet logged here)
+## 2026-07-22 — Experiment F: Immuannot (assembly-based caller) vs SpecImmune-LR, 60-person pilot
 
-**Stub, not a result.** Experiment F spans git commits `983587b` (Immuannot setup + single-person trim/timing pilot) through `d5e577d` (parallelization tests), including padding-reduction evals — pursuing the assembly-based long-read caller lead in DECISIONS.md ("Assembly-based HLA typing as a future direction"). Its runtimes/accuracy/conclusions are **not yet transcribed into `context/`** — fill this entry in from the run outputs and STATUS.md when the thread is next picked up. No report folder yet.
+Tested the "assembly-based HLA typing" lead from DECISIONS.md: ran Immuannot (minimap2 vs
+IPD-IMGT/HLA, per-haplotype assembly contigs) on the same Experiment D cohort. 57/60 completed,
+~2x faster than SpecImmune-LR (median 6.9 vs 13.9 min/person, both measured on this VM). Field 2
+(protein) concordance 65–94% for most genes, but only 40% at DRB1 — now the hardest locus by five
+independent signals (this comparison, both callers' own confidence flags, plus the earlier
+field-cascade/callset-validation findings). No ground truth here (cross-method agreement only);
+Aleix's HLA-Resolve/Lai arm remains the truth-anchored comparison. A padding-tightening experiment
+(`run_immuannot_pad_sweep.py`) found the production trim's generous whole-block approach is
+necessary, not wasteful — narrower cuts lose real calls, especially at DQA1/DQB1 — not adopted.
+Parallelizing the two haplotypes (`--parallel-haps`) gave no net speedup (halved per-hap threads
+roughly cancels the concurrency gain) — not adopted either. Full writeup + figures:
+`reports/immuannot_pilot/README.md`.
