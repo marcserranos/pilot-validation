@@ -34,7 +34,9 @@ Usage (any pixi env with pandas -- no matplotlib needed):
   python3 scripts/diagnose_immuannot_pilot.py [--outroot ~/pipeline_outputs]
 """
 import argparse
+import gzip
 import os
+import re
 import sys
 
 import pandas as pd
@@ -124,19 +126,132 @@ def stage_reached(row):
 
 
 def load_specimmune(cohort, outroot):
-    """{(person_id, gene_bare): (si1, si2)} from Experiment D's comparison_log.csv files."""
+    """{(person_id, gene_bare): full comparison_log.csv row (dict)} -- kept as the full row, not
+    just the (si_1, si_2) tuple, so callers can also reach the confidence columns confirmed real
+    in compare_hla_results.py's own CSV_FIELDS: si_identity_1/2, si_reads_1/2, si_ambig_n_1/2,
+    si_tied_1/2, si_step1_1/2. Not guessed -- grepped from the actual writer."""
     out = {}
     for pid in cohort["person_id"].astype(str):
-        csv = os.path.join(outroot, pid, "comparison_log.csv")
-        if not os.path.exists(csv):
+        log_path = os.path.join(outroot, pid, "comparison_log.csv")
+        if not os.path.exists(log_path):
             continue
-        df = pd.read_csv(csv, dtype=str)
+        df = pd.read_csv(log_path, dtype=str)
         df = df[df["run_label"] == "experiment_d"]
         if df.empty:
             continue
         df = df.sort_values("timestamp").drop_duplicates(["person_id", "gene"], keep="last")
         for _, r in df.iterrows():
-            out[(str(r["person_id"]), str(r["gene"]))] = (r.get("specimmune_1"), r.get("specimmune_2"))
+            out[(str(r["person_id"]), str(r["gene"]))] = r.to_dict()
+    return out
+
+
+def si_alleles(row):
+    return (row.get("specimmune_1"), row.get("specimmune_2")) if row else None
+
+
+def si_confidence_label(row):
+    """'confident' / 'ambiguous(tied)' / 'lower_identity(x.xxx)' / 'unknown' -- reuses the exact
+    'confident' definition analyze_experiment_d.py already established (not tied, identity>=0.99
+    on both haplotypes), so this doesn't invent a new confidence bar."""
+    if not row:
+        return "unknown"
+
+    def truthy(x):
+        return str(x).strip().lower() in {"true", "1", "yes"}
+    try:
+        tied = truthy(row.get("si_tied_1")) or truthy(row.get("si_tied_2"))
+        id1, id2 = float(row.get("si_identity_1")), float(row.get("si_identity_2"))
+    except (TypeError, ValueError):
+        return "unknown"
+    if tied:
+        return "ambiguous(tied)"
+    if id1 >= 0.99 and id2 >= 0.99:
+        return "confident"
+    return f"lower_identity({min(id1, id2):.3f})"
+
+
+def is_na(v):
+    return v is None or str(v).strip() in NULL or (hasattr(pd, "isna") and pd.isna(v))
+
+
+def classify_pair(imm_pair, si_pair):
+    """Reason taxonomy for why a (person, gene) comparison is or isn't assessable -- Marc,
+    2026-07-22: 'why are unresolved cases unresolved, and does SpecImmune ever fail to resolve
+    too, or does it just claim something with less certainty?' This answers the first half
+    (which caller, if either, produced no call at all); si_confidence_label answers the second
+    half (when SpecImmune DOES produce a call, how sure is it)."""
+    imm_na1 = imm_pair is None or is_na(imm_pair[0])
+    imm_na2 = imm_pair is None or is_na(imm_pair[1])
+    si_na1 = si_pair is None or is_na(si_pair[0])
+    si_na2 = si_pair is None or is_na(si_pair[1])
+    imm_full_na, si_full_na = imm_na1 and imm_na2, si_na1 and si_na2
+    imm_partial, si_partial = imm_na1 != imm_na2, si_na1 != si_na2
+
+    if imm_full_na and si_full_na:
+        return "both_na"
+    if imm_full_na and not si_full_na:
+        return "immuannot_na_specimmune_resolved"
+    if si_full_na and not imm_full_na:
+        return "specimmune_na_immuannot_resolved"
+    if imm_partial or si_partial:
+        return "one_haplotype_na"
+    return "both_resolved"
+
+
+# GTF attributes mix quoted strings ('template_allele "HLA-A*01:01"') AND unquoted bare values
+# ('template_distance 0') -- confirmed in the real sanity-check output (parse_gtf's first-line
+# print showed exactly 'template_distance 0', no quotes). A quoted-only regex silently drops
+# every unquoted attribute -- caught by a synthetic test before this ever touched real data.
+ATTR_RE = re.compile(r'(\w+)\s+(?:"([^"]*)"|([^";]+))')
+
+
+def parse_gtf_rich(gtf_gz_path):
+    """Merges EVERY attribute seen across every GTF row (gene + transcript feature rows alike)
+    for the same gene, keyed by gene_name. Deliberately generic (doesn't assume template_distance
+    lives on the 'gene' row and consensus on the 'transcript' row, though the docs say so) --
+    UNVERIFIED against a real transcript-row attribute string as of 2026-07-22 (only gene-row
+    samples have actually been seen printed from a real run); confirm with a real file before
+    trusting template_distance/'new'-tag values pulled from here. Returns {gene_name: {attr: val}}."""
+    per_gene, gid_to_name = {}, {}
+    with gzip.open(gtf_gz_path, "rt") as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 9:
+                continue
+            attrs = {k: (q if q else b.strip()) for k, q, b in ATTR_RE.findall(fields[8])}
+            gid, gname = attrs.get("gene_id"), attrs.get("gene_name")
+            if gid and gname:
+                gid_to_name[gid] = gname
+            key = gname or (gid_to_name.get(gid) if gid else None)
+            if not key:
+                continue
+            slot = per_gene.setdefault(key, {})
+            for k, v in attrs.items():
+                slot.setdefault(k, v)
+    return per_gene
+
+
+def load_immuannot_confidence(cohort, outroot):
+    """{(person_id, hap, gene_bare): rich-attr dict} by reading each person's own hap{1,2}.gtf.gz
+    directly (NOT immuannot_calls.tsv, which only carries the final allele string) -- these files
+    are still on disk (never pruned) so no re-run is needed. Missing files are skipped, not fatal
+    -- a person whose gtf.gz got cleaned up just won't have a confidence row, same discipline as
+    everywhere else in this project (report what's missing, don't guess it)."""
+    out = {}
+    for pid in cohort["person_id"].astype(str):
+        for hap in ("hap1", "hap2"):
+            gz = os.path.join(outroot, pid, "immuannot_output", f"{hap}.gtf.gz")
+            if not os.path.exists(gz):
+                continue
+            try:
+                per_gene = parse_gtf_rich(gz)
+            except OSError:
+                continue
+            for gname, attrs in per_gene.items():
+                bare = gname.replace("HLA-", "")
+                out[(pid, hap, bare)] = attrs
     return out
 
 
@@ -269,7 +384,7 @@ def main():
             if anc.get(pid) != group:
                 continue
             a = imm.get((pid, gene))
-            b = si.get((pid, gene))
+            b = si_alleles(si.get((pid, gene)))
             if a is None or b is None:
                 continue
             casc = compare_genotype(a, b)
@@ -308,9 +423,113 @@ def main():
         "cross-referencing against the known SpecImmune DQA1/DRB1 and AoU DQA1 findings.",
     ]
 
-    md = "\n".join(parts) + "\n"
+    # ============ SECTION 4: why unresolved cases are unresolved ============
+    # Marc, 2026-07-22: "study why the cases that are unresolved are unresolved. Has SpecImmune
+    # also unresolved any case? or do they just claim something with less uncertainty?"
+    parts += ["", "## 4. Why comparisons are unresolved -- which caller, and how confident is the "
+              "one that DOES resolve", "",
+              "Reason taxonomy per (person, gene): `both_na` (neither caller called it), "
+              "`immuannot_na_specimmune_resolved` / `specimmune_na_immuannot_resolved` (one caller "
+              "produced nothing while the other did), `one_haplotype_na` (one allele missing on "
+              "one or both sides), `both_resolved` (proceeds to the field tables above).", "",
+              "| Gene | both_na | immuannot_na, SI resolved | SI_na, immuannot resolved | "
+              "one_hap_na | both_resolved |",
+              "|---|---|---|---|---|---|"]
+    reason_counts_overall = {}
+    for g in GENES:
+        counts = {"both_na": 0, "immuannot_na_specimmune_resolved": 0,
+                  "specimmune_na_immuannot_resolved": 0, "one_haplotype_na": 0, "both_resolved": 0}
+        for pid in attempted:
+            a = imm.get((pid, g))
+            b = si_alleles(si.get((pid, g)))
+            r = classify_pair(a, b)
+            counts[r] += 1
+            reason_counts_overall[r] = reason_counts_overall.get(r, 0) + 1
+        parts.append(f"| {g} | {counts['both_na']} | {counts['immuannot_na_specimmune_resolved']} "
+                      f"| {counts['specimmune_na_immuannot_resolved']} | "
+                      f"{counts['one_haplotype_na']} | {counts['both_resolved']} |")
+    parts += ["", f"Overall: {reason_counts_overall}", "",
+              "### When SpecImmune DOES resolve a gene, how confident is it?", "",
+              "Answers 'do they just claim something with less certainty' directly: `confident` = "
+              "not tied, both haplotype identities >= 0.99 (same bar analyze_experiment_d.py "
+              "already used); `ambiguous(tied)` = SpecImmune itself flagged a tie among candidates; "
+              "`lower_identity(x)` = resolved but below the identity bar.", "",
+              "| Gene | confident | ambiguous(tied) | lower_identity | unknown |",
+              "|---|---|---|---|---|"]
+    for g in GENES:
+        labels = {"confident": 0, "ambiguous(tied)": 0, "unknown": 0}
+        lower_n = 0
+        for pid in attempted:
+            row = si.get((pid, g))
+            if row is None:
+                continue
+            lbl = si_confidence_label(row)
+            if lbl.startswith("lower_identity"):
+                lower_n += 1
+            else:
+                labels[lbl] = labels.get(lbl, 0) + 1
+        parts.append(f"| {g} | {labels['confident']} | {labels['ambiguous(tied)']} | {lower_n} | "
+                      f"{labels['unknown']} |")
+
+    parts += ["", "### Immuannot's own confidence signal when it DOES resolve a gene", "",
+              "**UNVERIFIED as of 2026-07-22** -- template_distance/'new'-tag extraction has not "
+              "yet been confirmed against a real transcript-row attribute string (only gene-row "
+              "samples have actually been seen printed from a real run). Treat these numbers as "
+              "provisional until spot-checked; see the run instructions for the one-line check to "
+              "do first.", "",
+              "| Gene | n with template_distance | mean template_distance | n flagged 'new' |",
+              "|---|---|---|---|"]
+    imm_conf = load_immuannot_confidence(cohort, args.outroot)
+    for g in GENES:
+        dists, n_new = [], 0
+        for (pid, hap, gname), attrs in imm_conf.items():
+            if gname != g:
+                continue
+            td = attrs.get("template_distance")
+            if td is not None:
+                try:
+                    dists.append(float(td))
+                except ValueError:
+                    pass
+            if str(attrs.get("new", "")).strip().lower() in {"true", "yes", "1"}:
+                n_new += 1
+        mean_d = f"{sum(dists)/len(dists):.2f}" if dists else "-"
+        parts.append(f"| {g} | {len(dists)} | {mean_d} | {n_new} |")
+
+    # ============ SECTION 5: per-individual detail (VM-local CSV, NOT pasted -- bare ids) ============
+    detail_rows = []
+    for pid in sorted(attempted, key=lambda p: (anc.get(p, "?"), p)):
+        for g in GENES:
+            a = imm.get((pid, g))
+            row = si.get((pid, g))
+            b = si_alleles(row)
+            reason = classify_pair(a, b)
+            f2 = "-"
+            if reason == "both_resolved":
+                casc = compare_genotype(a, b)
+                f2 = geno_status_at(casc, 2) if casc else "unresolved(allele-level)"
+            detail_rows.append({
+                "person_id": pid, "ancestry": anc.get(pid, "?"), "gene": g,
+                "immuannot_1": a[0] if a else "NA", "immuannot_2": a[1] if a else "NA",
+                "specimmune_1": b[0] if b else "NA", "specimmune_2": b[1] if b else "NA",
+                "si_confidence": si_confidence_label(row) if row else "no_si_row",
+                "reason": reason, "field2_status": f2,
+            })
     adir = args.analysis_dir or os.path.join(args.outroot, "immuannot_pilot", "analysis")
     os.makedirs(adir, exist_ok=True)
+    detail_path = os.path.join(adir, "immuannot_vs_specimmune_detail.csv")
+    pd.DataFrame(detail_rows).to_csv(detail_path, index=False)
+
+    parts += ["", "## 5. Per-individual detail (grouped by ancestry)", "",
+              f"Written to `{detail_path}` -- **bare person_ids, VM-local only, do not paste in "
+              f"full or commit** (same rule as cohort.tsv / immuannot_timing.tsv). One row per "
+              f"(person, gene): both callers' alleles, SpecImmune's confidence label, the "
+              f"unresolved-reason, and the Field 2 status. Open directly on the VM to see exactly "
+              f"which individuals/genes drive each ancestry's numbers above -- "
+              f"e.g. `column -s, -t {detail_path} | less -S`, or filter to just the discordant "
+              f"rows: `awk -F, '$10==\"discordant\"' {detail_path}`."]
+
+    md = "\n".join(parts) + "\n"
     out_md = os.path.join(adir, "immuannot_pilot_diagnosis.md")
     with open(out_md, "w") as f:
         f.write(md)
