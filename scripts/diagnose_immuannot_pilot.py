@@ -89,9 +89,21 @@ def compare_genotype(a_pair, b_pair):
     return list(max([pa, pb], key=lambda p: pairing_score(p[0], p[1])))
 
 
-def geno_concordant_at(cascade, lvl):
-    """Genotype concordant at field lvl = BOTH alleles True at that field (best pairing)."""
-    return cascade[0][lvl - 1] is True and cascade[1][lvl - 1] is True
+def geno_status_at(cascade, lvl):
+    """Genotype-level status at field lvl, from the two per-allele cascades (best pairing):
+      'discordant'  -- either allele is a real mismatch at this field (a False)
+      'na'          -- no mismatch, but either allele doesn't resolve this deep (a None) -- one
+                       caller simply reports fewer fields, NOT a disagreement (critical for
+                       fields 3-4, where Immuannot's full 4-field resolution meets SpecImmune's
+                       often-shallower calls; counting these as discordant would understate deep
+                       concordance -- same True/False/None discipline as the field-cascade script)
+      'concordant'  -- both alleles match at this field (both True)"""
+    a, b = cascade[0][lvl - 1], cascade[1][lvl - 1]
+    if a is False or b is False:
+        return "discordant"
+    if a is None or b is None:
+        return "na"
+    return "concordant"
 
 
 def die(msg):
@@ -230,16 +242,29 @@ def main():
     ]
 
     # ============ SECTION 3: Immuannot vs SpecImmune, per gene x ancestry ============
-    parts += ["", "## 3. Immuannot vs SpecImmune-LR -- FIELD 2 concordance, per gene x ancestry", "",
-              "Cross-method agreement (not accuracy). Cell = concordant / assessable "
-              "(assessable = both methods gave a callable 2-allele genotype for that person+gene). "
-              "'-' = nobody assessable in that cell.", ""]
+    parts += ["", "## 3. Immuannot vs SpecImmune-LR -- concordance per gene x ancestry, all 4 fields",
+              "",
+              "Cross-method agreement (not accuracy). Cell = concordant% (assessable N). Assessable "
+              "at a field level = both methods actually resolve that deep AND agree on all shallower "
+              "fields -- pairs where one caller simply reports fewer fields are EXCLUDED (na), not "
+              "counted as disagreement (True/False/None discipline, same as "
+              "analyze_experiment_d_field_cascade.py). This is why N shrinks at fields 3-4: fewer "
+              "people have both callers resolving that deep, not more failures.",
+              "",
+              "**Read fields 3-4 with the DB-version confound front of mind:** Immuannot (IMGT "
+              "Data-2024Feb02) and SpecImmune (3.64.0) ship different IMGT releases, and synonymous "
+              "(field 3) / non-coding (field 4) differences are exactly where allele RENAMING "
+              "between releases shows up -- so a chunk of field-3/4 discordance is naming, not "
+              "biology. Field 2 (protein, non-synonymous) is the headline for this reason.", ""]
     si = load_specimmune(cohort, args.outroot)
     imm = {(str(r["person_id"]), r["gene_bare"]): (r["immuannot_1"], r["immuannot_2"])
            for _, r in calls.iterrows()}
 
     def cell(gene, group, lvl):
-        conc = assess = 0
+        """Returns (concordant, discordant). 'na' pairs (one caller shallower) excluded from both,
+        so the rate below is concordant/(concordant+discordant) -- deep-resolution gaps don't count
+        against agreement."""
+        conc = disc = 0
         for pid in attempted:
             if anc.get(pid) != group:
                 continue
@@ -250,28 +275,35 @@ def main():
             casc = compare_genotype(a, b)
             if casc is None:
                 continue
-            assess += 1
-            if geno_concordant_at(casc, lvl):
+            st = geno_status_at(casc, lvl)
+            if st == "concordant":
                 conc += 1
-        return conc, assess
+            elif st == "discordant":
+                disc += 1
+        return conc, disc
 
-    for lvl, label in [(2, "Field 2 (protein, non-synonymous -- headline)"),
-                        (1, "Field 1 (allele group)")]:
+    for lvl, label in [(1, "Field 1 (allele group)"),
+                       (2, "Field 2 (protein, non-synonymous -- HEADLINE)"),
+                       (3, "Field 3 (synonymous, coding -- DB-version-confounded)"),
+                       (4, "Field 4 (non-coding -- DB-version-confounded)")]:
         parts += [f"### {label}", "", "| Gene | " + " | ".join(GROUPS) + " | overall |",
                   "|---|" + "---|" * (len(GROUPS) + 1)]
         for g in GENES:
-            cells, tot_c, tot_a = [], 0, 0
+            cells, tot_c, tot_d = [], 0, 0
             for grp in GROUPS:
-                c, a = cell(g, grp, lvl)
-                tot_c += c; tot_a += a
-                cells.append(f"{100*c/a:.0f}% ({a})" if a else "-")
-            overall = f"{100*tot_c/tot_a:.0f}% ({tot_a})" if tot_a else "-"
+                c, d = cell(g, grp, lvl)
+                tot_c += c; tot_d += d
+                n = c + d
+                cells.append(f"{100*c/n:.0f}% ({n})" if n else "-")
+            tot_n = tot_c + tot_d
+            overall = f"{100*tot_c/tot_n:.0f}% ({tot_n})" if tot_n else "-"
             parts.append(f"| {g} | " + " | ".join(cells) + f" | {overall} |")
         parts.append("")
 
     parts += [
-        "Numbers in () are the assessable N (people where both methods gave a callable genotype). "
-        "Read low-N cells (MID/SAS are thin) as directional. A gene x ancestry cell that is low on "
+        "N in () = assessable at that field (concordant + discordant; na excluded). N shrinks with "
+        "depth because fewer pairs both resolve that deep. Read low-N cells (MID/SAS are thin) as "
+        "directional. A gene x ancestry cell that is low on "
         "Field 2 specifically -- not just Field 3/4 -- is a real protein-level divergence worth "
         "cross-referencing against the known SpecImmune DQA1/DRB1 and AoU DQA1 findings.",
     ]
