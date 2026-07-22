@@ -63,7 +63,12 @@ def main():
             die(f"not found: {p}")
 
     cohort = pd.read_csv(cohort_path, sep="\t", dtype=str)
-    calls = pd.read_csv(calls_path, sep="\t", dtype=str)
+    # keep_default_na=False: run_immuannot_person.py writes a literal "NA" string for a missing
+    # allele -- pandas' default na_values sniffing silently turns that back into real NaN even
+    # under dtype=str, which broke the classical-8 call-rate count below (NaN != "NA" is always
+    # True, so every genuinely-missing call was counted as present). Confirmed via a synthetic
+    # fixture before trusting real data, same discipline as everywhere else in this project.
+    calls = pd.read_csv(calls_path, sep="\t", dtype=str, keep_default_na=False)
     timing = pd.read_csv(timing_path, sep="\t", dtype=str)
     for col in ("n_contigs", "whole_contig_mb", "padded_mb", "trimmed_mb", "resolve_seconds",
                 "contig_lookup_seconds", "trim_seconds", "immuannot_seconds", "hap_total_seconds"):
