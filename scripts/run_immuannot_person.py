@@ -214,13 +214,25 @@ def run_immuannot(script, refdir, contig_path, outprefix, threads):
     cmd = ["bash", script, "-c", contig_path, "-r", refdir, "-o", outprefix, "-t", str(threads)]
     print(f"    Running: {' '.join(cmd)}", file=sys.stderr)
     proc = subprocess.run(cmd, capture_output=True, text=True)
+    # ALWAYS persist immuannot.sh's own stdout/stderr to disk, not just on failure and not just to
+    # the terminal (2026-07-22, Marc: the first 60-person run's failure logs were lost to the
+    # terminal scrollback after the VM restarted, because they were only printed, never written).
+    # This log survives a restart (persistent home disk) and lets a failed hap be diagnosed -- or
+    # cheaply re-run on the already-trimmed FASTA -- later, instead of re-doing the whole pipeline.
+    log_path = outprefix + ".immuannot.log"
+    try:
+        with open(log_path, "w") as lf:
+            lf.write(f"# cmd: {' '.join(cmd)}\n# exit_code: {proc.returncode}\n"
+                     f"# ---- STDOUT ----\n{proc.stdout}\n# ---- STDERR ----\n{proc.stderr}\n")
+    except OSError as e:
+        print(f"    WARNING: could not write immuannot log {log_path}: {e}", file=sys.stderr)
     expected = outprefix + ".gtf.gz"
     if not os.path.exists(expected):
         # Never trust exit code alone (ENVIRONMENT.md quirks #17/#18) -- surface the real logs.
         print(f"    WARNING: expected output {expected} missing after run "
-              f"(exit code {proc.returncode}). stdout/stderr follow:", file=sys.stderr)
-        print(proc.stdout[-2000:], file=sys.stderr)
-        print(proc.stderr[-2000:], file=sys.stderr)
+              f"(exit code {proc.returncode}). Full log saved to {log_path}. Tail:", file=sys.stderr)
+        print(proc.stdout[-1500:], file=sys.stderr)
+        print(proc.stderr[-1500:], file=sys.stderr)
         return None
     return expected
 
