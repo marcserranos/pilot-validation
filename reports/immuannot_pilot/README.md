@@ -56,6 +56,14 @@ median 6.9 min, range 1.4-10.0 min — comfortably inside the pipeline's own 30-
 almost entirely by `immuannot.sh` itself (median ~3.1 min/haplotype), not the trim step (median
 ~17s/haplotype).
 
+**Immuannot is roughly 2x faster than SpecImmune-LR on this same cohort.** SpecImmune-LR's real
+per-person runtime, pulled directly from `run_experiment_d.sh`'s own `expd_specimmune_timing.txt`
+files (not an estimate — the first guess at the filename came back 0/60 found; the real name was
+confirmed by reading the batch script directly): **median 13.9 min, mean 15.9 min, range 11.2-34.9
+min**, against Immuannot's median 6.9 min. This lines up with the earlier padding-tuning estimate
+for this exact SpecImmune config (pad100k/minimap2, ~14.5 min/person) — a reassuring cross-check
+that the real number is trustworthy, not a fluke of this particular cohort.
+
 ![Runtime distribution and breakdown](figures/runtime.png)
 
 ## 2. Cross-method concordance — Field 2 (protein-level), the headline metric

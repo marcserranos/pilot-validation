@@ -347,19 +347,44 @@ def plot_confidence_comparison(si_conf_by_gene, imm_td_by_gene, path):
     plt.close(fig)
 
 
-def plot_runtime(timing_df, path):
-    """2-panel: per-person total runtime distribution (60 people), and where that time actually
-    goes (trim vs immuannot.sh -- the split Marc originally asked to see broken out by stage)."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5))
+def load_specimmune_timing(cohort, outroot):
+    """{person_id: minutes} from run_experiment_d.sh's own real per-person timing files --
+    confirmed 2026-07-22 the actual filename is expd_specimmune_timing.txt (grepped from
+    run_experiment_d.sh directly), NOT specimmune_timing.txt as the generic single-person runbook
+    in ENVIRONMENT.md would suggest -- that first guess came back 0/60 found. Missing files are
+    skipped, not fatal."""
+    out = {}
+    for pid in cohort["person_id"].astype(str):
+        path = os.path.join(outroot, pid, "expd_specimmune_timing.txt")
+        if not os.path.exists(path):
+            continue
+        m = re.search(r"real\s+(\d+)m([\d.]+)s", open(path).read())
+        if m:
+            out[pid] = (int(m.group(1)) * 60 + float(m.group(2))) / 60
+    return out
+
+
+def plot_runtime(timing_df, si_minutes, path):
+    """2-panel: per-person total runtime, Immuannot vs SpecImmune-LR head to head on the SAME
+    axis (both are 'total minutes to type one person' -- a real, comparable unit, unlike the
+    confidence figure's two different scales), and where Immuannot's own time actually goes (trim
+    vs immuannot.sh -- the stage split Marc originally asked to see)."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
 
     per_person = (timing_df.groupby("person_id")["hap_total_seconds"].sum() / 60).dropna()
-    ax1.hist(per_person, bins=12, color=IMMUANNOT_COLOR, edgecolor="white")
-    ax1.axvline(per_person.median(), color=DRB1_HIGHLIGHT, linestyle="--", linewidth=1.5,
-                label=f"median {per_person.median():.1f} min")
-    ax1.set_xlabel("Total runtime per person, minutes (both haplotypes)")
+    si_vals = pd.Series(list(si_minutes.values()))
+    bins = 12
+    ax1.hist(per_person, bins=bins, color=IMMUANNOT_COLOR, edgecolor="white", alpha=0.75,
+             label=f"Immuannot (n={len(per_person)}, median {per_person.median():.1f} min)")
+    if len(si_vals):
+        ax1.hist(si_vals, bins=bins, color=SPECIMMUNE_COLOR, edgecolor="white", alpha=0.6,
+                 label=f"SpecImmune-LR (n={len(si_vals)}, median {si_vals.median():.1f} min)")
+        ax1.axvline(si_vals.median(), color=SPECIMMUNE_COLOR, linestyle="--", linewidth=1.5)
+    ax1.axvline(per_person.median(), color=IMMUANNOT_COLOR, linestyle="--", linewidth=1.5)
+    ax1.set_xlabel("Total runtime per person, minutes")
     ax1.set_ylabel("People")
-    ax1.set_title(f"Per-person runtime, n={len(per_person)}", fontsize=10)
-    ax1.legend(fontsize=8)
+    ax1.set_title("Per-person runtime -- Immuannot vs SpecImmune-LR", fontsize=10)
+    ax1.legend(fontsize=7)
     ax1.spines[["top", "right"]].set_visible(False)
 
     reached = timing_df.dropna(subset=["immuannot_seconds"])
@@ -406,6 +431,7 @@ def main():
     for c in ("contig_lookup_seconds", "trim_seconds", "immuannot_seconds", "hap_total_seconds"):
         if c in timing.columns:
             timing[c] = pd.to_numeric(timing[c], errors="coerce")
+    si_minutes = load_specimmune_timing(cohort, args.outroot)
 
     calls["gene_bare"] = calls["gene"].str.replace("^HLA-", "", regex=True)
     completed = set(calls["person_id"].astype(str))
@@ -472,10 +498,13 @@ def main():
                 f"range {s.min():.1f}-{s.max():.1f}{unit}")
 
     per_person_total = timing.groupby("person_id")["hap_total_seconds"].sum() / 60
+    si_series = pd.Series(list(si_minutes.values()))
     parts += [
         f"- immuannot.sh per hap: {stat(reached_t['immuannot_seconds'] / 60, ' min')}",
         f"- trim (samtools faidx) per hap: {stat(reached_t['trim_seconds'], ' s')}",
         f"- per-person total (both haps): {stat(per_person_total, ' min')}",
+        f"- **SpecImmune-LR per person (real timing from run_experiment_d.sh's own "
+        f"expd_specimmune_timing.txt files, this same cohort): {stat(si_series, ' min')}**",
         "",
         "Suspiciously fast immuannot runs (< 0.5 min) -- 'reached immuannot' but likely produced "
         f"little (the gene_infra positive-control ran in ~0.3 min): "
@@ -676,7 +705,7 @@ def main():
     f3 = os.path.join(figdir, "runtime.png")
     plot_field2_by_gene(field_rate_by_gene, f1)
     plot_confidence_comparison(si_conf_by_gene, imm_td_by_gene, f2)
-    plot_runtime(timing, f3)
+    plot_runtime(timing, si_minutes, f3)
     parts += ["", "## 6. Figures", "",
               f"- `{f1}` -- Field 2 concordance by gene (the headline chart)",
               f"- `{f2}` -- each caller's own confidence when it resolves a gene, side by side",
