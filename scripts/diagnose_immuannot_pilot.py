@@ -472,16 +472,18 @@ def main():
                       f"{labels['unknown']} |")
 
     parts += ["", "### Immuannot's own confidence signal when it DOES resolve a gene", "",
-              "**UNVERIFIED as of 2026-07-22** -- template_distance/'new'-tag extraction has not "
-              "yet been confirmed against a real transcript-row attribute string (only gene-row "
-              "samples have actually been seen printed from a real run). Treat these numbers as "
-              "provisional until spot-checked; see the run instructions for the one-line check to "
-              "do first.", "",
-              "| Gene | n with template_distance | mean template_distance | n flagged 'new' |",
+              "Verified 2026-07-22 against a real hap1.gtf.gz (person 1001871): the docs' 'new' "
+              "tag does not actually appear in this output -- every transcript row instead carries "
+              "`template_warning` ('NA' when clean, or a specific flag like 'partial_CDS' when "
+              "there's a real structural issue -- e.g. HLA-S showed this in the real file). Using "
+              "template_warning here instead, since it's the signal that's actually present. "
+              "template_distance (edit distance to the nearest IMGT allele, from the gene row) was "
+              "separately confirmed present in the very first real run.", "",
+              "| Gene | n with template_distance | mean template_distance | n with a real warning |",
               "|---|---|---|---|"]
     imm_conf = load_immuannot_confidence(cohort, args.outroot)
     for g in GENES:
-        dists, n_new = [], 0
+        dists, n_warned = [], 0
         for (pid, hap, gname), attrs in imm_conf.items():
             if gname != g:
                 continue
@@ -491,10 +493,11 @@ def main():
                     dists.append(float(td))
                 except ValueError:
                     pass
-            if str(attrs.get("new", "")).strip().lower() in {"true", "yes", "1"}:
-                n_new += 1
+            warn = str(attrs.get("template_warning", "NA")).strip()
+            if warn and warn != "NA":
+                n_warned += 1
         mean_d = f"{sum(dists)/len(dists):.2f}" if dists else "-"
-        parts.append(f"| {g} | {len(dists)} | {mean_d} | {n_new} |")
+        parts.append(f"| {g} | {len(dists)} | {mean_d} | {n_warned} |")
 
     # ============ SECTION 5: per-individual detail (VM-local CSV, NOT pasted -- bare ids) ============
     detail_rows = []
