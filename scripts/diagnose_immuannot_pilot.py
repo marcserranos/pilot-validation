@@ -58,6 +58,17 @@ def parse_fields(raw):
     if "*" in s:
         s = s.split("*", 1)[1]
     fields = [f for f in s.split(":") if f != ""]
+    # Immuannot-specific (confirmed real 2026-07-22, person 1001871's DRB1 calls): a literal
+    # "new" token appears AS a field position -- e.g. "15:new" or "15:03:01:new" -- its own
+    # documented flag for "couldn't confidently match a known IMGT allele this deep", not a real
+    # field value. Comparing it byte-for-byte against SpecImmune's real numeric fields forces a
+    # mechanical mismatch at that depth and everything downstream via the cascade -- this was the
+    # entire DRB1 Field-4=0%-in-every-ancestry anomaly. Fix: truncate at the first "new", so it's
+    # correctly UNASSESSABLE (None) at that depth, same semantics as a field simply not reported.
+    for i, f in enumerate(fields):
+        if f.strip().lower() == "new":
+            fields = fields[:i]
+            break
     return fields or None
 
 
