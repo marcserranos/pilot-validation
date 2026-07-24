@@ -66,12 +66,18 @@ METHOD_LABEL = {"aou": "AoU-native", "sh": "SpecHLA"}
 NULL = {"", "NA", "-", "nan", "None", ".", "na"}
 ATTR_RE = re.compile(r'(\w+)\s+(?:"([^"]*)"|([^";]+))')
 
-# Consistent with the project's existing palette (diagnose_immuannot_pilot.py): SpecImmune =
-# orange family, Immuannot = blue family. Light shade = unfiltered, dark shade = confidence-
-# matched, so "before vs after" reads as a shade change within the same color, not a new hue.
-SI_UNFILTERED = "#F0B27A"
+# Consistent with the project's existing palette (analyze_experiment_d_field_cascade.py):
+# AoU-native = blue family, SpecHLA = orange family -- METHOD is the color now (Marc,
+# 2026-07-24: "AoU vs SpecHLA... we want to have them on the same plane always"), truth source
+# is which subplot you're looking at. Light shade = unfiltered, dark + black outline =
+# confidence-matched, so the high-confidence bars are the ones that visually pop.
+AOU_UNFILTERED = "#A8C4E0"
+AOU_MATCHED = "#2C5C8A"
+SH_UNFILTERED = "#F0B27A"
+SH_MATCHED = "#B9540A"
+# Retention-diagnostic plot only (plot_retention) -- unrelated to the merged Field-2 plot above,
+# kept as its own truth-source-keyed pair so the two plots' color logic doesn't get tangled.
 SI_MATCHED = "#B9540A"
-IMM_UNFILTERED = "#A8C4E0"
 IMM_MATCHED = "#2C5C8A"
 
 
@@ -261,15 +267,24 @@ def confident_scores(combined, keys, tool, si_thresh, imm_thresh):
 
 
 def match_sample_size(si_scores, imm_scores):
-    """Rank-trim the larger survivor set down to the smaller set's N, keeping its own most-
-    confident calls (not a random subsample). Deterministic tie-break by key."""
+    """Match by equal absolute COUNT (Marc, 2026-07-24 correction): both tools are being asked
+    to call the exact same 480 (person, gene) slots (60 people x 8 genes) -- that shared
+    universe, not each tool's own already-abstained-down 'resolved' count, is the correct
+    denominator. Immuannot resolving fewer slots than SpecImmune (403 vs 480 in real data) is
+    ABSTENTION, a separate, already-documented finding (it 'abstains more but arguably more
+    honestly') -- dividing by each tool's own resolved pool would silently reward that
+    abstention with a smaller denominator. So: rank-trim the larger survivor set down to the
+    smaller set's N, keeping its own most-confident calls (not a random subsample).
+    Deterministic tie-break by key. Share-parity is then reported (in retention_report) against
+    the ONE common total_possible denominator, where it holds by construction whenever N is
+    equal -- not something that can drift and need a warning."""
     n = min(len(si_scores), len(imm_scores))
     si_sorted = sorted(si_scores.items(), key=lambda kv: (-kv[1], kv[0]))
     imm_sorted = sorted(imm_scores.items(), key=lambda kv: (-kv[1], kv[0]))
     return dict(si_sorted[:n]), dict(imm_sorted[:n]), n
 
 
-def retention_report(combined, si_thresh, imm_thresh):
+def retention_report(combined, si_thresh, imm_thresh, total_possible):
     si_all = resolved_keys(combined, ("specimmune_1", "specimmune_2"))
     imm_all = resolved_keys(combined, ("immuannot_1", "immuannot_2"))
     si_pass = confident_scores(combined, si_all, "si", si_thresh, imm_thresh)
@@ -290,7 +305,7 @@ def retention_report(combined, si_thresh, imm_thresh):
     }
 
     lines = [f"## Retention by gene -- SpecImmune-truth vs Immuannot-truth "
-             f"(matched to N={n} each)\n",
+             f"(count-matched to N={n} each)\n",
              f"Global thresholds used: SpecImmune si_identity >= {si_thresh} (and not tied); "
              f"Immuannot template_distance <= {imm_thresh} (and no template_warning). Same "
              f"threshold for every gene -- the per-gene counts below are a RESULT of that "
@@ -308,23 +323,24 @@ def retention_report(combined, si_thresh, imm_thresh):
     si_total_thr = sum(stages['si']['after_threshold'].values())
     imm_total_all = sum(stages['imm']['all_resolved'].values())
     imm_total_thr = sum(stages['imm']['after_threshold'].values())
-    si_share_thr = 100 * si_total_thr / si_total_all if si_total_all else float("nan")
-    imm_share_thr = 100 * imm_total_thr / imm_total_all if imm_total_all else float("nan")
-    si_share_final = 100 * n / si_total_all if si_total_all else float("nan")
-    imm_share_final = 100 * n / imm_total_all if imm_total_all else float("nan")
-    share_diff_final = abs(si_share_final - imm_share_final)
 
     lines.append(
-        f"\n**Totals: SpecImmune {si_total_all} -> {si_total_thr} ({si_share_thr:.1f}% "
-        f"retained by its own threshold) -> {n} ({si_share_final:.1f}% of its total pool); "
-        f"Immuannot {imm_total_all} -> {imm_total_thr} ({imm_share_thr:.1f}% retained by its "
-        f"own threshold) -> {n} ({imm_share_final:.1f}% of its total pool).**\n")
+        f"\n**Coverage (abstention, not confidence): of the {total_possible} possible "
+        f"(person, gene) slots in this cohort, SpecImmune resolved {si_total_all} "
+        f"({100*si_total_all/total_possible:.1f}%), Immuannot resolved {imm_total_all} "
+        f"({100*imm_total_all/total_possible:.1f}%). This gap is Immuannot ABSTAINING on "
+        f"more slots outright (already-documented behavior), not a confidence-threshold "
+        f"effect -- kept separate from the share-parity check below on purpose (2026-07-24, "
+        f"Marc: 'they are both starting from the same number of possible genes to call').**\n")
     lines.append(
-        f"\n**SHARE-PARITY CHECK (Marc, 2026-07-24: 'make sure they are equal or nearly "
-        f"equal, 80% vs 81% at most'): final retained share differs by {share_diff_final:.1f} "
-        f"percentage points between the two truth sources.**\n")
-    return ("\n".join(lines), stages, si_matched, imm_matched, n,
-            si_share_thr, imm_share_thr, si_share_final, imm_share_final, share_diff_final)
+        f"\n**SHARE-PARITY CHECK, against the ONE shared denominator "
+        f"({total_possible} possible slots, same for both tools): SpecImmune retained by "
+        f"its own threshold: {si_total_thr}/{total_possible} ({100*si_total_thr/total_possible:.2f}%); "
+        f"Immuannot: {imm_total_thr}/{total_possible} ({100*imm_total_thr/total_possible:.2f}%). "
+        f"After N-matching to N={n} each: SpecImmune {100*n/total_possible:.2f}% of "
+        f"{total_possible}, Immuannot {100*n/total_possible:.2f}% of {total_possible} -- "
+        f"IDENTICAL by construction (same N, same shared denominator), not just close.**\n")
+    return "\n".join(lines), stages, si_matched, imm_matched, n
 
 
 def rate(n_true, n_false):
@@ -368,40 +384,52 @@ def field12_rates(combined, truth_cols, allowed_keys):
 
 def plot_merged_field2(rates_by_scenario, path):
     """rates_by_scenario: {'si_unf':..., 'si_matched':..., 'imm_unf':..., 'imm_matched':...},
-    each a field12_rates()-shaped dict. One figure, one subplot per SR method, 4 grouped bars
-    per gene -- the 'overlaid, not side by side' merged view."""
-    scenario_order = ["si_unf", "si_matched", "imm_unf", "imm_matched"]
-    colors = {"si_unf": SI_UNFILTERED, "si_matched": SI_MATCHED,
-              "imm_unf": IMM_UNFILTERED, "imm_matched": IMM_MATCHED}
-    labels = {"si_unf": "vs SpecImmune (unfiltered)", "si_matched": "vs SpecImmune (confident, N-matched)",
-              "imm_unf": "vs Immuannot (unfiltered)", "imm_matched": "vs Immuannot (confident, N-matched)"}
+    each a field12_rates()-shaped dict. Marc, 2026-07-24: 'AoU vs SpecHLA... we want to have
+    them on the same plane always' -- so TRUTH SOURCE is now the subplot split (top =
+    SpecImmune-truth, bottom = Immuannot-truth) and METHOD is the color, so AoU and SpecHLA
+    always sit as adjacent, directly-comparable bars within the same axes. Confidence-matched
+    bars are the saturated color + black outline; unfiltered bars are the same hue, muted --
+    the high-confidence number is the one meant to visually pop."""
+    truth_order = [("si_unf", "si_matched", "SpecImmune-truth"), ("imm_unf", "imm_matched", "Immuannot-truth")]
+    bar_specs = [  # (scenario_key, method, color, matched?)
+        ("unf", "aou", AOU_UNFILTERED, False), ("matched", "aou", AOU_MATCHED, True),
+        ("unf", "sh", SH_UNFILTERED, False), ("matched", "sh", SH_MATCHED, True),
+    ]
+    legend_labels = {
+        ("unf", "aou"): "AoU-native (unfiltered)", ("matched", "aou"): "AoU-native (confident, N-matched)",
+        ("unf", "sh"): "SpecHLA (unfiltered)", ("matched", "sh"): "SpecHLA (confident, N-matched)",
+    }
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 9), sharex=True)
     width = 0.2
     x = range(len(GENES))
-    for ax, method in zip(axes, METHODS):
-        for i, scen in enumerate(scenario_order):
+    for ax, (unf_key, matched_key, truth_label) in zip(axes, truth_order):
+        for i, (stage, method, color, is_matched) in enumerate(bar_specs):
+            scen = matched_key if is_matched else unf_key
             heights, ns = [], []
             for gene in GENES:
                 pct, n = rates_by_scenario[scen][method][gene][2]
                 heights.append(0 if pct != pct else pct)
                 ns.append(n)
             offs = [xi + (i - 1.5) * width for xi in x]
-            bars = ax.bar(offs, heights, width=width, color=colors[scen],
-                          label=labels[scen] if method == METHODS[0] else None)
+            bars = ax.bar(offs, heights, width=width, color=color,
+                          edgecolor="black" if is_matched else "none",
+                          linewidth=1.4 if is_matched else 0,
+                          label=legend_labels[(stage, method)] if ax is axes[0] else None)
             for xoff, h, n in zip(offs, heights, ns):
                 ax.text(xoff, h + 1.5, f"{n}", ha="center", va="bottom", fontsize=6, color="#555",
                         rotation=90)
-        ax.set_title(f"{METHOD_LABEL[method]} -- Field 2 (protein) concordance", fontsize=10)
+        ax.set_title(f"vs {truth_label} -- Field 2 (protein) concordance, AoU-native vs SpecHLA",
+                     fontsize=10)
         ax.set_ylim(0, 118)
         ax.set_yticks(range(0, 101, 20))
         ax.set_ylabel("Match rate (%)")
         ax.spines[["top", "right"]].set_visible(False)
     axes[-1].set_xticks(list(x))
     axes[-1].set_xticklabels(GENES)
-    fig.suptitle("Field 2 concordance vs SpecImmune-truth and Immuannot-truth, before/after a "
-                 "single global confidence threshold + sample-size matching\n(small numbers above "
-                 "each bar = n)", fontsize=10, y=0.995)
+    fig.suptitle("Field 2 concordance, AoU-native vs SpecHLA, before/after a single global "
+                 "confidence threshold + sample-size matching\n(bold outline = confidence-"
+                 "matched; small numbers above each bar = n)", fontsize=10, y=0.995)
     handles, labs = axes[0].get_legend_handles_labels()
     fig.legend(handles, labs, loc="upper center", ncol=4, frameon=False, bbox_to_anchor=(0.5, 0.94),
                fontsize=8)
@@ -469,39 +497,23 @@ def main():
                          "No default on purpose -- use the mathematically-grounded value.")
     ap.add_argument("--outroot", default=os.path.expanduser("~/pipeline_outputs"))
     ap.add_argument("--analysis-dir", default=None)
-    ap.add_argument("--max-share-diff-pct", type=float, default=5.0,
-                    help="If the two truth sources' final retained share (n_matched / its own "
-                         "total resolved pool) differs by more than this many percentage "
-                         "points, print a loud warning (does not abort -- you still get the "
-                         "numbers and figures either way). Default 5.0.")
     args = ap.parse_args()
 
     cohort = pd.read_csv(args.cohort, sep="\t", dtype=str)
     combined = load_combined(cohort, args.outroot)
+    total_possible = len(cohort) * len(GENES)
 
-    (retention_md, stages, si_matched, imm_matched, n, si_share_thr, imm_share_thr,
-     si_share_final, imm_share_final, share_diff_final) = retention_report(
-        combined, args.si_identity_threshold, args.immuannot_distance_threshold)
+    retention_md, stages, si_matched, imm_matched, n = retention_report(
+        combined, args.si_identity_threshold, args.immuannot_distance_threshold, total_possible)
     if n == 0:
         print("FATAL: at least one truth source has ZERO calls passing its threshold -- "
               "loosen the threshold(s) and rerun.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\nSHARE CHECK: SpecImmune retains {si_share_final:.1f}% of its pool, Immuannot "
-          f"retains {imm_share_final:.1f}% of its pool (post-matching, N={n} each). "
-          f"Difference: {share_diff_final:.1f} points.", file=sys.stderr)
-    if share_diff_final > args.max_share_diff_pct:
-        print(f"*** WARNING: share difference ({share_diff_final:.1f} pts) exceeds "
-              f"--max-share-diff-pct ({args.max_share_diff_pct}). One truth source is being "
-              f"squeezed much harder than the other RELATIVE TO ITS OWN POOL, even though the "
-              f"absolute N now matches -- that is exactly the bias Marc flagged. Do not treat "
-              f"this run's comparison as apples-to-apples. Fix: tighten (never loosen) the "
-              f"MORE LENIENT tool's own threshold (the one with the higher 'retained by its "
-              f"own threshold' % above) and rerun -- do not adjust per gene. ***", file=sys.stderr)
-    else:
-        print(f"Share difference within tolerance ({args.max_share_diff_pct} pts) -- the two "
-              f"truth sources are cutting a comparable fraction of their own pool.",
-              file=sys.stderr)
+    print(f"\nSpecImmune and Immuannot both matched to N={n} "
+          f"({100*n/total_possible:.2f}% of the {total_possible} possible (person, gene) "
+          f"slots, identical for both since they're rank-trimmed to the same count against "
+          f"the same shared denominator).", file=sys.stderr)
 
     rates = {
         "si_unf": field12_rates(combined, ("specimmune_1", "specimmune_2"), None),
