@@ -442,3 +442,19 @@ necessary, not wasteful — narrower cuts lose real calls, especially at DQA1/DQ
 Parallelizing the two haplotypes (`--parallel-haps`) gave no net speedup (halved per-hap threads
 roughly cancels the concurrency gain) — not adopted either. Full writeup + figures:
 `reports/immuannot_pilot/README.md`.
+
+## 2026-07-24 — Experiment F follow-on: Immuannot-as-truth field cascade + confidence-matched truth comparison
+
+Two follow-on analyses on Experiment F's cohort/calls, no new pipeline runs. (1) Re-ran the
+field-cascade re-scoring (originally SpecImmune-truth only) with Immuannot substituted as
+truth (`analyze_experiment_d_field_cascade_immuannot.py`) — DRB1's Field-2 concordance looks
+better under Immuannot-truth than SpecImmune-truth (AoU 89% vs 77%), plausibly a selection
+artifact (Immuannot's own confidence is worst at DRB1 of any gene) rather than real signal;
+DQA1's AoU-native weakness is now cross-validated under both truth sources. (2) Built a single,
+mathematically-grounded (not per-gene-tuned) confidence filter for both truth sources —
+`si_identity >= 0.9995`/not-tied, `template_distance = 0`/no-warning — sample-size-matched by
+count against the shared 480-slot denominator so neither truth source gets an inflated share
+(`analyze_confidence_matched_truth.py`, `plot_confidence_distributions.py`). DRB1 is nearly
+eliminated by the filter under both truth sources; DQA1's finding survives. Full writeup:
+`reports/confidence_matched_truth/README.md`, `reports/experiment_d_field_cascade/README.md`.
+Threshold derivation (sequencing-error-rate math, IMGT inter-allele spacing): `context/DECISIONS.md`.

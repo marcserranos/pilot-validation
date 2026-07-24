@@ -4,67 +4,35 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-07-21 (cont.) — long-read census complete: the 2,763-person floor is obsolete
+## As of 2026-07-24 — Experiment F follow-on complete: Immuannot-as-truth cascade + confidence-matched comparison
 
-**Headline result, delivered:** the exhaustive long-read data-format census
-(`scripts/lr_manifest_format_census.py`, checkpointed/resumable rewrite after a real 5h
-data-loss incident — ENVIRONMENT.md quirk #22) ran clean on the full 14,521-person cohort.
-**All 14,521 people now have a real, existing aligned GRCh38 BAM** — AoU backfilled the
-previously-missing `revio`-platform BAMs sometime between 2026-07-11 and 2026-07-21, directly
-confirmed by re-checking the exact case ENVIRONMENT.md quirk #13 had named as dangling (person
-1008366's `revio` row). Full writeup, per-platform data-shape table, and caveats:
-`reports/lr_data_census/README.md`. DECISIONS.md's "Where are the aligned BAMs" open question is
-now Resolved. **The long-read validation cohort is no longer capped near ~2,763 — this changes
-the practical scope of Experiment D's successor and the MID/SAS ancestry bottleneck.**
-
-Conceptual side-question (SpecImmune's real input requirement, why assembly data isn't a simple
-BAM-conversion target) already answered in DECISIONS.md's "Assembly-based HLA typing" bullet,
-which also now carries a literature-research lead: **Immuannot**
-(github.com/YingZhou001/Immuannot) looks like a ready-to-use tool that types HLA directly from
-phased assembly contigs, reportedly already used by HPRC — not yet independently verified or
-evaluated by us. ~86% of the cohort (revio/sequel2e/sequel2) has assembly data available as a
-*second*, cross-validating product now, not a fallback for otherwise-unreachable people.
-
-**Two real incidents this session, both now fixed and logged:** (1) the census script's original
-version had no incremental output — see ENVIRONMENT.md quirk #22 for the fix (checkpointed,
-resumable, parallelized) and its corrected root-cause account (the VM doesn't stop mid-job,
-quirk #14 — the terminal's scrollback was lost after the job *finished*, and a later
-`--sample-only` rerun separately clobbered the on-disk result via a shared-output-path bug, also
-fixed). (2) A commit (`112372c`) mid-session bundled this session's in-progress edits with
-unrelated concurrent work from Marc and Aleix, who both regularly work in this same repo
-directly — **confirmed by Marc as expected, ongoing, normal working style, not an anomaly to
-keep flagging.**
-
-**Both carried-over items from 2026-07-19 were already resolved independently (found via git log,
-not by this session's own investigation):** Aleix's `aleix/hla-resolve-phase1` workstream (4th
-long-read caller, calibrated against real external ground truth) explains the earlier
-"unexplained parallel VM experiments" note; `scripts/hla_disease_sanity_check.py`'s
-disease-sanity-check thread (Celiac/narcolepsy) finished with real results independently of the
-missing-companion-file concern.
+Two analyses finished this session, both on Experiment F's existing 60-person cohort/calls (no
+new VM runs): (1) re-scored the AoU/SpecHLA field cascade with Immuannot substituted as truth
+alongside the original SpecImmune-truth version; (2) built a single, mathematically-grounded
+(sequencing-error-rate + IMGT inter-allele-spacing derived, not per-gene-tuned) confidence
+filter for both truth sources, sample-size-matched by count against a shared denominator.
+Headline: DRB1's apparent improvement under Immuannot-truth is likely a selection artifact, not
+real; DQA1's AoU-native weakness is now cross-validated under two independent truth sources and
+survives confidence-filtering. Full detail: `context/EXPERIMENTS.md` (2026-07-24 entry),
+`context/DECISIONS.md` (Resolved decisions, same date).
 
 ## Pick up here
 
-1. **Evaluate Immuannot** (DECISIONS.md, "Assembly-based HLA typing" bullet) as a second
-   long-read caller for the ~86% of the cohort with assembly data — not yet started, no design
-   work done beyond the literature lead.
-2. **Re-scope the long-read validation cohort** now that all 14,521 people (not ~2,763) are
-   viable — Experiment D's 60-person cohort and the MID/SAS ancestry bottleneck should be
-   revisited against this much larger pool before assuming the old constraints still apply.
-3. Read `aleix/README.md` directly for HLA-Resolve's current phase/status rather than
-   re-deriving it from this note — that workstream is moving independently of this thread.
+1. **Fix a real broken reference before trusting the report as done:** `reports/confidence_matched_truth/figures/` is empty — the two PNGs (`field2_merged_confidence_matched.png`, `retention_by_gene.png`) were never copied from the VM (`~/pipeline_outputs/experiment_d/analysis_confidence_matched/`) into the repo, so the committed README's figure references currently dangle. Download both from the Jupyter file browser, move into that folder, commit.
+2. **Parallelization/cost-scaling experiment not yet run.** `scripts/run_core_scaling_experiment.sh` is written and untested-on-real-data (was smoke-tested with synthetic data only) — sweeps 2/4/8-core configs for Immuannot. Needs the VM resized to 8vCPU for the 8-core rows to be real measurements, not oversubscribed noise.
+3. **HLA-Resolve is Aleix's own workstream**, not this thread's — `aleix/hla-resolve-phase1` branch, Phase 1 (ground-truth calibration) still in progress as of his last commit (2026-07-21). Read `aleix/README.md` directly rather than re-deriving status; don't duplicate his infra.
+4. Compute-cost-optimization research done but not acted on — ranked levers in `context/DECISIONS.md` ("Compute backend for scaling" entry). Nothing here is blocking.
 
-Not blocking otherwise. Next natural step: the strategic fork in DECISIONS.md (build downstream
-directly on AoU-native vs. call independently), now informed by the cross-tool pilot, the callset
-validation report, this census, and soon Aleix's ground-truth-anchored comparison.
+Not otherwise blocking. Next natural step: the strategic fork in DECISIONS.md (build downstream
+directly on AoU-native vs. call independently) — now additionally informed by DQA1's
+cross-truth-source-validated AoU weakness.
 
 ## Watch / blockers
 
-- **VM sleeps after ~1h idle (quirk #14)** — every new session starts with the mount gone; remount (quirk #11) and `ls`-verify before running anything that reads bucket data.
-- Paste the `gcsfuse` mount and the consumer command *separately* — chaining them in one paste races (quirks #2, #14).
-- **`~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart; the mount, background processes, and activated pixi shell do not** — includes `~/ref/imgt/` (no need to re-curl the IMGT reference files after a restart).
-- **Any automated SpecImmune call must use `pixi run -e specimmune`** (quirk #15/#17) and verify its output file exists — never trust exit code 0 alone. Same discipline applies to SpecHLA (quirk #18) and to any QC metric.
-- **`mkdir -p` the target directory before any `... > <dir>/file` redirect** (quirk #20).
-- **pad100k (SpecImmune-LR) and pad2000-10000 (SpecHLA-SR) are two separate, tool-specific recommendations** — don't conflate them.
+- **VM sleeps after ~1h idle** — every new session starts with the mount gone; remount and `ls`-verify before running anything that reads bucket data. (Not needed for the confidence-matched-truth scripts — they only read `~/pipeline_outputs/`, not the AoU bucket.)
+- Paste the `gcsfuse` mount and the consumer command *separately* — chaining them in one paste races. Same discipline for `pixi shell -e <env>` — wait for the `(omni-hla-pilot:<env>)` prompt prefix before pasting the next command.
+- **Two different terminals, easy to mix up:** git commit/push happens on the Mac's own Terminal app (paths like `/Users/marcserrano/...` don't exist on the VM); `pixi`/`python3`/VM data paths happen in the Jupyter terminal tab (`jupyter@...` prompt). A command pasted into the wrong one fails loudly (`No such file or directory`) — check the prompt before pasting.
+- `~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart; the mount, background processes, and activated pixi shell do not.
 - **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a specific new reason.
-- **The long-read BAM pool is now all 14,521 people, not the old 2,763 floor** (DECISIONS.md, resolved 2026-07-21) — don't cite the old number from memory; re-check DECISIONS.md if a stale "2,763" surfaces anywhere.
-- **DRB1's SpecHLA-pad10000 padding-degradation hypothesis is still open, untested** (DECISIONS.md, 2026-07-12 entry).
+- **DRB1 is now confirmed the hardest locus by many independent, converging lines of evidence** (cross-tool disagreement, both tools' own confidence signals, confidence-filtering nearly eliminating it under both truth sources) — treat any new DRB1 result skeptically-but-not-surprised; this is a well-established, real property of the locus at this point, not a fluke.
+- Marc and Aleix both work in this repo directly and concurrently — normal, not an anomaly to flag.
