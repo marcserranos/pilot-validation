@@ -458,3 +458,17 @@ count against the shared 480-slot denominator so neither truth source gets an in
 eliminated by the filter under both truth sources; DQA1's finding survives. Full writeup:
 `reports/confidence_matched_truth/README.md`, `reports/experiment_d_field_cascade/README.md`.
 Threshold derivation (sequencing-error-rate math, IMGT inter-allele spacing): `context/DECISIONS.md`.
+
+## 2026-07-24 (cont.) — direct SpecImmune-vs-Immuannot concordance, confidence-filtered
+
+Applied the same global confidence bars to Experiment F's own two-caller comparison (not to
+AoU/SpecHLA) — `analyze_immuannot_specimmune_confidence_matched.py`. Unlike the truth-comparison
+script above, this is a single paired population (same (person, gene) slots before and after),
+so restricting to "both callers confident" is an apples-to-apples join, not something needing
+rank-trim matching; a retention check confirmed the join isn't wildly one-sided (SpecImmune
+confident on 36.0% of both-resolved slots, Immuannot on 58.1%, join at 27.8%/n=112 — a real gap,
+flagged, not alarming). **Overall Field 2 concordance rises from 77.6% (n=379, unfiltered) to
+92.0% (n=112, confidence-matched)** — confirms low-confidence calls drive most of the raw
+disagreement. DRB1 drops to zero confident-overlap pairs (sixth independent line of evidence
+it's the hardest locus). Every other gene improves except C (92%→89%, n=19, almost certainly
+noise). Full writeup: `reports/immuannot_pilot/README.md` (section 4).

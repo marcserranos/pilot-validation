@@ -90,6 +90,32 @@ the nearest known IMGT allele; lower is more confident).
 Both signals independently mark DRB1 as the least-confident gene — not just disagreeing with each
 other, but each doubting itself there too.
 
+## 4. Confidence-filtered direct concordance (2026-07-24 follow-up)
+
+Applies the same global, mathematically-grounded confidence bars used in
+`reports/confidence_matched_truth/` (SpecImmune `si_identity >= 0.9995`, not tied; Immuannot
+`template_distance <= 0`, no `template_warning`) directly to this report's own SpecImmune-vs-
+Immuannot comparison, instead of to AoU/SpecHLA. Unlike that report, this is one paired
+population (same (person, gene) slots before and after), so restricting to "both callers
+confident" is already apples-to-apples — no rank-trim matching needed. A retention check
+confirmed the join isn't wildly one-sided: SpecImmune confident on 36.0% of both-resolved slots,
+Immuannot on 58.1%, the join itself on 27.8% (112/403) — a real gap worth remembering, short of
+the "95% vs 50%" imbalance that would invalidate the comparison.
+
+**Overall Field 2 concordance rises from 77.6% (unfiltered, n=379) to 92.0% (confidence-matched,
+n=112)** — confirms the hypothesis that low-confidence calls drive most of the raw disagreement.
+92% is strong but stops short of "practically identical": an 8-point gap remains even between the
+two callers' own best calls.
+
+![Concordance before/after confidence filtering](figures/concordance_before_after_confidence.png)
+
+Per-gene, DRB1 drops to zero confident-overlap pairs — a sixth independent line of evidence it's
+the hardest locus. Every other gene moves the expected direction by a real margin (A 65%→79%,
+B 74%→94%, DQA1/DQB1/DPA1 into the mid-90s/100%) except C, which dips slightly (92%→89%, n=19,
+2 discordant pairs — almost certainly noise at this sample size, not a reversal).
+
+Script: `scripts/analyze_immuannot_specimmune_confidence_matched.py`.
+
 ## Data & reproducibility
 
 - Script: `scripts/diagnose_immuannot_pilot.py` (also the source of `field2_by_gene.png`,

@@ -4,35 +4,63 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-07-24 — Experiment F follow-on complete: Immuannot-as-truth cascade + confidence-matched comparison
+## As of 2026-07-24 (end of session) — confidence-filtering thread closed out
 
-Two analyses finished this session, both on Experiment F's existing 60-person cohort/calls (no
-new VM runs): (1) re-scored the AoU/SpecHLA field cascade with Immuannot substituted as truth
-alongside the original SpecImmune-truth version; (2) built a single, mathematically-grounded
-(sequencing-error-rate + IMGT inter-allele-spacing derived, not per-gene-tuned) confidence
-filter for both truth sources, sample-size-matched by count against a shared denominator.
-Headline: DRB1's apparent improvement under Immuannot-truth is likely a selection artifact, not
-real; DQA1's AoU-native weakness is now cross-validated under two independent truth sources and
-survives confidence-filtering. Full detail: `context/EXPERIMENTS.md` (2026-07-24 entry),
-`context/DECISIONS.md` (Resolved decisions, same date).
+This session's confidence-matched-truth work (AoU/SpecHLA vs. two truth sources) got one more
+follow-on: the same global, mathematically-grounded thresholds applied **directly** to
+SpecImmune-LR vs. Immuannot's own comparison (not via AoU/SpecHLA). Overall Field 2 concordance
+rises from 77.6% to 92.0% once both callers are held to their confidence bar — the clearest
+evidence yet that most of this cohort's raw cross-method disagreement is a confidence/noise
+effect, not two genuinely different answers. DRB1 is wiped to zero confident-overlap pairs — a
+sixth independent line of evidence it's the hardest locus. Full detail: `context/DECISIONS.md`
+(Resolved, sub-bullet under "Confidence-matched truth comparison"), `context/EXPERIMENTS.md`
+(2026-07-24 cont. entry), `reports/immuannot_pilot/README.md` (section 4).
+
+**Also fixed:** the previously-flagged empty `reports/confidence_matched_truth/figures/` folder —
+Marc downloaded both PNGs, but one landed as `field2_merged_confidence_matched-2.png` (browser
+download-collision naming) while the README referenced the name without `-2`, so the link was
+still dangling even after the download. Renamed to match; verified clean now.
 
 ## Pick up here
 
-1. **Fix a real broken reference before trusting the report as done:** `reports/confidence_matched_truth/figures/` is empty — the two PNGs (`field2_merged_confidence_matched.png`, `retention_by_gene.png`) were never copied from the VM (`~/pipeline_outputs/experiment_d/analysis_confidence_matched/`) into the repo, so the committed README's figure references currently dangle. Download both from the Jupyter file browser, move into that folder, commit.
-2. **Parallelization/cost-scaling experiment not yet run.** `scripts/run_core_scaling_experiment.sh` is written and untested-on-real-data (was smoke-tested with synthetic data only) — sweeps 2/4/8-core configs for Immuannot. Needs the VM resized to 8vCPU for the 8-core rows to be real measurements, not oversubscribed noise.
-3. **HLA-Resolve is Aleix's own workstream**, not this thread's — `aleix/hla-resolve-phase1` branch, Phase 1 (ground-truth calibration) still in progress as of his last commit (2026-07-21). Read `aleix/README.md` directly rather than re-deriving status; don't duplicate his infra.
-4. Compute-cost-optimization research done but not acted on — ranked levers in `context/DECISIONS.md` ("Compute backend for scaling" entry). Nothing here is blocking.
+1. **Commit today's doc updates** — `context/DECISIONS.md`, `context/EXPERIMENTS.md`,
+   `reports/immuannot_pilot/README.md`, the figure rename, and the new
+   `reports/immuannot_pilot/figures/concordance_before_after_confidence.png`. This closes out the
+   confidence-filtering thread cleanly; nothing else pending on it.
+2. **Parallelization/cost-scaling experiment still not run on real data.**
+   `scripts/run_core_scaling_experiment.sh` — sweeps 2/4/8-core configs for Immuannot, needs an
+   8vCPU VM resize for the 8-core rows to be real measurements.
+3. **HLA-Resolve is Aleix's own workstream** — `aleix/hla-resolve-phase1` branch. Read
+   `aleix/README.md` directly for status rather than re-deriving it here.
+4. Compute-cost-optimization research done but not acted on — ranked levers in
+   `context/DECISIONS.md` ("Compute backend for scaling" entry). Not blocking.
 
-Not otherwise blocking. Next natural step: the strategic fork in DECISIONS.md (build downstream
-directly on AoU-native vs. call independently) — now additionally informed by DQA1's
-cross-truth-source-validated AoU weakness.
+**Next natural step (strategic, not urgent):** the fork in DECISIONS.md — build downstream
+directly on AoU-native vs. call independently — now informed by both DQA1's cross-truth-source
+AoU weakness *and* today's finding that SpecImmune/Immuannot converge strongly once both are
+confident (i.e. the long-read "truth" itself is trustworthy when filtered).
 
 ## Watch / blockers
 
-- **VM sleeps after ~1h idle** — every new session starts with the mount gone; remount and `ls`-verify before running anything that reads bucket data. (Not needed for the confidence-matched-truth scripts — they only read `~/pipeline_outputs/`, not the AoU bucket.)
-- Paste the `gcsfuse` mount and the consumer command *separately* — chaining them in one paste races. Same discipline for `pixi shell -e <env>` — wait for the `(omni-hla-pilot:<env>)` prompt prefix before pasting the next command.
-- **Two different terminals, easy to mix up:** git commit/push happens on the Mac's own Terminal app (paths like `/Users/marcserrano/...` don't exist on the VM); `pixi`/`python3`/VM data paths happen in the Jupyter terminal tab (`jupyter@...` prompt). A command pasted into the wrong one fails loudly (`No such file or directory`) — check the prompt before pasting.
-- `~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart; the mount, background processes, and activated pixi shell do not.
-- **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a specific new reason.
-- **DRB1 is now confirmed the hardest locus by many independent, converging lines of evidence** (cross-tool disagreement, both tools' own confidence signals, confidence-filtering nearly eliminating it under both truth sources) — treat any new DRB1 result skeptically-but-not-surprised; this is a well-established, real property of the locus at this point, not a fluke.
-- Marc and Aleix both work in this repo directly and concurrently — normal, not an anomaly to flag.
+- **VM sleeps after ~1h idle** — every new session starts with the mount gone; remount and
+  `ls`-verify before running anything that reads bucket data. Not needed for any of the
+  confidence-filtering scripts — they only read `~/pipeline_outputs/`.
+- Paste the `gcsfuse` mount and the consumer command *separately* — chaining them in one paste
+  races. Same discipline for `pixi shell -e <env>` — wait for the `(omni-hla-pilot:<env>)` prompt
+  prefix before pasting the next command.
+- **Two different terminals, easy to mix up:** git commit/push happens on the Mac's own Terminal
+  app (paths like `/Users/marcserrano/...` don't exist on the VM); `pixi`/`python3`/VM data paths
+  happen in the Jupyter terminal tab (`jupyter@...` prompt).
+- `~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart; the mount,
+  background processes, and activated pixi shell do not.
+- **Figures downloaded from the VM can silently get a browser-collision suffix** (`-2`, `-3`,
+  ...) that won't match the README's reference — `ls` the figures folder and diff filenames
+  against what the README actually links before considering a report "done."
+- **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a
+  specific new reason.
+- **DRB1 is confirmed the hardest locus by six independent, converging lines of evidence now**
+  (cross-tool disagreement, both tools' own confidence signals, confidence-filtering nearly
+  eliminating it under every truth-source and direct-comparison variant tried) — treat any new
+  DRB1 result skeptically-but-not-surprised; this is a well-established, real property of the
+  locus, not a fluke.
+- Marc and Aleix both work in this repo directly and concurrently — normal, not an anomaly.
