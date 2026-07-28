@@ -206,6 +206,54 @@ Long reads don't have the R1/R2 pairing model, so this simplifies to one output 
 
 ---
 
+## 7. RNA-seq (2026-07-25 — new research thread: srWGS/lrWGS/RNA-seq cohort overlap)
+
+**[CONFIRMED FROM PRIMARY SOURCE, HIGH] Cohort size: 8,980 whole-blood samples.** Page 40:
+*"The RNA-seq dataset consists of paired end sequencing reads from 8,980 whole blood samples
+processed with Watchmaker RNA Library Prep kit with Polaris Depletion."* This matches the
+~9,000 figure reported in secondary press (RNA-Seq Blog, GenomeWeb, The Scientist) for CDRv9's
+multiomics release — now confirmed against AoU's own primary-source PDF, not just secondary
+coverage. **Bulk RNA-seq** (rRNA-depletion library kit, RSEM/TPM gene-level output, RNA-SeQC2
+QC metrics) — the words "single-cell"/"scRNA"/"PBMC"/"bulk" never appear in the document, but
+everything described is characteristic of bulk, not single-cell, RNA-seq. **Access tier:
+Controlled Tier**, same blanket statement (p.3) covering all genomic data types — RNA-seq isn't
+called out separately. **Format: aligned BAM only (STAR aligner, hg38 no-ALT/HLA/decoy, GENCODE
+v48) — no FASTQ delivered, confirmed by a full-text search returning zero hits for "fastq."**
+
+**[CONFIRMED, HIGH — the actual gap] Unlike srWGS (p.6) and lrWGS (p.35), RNA-seq has NO
+documented manifest file and NO `gs://` bucket path anywhere in this PDF.** A full-text search
+for every `gs://` occurrence in all 59 pages returns exactly two hits, both unrelated reference-
+FASTA paths (p.6, p.22) — nothing under `v9/rnaseq/...` or similar. The word "manifest" never
+appears on pages 40-52 (the entire RNA-seq section). The per-sample ID field is called "Research
+ID" in the RNA metadata metrics text (p.47-48) — by AoU's naming convention elsewhere (srWGS =
+`person_id`, lrWGS = `research_id`) this is **[MED] plausibly `research_id`, matching the lrWGS
+manifest's column**, but this is an inference from prose wording, not a confirmed column header —
+verify against the real file/table before joining on it.
+
+**[CONFIRMED, HIGH] No explicit cohort-overlap statement with srWGS/lrWGS anywhere in the
+document.** Targeted searches for "subset," "overlap," "also have," "same participant(s)," "same
+cohort," "who also," "participants who" across all 59 pages return only unrelated technical usage
+(genomic-interval overlap in SV/splicing annotation). The front-matter "List of All of Us genomic
+data" summary (p.4-5) gives inline participant counts next to srWGS/srWGS-SVs/array/lrWGS
+headings but **pointedly omits a count next to the RNA sequencing and Proteomics headings** — a
+gap, not an answer. No BigQuery table name or `has_*`-style flag column for RNA-seq appears
+anywhere in this PDF either (the srWGS/lrWGS-adjacent `has_lr_whole_genome_variant`-style flags
+referenced elsewhere in this project's notes are Workbench Data Dictionary / curated-table
+concepts, outside this PDF's scope).
+
+**Conclusion: this PDF alone cannot answer the overlap question.** It confirms *how many* people
+have RNA-seq (8,980) and *what tier/format* it's in, but not *which* participant IDs, and not
+whether they're the same people as the WGS cohorts. Same posture as the original srWGS/lrWGS
+manifest hunt (section 1 above, "What to try first, in order"): **the next step is live discovery
+on the Workbench VM** — browse `~/mnt/aou-controlled/v9/` for an RNA-seq sibling directory to
+`wgs/` (same method that found the srWGS/lrWGS manifest paths originally), and/or check the
+BigQuery CDR curated tables for an RNA-seq availability flag via the Cohort/Dataset Builder. Do
+not hand-guess a `v9/rnaseq/...`-style path and treat it as real — this doc's own history (the
+`snpindel/hla_variants/` vs `snpindel/aux/hla_variants/` path-correction in ENVIRONMENT.md) is a
+direct precedent for how an inferred-but-unverified path silently wastes a session.
+
+---
+
 ## Note on the source PDF
 
 The canonical copy of "How the All of Us Genomic Data are Organized v9.pdf" is checked into **this `reference/` folder** (not the repo root — corrected 2026-07-10, an earlier version of this note had the wrong location), uploaded by Marc, byte-identical to the one fetched live in-session. It is a genuine **59-page** document (confirmed with `pypdf`, not the `file` command — `file` misreports it as "8 pages" due to a bug in its own PDF page-counting heuristic, not because content is missing). Sections used for this doc: srWGS CRAM manifest (p.6), HLA calling (p.17-19), genetic ancestry (p.14-16), lrWGS manifest (p.35-39). Large sections not relevant to this pilot (VDS/Hail MT internals, RNA-seq, proteomics) were skimmed but not transcribed here — go to the source PDF directly for those.
