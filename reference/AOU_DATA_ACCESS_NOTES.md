@@ -252,6 +252,47 @@ not hand-guess a `v9/rnaseq/...`-style path and treat it as real — this doc's 
 `snpindel/hla_variants/` vs `snpindel/aux/hla_variants/` path-correction in ENVIRONMENT.md) is a
 direct precedent for how an inferred-but-unverified path silently wastes a session.
 
+### RESOLVED, live-confirmed (2026-07-25)
+
+**[CONFIRMED, HIGH — live on the VM]** The manifest exists; AoU's PDF just never mentions it.
+Live bucket browse (`ls ~/mnt/aou-controlled/v9/` → `multiomics/` → `rnaseq/`) found:
+`v9/multiomics/rnaseq/manifest.tsv`, columns `sampleid, research_id,
+markduplicates_bam_file_path, markduplicates_bam_index_path` — 8,981 lines (8,980 data rows,
+exactly matching the PDF's stated cohort size — a real cross-check). `research_id` is the
+literal column name, confirming the [MED] inference above; `sampleid == research_id` for every
+row, so it's a clean 1:1 join key, no sample-vs-person indirection to worry about. Sibling
+directory `v9/multiomics/proteomics/` also exists, unexplored (out of scope for this thread).
+BAM-only (`markduplicates_bam_file_path`), matches the PDF's "no FASTQ" finding.
+
+**[CONFIRMED, HIGH — live on the VM, `scripts/compute_wgs_rnaseq_overlap.py`]
+srWGS x lrWGS x RNA-seq participant overlap, existence-checked (not just manifest presence)
+for lrWGS and RNA-seq:**
+
+| | srWGS total | lrWGS total | RNA-seq total |
+|---|---|---|---|
+| | 535,662 | 14,521 | 8,980 |
+
+| Region | Count |
+|---|---|
+| srWGS only | 520,511 |
+| lrWGS only | 22 |
+| RNA-seq only | 0 |
+| srWGS + lrWGS | 6,172 |
+| srWGS + RNA-seq | 653 |
+| lrWGS + RNA-seq | 1 |
+| all three | 8,326 |
+
+**Headline: 8,326 of 8,980 RNA-seq participants (92.7%) have all three data types; 8,327/8,980
+(92.7%) have lrWGS specifically.** RNA-seq is nearly a proper subset of the lrWGS cohort, not a
+separate/disjoint recruitment wave — confirms, with exact numbers, the AoU Genomics &
+Multi-omics Quality Report's own claim (found separately via web research, same session) that
+"many of these data types overlap with each other... (25 exceptions exist)." Zero RNA-seq-only
+participants — every RNA-seq sample has at least one matching WGS technology. This clears the
+AoU-feasibility gate identified in the RNA-seq/HLA/repertoire scoping memo (2026-07-25,
+delivered as a standalone artifact, not yet a repo file) — 8,326 people is a real, actionable
+cohort size for a fused HLA + repertoire + PRS pilot, using data this project's own pipelines
+already have a foothold in (lrWGS → SpecImmune-LR).
+
 ---
 
 ## Note on the source PDF

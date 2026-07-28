@@ -61,12 +61,15 @@ Genomics bucket: **`gs://vwb-aou-datasets-controlled/`** — **requester-pays**:
 | lrWGS manifest | `v9/wgs/long_read/manifest.tsv` | `research_id,center,platform,grch38_bam,grch38_bai,…` |
 | AoU-native srWGS HLA calls | `v9/wgs/short_read/snpindel/aux/hla_variants/hla_genotypes.tsv` | `research_id` + 30 gene-pair cols (`<gene>_1/_2`), 2–3 field |
 | AoU genetic-ancestry predictions | `v9/wgs/short_read/snpindel/aux/ancestry/ancestry_preds.tsv` | `research_id`, `ancestry_pred` (AFR/AMR/EAS/EUR/MID/SAS, excl. "other"), `probabilities` (array, ordered AFR/AMR/EAS/EUR/MID/SAS), `pca_features` |
+| RNA-seq manifest (v9 multiomics) | `v9/multiomics/rnaseq/manifest.tsv` | `sampleid, research_id, markduplicates_bam_file_path, markduplicates_bam_index_path` — BAM only (STAR-aligned), no FASTQ. Row count (8,980) matches the AoU source PDF's stated cohort size exactly. |
 
 - Always resolve file paths via the `v9/` **manifests** — never hand-build into `pooled/` (physical files live under `pooled/wgs/cram/{v7,v8,v9}_base/` and `pooled/longreads/v9_delta/`, stored incrementally across releases).
 - **Wrong-bucket trap:** legacy `gs://fc-aou-datasets-controlled/…` (old Firecloud naming) appears in archived docs — **not** ours.
 - AoU-native HLA typing = **HLA-HD + Polysolver + OptiType** ensemble on srWGS CRAMs; **no lrWGS equivalent exists**. Restrict comparisons to the **8 classical genes** our tools call (A, B, C, DRB1, DQA1, DQB1, DPA1, DPB1) — AoU types 30.
 - lrWGS is delivered as **BAM** aligned to **`grch38_noalt`** (no ALT/HLA contigs — compatibility caveat in DECISIONS). BAM needs no `-T`; only srWGS CRAM does.
 - **Path correction (2026-07-09):** the HLA calls live under `snpindel/aux/hla_variants/`, **not** directly under `snpindel/hla_variants/` as earlier notes (incl. `reference/AOU_DATA_ACCESS_NOTES.md`) recorded — that wrong path is why the comparison failed at session start until traced via `gsutil ls`. Table above is corrected; the reference doc is left as its dated historical snapshot.
+- **RNA-seq manifest is undocumented by AoU's own "How the All of Us Genomic Data are Organized v9" PDF** (no `gs://` path, no manifest filename anywhere in it, despite covering srWGS/lrWGS manifests in detail) — found by live bucket browsing (`v9/multiomics/{proteomics,rnaseq}/`), the same method that originally found the srWGS/lrWGS paths. See `reference/AOU_DATA_ACCESS_NOTES.md` section 7.
+- **srWGS x lrWGS x RNA-seq participant overlap (confirmed live, 2026-07-25, `scripts/compute_wgs_rnaseq_overlap.py`):** of 8,980 RNA-seq participants, 8,326 (92.7%) have all three data types and **8,327 (92.7%) have lrWGS specifically** — RNA-seq is nearly a proper subset of the lrWGS cohort, not a separate/disjoint recruitment. Zero RNA-seq-only participants. Full numbers in EXPERIMENTS.md.
 - Full data-access provenance (web research, confidence markers, sources) archived in `reference/AOU_DATA_ACCESS_NOTES.md`.
 
 ## Workbench quirks & gotchas — read before doing anything new

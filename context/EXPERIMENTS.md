@@ -472,3 +472,26 @@ flagged, not alarming). **Overall Field 2 concordance rises from 77.6% (n=379, u
 disagreement. DRB1 drops to zero confident-overlap pairs (sixth independent line of evidence
 it's the hardest locus). Every other gene improves except C (92%→89%, n=19, almost certainly
 noise). Full writeup: `reports/immuannot_pilot/README.md` (section 4).
+
+## 2026-07-25 — AoU srWGS x lrWGS x RNA-seq cohort overlap (new research thread: RNA-seq immune repertoire)
+
+Scoping a new direction (HLA calls + RNA-seq-derived TCR/BCR repertoire + PRS as a fused disease
+predictor — full mechanistic/tooling/literature/feasibility writeup delivered as a standalone
+artifact this session, not a repo file). The hard gate was whether AoU's RNA-seq cohort overlaps
+with the WGS cohorts this project's HLA pipelines already run on. AoU's own "How the All of Us
+Genomic Data are Organized v9" PDF turned out to have **no RNA-seq manifest documented at all**
+(confirmed by a full-text page-by-page read) despite one existing — found instead by live bucket
+browsing (`v9/multiomics/rnaseq/manifest.tsv`), same method that originally found the srWGS/lrWGS
+manifest paths. Full provenance: `reference/AOU_DATA_ACCESS_NOTES.md` section 7.
+
+**Result (`scripts/compute_wgs_rnaseq_overlap.py`, existence-checked against the mount, not just
+manifest presence): of 8,980 RNA-seq participants, 8,326 (92.7%) have all three data types and
+8,327 (92.7%) have lrWGS specifically** — RNA-seq is nearly a proper subset of the lrWGS cohort.
+Zero RNA-seq-only participants. Confirms, with exact numbers, a claim independently found via web
+research the same session (AoU's Genomics & Multi-omics Quality Report: "many of these data types
+overlap... 25 exceptions exist"). Clears the AoU-feasibility gate for the new research direction —
+8,326 people is a real, actionable cohort size, and it's reachable through data this project's
+pipelines already have a foothold in (lrWGS → SpecImmune-LR). Venn diagram (schematic, not
+area-proportional):
+`~/pipeline_outputs/rnaseq_overlap/venn_srwgs_lrwgs_rnaseq.png` on the VM (not yet pulled into
+the repo).
