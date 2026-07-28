@@ -41,6 +41,21 @@ QC_NUMERIC_COLS = [
     "reads_aligned_in_pairs", "mean_insert_size",
 ]
 
+# Plot metadata per column: (x-axis label with units, divisor for display scale, AoU's own
+# published single-sample QC threshold if one exists -- from the "All of Us Genomics &
+# Multi-omics Quality Report" found via web research 2026-07-25: RQS >= 5.5, alignment > 80%,
+# mRNA bases > 20%. Drawing these as reference lines is *why* processing_status is 100% "Pass"
+# in this delivered manifest -- AoU only ships samples that already cleared this bar, so the
+# pass/fail column itself can't discriminate anymore; the real signal is the spread above it.
+PLOT_META = {
+    "alignment_rate_pct": ("% of reads aligned", 1, 80),
+    "rqs": ("RNA Quality Score (RQS, 0-10 scale; higher = less-degraded RNA)", 1, 5.5),
+    "mrna_bases_pct": ("% of bases in mRNA / exonic regions", 1, 20),
+    "ribosomal_bases_pct": ("% of bases mapping to ribosomal RNA (lower = better depletion)", 1, None),
+    "reads_aligned_in_pairs": ("aligned read pairs (millions) -- sequencing depth", 1_000_000, None),
+    "mean_insert_size": ("mean insert size (bp)", 1, None),
+}
+
 
 def die(msg):
     print(f"FATAL: {msg}", file=sys.stderr)
@@ -133,14 +148,23 @@ def main():
         print(f"\n(Skipped RNA-seq-with-lrWGS ancestry breakdown -- {args.overlap_ids} not found. "
               f"Run compute_wgs_rnaseq_overlap.py first if you want it.)", file=sys.stderr)
 
-    # --- QC metric distributions ---
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+    # --- QC metric distributions -- labeled axes, real units, AoU's own QC threshold lines
+    # where one exists (see PLOT_META comment) so "why does nobody fail QC" is visible, not
+    # just stated in the console output ---
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8.5))
     for ax, col in zip(axes.flat, QC_NUMERIC_COLS):
-        data = meta[col].dropna()
+        xlabel, divisor, threshold = PLOT_META[col]
+        data = meta[col].dropna() / divisor
         ax.hist(data, bins=40, color="#4C72B0", edgecolor="white", linewidth=0.3)
-        ax.set_title(col, fontsize=10)
-        ax.set_ylabel("samples")
-    fig.suptitle(f"AoU v9 RNA-seq QC metric distributions (n={len(meta)})", fontsize=13)
+        if threshold is not None:
+            ax.axvline(threshold / divisor, color="#C44E52", linestyle="--", linewidth=1.5,
+                       label=f"AoU's own QC cutoff ({threshold})")
+            ax.legend(fontsize=8, loc="upper left")
+        ax.set_title(col, fontsize=10, fontweight="bold")
+        ax.set_xlabel(xlabel, fontsize=8.5)
+        ax.set_ylabel("number of samples")
+    fig.suptitle(f"AoU v9 RNA-seq per-sample QC metrics (n={len(meta)} -- everyone shown here "
+                 f"already passed AoU's own single-sample QC gate)", fontsize=12.5)
     fig.tight_layout()
     fig_path = os.path.join(args.out_dir, "rnaseq_qc_distributions.png")
     fig.savefig(fig_path, dpi=150, bbox_inches="tight")
