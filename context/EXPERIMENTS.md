@@ -495,3 +495,42 @@ pipelines already have a foothold in (lrWGS → SpecImmune-LR). Venn diagram (sc
 area-proportional):
 `~/pipeline_outputs/rnaseq_overlap/venn_srwgs_lrwgs_rnaseq.png` on the VM (not yet pulled into
 the repo).
+
+## 2026-07-25 (cont.) — RNA-seq data-characterization Stage 1: metadata census
+
+Before designing any experiment on the RNA-seq data, ran a QC/EDA plan against it (7 dimensions:
+count, format, information included, diversity, interpretability, documentation, completeness/
+robustness/reliability). Stage 1 (`scripts/rnaseq_metadata_census.py`) reads AoU's per-sample
+`rnaseq_metadata.tsv` only (no BAM content) — cheap, all 8,980 rows.
+
+**Key finding: `processing_status` is 100% "Pass" for all 8,980 samples — not a null result, but
+proof the delivered manifest is already a post-QC survivor set** (AoU's own published single-
+sample thresholds — RQS≥5.5, alignment>80%, mRNA bases>20%, per the Quality Report found via web
+research — sit right at the left edge of every relevant distribution). `pipeline_id` is uniform
+(`dragen_4.2.4` for all 8,980), so no processing-version confound. Zero missingness anywhere.
+Sequencing depth (`reads_aligned_in_pairs`) spans a real 7.4x range (80M-595M read pairs) —
+directly relevant to repertoire-extraction feasibility later, since TCR/BCR transcripts are a
+tiny fraction of total blood transcriptome and low-depth samples are less likely to recover them.
+
+**Real anomaly found and partially explained:** `mean_insert_size` is visibly bimodal (peaks
+~155bp and ~245bp, real dip between) with no explanation from `pipeline_id`. A follow-up
+correlation check across all 6 QC metrics found it doesn't meaningfully track anything else in
+this table (strongest link: `alignment_rate_pct`, r=0.28, ~8% of variance) — ruling out "it's
+just another quality axis" but not explaining the root cause, which is most likely a library-
+prep/center batch difference not captured by any column in `rnaseq_metadata.tsv`. Flagged as an
+unexplained batch-shaped signal to revisit if Stage 2 (below) turns up a center/batch field, or
+to carry as a candidate covariate in any eventual model regardless of root cause.
+
+**Separately explained:** `alignment_rate_pct` vs `ribosomal_bases_pct` is the strongest
+correlation in the matrix (r=-0.44) — mechanistically sensible, not concerning: RNA-seq
+references typically mask rRNA loci, so a sample with worse rRNA depletion has more raw rRNA
+reads with nothing to align to, dragging down `alignment_rate_pct`. Two metrics capturing the
+same underlying depletion-efficiency signal, not two independent problems.
+
+**Ancestry:** RNA-seq cohort is EUR 29.7% / AMR 22.0% / AFR 16.7% / EAS 13.9% / SAS 12.7% /
+MID 5.0% (n=8,980) — diverse, not EUR-dominated. The RNA-seq-with-lrWGS pilot-relevant subgroup
+(n=8,327) has an almost identical proportional breakdown, confirming the lrWGS-linkage filter
+doesn't introduce an additional ancestry skew on top of whatever AoU's own recruitment has.
+
+Next: Stage 2 — characterize the structure of the `eqtl/`, `rnaseqc2/`, `rsem/`, `sqtl/`
+subfolders (per-sample files vs. aggregate matrices), not yet run.
