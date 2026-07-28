@@ -170,6 +170,36 @@ def main():
     fig.savefig(fig_path, dpi=150, bbox_inches="tight")
     print(f"\nWrote {fig_path}", file=sys.stderr)
 
+    # --- correlation check: mean_insert_size showed a real bimodal split in the first run of
+    # this script (2026-07-25, real AoU data) with no explanation from pipeline_id (uniform
+    # across the whole cohort) -- check whether it tracks with any other QC metric, which would
+    # point to a real batch effect worth carrying as a covariate downstream, vs. an isolated
+    # artifact of this one column. ---
+    corr = meta[QC_NUMERIC_COLS].corr()
+    print(f"\n=== Pearson correlation between QC metrics "
+          f"(checking what, if anything, the mean_insert_size split tracks with) ===",
+          file=sys.stderr)
+    print(corr.round(2).to_string(), file=sys.stderr)
+
+    fig2, ax2 = plt.subplots(figsize=(6.5, 5.5))
+    im = ax2.imshow(corr.values, vmin=-1, vmax=1, cmap="RdBu_r")
+    ax2.set_xticks(range(len(QC_NUMERIC_COLS)))
+    ax2.set_yticks(range(len(QC_NUMERIC_COLS)))
+    ax2.set_xticklabels(QC_NUMERIC_COLS, rotation=45, ha="right", fontsize=8)
+    ax2.set_yticklabels(QC_NUMERIC_COLS, fontsize=8)
+    for i in range(len(QC_NUMERIC_COLS)):
+        for j in range(len(QC_NUMERIC_COLS)):
+            r = corr.values[i, j]
+            ax2.text(j, i, f"{r:.2f}", ha="center", va="center", fontsize=8,
+                      color="white" if abs(r) > 0.5 else "black")
+    fig2.colorbar(im, ax=ax2, label="Pearson r")
+    ax2.set_title("QC metric correlations -- what does mean_insert_size's\n"
+                  "bimodal split (if real) actually track with?", fontsize=10)
+    fig2.tight_layout()
+    corr_path = os.path.join(args.out_dir, "rnaseq_qc_correlations.png")
+    fig2.savefig(corr_path, dpi=150, bbox_inches="tight")
+    print(f"Wrote {corr_path}", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()
