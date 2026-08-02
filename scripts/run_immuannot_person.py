@@ -484,6 +484,22 @@ def main():
                     help="Re-process a person even if already present in immuannot_calls.tsv "
                          "(default: skip -- makes a 60-person run safe to kill and re-launch "
                          "with the exact same command).")
+    ap.add_argument("--out-suffix", default="",
+                    help="Appended to the output filenames (immuannot_calls<SUFFIX>.tsv, "
+                         "immuannot_timing<SUFFIX>.tsv) instead of writing the canonical shared "
+                         "files. REQUIRED whenever multiple invocations of this script run "
+                         "CONCURRENTLY as separate OS processes (e.g. via `xargs -P`, as the core-"
+                         "scaling/production orchestrators both do) -- write_incremental() does a "
+                         "non-atomic read-modify-write on the output TSV (read whole file, drop "
+                         "this person's old rows, append, write whole file back), so two processes "
+                         "finishing within moments of each other silently lose whichever one wrote "
+                         "first. A single invocation processing many person_ids in its own for-loop "
+                         "(the normal serial usage) has no race and does not need this -- only "
+                         "concurrent SEPARATE invocations do. Give each concurrent worker a unique "
+                         "suffix (e.g. the person_id or a worker index); merge the fragments "
+                         "afterward (pandas.concat over immuannot_calls.*.tsv works, since schemas "
+                         "match). The --force skip-check below still reads the CANONICAL "
+                         "(unsuffixed) file, so resumability against a prior real run is unaffected.")
     args = ap.parse_args()
 
     lr_path = os.path.join(args.mount, LR_MANIFEST)
@@ -530,7 +546,7 @@ def main():
           file=sys.stderr)
 
     if all_timing_rows:
-        timing_path = os.path.join(args.outroot, "immuannot_timing.tsv")
+        timing_path = os.path.join(args.outroot, f"immuannot_timing{args.out_suffix}.tsv")
         write_incremental(pd.DataFrame(all_timing_rows), timing_path, ["person_id"])
         print(f"Timing log: {timing_path}", file=sys.stderr)
 
@@ -541,7 +557,7 @@ def main():
               file=sys.stderr)
         return
 
-    out_path = os.path.join(args.outroot, "immuannot_calls.tsv")
+    out_path = os.path.join(args.outroot, f"immuannot_calls{args.out_suffix}.tsv")
     write_incremental(pd.DataFrame(all_gene_rows), out_path, ["person_id"])
     print(f"Calls: {out_path}", file=sys.stderr)
     print("Aggregate-only note doesn't apply here the way it does for comparison_log.csv -- these "
