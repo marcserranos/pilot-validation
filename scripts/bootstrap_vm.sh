@@ -22,7 +22,11 @@ set -uo pipefail
 
 REPO_URL="https://github.com/marcserranos/pilot-validation.git"
 REPO_DIR="$HOME/repos/pilot-validation"
-BILLING_PROJECT="wb-glacial-potato-8710"
+# NEVER hardcode this -- this project now spans multiple Workbench workspaces (personal +
+# institutional/Stanford-pod), each its own GCP project with its own billing-project id
+# (confirmed 2026-08-02: hardcoding the personal workspace's id here would have silently pointed
+# gcsfuse at the wrong billing project on any other workspace's VM). Always derive it live.
+BILLING_PROJECT="$(gcloud config get-value project 2>/dev/null)"
 BUCKET="vwb-aou-datasets-controlled"
 MOUNT_DIR="$HOME/mnt/aou-controlled"
 
@@ -39,6 +43,11 @@ if [[ "$(uname)" != "Linux" ]]; then
   exit 1
 fi
 ok "Linux confirmed. Hostname: $(hostname). Whoami: $(whoami)."
+if [ -z "$BILLING_PROJECT" ]; then
+  bad "gcloud config get-value project returned empty -- can't determine which workspace/billing project this VM belongs to. STOPPING (mounting against the wrong/no billing project is exactly the VPC-SC mess from earlier this session)."
+  exit 1
+fi
+ok "Billing project (live-detected, not hardcoded): $BILLING_PROJECT"
 
 # --- 1. pixi ---
 step "1. pixi"
