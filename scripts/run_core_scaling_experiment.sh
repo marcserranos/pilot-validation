@@ -139,7 +139,16 @@ stop_mem_sampler_and_get_min() {
 }
 
 disk_usage_mb() {
-  du -sm "$OUTROOT" 2>/dev/null | awk '{print $1}'
+  # Uses `df` (reads a kernel-maintained block-usage counter for the whole filesystem $OUTROOT
+  # lives on -- O(1), instant) instead of `du -sm "$OUTROOT"` (recursive tree walk -- O(n) in file
+  # count, and gets slower every config as more people's real output accumulates). Real incident,
+  # 2026-08-03: the `du`-based version caused two multi-tens-of-minutes stalls before every single
+  # xargs launch, misdiagnosed at first as a hung process, on what turned out to be a
+  # container/overlay-filesystem VM where per-file metadata ops are unusually slow. Trade-off:
+  # this measures the WHOLE filesystem's used space, not just $OUTROOT specifically -- fine here
+  # since nothing else is writing meaningfully to this VM's disk during the run, and delta-over-
+  # time is what we actually need, not an absolute $OUTROOT-only number.
+  df -m --output=used "$OUTROOT" 2>/dev/null | tail -1 | tr -d ' '
 }
 
 # --- Diagnostic checkpoint trail (added 2026-08-03, Marc: "add diagnosis blocks if you need
