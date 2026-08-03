@@ -88,6 +88,34 @@ if [ ! -f "$LOG" ]; then
   printf "timestamp\tphase\tconcurrency\tthreads_per_person\ttotal_cores_used\tbatch_size\twall_clock_seconds\tseconds_per_person_wallclock\tmem_avail_min_mb\tmem_used_peak_mb\tmem_used_peak_pct\tdisk_delta_mb\n" > "$LOG"
 fi
 
+# --- Single-instance lock (added 2026-08-03 after a real incident: three separate invocations of
+# this script ended up running concurrently against the same person_ids -- likely from the launch
+# command being re-run/re-pasted during troubleshooting -- and silently clobbered each other's
+# shared per-person intermediate files (the trimmed FASTA / .gtf.gz under
+# ~/pipeline_outputs/<pid>/immuannot_output/, which are NOT isolated by --out-suffix -- only the
+# final results files are). One instance ended up stalled with zero child processes and zero
+# output for 45+ minutes, costing real debugging time before the duplicate was even found. This
+# lock makes that impossible to repeat silently: a second launch now fails loudly and immediately
+# instead of quietly contending for the same files. ---
+LOCK_FILE="$OUTROOT/core_scaling_experiment.lock"
+if [ -f "$LOCK_FILE" ]; then
+  OLD_PID=$(cat "$LOCK_FILE" 2>/dev/null)
+  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "FATAL: another instance of this script is already running (PID $OLD_PID, per $LOCK_FILE)." >&2
+    echo "Refusing to start a second one -- two concurrent instances WILL corrupt each other's" >&2
+    echo "shared per-person intermediate files (real incident, 2026-08-03). If you're certain the" >&2
+    echo "other instance is not actually needed: kill $OLD_PID first, confirm with" >&2
+    echo "  ps -ef --forest | grep $OLD_PID" >&2
+    echo "that it and all its children are gone, THEN rm $LOCK_FILE, THEN retry." >&2
+    exit 1
+  else
+    echo "NOTE: found a stale lock file (PID $OLD_PID is not running) -- removing it and proceeding." >&2
+    rm -f "$LOCK_FILE"
+  fi
+fi
+echo "$$" > "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
+
 # --- Background memory sampler: appends free-memory (MB) to a temp file every 2s until killed. ---
 start_mem_sampler() {
   local outfile="$1"
