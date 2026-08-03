@@ -138,17 +138,34 @@ stop_mem_sampler_and_get_min() {
   fi
 }
 
-disk_usage_mb() {
-  # Uses `df` (reads a kernel-maintained block-usage counter for the whole filesystem $OUTROOT
-  # lives on -- O(1), instant) instead of `du -sm "$OUTROOT"` (recursive tree walk -- O(n) in file
-  # count, and gets slower every config as more people's real output accumulates). Real incident,
-  # 2026-08-03: the `du`-based version caused two multi-tens-of-minutes stalls before every single
-  # xargs launch, misdiagnosed at first as a hung process, on what turned out to be a
-  # container/overlay-filesystem VM where per-file metadata ops are unusually slow. Trade-off:
-  # this measures the WHOLE filesystem's used space, not just $OUTROOT specifically -- fine here
-  # since nothing else is writing meaningfully to this VM's disk during the run, and delta-over-
-  # time is what we actually need, not an absolute $OUTROOT-only number.
-  df -m --output=used "$OUTROOT" 2>/dev/null | tail -1 | tr -d ' '
+disk_usage_mb_for_people() {
+  # Scoped, narrow disk check -- sums `du -sm` over ONLY the specific people's own output
+  # directories (a handful of small, bounded folders), never the whole $OUTROOT tree and never a
+  # whole-filesystem `df`. Real incident, 2026-08-03 (this took the entire session to actually
+  # pin down): a whole-tree `du -sm "$OUTROOT"` stalled 15-49 minutes, and switching to a whole-
+  # filesystem `df -m --output=used "$OUTROOT"` (looked like a fix, wasn't) stalled for 2+ HOURS
+  # in a clean, watched, foreground, single-process run -- ruling out every earlier theory
+  # (duplicate processes, orphaned samplers, session loss, the lock). This VM has TWO gcsfuse FUSE
+  # mounts active; the working hypothesis is that both `du` on a large/growing tree and `df`
+  # (which can end up touching the whole mount table, not just the queried path) are vulnerable to
+  # a slow/unresponsive FUSE mount hanging the whole call, system-wide. The ONE thing that worked
+  # reliably every single time throughout this entire incident, without exception, was Phase 0's
+  # `du -sm` on one small specific directory -- so THAT'S the pattern to generalize (narrow scope),
+  # not the du-vs-df choice. `timeout 5` per directory as a hard safety net regardless: if a single
+  # directory's du still somehow hangs, this reports "-" for the whole reading and moves on rather
+  # than blocking the run again.
+  local total=0 any_ok=0
+  for pid in "$@"; do
+    local d="$OUTROOT/$pid"
+    [ -d "$d" ] || continue
+    local sz
+    sz=$(timeout 5 du -sm "$d" 2>/dev/null | awk '{print $1}')
+    if [ -n "$sz" ]; then
+      total=$((total + sz))
+      any_ok=1
+    fi
+  done
+  [ "$any_ok" -eq 1 ] && echo "$total" || echo ""
 }
 
 # --- Diagnostic checkpoint trail (added 2026-08-03, Marc: "add diagnosis blocks if you need
@@ -167,7 +184,6 @@ checkpoint "entering Phase 0"
 echo "" >&2
 echo ">>> PHASE 0: baseline profile, person=${ALL_PEOPLE[0]}, /usr/bin/time -v + disk delta <<<" >&2
 BASELINE_PERSON="${ALL_PEOPLE[0]}"
-disk_before=$(disk_usage_mb)
 {
   echo "=== Baseline profile: $(date -Iseconds) ==="
   echo "person_id=$BASELINE_PERSON threads=4 (production default) nproc=$NPROC total_mem_mb=$TOTAL_MEM_MB"
@@ -182,12 +198,10 @@ else
   pixi run -e specimmune -- python3 scripts/run_immuannot_person.py "$BASELINE_PERSON" \
     --threads 4 --out-suffix ".baseline" --force >> "$BASELINE_LOG" 2>&1
 fi
-disk_after=$(disk_usage_mb)
 person_dir="$OUTROOT/$BASELINE_PERSON/immuannot_output"
 person_dir_mb="-"
-[ -d "$person_dir" ] && person_dir_mb=$(du -sm "$person_dir" 2>/dev/null | awk '{print $1}')
+[ -d "$person_dir" ] && person_dir_mb=$(timeout 5 du -sm "$person_dir" 2>/dev/null | awk '{print $1}')
 {
-  echo "pipeline_outputs disk delta (whole tree, includes any concurrent noise): $((disk_after - disk_before)) MB"
   echo "this person's immuannot_output/ folder size: ${person_dir_mb} MB"
   echo ""
 } >> "$BASELINE_LOG"
@@ -217,11 +231,12 @@ run_config() {
   local sampler_pid
   sampler_pid=$(start_mem_sampler "$sample_file")
   local disk_before disk_after
-  disk_before=$(disk_usage_mb)
+  checkpoint "run_config: about to measure disk (scoped to this batch's people only)"
+  disk_before=$(disk_usage_mb_for_people "${people[@]}")
+  checkpoint "run_config: disk_before measured ok, about to launch xargs -P $concurrency"
 
   local t0 t1 wall
   t0=$(date +%s)
-  checkpoint "run_config: about to launch xargs -P $concurrency (this is the line most likely to hang or die silently)"
   printf "%s\n" "${people[@]}" | \
     xargs -P "$concurrency" -I{} pixi run -e specimmune -- \
       python3 scripts/run_immuannot_person.py {} --threads "$threads" \
@@ -240,8 +255,8 @@ run_config() {
   else
     mem_used_peak="-"; mem_used_peak_pct="-"
   fi
-  disk_after=$(disk_usage_mb)
-  local disk_delta=$((disk_after - disk_before))
+  disk_after=$(disk_usage_mb_for_people "${people[@]}")
+  local disk_delta=$(( ${disk_after:-0} - ${disk_before:-0} ))
 
   local per_person
   per_person=$(python3 -c "print(f'{$wall / ${#people[@]}:.1f}')")
