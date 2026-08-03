@@ -114,7 +114,19 @@ disk_usage_mb() {
   du -sm "$OUTROOT" 2>/dev/null | awk '{print $1}'
 }
 
+# --- Diagnostic checkpoint trail (added 2026-08-03, Marc: "add diagnosis blocks if you need
+# more information" -- a prior run produced zero rows in $LOG despite the VM's restart-only-
+# after-exit behavior confirming it ran to completion or died, and there was no persistent
+# record of how far it actually got, only the two data-bearing files). Writes to its OWN small
+# file, separately from $LOG/$BASELINE_LOG, so it survives even if this run is NOT wrapped in
+# `tee` -- always-on, not opt-in, because the whole point is to not depend on remembering to
+# capture output correctly. ---
+CHECKPOINT_LOG="$OUTROOT/core_scaling_checkpoints.log"
+checkpoint() { echo "$(date -Iseconds) PID=$$ -- $1" >> "$CHECKPOINT_LOG"; }
+checkpoint "script started, argv: $*"
+
 # ============ PHASE 0: single-person baseline profile (clean, uncontended) ============
+checkpoint "entering Phase 0"
 echo "" >&2
 echo ">>> PHASE 0: baseline profile, person=${ALL_PEOPLE[0]}, /usr/bin/time -v + disk delta <<<" >&2
 BASELINE_PERSON="${ALL_PEOPLE[0]}"
@@ -144,17 +156,21 @@ person_dir_mb="-"
 } >> "$BASELINE_LOG"
 echo "Baseline: this person's immuannot_output/ = ${person_dir_mb} MB. Full log: $BASELINE_LOG" >&2
 echo "Per-person disk projection (13,000-14,521 people) at this rate: see analysis step after the run." >&2
+checkpoint "Phase 0 complete"
 
 run_config() {
   local phase="$1" concurrency="$2" threads="$3"; shift 3
   local people=("$@")
+  checkpoint "run_config ENTER phase=$phase concurrency=$concurrency threads=$threads people=${people[*]}"
   local total_cores=$((concurrency * threads))
   if [ "$total_cores" -gt "$NPROC" ]; then
     echo "SKIP phase=$phase concurrency=$concurrency threads=$threads (total_cores=$total_cores > nproc=$NPROC)" >&2
+    checkpoint "run_config SKIP (total_cores > nproc)"
     return
   fi
   if [ "${#people[@]}" -lt "$concurrency" ]; then
     echo "SKIP phase=$phase concurrency=$concurrency threads=$threads (need >= $concurrency people, have ${#people[@]})" >&2
+    checkpoint "run_config SKIP (not enough people)"
     return
   fi
   echo "=== phase=$phase concurrency=$concurrency threads=$threads (total_cores=$total_cores), batch=${people[*]} ===" >&2
@@ -168,12 +184,15 @@ run_config() {
 
   local t0 t1 wall
   t0=$(date +%s)
+  checkpoint "run_config: about to launch xargs -P $concurrency (this is the line most likely to hang or die silently)"
   printf "%s\n" "${people[@]}" | \
     xargs -P "$concurrency" -I{} pixi run -e specimmune -- \
       python3 scripts/run_immuannot_person.py {} --threads "$threads" \
       --out-suffix ".worker_{}" $IMMUANNOT_EXTRA_ARGS
+  local xargs_exit=$?
   t1=$(date +%s)
   wall=$((t1 - t0))
+  checkpoint "run_config: xargs returned exit=$xargs_exit after ${wall}s"
 
   local mem_avail_min mem_used_peak mem_used_peak_pct
   mem_avail_min=$(stop_mem_sampler_and_get_min "$sampler_pid" "$sample_file")
@@ -196,15 +215,18 @@ run_config() {
   echo "phase=$phase concurrency=$concurrency threads=$threads: wall=${wall}s (${per_person}s/person), " \
        "peak mem used ~${mem_used_peak}MB (${mem_used_peak_pct}% of ${TOTAL_MEM_MB}MB), disk delta ${disk_delta}MB " \
        "-- logged to $LOG" >&2
+  checkpoint "run_config EXIT phase=$phase concurrency=$concurrency threads=$threads -- row appended to \$LOG"
 }
 
 # ============ PHASE 1: thread-vs-concurrency comparison, small fixed batch ============
+checkpoint "entering Phase 1 loop (budgets: 8 32)"
 SMALL=("${ALL_PEOPLE[@]:0:$SMALL_BATCH}")
 if [ "${#SMALL[@]}" -lt "$SMALL_BATCH" ]; then
   echo "NOTE: only ${#SMALL[@]} people available for phase 1 (wanted $SMALL_BATCH)." >&2
 fi
 echo "" >&2; echo ">>> PHASE 1: thread-vs-concurrency, batch=${SMALL[*]} <<<" >&2
 for budget in 8 32; do
+  checkpoint "Phase 1: budget=$budget iteration starting"
   [ "$budget" -gt "$NPROC" ] && continue
   c=1
   while [ "$c" -le "$budget" ]; do
@@ -215,15 +237,19 @@ for budget in 8 32; do
     c=$((c * 2))
   done
 done
+checkpoint "Phase 1 loop complete"
 
 # ============ PHASE 2: horizontal stress test, batch size == concurrency ============
+checkpoint "entering Phase 2 loop (TOP_STRESS_LEVEL=$TOP_STRESS_LEVEL)"
 echo "" >&2; echo ">>> PHASE 2: horizontal stress test (threads=1, batch size = concurrency) <<<" >&2
 level=4
 while [ "$level" -le "$TOP_STRESS_LEVEL" ]; do
+  checkpoint "Phase 2: level=$level iteration starting"
   BATCH=("${ALL_PEOPLE[@]:0:$level}")
   run_config "2_horizontal_stress" "$level" 1 "${BATCH[@]}"
   level=$((level * 2))
 done
+checkpoint "Phase 2 loop complete"
 # Always include the true top level even if it's not a power of 2 (e.g. nproc=32 with 60 people
 # supplied -> level doubling hits 32 exactly, but if nproc were e.g. 24 this catches it).
 if [ "$level" -ne $((TOP_STRESS_LEVEL * 2)) ] && [ "$TOP_STRESS_LEVEL" -ge 4 ]; then
@@ -231,6 +257,7 @@ if [ "$level" -ne $((TOP_STRESS_LEVEL * 2)) ] && [ "$TOP_STRESS_LEVEL" -ge 4 ]; 
   run_config "2_horizontal_stress" "$TOP_STRESS_LEVEL" 1 "${BATCH[@]}"
 fi
 
+checkpoint "script reached the end normally (Done)"
 echo "" >&2
 echo "Done. Raw rows in $LOG, baseline profile in $BASELINE_LOG." >&2
 echo "Paste both back -- the cost/curve/memory/disk analysis is a separate step once real numbers exist." >&2
