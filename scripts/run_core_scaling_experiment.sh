@@ -17,15 +17,28 @@
 #   Phase 0 (baseline profile, one person, ~7-10 min): wraps a single-person run in `/usr/bin/time
 #     -v` for a clean peak-RSS number, and `du -sb` on that person's own output folder before/after
 #     -- a clean, uncontended "per-unit" measurement to sanity-check the concurrent numbers against.
-#   Phase 1 (thread-vs-concurrency comparison, small batch, cheap): for each core BUDGET the box
-#     can actually support, sweeps every (concurrency, threads) split of that budget on a small,
-#     fixed 4-person pool -- same "does the tool's own threading scale as well as running separate
-#     people" question the original design asked, now extended past 4 cores for the first time.
-#   Phase 2 (horizontal stress test, one row per level, threads=1 always): for increasing
-#     concurrency levels up to min(nproc, people supplied), runs that many people FULLY IN PARALLEL
-#     (batch size == concurrency, so wall-clock per row stays ~1 person's runtime regardless of
-#     level) -- the number that actually answers "does this VM contend on disk/network/memory at
-#     high concurrency," which no prior run has ever measured.
+#   Phase 1 (thread-vs-concurrency comparison, small batch, cheap): only TWO anchor core budgets
+#     (8 and 32 -- a small one and the largest one), each swept across every (concurrency, threads)
+#     split, on a small fixed 2-person pool -- same "does the tool's own threading scale as well as
+#     running separate people" question the original design asked, now extended past 4 cores for the
+#     first time. Deliberately NOT a fine sweep across every budget (2026-08-02, cost-trim pass,
+#     Marc): the threading-vs-concurrency trade-off is a smooth trend, not something expected to
+#     flip between budget levels, so two anchor points show whether the pattern holds at scale just
+#     as well as five points do, for a fraction of the wall-clock. Budget 4's "1 person, 4 threads"
+#     point is deliberately skipped too -- Phase 0 already measures exactly that, for free, so
+#     re-measuring it here would just be paying twice for the same number. The 2-person batch also
+#     means any (concurrency, threads) split needing more than 2 concurrent people gets auto-skipped
+#     by run_config's own people-count check -- which is intentional, not a gap: those configs
+#     (e.g. "8 people, 1 thread each") measure the exact same thing as a Phase 2 row at that same
+#     concurrency level, just with a smaller/less representative batch, so letting them fall away
+#     here avoids ever paying for that redundant measurement twice.
+#   Phase 2 (horizontal stress test, one row per level, threads=1 always, UNTRIMMED -- this is the
+#     phase that actually answers the production-relevant question, so it keeps its full resolution
+#     even in the cost-trimmed design above): for increasing concurrency levels up to min(nproc,
+#     people supplied), runs that many people FULLY IN PARALLEL (batch size == concurrency, so
+#     wall-clock per row stays ~1 person's runtime regardless of level) -- the number that actually
+#     answers "does this VM contend on disk/network/memory at high concurrency," which no prior run
+#     has ever measured.
 #
 # Every row in Phase 1/2 also records: min free memory observed during the row (via a background
 # /proc/meminfo sampler), and the pipeline_outputs disk-usage delta across the row -- so the output
@@ -53,7 +66,7 @@ set -uo pipefail
 OUTROOT="$HOME/pipeline_outputs"
 LOG="$OUTROOT/core_scaling_experiment.tsv"
 BASELINE_LOG="$OUTROOT/immuannot_baseline_profile.txt"
-SMALL_BATCH=4
+SMALL_BATCH=2
 IMMUANNOT_EXTRA_ARGS="${IMMUANNOT_EXTRA_ARGS:---force}"
 
 if [ "$#" -lt 4 ]; then
@@ -191,7 +204,7 @@ if [ "${#SMALL[@]}" -lt "$SMALL_BATCH" ]; then
   echo "NOTE: only ${#SMALL[@]} people available for phase 1 (wanted $SMALL_BATCH)." >&2
 fi
 echo "" >&2; echo ">>> PHASE 1: thread-vs-concurrency, batch=${SMALL[*]} <<<" >&2
-for budget in 2 4 8 16 32; do
+for budget in 8 32; do
   [ "$budget" -gt "$NPROC" ] && continue
   c=1
   while [ "$c" -le "$budget" ]; do
