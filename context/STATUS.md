@@ -4,6 +4,29 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-08-03 — monitoring subsystem built, tested, and deployed live
+
+`scripts/monitoring/` (per `BRIEF.md`) is done and running: `heartbeat_receiver.py` is live on
+`hermes-agent` (Hetzner, 46.225.123.54:8943) as systemd unit `hla-monitor.service`, isolated from
+the unrelated Hermes Agent and datacenter-siting-model services on the same box. Verified
+end-to-end with synthetic heartbeats (anomaly detection, auth rejection, dashboard rendering) both
+locally and against the real deployed receiver. Dashboard is reachable by link
+(`http://46.225.123.54:8943/`), password-gated via HTTP Basic Auth — a deliberate change from
+`BRIEF.md`'s original SSH-tunnel-only default, per Marc's request for phone-browser access without
+a tunnel. Full detail, the open-decisions resolution table, and deploy/test instructions:
+`scripts/monitoring/README.md`. Committed and pushed (`1007e9b`).
+
+**Still not built: the production orchestrator itself** — this was always out of scope for the
+monitoring subsystem (see BRIEF.md "Interface boundary"). It's waiting on the core-scaling
+diagnostic's results (VM size pick). One real lesson from that diagnostic that must carry into the
+orchestrator's design: a PID-file single-instance lock (ENVIRONMENT.md quirk #23) — a concurrent
+duplicate launch silently corrupted shared per-person intermediates on 2026-08-03.
+
+**Not yet done:** the real end-to-end reachability test from outside the box (needs the Hetzner
+firewall rule for port 8943 — Marc is adding this himself, console access needed, not something
+this session can do without his Hetzner credentials). Once that's confirmed, the monitoring side
+of this thread is fully closed until the orchestrator exists to wire into it.
+
 ## As of 2026-07-24 (end of session) — confidence-filtering thread closed out
 
 This session's confidence-matched-truth work (AoU/SpecHLA vs. two truth sources) got one more
