@@ -489,6 +489,13 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
                 receiver_url=args.monitor_url, auth_token=auth_token,
                 vm_hourly_rate_usd=args.vm_rate, budget_usd=args.budget,
                 run_state="running", phase=phase_label,
+                # Anchor rate/ETA to THIS run's real start. Without it, build_payload falls back
+                # to first_ts persisted in the client state file, which survives across
+                # invocations -- so a preflight test or smoke test run earlier the same evening
+                # silently inflates elapsed_hours, deflating rate_per_hour and ballooning the
+                # advertised ETA for the first hour of a real run (observed 2026-08-05: ~32/hr
+                # and a 384h ETA in the opening minutes of a run really doing ~360/hr).
+                start_ts=run_start_ts,
             )
             # Only pass state_path when we actually have one -- passing None overrides
             # heartbeat_client's own STATE_PATH_DEFAULT and blows up in os.path.exists(None).
