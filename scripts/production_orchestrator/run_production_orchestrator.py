@@ -25,6 +25,16 @@ What it adds beyond scaling_probe.py (which only ever probes ONE config, once):
     for the whole multi-day run.
   - Local budget check every heartbeat (cost_so_far_usd vs --budget) -- loud stderr warning, not an
     automatic kill (BRIEF.md: "flag it", the $300 cap is a human decision point, not an autopilot one).
+  - AUTOMATIC TWO-PHASE RUN (default, 2026-08-05, Marc: "I don't want to intervene... make
+    everything on the same run"): a single invocation runs phase 1 (everyone except the untested
+    self_align_needed/sequel2 tier) to completion, then AUTOMATICALLY continues straight into phase
+    2 (only self_align_needed, with the self-align fallback enabled) -- same process, same lock, no
+    second command, no manual step. Each phase gets its own heartbeat state file so phase 2's
+    rate/ETA/cost are never diluted by phase 1's already-elapsed hours -- watch the dashboard during
+    phase 2 and Ctrl-C if it looks too slow/expensive (this waits for the current in-flight wave to
+    finish, not an instant kill; a relaunch with the same command resumes correctly either way).
+    Pass --single-phase to disable this and run one filtered pass instead (see --skip-trim-tier/
+    --only-trim-tier), e.g. for the smoke test.
 
 Usage (from ~/repos/pilot-validation, inside `pixi shell -e specimmune` or `pixi run -e specimmune --`):
   python3 scripts/production_orchestrator/run_production_orchestrator.py \\
@@ -32,6 +42,7 @@ Usage (from ~/repos/pilot-validation, inside `pixi shell -e specimmune` or `pixi
       --concurrency 24 --threads-per-person 4 \\
       --vm-rate <REAL Workbench-UI-confirmed USD/hour for the n2-highcpu-96 VM> \\
       --monitor-url http://46.225.123.54:8943
+That single command runs BOTH phases, in order, automatically -- nothing else to type.
 
 --vm-rate and MONITOR_AUTH_TOKEN (env var, never on the command line) are required for real
 monitoring to work end-to-end; the orchestrator still runs and processes people without them, but
@@ -220,45 +231,41 @@ def bump_attempts(outroot, pid):
     return n
 
 
-def load_cohort(cohort_path, skip_trim_tiers, only_trim_tiers=None):
-    """Returns (people, ancestry_map). ancestry_map is {person_id: ancestry_pred_or_'NA'} --
-    build_immuannot_cohort.py's ancestry join (2026-08-04), used ONLY for local per-ancestry
-    progress logging (see log_ancestry_progress()) -- never sent to the remote heartbeat dashboard,
-    which stays aggregate-counts-only per monitoring/README.md. If the cohort file predates the
-    ancestry join (no ancestry_pred column), every person maps to 'NA' -- degrades gracefully,
-    doesn't block a launch.
+SEQUEL2_TIER = "self_align_needed"
 
-    `only_trim_tiers` (2026-08-05, two-phase launch): the inverse of `skip_trim_tiers` -- restricts
-    to JUST the given tier(s) instead of excluding them. Lets phase 2 of a two-phase launch (e.g.
-    "everyone except self_align_needed" first, then "only self_align_needed" as its own observable,
-    abortable second run) target the exact right subset from the SAME cohort file, without needing
-    a separate cohort export step. Mutually exclusive with skip_trim_tiers in practice (pass one or
-    the other), though both are technically applied if both are given."""
+
+def load_cohort(cohort_path):
+    """Returns (people, ancestry_map, trim_tier_map) for the FULL cohort file, unfiltered.
+    ancestry_map is {person_id: ancestry_pred_or_'NA'} -- build_immuannot_cohort.py's ancestry join
+    (2026-08-04), used ONLY for local per-ancestry progress logging, never sent to the remote
+    heartbeat dashboard (monitoring/README.md keeps that aggregate-counts-only). If the cohort file
+    predates the ancestry join (no ancestry_pred column), every person maps to 'NA' -- degrades
+    gracefully, doesn't block a launch. Filtering by trim_tier is the CALLER's job (see
+    filter_people()) -- kept separate from loading so the same load can serve both the default
+    automatic two-phase split and a --single-phase manual filter."""
     if not os.path.isfile(cohort_path):
         die(f"cohort file not found: {cohort_path} -- run build_immuannot_cohort.py first.")
     df = pd.read_csv(cohort_path, sep="\t", dtype=str)
     for c in ["person_id", "trim_tier"]:
         if c not in df.columns:
             die(f"cohort file {cohort_path} missing expected column '{c}'.")
-    skip = set(skip_trim_tiers)
-    if skip:
-        before = len(df)
-        df = df[~df["trim_tier"].isin(skip)]
-        print(f"--skip-trim-tier {sorted(skip)}: excluded {before - len(df)}/{before} people from "
-              f"this launch (they remain in the cohort file for a later batch).", file=sys.stderr)
-    only = set(only_trim_tiers or [])
-    if only:
-        before = len(df)
-        df = df[df["trim_tier"].isin(only)]
-        print(f"--only-trim-tier {sorted(only)}: restricted to {len(df)}/{before} people "
-              f"(everyone else in the cohort file is left untouched by this launch).",
-              file=sys.stderr)
     if "ancestry_pred" in df.columns:
         ancestry_map = {pid: (a if pd.notna(a) else "NA")
                         for pid, a in zip(df["person_id"], df["ancestry_pred"])}
     else:
         ancestry_map = {pid: "NA" for pid in df["person_id"]}
-    return list(df["person_id"]), ancestry_map
+    trim_tier_map = dict(zip(df["person_id"], df["trim_tier"]))
+    return list(df["person_id"]), ancestry_map, trim_tier_map
+
+
+def filter_people(people, trim_tier_map, skip_tiers=None, only_tiers=None):
+    skip, only = set(skip_tiers or []), set(only_tiers or [])
+    out = people
+    if skip:
+        out = [p for p in out if trim_tier_map.get(p) not in skip]
+    if only:
+        out = [p for p in out if trim_tier_map.get(p) in only]
+    return out
 
 
 def scan_already_done(outroot, people, max_workers=32):
@@ -277,7 +284,11 @@ def scan_already_done(outroot, people, max_workers=32):
     return done, gave_up
 
 
-def run_one_person(pid, args):
+def run_one_person(pid, args, enable_self_align):
+    """`enable_self_align` is passed explicitly per call (not read from
+    args.enable_self_align_fallback) so a phase can control it independently of the CLI flag --
+    the default two-phase mode always passes False for phase 1 and True for phase 2, regardless of
+    what --enable-self-align-fallback was set to (that flag only matters in --single-phase mode)."""
     cmd = [
         "pixi", "run", "--manifest-path", os.path.join(REPO_ROOT, "pixi.toml"), "-e", "specimmune", "--",
         "python3", os.path.join(REPO_ROOT, "scripts", "run_immuannot_person.py"), str(pid),
@@ -287,7 +298,7 @@ def run_one_person(pid, args):
         "--region", args.region, "--pad", str(args.pad),
         "--out-suffix", f".{pid}", "--force",
     ]
-    if args.enable_self_align_fallback:
+    if enable_self_align:
         cmd.append("--enable-self-align-fallback")
     t0 = time.time()
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -343,6 +354,135 @@ def merge_fragments(outroot):
               f"{total_fragments} fragment(s).", file=sys.stderr)
 
 
+def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enable_self_align,
+              auth_token):
+    """Runs one phase (a bounded list of people) to completion: resumability scan, heartbeat loop
+    (own state file, own people_total -- so rate/ETA/cost are phase-local, not polluted by any
+    other phase that ran before it in the same process), concurrent dispatch, periodic + final
+    fragment merge. Returns (n_done, n_given_up, wall_seconds). Mount/lock are the CALLER's
+    responsibility (held once for the whole multi-phase run, not per phase)."""
+    print(f"\n########## PHASE: {phase_label} ({len(people)} people) ##########", file=sys.stderr)
+    print("Scanning for already-completed people (real .gtf.gz existence + real-call check, "
+          "not a log entry -- this is what makes killing and relaunching safe)...", file=sys.stderr)
+    done_set, gave_up_set = scan_already_done(args.outroot, people)
+    worklist = [p for p in people if p not in done_set and p not in gave_up_set]
+    print(f"  {len(done_set)} already done (skipped), {len(gave_up_set)} previously given up "
+          f"after {args.max_attempts}+ attempts (skipped -- see .orchestrator_gave_up markers "
+          f"for review), {len(worklist)} to process this phase.", file=sys.stderr)
+
+    # Per-ancestry progress (2026-08-04) -- LOCAL log only, never sent to the remote heartbeat
+    # dashboard (monitoring/README.md keeps that aggregate-counts-only by design). In-memory
+    # counters only, never re-derived by scanning the output directory. Motivation: the
+    # self_align_needed phase (sequel2) is ~95% AFR, so a failure mode that disproportionately
+    # hits one ancestry group should be visible live, not discovered after the fact.
+    anc_total = Counter(ancestry_map.get(p, "NA") for p in people)
+    anc_done = Counter(ancestry_map.get(p, "NA") for p in done_set)
+    print(f"  [{phase_label}] ancestry distribution: " +
+          ", ".join(f"{a}={n}" for a, n in anc_total.most_common()), file=sys.stderr)
+
+    if not worklist:
+        print(f"  [{phase_label}] nothing left to do -- every person already done or given-up.",
+              file=sys.stderr)
+        merge_fragments(args.outroot)
+        return len(done_set), len(gave_up_set), 0.0
+
+    state = {"done": len(done_set), "failed": len(gave_up_set), "lock": threading.Lock(),
+             "anc_done": anc_done}
+    people_total = len(people)
+    stop_event = threading.Event()
+
+    def heartbeat_loop():
+        while not stop_event.is_set():
+            with state["lock"]:
+                d, f = state["done"], state["failed"]
+            disk_pct = disk_used_pct(args.outroot)
+            mem_pct = mem_avail_pct()
+            heartbeat_kwargs = dict(
+                receiver_url=args.monitor_url, auth_token=auth_token,
+                vm_hourly_rate_usd=args.vm_rate, budget_usd=args.budget,
+                state_path=monitor_state_file,
+            )
+            status, payload = send_heartbeat(d, f, people_total, disk_pct, mem_pct,
+                                              **heartbeat_kwargs)
+            cost = payload.get("cost_so_far_usd")
+            if cost is not None and args.budget and cost > args.budget:
+                warn(f"[{phase_label}] cost_so_far_usd={cost:.2f} has EXCEEDED "
+                     f"--budget={args.budget:.2f} (this phase only) -- this is a flag, not an "
+                     f"auto-stop. Decide whether to let it keep running.")
+            if payload.get("anomaly"):
+                warn(f"[{phase_label}] heartbeat anomaly: {payload.get('anomaly_reason')}")
+            print(f"  [{phase_label}] [heartbeat] status={status} done={d} failed={f}/{people_total} "
+                  f"rate={payload.get('rate_per_hour')}/hr eta_hr={payload.get('eta_hours_remaining')} "
+                  f"cost=${cost}", file=sys.stderr)
+            with state["lock"]:
+                anc_done_snapshot = dict(state["anc_done"])
+            print(f"  [{phase_label}] [heartbeat] per-ancestry done/total (local log only): " +
+                  ", ".join(f"{a}={anc_done_snapshot.get(a, 0)}/{n}"
+                            for a, n in anc_total.most_common()), file=sys.stderr)
+            stop_event.wait(args.heartbeat_interval_sec)
+
+    hb_thread = threading.Thread(target=heartbeat_loop, daemon=True)
+    hb_thread.start()
+
+    total_cores = args.concurrency * args.threads_per_person
+    print(f"=== [{phase_label}] Launching: concurrency={args.concurrency}, threads_per_person="
+          f"{args.threads_per_person} (total_cores={total_cores}), {len(worklist)} people, "
+          f"self_align={'ON' if enable_self_align else 'off'} ===", file=sys.stderr)
+
+    n_since_merge = 0
+    t0 = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+        futures = {pool.submit(run_one_person, pid, args, enable_self_align): pid
+                   for pid in worklist}
+        for i, fut in enumerate(concurrent.futures.as_completed(futures), 1):
+            pid = futures[fut]
+            try:
+                _, rc, elapsed = fut.result()
+            except Exception as e:  # a worker itself crashing is a real bug -- surface it loudly
+                warn(f"[{phase_label}] person {pid}: worker raised {e!r} (not a subprocess "
+                     f"failure -- a real orchestrator-side exception).")
+                rc, elapsed = -1, 0.0
+
+            ok = person_done(args.outroot, pid)  # never trust exit code alone
+            if ok:
+                with state["lock"]:
+                    state["done"] += 1
+                    state["anc_done"][ancestry_map.get(pid, "NA")] += 1
+                print(f"  [{phase_label}] [{i}/{len(worklist)}] {pid}: DONE ({elapsed:.0f}s)",
+                      file=sys.stderr)
+            else:
+                n_attempts = bump_attempts(args.outroot, pid)
+                if n_attempts >= args.max_attempts:
+                    os.makedirs(os.path.dirname(gave_up_path(args.outroot, pid)), exist_ok=True)
+                    with open(gave_up_path(args.outroot, pid), "w") as f:
+                        f.write(f"gave up after {n_attempts} attempts, exit={rc}\n")
+                    with state["lock"]:
+                        state["failed"] += 1
+                    warn(f"[{phase_label}] person {pid}: GAVE UP after {n_attempts} attempts "
+                         f"(exit={rc}, {elapsed:.0f}s) -- see .orchestrator_gave_up / "
+                         f".orchestrator_last_run.log")
+                else:
+                    print(f"  [{phase_label}] [{i}/{len(worklist)}] {pid}: FAILED (exit={rc}, "
+                          f"{elapsed:.0f}s, attempt {n_attempts}/{args.max_attempts} -- will "
+                          f"retry on next relaunch)", file=sys.stderr)
+
+            n_since_merge += 1
+            if n_since_merge >= 500:
+                merge_fragments(args.outroot)
+                n_since_merge = 0
+
+    wall = time.time() - t0
+    stop_event.set()
+    hb_thread.join(timeout=5)
+    merge_fragments(args.outroot)
+
+    with state["lock"]:
+        d, f = state["done"], state["failed"]
+    print(f"=== [{phase_label}] DONE: {d}/{people_total} done, {f}/{people_total} given-up, "
+          f"wall={wall/3600:.2f}h ===", file=sys.stderr)
+    return d, f, wall
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -358,21 +498,27 @@ def main():
                     help="Threads per Immuannot invocation (default 4, same committed config).")
     ap.add_argument("--region", default=DEFAULT_REGION)
     ap.add_argument("--pad", type=int, default=DEFAULT_PAD)
+    ap.add_argument("--single-phase", action="store_true",
+                    help="Disable the default automatic two-phase behavior (see module docstring) "
+                         "and just run ONE pass over --cohort, filtered by --skip-trim-tier/"
+                         "--only-trim-tier if given, using --enable-self-align-fallback as passed. "
+                         "For the real production launch, do NOT pass this -- the default "
+                         "(everyone except self_align_needed, then automatically continue straight "
+                         "into self_align_needed with the fallback enabled, same process, same "
+                         "lock, no manual second command) is what Marc asked for 2026-08-05: launch "
+                         "once, both phases run without any further intervention.")
     ap.add_argument("--enable-self-align-fallback", action="store_true",
-                    help="Pass through to every worker -- attempts Tier 3 (self-align) for people "
-                         "whose only resolving trim_tier is self_align_needed. UNTESTED AT SCALE "
-                         "as of 2026-08-04 -- do not pass this for the real production launch until "
-                         "the sequel2 smoke test (BRIEF.md) has actually been run and reviewed.")
+                    help="--single-phase mode only: attempts Tier 3 (self-align) for people whose "
+                         "only resolving trim_tier is self_align_needed. In default two-phase mode "
+                         "this is ignored -- phase 2 always enables it automatically, phase 1 never "
+                         "does (it never has self_align_needed people to begin with).")
     ap.add_argument("--skip-trim-tier", action="append", default=[],
-                    help="Exclude a trim_tier from this launch (repeatable). E.g. "
-                         "--skip-trim-tier self_align_needed to hold sequel2-shaped people back "
-                         "for a later batch. Excluded people stay in the cohort file, untouched.")
+                    help="--single-phase mode only: exclude a trim_tier (repeatable). Dies with a "
+                         "clear message if passed without --single-phase, to avoid silently "
+                         "reinterpreting the default two-phase split.")
     ap.add_argument("--only-trim-tier", action="append", default=[],
-                    help="Restrict this launch to JUST the given trim_tier(s) (repeatable) -- the "
-                         "inverse of --skip-trim-tier. E.g. --only-trim-tier self_align_needed for "
-                         "a phase-2 launch that targets exactly the sequel2-shaped people held back "
-                         "from a phase-1 --skip-trim-tier self_align_needed run, from the SAME "
-                         "cohort file, without a separate export step.")
+                    help="--single-phase mode only: restrict to JUST the given trim_tier(s) "
+                         "(repeatable) -- the inverse of --skip-trim-tier.")
     ap.add_argument("--max-attempts", type=int, default=3,
                     help="After this many failed attempts, a person is marked given-up (not "
                          "retried on future relaunches) instead of consuming a worker slot on a "
@@ -383,19 +529,19 @@ def main():
                          "there's no benefit past human reaction time.")
     ap.add_argument("--monitor-url", default=os.environ.get("MONITOR_URL", DEFAULT_MONITOR_URL))
     ap.add_argument("--monitor-state-file", default=None,
-                    help="Local state file heartbeat_client uses to compute rate/ETA/rolling-"
-                         "failure-rate (default: heartbeat_client's own client_state.json, shared "
-                         "across all invocations). REQUIRED to be a FRESH, distinct path for a "
-                         "phase-2/second launch on the same VM (e.g. "
-                         "~/pipeline_outputs/monitor_state_phase2.json) -- otherwise phase 2's "
-                         "rate_per_hour/eta_hours_remaining are computed against phase 1's elapsed "
-                         "hours plus a much smaller people_done, giving a badly wrong (too-low) "
-                         "rate right when you need an honest number to decide whether to abort.")
+                    help="Local state file heartbeat_client uses for phase 1 (or the single run, "
+                         "under --single-phase). Default: heartbeat_client's own client_state.json. "
+                         "Phase 2 (in default two-phase mode) ALWAYS gets its own separate, "
+                         "auto-derived state file (<outroot>/monitor_state_phase2.json) regardless "
+                         "of this flag -- automatic, no manual step needed -- so its rate/ETA/cost "
+                         "are never polluted by phase 1's already-elapsed hours.")
     ap.add_argument("--vm-rate", type=float, default=None,
                     help="REAL Workbench-UI-confirmed USD/hour for the running VM -- required for "
                          "cost_so_far_usd / budget tracking to mean anything. DECISIONS.md's "
                          "~$3.03/hr is a research estimate, not a quoted price -- confirm live.")
-    ap.add_argument("--budget", type=float, default=300.0)
+    ap.add_argument("--budget", type=float, default=300.0,
+                    help="Applied PER PHASE in default two-phase mode (each phase's cost is "
+                         "tracked from its own state file) -- not a combined two-phase total.")
     args = ap.parse_args()
 
     total_cores = args.concurrency * args.threads_per_person
@@ -404,10 +550,17 @@ def main():
         die(f"concurrency({args.concurrency}) * threads_per_person({args.threads_per_person}) = "
             f"{total_cores} cores, but this machine only has {n_cpu}. Refusing to oversubscribe.")
 
+    if (args.skip_trim_tier or args.only_trim_tier) and not args.single_phase:
+        die("--skip-trim-tier/--only-trim-tier only apply under --single-phase -- without it, "
+            "the default automatic two-phase split (everyone except self_align_needed, then "
+            "self_align_needed with the fallback enabled) would silently ignore them. Add "
+            "--single-phase if you want manual tier filtering instead of the automatic two-phase "
+            "run.")
+
     check_mount(args.mount)
     os.makedirs(args.outroot, exist_ok=True)
     lock_path = os.path.join(args.outroot, "production_orchestrator.lock")
-    check_and_take_lock(lock_path)
+    check_and_take_lock(lock_path)  # ONE lock for the whole run, held across both phases
 
     auth_token = os.environ.get("MONITOR_AUTH_TOKEN")
     if not auth_token:
@@ -420,126 +573,44 @@ def main():
              "Workbench UI and pass it.")
 
     try:
-        people, ancestry_map = load_cohort(args.cohort, args.skip_trim_tier, args.only_trim_tier)
-        print(f"Cohort: {len(people)} people loaded from {args.cohort} (after any --skip-trim-tier "
-              f"filtering).", file=sys.stderr)
+        people, ancestry_map, trim_tier_map = load_cohort(args.cohort)
+        print(f"Cohort: {len(people)} people loaded from {args.cohort}.", file=sys.stderr)
 
-        print("Scanning for already-completed people (real .gtf.gz existence + real-call check, "
-              "not a log entry -- this is what makes killing and relaunching safe)...", file=sys.stderr)
-        done_set, gave_up_set = scan_already_done(args.outroot, people)
-        worklist = [p for p in people if p not in done_set and p not in gave_up_set]
-        print(f"  {len(done_set)} already done (skipped), {len(gave_up_set)} previously given up "
-              f"after {args.max_attempts}+ attempts (skipped -- see .orchestrator_gave_up markers "
-              f"for review), {len(worklist)} to process this launch.", file=sys.stderr)
-
-        # Per-ancestry progress (2026-08-04) -- LOCAL log only, never sent to the remote heartbeat
-        # dashboard (monitoring/README.md keeps that aggregate-counts-only by design). In-memory
-        # counters only, same as the aggregate done/failed counts -- never re-derived by scanning
-        # the output directory. Motivation: sequel2 (the self_align_needed / --skip-trim-tier
-        # candidate) is ~95% AFR, so a failure mode that disproportionately hits one ancestry group
-        # should be visible live, not discovered after the fact in a downstream analysis.
-        anc_total = Counter(ancestry_map.get(p, "NA") for p in people)
-        anc_done = Counter(ancestry_map.get(p, "NA") for p in done_set)
-        print("  Cohort ancestry distribution: " +
-              ", ".join(f"{a}={n}" for a, n in anc_total.most_common()), file=sys.stderr)
-
-        if not worklist:
-            print("Nothing left to do -- every person is already done or given-up.", file=sys.stderr)
-            merge_fragments(args.outroot)
+        if args.single_phase:
+            phase_people = filter_people(people, trim_tier_map, args.skip_trim_tier,
+                                          args.only_trim_tier)
+            run_phase("single", phase_people, ancestry_map, args, args.monitor_state_file,
+                      args.enable_self_align_fallback, auth_token)
             return
 
-        state = {"done": len(done_set), "failed": len(gave_up_set), "lock": threading.Lock(),
-                 "anc_done": anc_done}
-        people_total = len(people)
-        stop_event = threading.Event()
+        # --- Default: automatic two-phase run, no manual intervention between phases ---
+        phase1_people = filter_people(people, trim_tier_map, skip_tiers=[SEQUEL2_TIER])
+        phase2_people = filter_people(people, trim_tier_map, only_tiers=[SEQUEL2_TIER])
+        print(f"Automatic two-phase run: phase 1 = {len(phase1_people)} people (everyone except "
+              f"{SEQUEL2_TIER}), phase 2 = {len(phase2_people)} people (only {SEQUEL2_TIER}, "
+              f"self-align fallback auto-enabled). Phase 2 starts automatically the moment phase 1 "
+              f"finishes -- no further command needed.", file=sys.stderr)
 
-        def heartbeat_loop():
-            while not stop_event.is_set():
-                with state["lock"]:
-                    d, f = state["done"], state["failed"]
-                disk_pct = disk_used_pct(args.outroot)
-                mem_pct = mem_avail_pct()
-                heartbeat_kwargs = dict(
-                    receiver_url=args.monitor_url, auth_token=auth_token,
-                    vm_hourly_rate_usd=args.vm_rate, budget_usd=args.budget,
-                )
-                if args.monitor_state_file:
-                    heartbeat_kwargs["state_path"] = args.monitor_state_file
-                status, payload = send_heartbeat(d, f, people_total, disk_pct, mem_pct,
-                                                  **heartbeat_kwargs)
-                cost = payload.get("cost_so_far_usd")
-                if cost is not None and args.budget and cost > args.budget:
-                    warn(f"cost_so_far_usd={cost:.2f} has EXCEEDED --budget={args.budget:.2f} -- "
-                         f"this is a flag, not an auto-stop (BRIEF.md). Decide whether to let it "
-                         f"keep running.")
-                if payload.get("anomaly"):
-                    warn(f"heartbeat anomaly: {payload.get('anomaly_reason')}")
-                print(f"  [heartbeat] status={status} done={d} failed={f}/{people_total} "
-                      f"rate={payload.get('rate_per_hour')}/hr eta_hr={payload.get('eta_hours_remaining')} "
-                      f"cost=${cost}", file=sys.stderr)
-                with state["lock"]:
-                    anc_done_snapshot = dict(state["anc_done"])
-                print("  [heartbeat] per-ancestry done/total (local log only, not sent to the "
-                      "remote dashboard): " +
-                      ", ".join(f"{a}={anc_done_snapshot.get(a, 0)}/{n}"
-                                for a, n in anc_total.most_common()), file=sys.stderr)
-                stop_event.wait(args.heartbeat_interval_sec)
+        run_phase("phase1_main_cohort", phase1_people, ancestry_map, args,
+                  args.monitor_state_file, enable_self_align=False, auth_token=auth_token)
 
-        hb_thread = threading.Thread(target=heartbeat_loop, daemon=True)
-        hb_thread.start()
+        if not phase2_people:
+            print("No phase-2 (self_align_needed) people in this cohort -- run complete.",
+                  file=sys.stderr)
+            return
 
-        print(f"=== Launching: concurrency={args.concurrency}, threads_per_person="
-              f"{args.threads_per_person} (total_cores={total_cores}), {len(worklist)} people "
-              f"===", file=sys.stderr)
-
-        n_since_merge = 0
-        t0 = time.time()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-            futures = {pool.submit(run_one_person, pid, args): pid for pid in worklist}
-            for i, fut in enumerate(concurrent.futures.as_completed(futures), 1):
-                pid = futures[fut]
-                try:
-                    _, rc, elapsed = fut.result()
-                except Exception as e:  # a worker itself crashing is a real bug -- surface it loudly
-                    warn(f"person {pid}: worker raised {e!r} (not a subprocess failure -- a real "
-                         f"orchestrator-side exception).")
-                    rc, elapsed = -1, 0.0
-
-                ok = person_done(args.outroot, pid)  # never trust exit code alone
-                if ok:
-                    with state["lock"]:
-                        state["done"] += 1
-                        state["anc_done"][ancestry_map.get(pid, "NA")] += 1
-                    print(f"  [{i}/{len(worklist)}] {pid}: DONE ({elapsed:.0f}s)", file=sys.stderr)
-                else:
-                    n_attempts = bump_attempts(args.outroot, pid)
-                    if n_attempts >= args.max_attempts:
-                        os.makedirs(os.path.dirname(gave_up_path(args.outroot, pid)), exist_ok=True)
-                        with open(gave_up_path(args.outroot, pid), "w") as f:
-                            f.write(f"gave up after {n_attempts} attempts, exit={rc}\n")
-                        with state["lock"]:
-                            state["failed"] += 1
-                        warn(f"person {pid}: GAVE UP after {n_attempts} attempts (exit={rc}, "
-                             f"{elapsed:.0f}s) -- see .orchestrator_gave_up / .orchestrator_last_run.log")
-                    else:
-                        print(f"  [{i}/{len(worklist)}] {pid}: FAILED (exit={rc}, {elapsed:.0f}s, "
-                              f"attempt {n_attempts}/{args.max_attempts} -- will retry on next "
-                              f"relaunch)", file=sys.stderr)
-
-                n_since_merge += 1
-                if n_since_merge >= 500:
-                    merge_fragments(args.outroot)
-                    n_since_merge = 0
-
-        wall = time.time() - t0
-        stop_event.set()
-        hb_thread.join(timeout=5)
-        merge_fragments(args.outroot)
-
-        with state["lock"]:
-            d, f = state["done"], state["failed"]
-        print(f"=== DONE: {d}/{people_total} done, {f}/{people_total} given-up, wall={wall/3600:.2f}h "
-              f"===", file=sys.stderr)
+        # Re-verify the mount before phase 2 -- phase 1 can run for many hours, and while the
+        # orchestrator process staying alive across that whole span means no VM restart happened
+        # (quirk #14: a restart implies whatever was running already exited), a defensive re-check
+        # here is cheap and catches the rarer case of the gcsfuse process itself dying independently
+        # of the VM/orchestrator.
+        check_mount(args.mount)
+        phase2_state_file = os.path.join(args.outroot, "monitor_state_phase2.json")
+        print(f"\nAuto-continuing into phase 2 ({len(phase2_people)} people, self-align fallback "
+              f"ON, isolated monitor state at {phase2_state_file}) -- no manual step needed.",
+              file=sys.stderr)
+        run_phase("phase2_self_align", phase2_people, ancestry_map, args, phase2_state_file,
+                  enable_self_align=True, auth_token=auth_token)
     finally:
         if os.path.exists(lock_path):
             os.remove(lock_path)
