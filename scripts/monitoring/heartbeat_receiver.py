@@ -277,18 +277,31 @@ def _compute_cost(run_first_ts, payload, now=None):
     return out
 
 
-def _render_chart_svg(history, key, label, stroke_var="--accent", fill=True):
+def _num(v, digits=0, unit=""):
+    """Human-readable value for axis/tooltip labels: thousands separators, fixed decimals."""
+    if v is None:
+        return "—"
+    return f"{v:,.{digits}f}{unit}"
+
+
+def _render_chart_svg(history, key, label, stroke_var="--accent", digits=0, unit="", fill=True):
     """Minimal inline SVG line chart of one numeric payload field over time. No charting
     library, no external requests (the box serves this over plain HTTP to a browser that
     may be on a phone -- keep it self-contained and tiny). Colors come from CSS custom
-    properties so the chart follows the page's light/dark theme."""
+    properties so the chart follows the page's light/dark theme.
+
+    Y-axis labels sit on the LEFT, min at the bottom and max at the top (fixed 2026-08-05 --
+    they were previously printed at the bottom-left and bottom-right, where min/max of the
+    VALUE read as if they were start/end of TIME. Genuinely misleading, not just ugly).
+    Points are also emitted as a JSON data attribute for the shared hover handler in _page().
+    """
     points = [(ts, p.get(key)) for ts, p in history
               if p and isinstance(p.get(key), (int, float)) and isinstance(ts, (int, float))]
     if len(points) < 2:
         return f"<p class='muted'>Not enough data yet for {html.escape(label)}.</p>"
 
-    w, h = 720, 160
-    pad_l, pad_r, pad_t, pad_b = 8, 8, 12, 18
+    w, h = 720, 150
+    pad_l, pad_r, pad_t, pad_b = 52, 10, 12, 16
     xs = [p[0] for p in points]
     ys = [p[1] for p in points]
     x_min, x_max = min(xs), max(xs)
@@ -309,17 +322,33 @@ def _render_chart_svg(history, key, label, stroke_var="--accent", fill=True):
         area = (f'<polygon points="{sx(xs[0]):.1f},{h - pad_b:.1f} {poly} '
                 f'{sx(xs[-1]):.1f},{h - pad_b:.1f}" fill="var({stroke_var})" opacity="0.07" />')
     span_h = (x_max - x_min) / 3600.0
+    # [x_pixel, y_pixel, timestamp, value] per point -- the hover handler needs pixel positions
+    # (to find the nearest point and place the marker) and raw values (to label it).
+    pts_json = json.dumps([[round(sx(x), 1), round(sy(y), 1), int(x), y] for x, y in points])
     return f"""
-    <figure class="chart">
+    <figure class="chart" data-points='{html.escape(pts_json, quote=True)}'
+            data-digits="{digits}" data-unit="{html.escape(unit)}" data-label="{html.escape(label)}">
       <figcaption>{html.escape(label)} <span class="muted">· {len(points)} beats · {span_h:.1f} h</span></figcaption>
-      <svg viewBox="0 0 {w} {h}" width="100%" height="{h}" preserveAspectRatio="none" role="img"
-           aria-label="{html.escape(label)}">
-        <line x1="{pad_l}" y1="{h - pad_b}" x2="{w - pad_r}" y2="{h - pad_b}" stroke="var(--rule)" stroke-width="1" />
-        {area}
-        <polyline points="{poly}" fill="none" stroke="var({stroke_var})" stroke-width="1.75"
-                  stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
-      </svg>
-      <div class="chart-axis"><span>{_fmt(float(y_min), digits=0)}</span><span>{_fmt(float(y_max), digits=0)}</span></div>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 {w} {h}" width="100%" height="100%" preserveAspectRatio="none"
+             role="img" aria-label="{html.escape(label)}">
+          <line x1="{pad_l}" y1="{sy(y_max):.1f}" x2="{w - pad_r}" y2="{sy(y_max):.1f}"
+                stroke="var(--rule)" stroke-width="1" stroke-dasharray="2 3" />
+          <line x1="{pad_l}" y1="{h - pad_b}" x2="{w - pad_r}" y2="{h - pad_b}"
+                stroke="var(--rule)" stroke-width="1" />
+          {area}
+          <polyline points="{poly}" fill="none" stroke="var({stroke_var})" stroke-width="1.75"
+                    stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+          <text x="{pad_l - 7}" y="{sy(y_max) + 4:.1f}" class="ytick" text-anchor="end">{_num(y_max, digits, unit)}</text>
+          <text x="{pad_l - 7}" y="{h - pad_b + 4}" class="ytick" text-anchor="end">{_num(y_min, digits, unit)}</text>
+          <g class="hover-marker" style="display:none">
+            <line y1="{pad_t}" y2="{h - pad_b}" stroke="var({stroke_var})" stroke-width="1"
+                  stroke-dasharray="2 2" vector-effect="non-scaling-stroke" />
+            <circle r="3" fill="var({stroke_var})" />
+          </g>
+        </svg>
+        <div class="tip" hidden></div>
+      </div>
     </figure>
     """
 
@@ -417,9 +446,18 @@ def _render_dashboard():
         f"<tr><th scope='row'>{html.escape(k)}</th><td>{v}</td></tr>" for k, v in rows
     )
 
-    charts = (_render_chart_svg(history, "people_done", "People completed")
-              + _render_chart_svg(history, "rate_per_hour", "Throughput (people/hour)", "--accent2")
-              + _render_chart_svg(history, "mem_avail_pct", "Memory available (%)", "--accent3"))
+    # Scope charts to the CURRENT run session only. Without this the series splices together
+    # every run whose beats are still in the rolling window -- on 2026-08-05 a 6-person smoke
+    # test and the real launch rendered as one line that climbed, collapsed to zero, then
+    # jumped, which reads as a catastrophic mid-run reset rather than two separate runs.
+    run_history = ([hp for hp in history
+                    if isinstance(hp[0], (int, float)) and hp[0] >= run_first_ts]
+                   if isinstance(run_first_ts, (int, float)) else history)
+    charts = (_render_chart_svg(run_history, "people_done", "People completed")
+              + _render_chart_svg(run_history, "rate_per_hour", "Throughput (people/hour)",
+                                   "--accent2", digits=0)
+              + _render_chart_svg(run_history, "mem_avail_pct", "Memory available",
+                                   "--accent3", digits=1, unit="%"))
 
     body = f"""
     <div class="stats">{stats}</div>
@@ -493,9 +531,16 @@ def _page(body: str, status_label: str = "", tone: str = "idle") -> str:
   /* Explicit CSS height: with width="100%" + a numeric height attribute, browsers derive
      height from the viewBox aspect ratio instead of honouring the attribute, which made the
      charts render ~1.7x taller than intended and dominate the page. */
-  .chart svg {{ display:block; overflow:visible; height:112px; width:100%; }}
-  .chart-axis {{ display:flex; justify-content:space-between; font-size:10.5px;
-                 color:var(--muted); font-variant-numeric:tabular-nums; margin-top:2px; }}
+  .chart-wrap {{ position:relative; height:112px; }}
+  .chart svg {{ display:block; overflow:visible; height:100%; width:100%; }}
+  .ytick {{ font-size:9px; fill:var(--muted); font-family:inherit;
+            font-variant-numeric:tabular-nums; }}
+  .tip {{ position:absolute; pointer-events:none; z-index:5; transform:translate(-50%,-100%);
+          background:var(--bg); border:1px solid var(--rule); border-radius:3px;
+          padding:3px 7px; font-size:11px; white-space:nowrap; color:var(--fg);
+          font-variant-numeric:tabular-nums; box-shadow:0 1px 4px rgba(0,0,0,.12); }}
+  .tip b {{ font-weight:500; }}
+  .tip span {{ color:var(--muted); margin-left:5px; }}
   table {{ border-collapse:collapse; width:100%; font-size:13px; }}
   th, td {{ padding:9px 0; border-bottom:1px solid var(--rule); text-align:left; }}
   th {{ font-weight:400; color:var(--muted); width:52%; }}
@@ -517,6 +562,55 @@ def _page(body: str, status_label: str = "", tone: str = "idle") -> str:
     no person_ids or alleles ever appear here.
   </footer>
 </main>
+<script>
+// Shared hover readout for every chart. Vanilla, no library, no external requests -- the page
+// is served over plain HTTP from the monitoring box and must stay self-contained.
+// Charts are drawn in viewBox units with preserveAspectRatio="none", so pixel coords from the
+// DOM must be converted back into viewBox space before comparing against the stored points.
+(function () {{
+  var VB_W = 720, VB_H = 150;
+  document.querySelectorAll('.chart[data-points]').forEach(function (fig) {{
+    var pts;
+    try {{ pts = JSON.parse(fig.getAttribute('data-points')); }} catch (e) {{ return; }}
+    if (!pts || pts.length < 2) return;
+    var digits = parseInt(fig.getAttribute('data-digits') || '0', 10);
+    var unit = fig.getAttribute('data-unit') || '';
+    var wrap = fig.querySelector('.chart-wrap');
+    var svg = fig.querySelector('svg');
+    var tip = fig.querySelector('.tip');
+    var marker = fig.querySelector('.hover-marker');
+    var mLine = marker.querySelector('line');
+    var mDot = marker.querySelector('circle');
+
+    function hide() {{ tip.hidden = true; marker.style.display = 'none'; }}
+
+    wrap.addEventListener('mousemove', function (ev) {{
+      var r = svg.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var vbX = (ev.clientX - r.left) / r.width * VB_W;   // px -> viewBox x
+      var best = 0, bestD = Infinity;
+      for (var i = 0; i < pts.length; i++) {{
+        var d = Math.abs(pts[i][0] - vbX);
+        if (d < bestD) {{ bestD = d; best = i; }}
+      }}
+      var p = pts[best];                                  // [vbX, vbY, ts, value]
+      marker.style.display = '';
+      mLine.setAttribute('x1', p[0]); mLine.setAttribute('x2', p[0]);
+      mDot.setAttribute('cx', p[0]); mDot.setAttribute('cy', p[1]);
+      var t = new Date(p[2] * 1000).toLocaleTimeString([], {{hour: '2-digit', minute: '2-digit'}});
+      tip.innerHTML = '<b>' + p[3].toLocaleString(undefined, {{
+        minimumFractionDigits: digits, maximumFractionDigits: digits}}) + unit +
+        '</b><span>' + t + '</span>';
+      tip.hidden = false;
+      // Position in real pixels, then keep the tooltip inside the chart's own box.
+      var px = p[0] / VB_W * r.width, py = p[1] / VB_H * r.height;
+      tip.style.left = Math.min(Math.max(px, 34), r.width - 34) + 'px';
+      tip.style.top = Math.max(py - 8, 14) + 'px';
+    }});
+    wrap.addEventListener('mouseleave', hide);
+  }});
+}})();
+</script>
 </body></html>"""
 
 
