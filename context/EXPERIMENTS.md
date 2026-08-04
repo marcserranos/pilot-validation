@@ -534,3 +534,71 @@ doesn't introduce an additional ancestry skew on top of whatever AoU's own recru
 
 Next: Stage 2 — characterize the structure of the `eqtl/`, `rnaseqc2/`, `rsem/`, `sqtl/`
 subfolders (per-sample files vs. aggregate matrices), not yet run.
+
+## 2026-08-03/04 — Immuannot core-scaling diagnostic: real data, on the second tool
+
+Goal: pick the production VM's machine type and (concurrency, threads-per-person) config for the
+~13,000-14,521-person full-cohort run, per DECISIONS.md's long-open "Compute backend for scaling"
+item — this is what `scripts/run_core_scaling_experiment.sh` was originally built for
+(2026-07-24) but never run past 4 cores.
+
+**The bash orchestrator itself became the story for most of this session** (full account in
+`context/ENVIRONMENT.md` quirks #23-27) — a real duplicate-launch incident that corrupted shared
+per-person intermediate files, a `du`/`df` disk-check that stalled anywhere from 15 minutes to 2+
+hours on this VM's gcsfuse mounts (misdiagnosed multiple times before the actual cause — broad
+filesystem scans touching the mount table — was pinned down), and a dead gcsfuse mount silently
+ignored because the script had no `set -e`. After a full day/night of compounding failures, the
+script was retired and replaced with `scripts/scaling_probe.py` — a minimal Python tool, one
+config per invocation, no phases, no background subshells. **The lesson generalizes: a gnarly bash
+failure that survives more than a couple of patches should trigger a from-scratch rewrite in
+Python, not more patching** (ENVIRONMENT.md quirk #27).
+
+**Real results, `scaling_probe.py`, on a `n2-highcpu-32` test VM (32 vCPU / 32GB, a different
+Verily Workbench workspace than the project's original — this session also worked through a real
+VPC Service Controls / app-policy access saga to get that workspace usable at all, not logged here
+since it's a one-time institutional-workspace-setup issue, not a recurring pipeline quirk).**
+
+Horizontal concurrency sweep (threads_per_person=1 throughout):
+
+| Concurrency | Wall-clock | People/hour | Peak mem | Mean mem |
+|---|---|---|---|---|
+| 4 | 826.9s | — | 16.8% | not captured (added later) |
+| 8 | 866.4s | — | 27.2% | not captured (added later) |
+| 16 | 860.7s | — | 48.2% | not captured (added later) |
+| 32 | 1378.7s | 83.6 | 93.0% | not captured (added later) |
+
+Concurrency scales cleanly (near-flat wall-clock) from 4→16, but a real slowdown and a real memory
+jump both appear at 32 (93% peak on a 32GB box) — the first sign of genuine contention, not just
+more work.
+
+**Iso-core-budget comparison (the actual question this diagnostic was for): does the split between
+concurrency and threads-per-person matter, at a fixed 32-core total budget?**
+
+| Config | Wall-clock | People/hour | Peak mem |
+|---|---|---|---|
+| 32 people × 1 thread | 1378.7s | 83.6 | 93.0% |
+| 16 people × 2 threads | 702.5s | 82.0 | 59.4% |
+| 8 people × 4 threads | 346.4s | 83.1 | 50.0% |
+
+**Finding: throughput is flat (82.0-83.6 people/hr, within noise) regardless of the split — the
+concurrency/threads allocation does not meaningfully affect speed at a fixed total core budget.**
+It does affect memory: max-concurrency/min-threads uses roughly double the memory of a more
+moderate split for the *same* throughput. Since Marc's explicit priority is speed (not memory,
+which he can pay to have more of), the practical conclusion is: there's no throughput reason to
+prefer high concurrency, so prefer the split with the most headroom and the most existing track
+record — **8 people × 4 threads**, which is also the exact setting Experiment F's 60-person pilot
+already validated as reliable (median 6.9 min/person there; ~5.0 min/person average in this
+8×4 run — consistent, this VM's cores are evidently a bit stronger than the original 4-vCPU one).
+
+**Rough extrapolation to a production machine (untested beyond 32 cores, stated as an assumption,
+not a measurement):** ~83 people/hour per 32 cores of budget, extrapolated linearly. At 96 cores
+(the `n1-highcpu-96` candidate, ~$3.47/hr per earlier Verily Workbench cost-estimate screenshots):
+~249 people/hour → 13,000-14,521 people in **~52-58 hours wall-clock, ~$180-200 total compute** —
+comfortably inside the $300 cap even before spot pricing. **Not yet confirmed at real scale or a
+real core count above 32** — the linear-extrapolation assumption is the main remaining risk in
+this number, not anything about the per-person pipeline itself (which has now run cleanly, with
+real gene calls, dozens of times across every test in this session).
+
+Scripts: `scripts/scaling_probe.py` (the tool), results on the VM at
+`~/pipeline_outputs/scaling_probe_results.tsv` (not committed — real timing/resource data, fine to
+paste summary stats here per the project's aggregate-only convention, same as everywhere else).
