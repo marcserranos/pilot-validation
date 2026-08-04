@@ -86,6 +86,8 @@ _state = {
     "stale_active": False,
     "anomaly_active": False,
     "run_first_ts": None,       # server-side start of the CURRENT run session (cost clock)
+    "run_finished": False,      # a heartbeat reported run_state=complete/failed -- stop the
+                                # stale watchdog, so a SUCCESSFUL run doesn't page at 3am
 }
 
 
@@ -185,6 +187,22 @@ def _handle_heartbeat(payload: dict):
         if len(_state["history"]) > CHART_MAX_POINTS:
             _state["history"] = _state["history"][-CHART_MAX_POINTS:]
 
+        # Terminal run states: announce once, and disarm the stale watchdog. Without this,
+        # a run that FINISHES SUCCESSFULLY looks exactly like a crash to the watchdog --
+        # heartbeats just stop -- and fires a 🚨 "no heartbeat" push in the middle of the night.
+        run_state = str(payload.get("run_state") or "running")
+        if run_state in ("complete", "failed") and not _state["run_finished"]:
+            _state["run_finished"] = True
+            done_n, total_n = payload.get("people_done"), payload.get("people_total")
+            failed_n = payload.get("people_failed")
+            if run_state == "complete":
+                notify(f"✅ HLA pipeline FINISHED: {done_n}/{total_n} done, {failed_n} failed.")
+            else:
+                notify(f"🛑 HLA pipeline STOPPED (run_state=failed): {done_n}/{total_n} done, "
+                       f"{failed_n} failed. Check the VM.")
+        elif run_state not in ("complete", "failed"):
+            _state["run_finished"] = False  # a new run reusing this receiver re-arms the watchdog
+
         # Stale state clears the moment any heartbeat arrives.
         if _state["stale_active"]:
             _state["stale_active"] = False
@@ -207,7 +225,7 @@ def _watchdog_loop():
         with _lock:
             last_ts = _state["last_received_ts"]
             already_stale = _state["stale_active"]
-            if last_ts is None:
+            if last_ts is None or _state["run_finished"]:
                 continue
             gap_min = (time.time() - last_ts) / 60.0
             if gap_min > STALE_MINUTES and not already_stale:
@@ -329,8 +347,22 @@ def _render_dashboard():
             "first heartbeat.</p></div>", status_label="WAITING", tone="idle")
 
     age_min = (time.time() - last_ts) / 60.0 if last_ts else None
-    status_label = "STALE" if stale else ("ANOMALY" if anomaly else "RUNNING")
-    tone = "bad" if stale else ("warn" if anomaly else "ok")
+    run_state = str(payload.get("run_state") or "running")
+    if run_state == "complete":
+        status_label, tone = "COMPLETE", "ok"
+    elif run_state == "failed":
+        status_label, tone = "STOPPED", "bad"
+    elif run_state == "starting":
+        status_label, tone = "STARTING", "idle"
+    elif stale:
+        status_label, tone = "STALE", "bad"
+    elif anomaly:
+        status_label, tone = "ANOMALY", "warn"
+    else:
+        status_label, tone = "RUNNING", "ok"
+    phase = payload.get("phase")
+    if phase:
+        status_label = f"{status_label} · {phase}"
 
     done = payload.get("people_done") or 0
     total = payload.get("people_total") or 0

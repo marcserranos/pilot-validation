@@ -250,6 +250,36 @@ HG38_REF_DEFAULT = os.path.expanduser("~/ref/Homo_sapiens_assembly38.fasta")
 CHR6_REF_CACHE_DEFAULT = os.path.expanduser("~/ref/chr6.fasta")
 
 
+def send_lifecycle_heartbeat(args, auth_token, run_state, people_done, people_failed,
+                             people_total, phase=None, state_path=None):
+    """One-off heartbeat outside the periodic loop, for a lifecycle transition.
+
+    Two reasons this exists (2026-08-05):
+      - STARTUP: if the orchestrator dies early (bad flag, missing cohort, crash on the first
+        person), the periodic loop may never have run, so the dashboard sits on WAITING forever
+        AND the receiver's stale watchdog never arms -- it skips while last_received_ts is None.
+        Result: total silence on a run you thought you'd launched. One beat at startup fixes both,
+        and doubles as instant confirmation the VM->Hetzner path actually works, while you're
+        still watching.
+      - COMPLETE/FAILED: heartbeats stopping is otherwise ambiguous between "finished fine" and
+        "crashed", and the watchdog would page in the middle of the night either way.
+    """
+    kwargs = dict(receiver_url=args.monitor_url, auth_token=auth_token,
+                  vm_hourly_rate_usd=args.vm_rate, budget_usd=args.budget,
+                  run_state=run_state, phase=phase)
+    if state_path:
+        kwargs["state_path"] = state_path
+    try:
+        status, _ = send_heartbeat(people_done, people_failed, people_total,
+                                    disk_used_pct(args.outroot), mem_avail_pct(), **kwargs)
+        print(f"  [heartbeat:{run_state}] status={status}", file=sys.stderr)
+        return status
+    except Exception as e:
+        # Monitoring must never take down the pipeline it watches.
+        warn(f"lifecycle heartbeat ({run_state}) failed: {e!r}")
+        return None
+
+
 def check_phase2_prereqs():
     """Tier 3 (self-align) needs a chr6 reference slice, carved once from the full hg38 FASTA.
     bootstrap_vm.sh does NOT download that FASTA, so a freshly-bootstrapped production VM can
@@ -452,7 +482,7 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
             heartbeat_kwargs = dict(
                 receiver_url=args.monitor_url, auth_token=auth_token,
                 vm_hourly_rate_usd=args.vm_rate, budget_usd=args.budget,
-                state_path=monitor_state_file,
+                state_path=monitor_state_file, run_state="running", phase=phase_label,
             )
             status, payload = send_heartbeat(d, f, people_total, disk_pct, mem_pct,
                                               **heartbeat_kwargs)
@@ -580,10 +610,13 @@ def main():
                     help="After this many failed attempts, a person is marked given-up (not "
                          "retried on future relaunches) instead of consuming a worker slot on a "
                          "deterministically-failing person for the rest of a multi-day run.")
-    ap.add_argument("--heartbeat-interval-sec", type=float, default=300,
-                    help="Default 300s (~5 min) -- the committed cadence, monitoring/README.md "
-                         "'Cadence'. Do not go below ~60s; heartbeat overhead is negligible but "
-                         "there's no benefit past human reaction time.")
+    ap.add_argument("--heartbeat-interval-sec", type=float, default=120,
+                    help="Default 120s (2 min), revised 2026-08-05 from 5 min: overhead is "
+                         "negligible at any interval (a few counters and one small POST), and a "
+                         "tighter cadence is worth real money in the first watched minutes of a "
+                         "~$3.55/h run. Do not go below ~60s -- past that, human reaction time is "
+                         "the bottleneck, not detection time. Keep MONITOR_STALE_MINUTES on the "
+                         "receiver at ~3x this (6 min) so a single dropped beat isn't an alarm.")
     ap.add_argument("--monitor-url", default=os.environ.get("MONITOR_URL", DEFAULT_MONITOR_URL))
     ap.add_argument("--monitor-state-file", default=None,
                     help="Local state file heartbeat_client uses for phase 1 (or the single run, "
@@ -635,15 +668,40 @@ def main():
 
     run_start_ts = time.time()  # combined cost-vs-budget tracking spans every phase from here
 
+    run_ok = False
+    people_total_all = 0
+    totals = {"done": 0, "failed": 0}
     try:
         people, ancestry_map, trim_tier_map = load_cohort(args.cohort)
+        people_total_all = len(people)
         print(f"Cohort: {len(people)} people loaded from {args.cohort}.", file=sys.stderr)
+
+        # Immediate startup beat -- confirms the VM->Hetzner path and arms the stale watchdog
+        # before any long-running work begins (see send_lifecycle_heartbeat's docstring).
+        if auth_token:
+            st = send_lifecycle_heartbeat(args, auth_token, "starting", 0, 0, len(people),
+                                           phase="startup",
+                                           state_path=args.monitor_state_file)
+            if st == 200:
+                print("  Monitoring path confirmed: the dashboard should now read STARTING. "
+                      "If it does, this VM can reach the Hetzner box and you're safe to walk away "
+                      "once the run settles.", file=sys.stderr)
+            else:
+                warn("startup heartbeat did NOT get a 200 -- the dashboard will not update and "
+                     "you will have NO remote visibility for this run. Most likely cause on a "
+                     "Workbench VM is the VPC-SC perimeter blocking egress to the Hetzner box "
+                     "(see production_orchestrator/PREFLIGHT.md item A). The pipeline itself is "
+                     "unaffected and will keep running -- but decide NOW whether to launch blind.")
 
         if args.single_phase:
             phase_people = filter_people(people, trim_tier_map, args.skip_trim_tier,
                                           args.only_trim_tier)
-            run_phase("single", phase_people, ancestry_map, args, args.monitor_state_file,
-                      args.enable_self_align_fallback, auth_token, run_start_ts)
+            d, f, _ = run_phase("single", phase_people, ancestry_map, args,
+                                 args.monitor_state_file, args.enable_self_align_fallback,
+                                 auth_token, run_start_ts)
+            totals["done"], totals["failed"] = d, f
+            people_total_all = len(phase_people)
+            run_ok = True
             return
 
         # --- Default: automatic two-phase run, no manual intervention between phases ---
@@ -660,13 +718,15 @@ def main():
             if problem:
                 warn(f"PHASE 2 PREREQUISITE MISSING -- {problem}")
 
-        run_phase("phase1_main_cohort", phase1_people, ancestry_map, args,
-                  args.monitor_state_file, enable_self_align=False, auth_token=auth_token,
-                  run_start_ts=run_start_ts)
+        d1, f1, _ = run_phase("phase1_main_cohort", phase1_people, ancestry_map, args,
+                               args.monitor_state_file, enable_self_align=False,
+                               auth_token=auth_token, run_start_ts=run_start_ts)
+        totals["done"], totals["failed"] = d1, f1
 
         if not phase2_people:
             print("No phase-2 (self_align_needed) people in this cohort -- run complete.",
                   file=sys.stderr)
+            run_ok = True
             return
 
         # Re-verify the mount before phase 2 -- phase 1 can run for many hours, and while the
@@ -679,9 +739,21 @@ def main():
         print(f"\nAuto-continuing into phase 2 ({len(phase2_people)} people, self-align fallback "
               f"ON, isolated monitor state at {phase2_state_file}) -- no manual step needed.",
               file=sys.stderr)
-        run_phase("phase2_self_align", phase2_people, ancestry_map, args, phase2_state_file,
-                  enable_self_align=True, auth_token=auth_token, run_start_ts=run_start_ts)
+        d2, f2, _ = run_phase("phase2_self_align", phase2_people, ancestry_map, args,
+                               phase2_state_file, enable_self_align=True, auth_token=auth_token,
+                               run_start_ts=run_start_ts)
+        totals["done"], totals["failed"] = d1 + d2, f1 + f2
+        run_ok = True
     finally:
+        # Terminal heartbeat on EVERY exit path, including Ctrl-C and an unhandled exception.
+        # This is what turns "heartbeats stopped" from ambiguous into a definite answer, and it
+        # disarms the receiver's stale watchdog so a finished run doesn't page overnight.
+        if auth_token:
+            send_lifecycle_heartbeat(
+                args, auth_token, "complete" if run_ok else "failed",
+                totals["done"], totals["failed"], people_total_all or 1,
+                phase="finished" if run_ok else "stopped-early",
+                state_path=args.monitor_state_file)
         if os.path.exists(lock_path):
             os.remove(lock_path)
 

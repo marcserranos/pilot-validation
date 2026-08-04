@@ -205,7 +205,31 @@ the brief's wording. If a true fixed-N rolling window ever matters more than thi
 the orchestrator would need to report a per-person outcome log instead of just cumulative counts —
 not needed for the current anomaly-detection use case.
 
-## Cadence: revised to ~5 minutes (2026-08-04, was ~15 min in the original BRIEF.md plan)
+## Cadence: revised again to 2 minutes (2026-08-05)
+
+Marc, before the real launch: he wants tighter feedback specifically for the first watched minutes
+of the run, when he's checking that everything actually works before going to sleep. Overhead is
+negligible at any of these intervals (the reasoning in the ~5-min section below still holds
+verbatim — a few in-memory counters and one small POST), so the only real cost of going from 5 min
+to 2 min is a slightly denser JSONL, and the benefit is real: on a ~$3.55/h VM, faster confirmation
+that the pipeline is alive is worth more than a marginally smaller log. **`MONITOR_STALE_MINUTES`
+moved 15 → 6** to keep the same ~3x-cadence slack ratio (one dropped beat is not an alarm; three
+missed in a row is).
+
+Two lifecycle additions landed alongside this, both aimed at "close the laptop and sleep safely":
+
+- **A startup heartbeat**, sent before any long work begins. Without it, an orchestrator that died
+  early (bad flag, missing cohort file, crash on person 1) produced *total silence*: the dashboard
+  sat on `WAITING`, and the stale watchdog never armed, because it skips while `last_received_ts`
+  is `None`. Now there is always at least one beat, the watchdog is armed from second one, and the
+  dashboard flipping to `STARTING` is instant proof the VM can reach this box.
+- **`run_state`** (`starting` / `running` / `complete` / `failed`) plus `phase`. Previously, a run
+  that *finished successfully* was indistinguishable from one that *crashed* — heartbeats simply
+  stopped in both cases, and the watchdog fired the same 🚨 "no heartbeat in N min" push at 3am.
+  The receiver now pushes a ✅ completion notice, shows `COMPLETE`, and stops arming the stale
+  alarm. A Ctrl-C or an unhandled exception sends `failed` on the way out, so that's unambiguous too.
+
+## Cadence: the earlier revision to ~5 minutes (2026-08-04, was ~15 min in the original BRIEF.md plan)
 
 Reasoning (Marc's question, answered directly): heartbeat overhead is negligible at any interval
 from 1 minute to 45 — it's a few in-memory counters and one small HTTP POST, nothing a 96-core VM

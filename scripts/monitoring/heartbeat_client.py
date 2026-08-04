@@ -57,10 +57,19 @@ def build_payload(
     budget_usd=None,
     state_path=STATE_PATH_DEFAULT,
     now=None,
+    run_state="running",
+    phase=None,
 ):
     """Pure-ish function (does read/write a small local state file for the
     rolling-window failure rate) that turns raw counters into the full
-    heartbeat schema from BRIEF.md."""
+    heartbeat schema from BRIEF.md.
+
+    `run_state` (2026-08-05) is one of "starting" / "running" / "complete" / "failed".
+    Without it, a run that finishes successfully is INDISTINGUISHABLE from one that
+    crashed: heartbeats simply stop in both cases, and the receiver's stale watchdog
+    fires the same "no heartbeat in N min" alarm either way -- at 3am, on a run that
+    actually succeeded. The receiver uses this to push a completion notice instead and
+    to stop arming the stale alarm."""
     now = now if now is not None else time.time()
     prev = _load_state(state_path) or {}
     first_ts = start_ts if start_ts is not None else prev.get("first_ts", now)
@@ -98,6 +107,8 @@ def build_payload(
 
     payload = {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+        "run_state": run_state,
+        "phase": phase,
         "people_total": people_total,
         "people_done": people_done,
         "people_failed": people_failed,
@@ -145,10 +156,12 @@ def send_heartbeat(
     vm_hourly_rate_usd=None,
     budget_usd=None,
     state_path=STATE_PATH_DEFAULT,
+    run_state="running",
+    phase=None,
 ):
-    """The function the future orchestrator calls every ~15 minutes, per the
-    interface boundary in BRIEF.md. Reads MONITOR_URL / MONITOR_AUTH_TOKEN from
-    the environment if not passed explicitly."""
+    """The function the orchestrator calls every ~2 minutes (cadence revised
+    2026-08-05, see monitoring/README.md "Cadence"). Reads MONITOR_URL /
+    MONITOR_AUTH_TOKEN from the environment if not passed explicitly."""
     receiver_url = receiver_url or os.environ.get("MONITOR_URL")
     auth_token = auth_token or os.environ.get("MONITOR_AUTH_TOKEN")
     if not receiver_url or not auth_token:
@@ -159,6 +172,7 @@ def send_heartbeat(
         current_disk_pct, current_mem_avail_pct,
         start_ts=start_ts, vm_hourly_rate_usd=vm_hourly_rate_usd,
         budget_usd=budget_usd, state_path=state_path,
+        run_state=run_state, phase=phase,
     )
     try:
         status, body = post_heartbeat(payload, receiver_url, auth_token)
