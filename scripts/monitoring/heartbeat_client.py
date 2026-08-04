@@ -32,6 +32,11 @@ MEM_AVAIL_DANGER_PCT = float(os.environ.get("MONITOR_MEM_AVAIL_DANGER_PCT", "10"
 
 
 def _load_state(state_path):
+    # Tolerate None rather than raising deep inside os.path.exists() -- a caller passing
+    # state_path=None explicitly (to mean "use the default") is a natural mistake, and when it
+    # happened on 2026-08-05 it killed the orchestrator's heartbeat thread while the pipeline
+    # kept running, costing all live monitoring silently.
+    state_path = state_path or STATE_PATH_DEFAULT
     if os.path.exists(state_path):
         with open(state_path) as f:
             return json.load(f)
@@ -39,6 +44,7 @@ def _load_state(state_path):
 
 
 def _save_state(state_path, state):
+    state_path = state_path or STATE_PATH_DEFAULT
     tmp = state_path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(state, f)

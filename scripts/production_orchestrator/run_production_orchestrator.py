@@ -475,6 +475,12 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
 
     def heartbeat_loop():
         while not stop_event.is_set():
+          # Belt-and-braces: ANY unexpected error in here must not kill the thread. Losing one
+          # beat is a blip; losing the thread means the dashboard goes dark for the rest of a
+          # multi-day run while the pipeline carries on looking healthy locally (exactly what
+          # happened on the 2026-08-05 smoke test). Monitoring must never be more fragile than
+          # the thing it monitors.
+          try:
             with state["lock"]:
                 d, f = state["done"], state["failed"]
             disk_pct = disk_used_pct(args.outroot)
@@ -482,8 +488,17 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
             heartbeat_kwargs = dict(
                 receiver_url=args.monitor_url, auth_token=auth_token,
                 vm_hourly_rate_usd=args.vm_rate, budget_usd=args.budget,
-                state_path=monitor_state_file, run_state="running", phase=phase_label,
+                run_state="running", phase=phase_label,
             )
+            # Only pass state_path when we actually have one -- passing None overrides
+            # heartbeat_client's own STATE_PATH_DEFAULT and blows up in os.path.exists(None).
+            # (Real bug, hit on the 2026-08-05 smoke test: it killed the heartbeat THREAD on its
+            # first tick while the pipeline itself kept running, i.e. a silent loss of all live
+            # monitoring for the rest of the run -- the exact failure mode the monitoring exists
+            # to prevent. The startup/terminal beats survived because send_lifecycle_heartbeat
+            # guards this correctly; only the periodic loop was wrong.)
+            if monitor_state_file:
+                heartbeat_kwargs["state_path"] = monitor_state_file
             status, payload = send_heartbeat(d, f, people_total, disk_pct, mem_pct,
                                               **heartbeat_kwargs)
             phase_cost = payload.get("cost_so_far_usd")  # phase-local -- for judging THIS phase
@@ -506,7 +521,10 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
             print(f"  [{phase_label}] [heartbeat] per-ancestry done/total (local log only): " +
                   ", ".join(f"{a}={anc_done_snapshot.get(a, 0)}/{n}"
                             for a, n in anc_total.most_common()), file=sys.stderr)
-            stop_event.wait(args.heartbeat_interval_sec)
+          except Exception as e:
+            warn(f"[{phase_label}] heartbeat tick failed ({e!r}) -- thread stays alive, will "
+                 f"retry next interval.")
+          stop_event.wait(args.heartbeat_interval_sec)
 
     hb_thread = threading.Thread(target=heartbeat_loop, daemon=True)
     hb_thread.start()
