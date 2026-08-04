@@ -126,10 +126,21 @@ def mem_available_mb():
 
 
 def mem_avail_pct():
+    """Percent of memory AVAILABLE (not used).
+
+    BUGFIX 2026-08-05: this previously returned (total-avail)/total -- i.e. memory USED --
+    while both consumers of the `mem_avail_pct` heartbeat field (heartbeat_client's
+    build_payload() and heartbeat_receiver's _resource_anomaly_reasons()) alert when the
+    value drops BELOW MEM_AVAIL_DANGER_PCT (10), i.e. they correctly read the field by its
+    name, as AVAILABLE. The inverted sense meant a healthy machine early in a run (say 8%
+    used, 92% free) would trip the "< 10%" danger rule and fire a spurious anomaly ntfy
+    push, while a genuine near-OOM (95% used, 5% free) would report 95 and never alert --
+    exactly backwards, on an unattended multi-day run. Now matches the field name and both
+    consumers."""
     total, avail = mem_total_mb(), mem_available_mb()
     if not total or avail is None:
         return None
-    return 100.0 * (total - avail) / total  # reported as "used pct", matches heartbeat schema
+    return 100.0 * avail / total
 
 
 def disk_used_pct(path, timeout=5):

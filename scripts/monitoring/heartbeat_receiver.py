@@ -43,6 +43,28 @@ WATCHDOG_INTERVAL_SEC = 60
 DASHBOARD_REFRESH_SEC = 30
 CHART_MAX_POINTS = 500
 
+# --- Cost model (2026-08-05, real quoted Workbench UI numbers for the n2-highcpu-96 production
+# VM -- NOT the ~$3.03/hr research estimate DECISIONS.md carried). Computed SERVER-side from the
+# first heartbeat of the current run session onward, rather than trusting the client's own
+# cost_so_far_usd: the receiver is the thing that's actually up continuously, and this keeps the
+# cost clock honest across an orchestrator restart (which resets the client's own elapsed timer).
+# The client's cost_so_far_usd is still recorded in the JSONL, just not what the dashboard shows.
+VM_HOURLY_USD = float(os.environ.get("MONITOR_VM_HOURLY_USD", "3.55"))
+# Disk is billed continuously per month, not per running-hour -- converted at 730 h/month (the
+# standard GCP convention) so it can be added to the same elapsed-hours math. At $81.60/mo this is
+# ~$0.112/hr: real, but ~3% of the VM rate, so it moves the total by a few dollars over a ~2.5-day
+# run rather than changing any decision.
+DISK_MONTHLY_USD = float(os.environ.get("MONITOR_DISK_MONTHLY_USD", "81.60"))
+HOURS_PER_MONTH = 730.0
+DISK_HOURLY_USD = DISK_MONTHLY_USD / HOURS_PER_MONTH
+COMBINED_HOURLY_USD = VM_HOURLY_USD + DISK_HOURLY_USD
+BUDGET_USD = float(os.environ.get("MONITOR_BUDGET_USD", "300"))
+# A gap longer than this starts a NEW run session for cost purposes (so an earlier smoke test's
+# heartbeats don't inflate the real run's rolling cost, while a systemd restart or a brief network
+# blip mid-run does NOT reset the clock). Deliberately well above both the ~5-min cadence and the
+# stale threshold.
+RUN_GAP_RESET_MINUTES = float(os.environ.get("MONITOR_RUN_GAP_RESET_MINUTES", "90"))
+
 if not AUTH_TOKEN:
     sys.exit("FATAL: MONITOR_AUTH_TOKEN env var is required (never hardcode it in code or git).")
 if not NTFY_TOPIC:
@@ -63,26 +85,43 @@ _state = {
     "history": [],              # bounded list of (received_ts, payload) for the chart
     "stale_active": False,
     "anomaly_active": False,
+    "run_first_ts": None,       # server-side start of the CURRENT run session (cost clock)
 }
 
 
 def _load_history_tail():
     """Rebuild in-memory history from disk on startup (systemd restarts lose memory,
-    the JSONL file is the source of truth)."""
+    the JSONL file is the source of truth). Also recovers the current run session's
+    start timestamp, so a receiver restart mid-run does not reset the cost clock."""
     if not os.path.exists(LOG_PATH):
         return
     try:
         with open(LOG_PATH, "r") as f:
-            lines = f.readlines()[-CHART_MAX_POINTS:]
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            rec = json.loads(line)
-            _state["history"].append((rec.get("received_ts"), rec.get("payload")))
+            all_ts = []
+            records = []
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                rec = json.loads(line)
+                ts = rec.get("received_ts")
+                if isinstance(ts, (int, float)):
+                    all_ts.append(ts)
+                records.append((ts, rec.get("payload")))
+        _state["history"] = records[-CHART_MAX_POINTS:]
         if _state["history"]:
             _state["last_payload"] = _state["history"][-1][1]
             _state["last_received_ts"] = _state["history"][-1][0]
+        # Walk backwards to the start of the current contiguous session (see
+        # RUN_GAP_RESET_MINUTES) so an earlier smoke test's heartbeats don't get
+        # counted into this run's rolling cost.
+        if all_ts:
+            run_start = all_ts[-1]
+            for earlier, later in zip(all_ts[-2::-1], all_ts[::-1]):
+                if (later - earlier) / 60.0 > RUN_GAP_RESET_MINUTES:
+                    break
+                run_start = earlier
+            _state["run_first_ts"] = run_start
     except (OSError, json.JSONDecodeError) as e:
         print(f"WARNING: could not rebuild history from {LOG_PATH}: {e}", file=sys.stderr)
 
@@ -131,6 +170,15 @@ def _handle_heartbeat(payload: dict):
         os.fsync(f.fileno())
 
     with _lock:
+        # Start (or restart) the cost clock: a first-ever heartbeat, or the first one
+        # after a gap long enough to mean "this is a different run, not a blip."
+        prev_ts = _state["last_received_ts"]
+        if (_state["run_first_ts"] is None or prev_ts is None
+                or (received_ts - prev_ts) / 60.0 > RUN_GAP_RESET_MINUTES):
+            _state["run_first_ts"] = received_ts
+            print(f"cost clock started/reset at {received_ts} "
+                  f"(gap > {RUN_GAP_RESET_MINUTES:.0f} min, or first heartbeat)", file=sys.stderr)
+
         _state["last_payload"] = payload
         _state["last_received_ts"] = received_ts
         _state["history"].append((received_ts, payload))
@@ -181,34 +229,88 @@ def _fmt(v, suffix="", digits=1):
     return f"{v}{suffix}"
 
 
-def _render_chart_svg(history):
-    """Minimal inline SVG polyline of people_done over time. No charting library."""
-    points = [(ts, p.get("people_done")) for ts, p in history if p and p.get("people_done") is not None]
-    if len(points) < 2:
-        return "<p class='muted'>Not enough data yet for a chart.</p>"
+def _compute_cost(run_first_ts, payload, now=None):
+    """Server-side rolling cost, from the first heartbeat of the current run session
+    (see RUN_GAP_RESET_MINUTES) counting upward, plus a projection to completion
+    using the client's own ETA. Returns a dict of floats/None -- never raises.
 
-    w, h, pad = 700, 200, 30
+    Deliberately computed here rather than trusted from the client's cost_so_far_usd:
+    the receiver runs continuously, so its elapsed-time clock survives an orchestrator
+    restart that would reset the client's. Both numbers land in the JSONL either way.
+    """
+    now = now if now is not None else time.time()
+    out = {
+        "elapsed_hours": None, "vm_cost": None, "disk_cost": None, "cost_so_far": None,
+        "eta_hours": None, "projected_total": None, "projected_over_budget": False,
+    }
+    if not isinstance(run_first_ts, (int, float)):
+        return out
+    elapsed_h = max((now - run_first_ts) / 3600.0, 0.0)
+    out["elapsed_hours"] = elapsed_h
+    out["vm_cost"] = elapsed_h * VM_HOURLY_USD
+    out["disk_cost"] = elapsed_h * DISK_HOURLY_USD
+    out["cost_so_far"] = elapsed_h * COMBINED_HOURLY_USD
+
+    eta = (payload or {}).get("eta_hours_remaining")
+    if isinstance(eta, (int, float)) and eta >= 0:
+        out["eta_hours"] = eta
+        out["projected_total"] = (elapsed_h + eta) * COMBINED_HOURLY_USD
+        out["projected_over_budget"] = out["projected_total"] > BUDGET_USD
+    return out
+
+
+def _render_chart_svg(history, key, label, stroke_var="--accent", fill=True):
+    """Minimal inline SVG line chart of one numeric payload field over time. No charting
+    library, no external requests (the box serves this over plain HTTP to a browser that
+    may be on a phone -- keep it self-contained and tiny). Colors come from CSS custom
+    properties so the chart follows the page's light/dark theme."""
+    points = [(ts, p.get(key)) for ts, p in history
+              if p and isinstance(p.get(key), (int, float)) and isinstance(ts, (int, float))]
+    if len(points) < 2:
+        return f"<p class='muted'>Not enough data yet for {html.escape(label)}.</p>"
+
+    w, h = 720, 160
+    pad_l, pad_r, pad_t, pad_b = 8, 8, 12, 18
     xs = [p[0] for p in points]
     ys = [p[1] for p in points]
     x_min, x_max = min(xs), max(xs)
-    y_min, y_max = 0, max(ys) or 1
+    y_min, y_max = min(0, min(ys)), max(ys)
+    if y_max == y_min:
+        y_max = y_min + 1
     x_span = (x_max - x_min) or 1
 
     def sx(x):
-        return pad + (x - x_min) / x_span * (w - 2 * pad)
+        return pad_l + (x - x_min) / x_span * (w - pad_l - pad_r)
 
     def sy(y):
-        return h - pad - (y - y_min) / (y_max - y_min) * (h - 2 * pad)
+        return h - pad_b - (y - y_min) / (y_max - y_min) * (h - pad_t - pad_b)
 
     poly = " ".join(f"{sx(x):.1f},{sy(y):.1f}" for x, y in points)
+    area = ""
+    if fill:
+        area = (f'<polygon points="{sx(xs[0]):.1f},{h - pad_b:.1f} {poly} '
+                f'{sx(xs[-1]):.1f},{h - pad_b:.1f}" fill="var({stroke_var})" opacity="0.07" />')
+    span_h = (x_max - x_min) / 3600.0
     return f"""
-    <svg viewBox="0 0 {w} {h}" width="100%" height="{h}" style="background:#0b0e14;border-radius:6px">
-      <polyline points="{poly}" fill="none" stroke="#4ade80" stroke-width="2" />
-      <text x="{pad}" y="16" fill="#94a3b8" font-size="11">people_done over time (last {len(points)} heartbeats)</text>
-      <text x="{pad}" y="{h - 8}" fill="#94a3b8" font-size="11">0</text>
-      <text x="{w - pad - 40}" y="{h - 8}" fill="#94a3b8" font-size="11">{y_max} people</text>
-    </svg>
+    <figure class="chart">
+      <figcaption>{html.escape(label)} <span class="muted">· {len(points)} beats · {span_h:.1f} h</span></figcaption>
+      <svg viewBox="0 0 {w} {h}" width="100%" height="{h}" preserveAspectRatio="none" role="img"
+           aria-label="{html.escape(label)}">
+        <line x1="{pad_l}" y1="{h - pad_b}" x2="{w - pad_r}" y2="{h - pad_b}" stroke="var(--rule)" stroke-width="1" />
+        {area}
+        <polyline points="{poly}" fill="none" stroke="var({stroke_var})" stroke-width="1.75"
+                  stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+      </svg>
+      <div class="chart-axis"><span>{_fmt(float(y_min), digits=0)}</span><span>{_fmt(float(y_max), digits=0)}</span></div>
+    </figure>
     """
+
+
+def _stat(label, value, sub=None, tone=None):
+    tone_cls = f" tone-{tone}" if tone else ""
+    sub_html = f"<div class='stat-sub'>{sub}</div>" if sub else ""
+    return (f"<div class='stat{tone_cls}'><div class='stat-label'>{html.escape(label)}</div>"
+            f"<div class='stat-value'>{value}</div>{sub_html}</div>")
 
 
 def _render_dashboard():
@@ -218,30 +320,60 @@ def _render_dashboard():
         history = list(_state["history"])
         stale = _state["stale_active"]
         anomaly = _state["anomaly_active"]
+        run_first_ts = _state["run_first_ts"]
 
     if payload is None:
-        body = "<p>No heartbeats received yet. Waiting for the pipeline to start.</p>"
-        return _page(body)
+        return _page(
+            "<div class='empty'><p>No heartbeats received yet.</p>"
+            "<p class='muted'>Waiting for the pipeline to start. The cost clock begins at the "
+            "first heartbeat.</p></div>", status_label="WAITING", tone="idle")
 
     age_min = (time.time() - last_ts) / 60.0 if last_ts else None
-    status_label = "STALE" if stale else ("ANOMALY" if anomaly else "OK")
-    status_color = "#f87171" if stale else ("#fbbf24" if anomaly else "#4ade80")
+    status_label = "STALE" if stale else ("ANOMALY" if anomaly else "RUNNING")
+    tone = "bad" if stale else ("warn" if anomaly else "ok")
 
-    pct_done = None
-    if payload.get("people_total"):
-        pct_done = 100.0 * (payload.get("people_done") or 0) / payload["people_total"]
+    done = payload.get("people_done") or 0
+    total = payload.get("people_total") or 0
+    failed = payload.get("people_failed") or 0
+    pct_done = (100.0 * done / total) if total else None
+    cost = _compute_cost(run_first_ts, payload)
 
+    # --- Hero stats -------------------------------------------------------
+    eta_h = payload.get("eta_hours_remaining")
+    eta_str = "—"
+    if isinstance(eta_h, (int, float)):
+        eta_str = f"{eta_h:.1f}<span class='unit'>h</span>" if eta_h < 48 else f"{eta_h / 24:.1f}<span class='unit'>d</span>"
+
+    cost_tone = "bad" if cost["projected_over_budget"] else None
+    projected = (f"proj. ${cost['projected_total']:.0f} / ${BUDGET_USD:.0f} budget"
+                 if cost["projected_total"] is not None else f"budget ${BUDGET_USD:.0f}")
+
+    stats = "".join([
+        _stat("Progress", f"{done:,}<span class='unit'>/{total:,}</span>",
+              f"{pct_done:.1f}% complete" if pct_done is not None else None),
+        _stat("Rate", f"{_fmt(payload.get('rate_per_hour'), digits=0)}<span class='unit'>/h</span>",
+              "people per hour"),
+        _stat("ETA", eta_str, "remaining"),
+        _stat("Cost so far",
+              f"<span class='unit'>$</span>{cost['cost_so_far']:.2f}" if cost["cost_so_far"] is not None else "—",
+              projected, tone=cost_tone),
+    ])
+
+    bar = ""
+    if pct_done is not None:
+        bar = (f"<div class='bar' role='progressbar' aria-valuenow='{pct_done:.0f}'>"
+               f"<div class='bar-fill' style='width:{min(pct_done, 100):.2f}%'></div></div>")
+
+    # --- Detail table -----------------------------------------------------
     rows = [
-        ("Status", f"<span style='color:{status_color};font-weight:700'>{status_label}</span>"),
         ("Last heartbeat", f"{age_min:.1f} min ago" if age_min is not None else "—"),
-        ("People done / total", f"{payload.get('people_done', '—')} / {payload.get('people_total', '—')}"
-                                 + (f" ({pct_done:.1f}%)" if pct_done is not None else "")),
-        ("People failed", _fmt(payload.get("people_failed"), digits=0)),
+        ("People failed", f"{failed:,}"),
         ("Rolling failure rate", _fmt(payload.get("rolling_failure_rate_pct"), "%")),
-        ("Rate", _fmt(payload.get("rate_per_hour"), " people/hr")),
-        ("ETA remaining", _fmt(payload.get("eta_hours_remaining"), " hr")),
-        ("Elapsed", _fmt(payload.get("elapsed_hours"), " hr")),
-        ("Cost so far / budget", f"${_fmt(payload.get('cost_so_far_usd'), digits=2)} / ${_fmt(payload.get('budget_usd'), digits=0)}"),
+        ("Elapsed (run session)", _fmt(cost["elapsed_hours"], " h")),
+        ("VM cost", f"${cost['vm_cost']:.2f}" if cost["vm_cost"] is not None else "—"),
+        ("Disk cost", f"${cost['disk_cost']:.2f}" if cost["disk_cost"] is not None else "—"),
+        ("Projected total", f"${cost['projected_total']:.2f}" if cost["projected_total"] is not None else "—"),
+        ("Rate card", f"${VM_HOURLY_USD:.2f}/h VM + ${DISK_MONTHLY_USD:.2f}/mo disk"),
         ("Disk used", _fmt(payload.get("disk_used_pct"), "%")),
         ("Mem available", _fmt(payload.get("mem_avail_pct"), "%")),
         ("Sender timestamp", html.escape(str(payload.get("ts", "—")))),
@@ -250,36 +382,109 @@ def _render_dashboard():
         rows.append(("Anomaly reason", html.escape(str(payload["anomaly_reason"]))))
 
     table_html = "\n".join(
-        f"<tr><td class='k'>{html.escape(k)}</td><td class='v'>{v}</td></tr>" for k, v in rows
+        f"<tr><th scope='row'>{html.escape(k)}</th><td>{v}</td></tr>" for k, v in rows
     )
-    chart = _render_chart_svg(history)
+
+    charts = (_render_chart_svg(history, "people_done", "People completed")
+              + _render_chart_svg(history, "rate_per_hour", "Throughput (people/hour)", "--accent2")
+              + _render_chart_svg(history, "mem_avail_pct", "Memory available (%)", "--accent3"))
+
     body = f"""
-    <table>{table_html}</table>
-    <h2>Progress</h2>
-    {chart}
+    <div class="stats">{stats}</div>
+    {bar}
+    <section>{charts}</section>
+    <section><table>{table_html}</table></section>
     """
-    return _page(body)
+    return _page(body, status_label=status_label, tone=tone)
 
 
-def _page(body: str) -> str:
+def _page(body: str, status_label: str = "", tone: str = "idle") -> str:
+    """Minimal, light-first shell. Deliberately restrained: near-white or near-black
+    ground, one hairline rule weight, a single accent per chart, light type. Follows
+    the viewer's system light/dark preference -- no toggle, no framework, no external
+    fonts or scripts (the page must stay self-contained over plain HTTP)."""
     return f"""<!doctype html>
-<html><head>
+<html lang="en"><head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="{DASHBOARD_REFRESH_SEC}">
-<title>HLA pipeline monitor</title>
+<meta name="color-scheme" content="light dark">
+<title>Omni-HLA monitor</title>
 <style>
-  body {{ background:#0b0e14; color:#e2e8f0; font-family: -apple-system, sans-serif; padding: 24px; }}
-  h1 {{ font-size: 20px; }}
-  table {{ border-collapse: collapse; width: 100%; max-width: 640px; }}
-  td {{ padding: 6px 10px; border-bottom: 1px solid #1e293b; }}
-  td.k {{ color: #94a3b8; width: 45%; }}
-  td.v {{ font-weight: 600; }}
-  .muted {{ color: #64748b; }}
+  :root {{
+    --bg:#ffffff; --fg:#111318; --muted:#6b7280; --rule:#e8eaed; --panel:#fafbfc;
+    --accent:#1a7f4b; --accent2:#2563eb; --accent3:#7c3aed;
+    --ok:#1a7f4b; --warn:#b45309; --bad:#b91c1c;
+  }}
+  @media (prefers-color-scheme: dark) {{
+    :root {{
+      --bg:#0c0d10; --fg:#e8eaed; --muted:#8b8f98; --rule:#1e2126; --panel:#131519;
+      --accent:#4ade80; --accent2:#60a5fa; --accent3:#a78bfa;
+      --ok:#4ade80; --warn:#fbbf24; --bad:#f87171;
+    }}
+  }}
+  * {{ box-sizing:border-box; }}
+  body {{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-weight:300; -webkit-font-smoothing:antialiased; line-height:1.5;
+    padding:32px 20px 56px;
+  }}
+  main {{ max-width:760px; margin:0 auto; }}
+  header {{ display:flex; align-items:baseline; justify-content:space-between;
+            gap:16px; flex-wrap:wrap; padding-bottom:16px; border-bottom:1px solid var(--rule); }}
+  h1 {{ font-size:15px; font-weight:400; letter-spacing:.01em; margin:0; }}
+  .status {{ font-size:11px; font-weight:500; letter-spacing:.09em; text-transform:uppercase;
+             display:inline-flex; align-items:center; gap:7px; }}
+  .status::before {{ content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }}
+  .tone-ok,.status.ok {{ color:var(--ok); }}
+  .status.warn {{ color:var(--warn); }}
+  .status.bad {{ color:var(--bad); }}
+  .status.idle {{ color:var(--muted); }}
+  .stats {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+            gap:1px; background:var(--rule); border:1px solid var(--rule);
+            margin:28px 0 0; border-radius:3px; overflow:hidden; }}
+  .stat {{ background:var(--bg); padding:16px 18px; }}
+  .stat-label {{ font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+                 color:var(--muted); font-weight:500; }}
+  .stat-value {{ font-size:27px; font-weight:250; letter-spacing:-.02em; margin-top:7px;
+                 font-variant-numeric:tabular-nums; }}
+  .stat-sub {{ font-size:11.5px; color:var(--muted); margin-top:3px; }}
+  .stat.tone-bad .stat-value {{ color:var(--bad); }}
+  .unit {{ font-size:.5em; color:var(--muted); font-weight:400; letter-spacing:0; }}
+  .bar {{ height:2px; background:var(--rule); margin:20px 0 0; border-radius:2px; overflow:hidden; }}
+  .bar-fill {{ height:100%; background:var(--accent); transition:width .4s ease; }}
+  section {{ margin-top:36px; }}
+  .chart {{ margin:0 0 26px; }}
+  .chart figcaption {{ font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+                       color:var(--fg); font-weight:500; margin-bottom:8px; }}
+  /* Explicit CSS height: with width="100%" + a numeric height attribute, browsers derive
+     height from the viewBox aspect ratio instead of honouring the attribute, which made the
+     charts render ~1.7x taller than intended and dominate the page. */
+  .chart svg {{ display:block; overflow:visible; height:112px; width:100%; }}
+  .chart-axis {{ display:flex; justify-content:space-between; font-size:10.5px;
+                 color:var(--muted); font-variant-numeric:tabular-nums; margin-top:2px; }}
+  table {{ border-collapse:collapse; width:100%; font-size:13px; }}
+  th, td {{ padding:9px 0; border-bottom:1px solid var(--rule); text-align:left; }}
+  th {{ font-weight:400; color:var(--muted); width:52%; }}
+  td {{ font-weight:400; font-variant-numeric:tabular-nums; }}
+  .muted {{ color:var(--muted); font-weight:300; }}
+  .empty {{ padding:48px 0; }}
+  footer {{ margin-top:40px; padding-top:16px; border-top:1px solid var(--rule);
+            font-size:11.5px; color:var(--muted); }}
 </style>
 </head><body>
-<h1>Omni-HLA full-cohort run &mdash; monitor</h1>
-{body}
-<p class="muted">Auto-refreshes every {DASHBOARD_REFRESH_SEC}s. Aggregate metadata only &mdash; no person_ids or alleles ever appear here.</p>
+<main>
+  <header>
+    <h1>Omni-HLA &middot; full-cohort run</h1>
+    <span class="status {tone}">{html.escape(status_label)}</span>
+  </header>
+  {body}
+  <footer>
+    Auto-refreshes every {DASHBOARD_REFRESH_SEC}s. Aggregate metadata only &mdash;
+    no person_ids or alleles ever appear here.
+  </footer>
+</main>
 </body></html>"""
 
 
