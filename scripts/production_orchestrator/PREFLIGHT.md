@@ -103,6 +103,26 @@ they're legitimately done and resumability will skip them.
 
 ---
 
+## ⚠️ Phase 2 is DISABLED for this launch (decided 2026-08-05)
+
+Tier 3 self-align was tested on 2 real sequel2 people and **failed on both, for two separate
+reasons** — see `context/EXPERIMENTS.md` (2026-08-05 entry) for the full account. Headline: the
+"trimmed" output came out at **1.3-1.9 GB per haplotype** instead of ~4 MB, because aligning a
+whole-genome assembly against a chr6-only reference forces contigs from every other chromosome onto
+chr6 with no competing true locus. Fixing the (also real) `samtools faidx` crash *alone* would have
+made this silently "succeed" and fed 1.9 GB inputs to `immuannot.sh` at 24-way concurrency,
+overnight.
+
+**So: launch with `--single-phase --skip-trim-tier self_align_needed`.** That runs the 12,261
+`paf_region` people on the proven path and leaves the 991 sequel2 people untouched in the cohort
+file, already tagged, for a fast-follow once Tier 3 actually works.
+
+Before phase 2 is ever re-enabled, at minimum: align against whole hg38 (not chr6 alone) so MAPQ is
+meaningful again, add length/identity filters to `regions_from_paf()`, replace its `min(qstart)/
+max(qend)` span with per-contig block clustering, and fix the `ensure_chr6_ref()` tmp-file race that
+24 concurrent workers would hit.
+
 ## Launch command (once everything above is green)
 
-See [`RESULTS_LOCATION.md`](RESULTS_LOCATION.md) — one command runs both phases automatically.
+See [`RESULTS_LOCATION.md`](RESULTS_LOCATION.md) — but add
+`--single-phase --skip-trim-tier self_align_needed` per the section directly above.

@@ -602,3 +602,68 @@ real gene calls, dozens of times across every test in this session).
 Scripts: `scripts/scaling_probe.py` (the tool), results on the VM at
 `~/pipeline_outputs/scaling_probe_results.tsv` (not committed — real timing/resource data, fine to
 paste summary stats here per the project's aggregate-only convention, same as everywhere else).
+
+---
+
+## 2026-08-05 — Tier 3 self-align fallback: FAILED on both test people, two distinct root causes
+
+First real test of the `--enable-self-align-fallback` path built 2026-08-04 for the 991 `sequel2`
+people (assembly FASTA present, no aln-to-hg38 `.paf`/`.bam`, so Tiers 1/2 can't tell which contigs
+hold the MHC). n=2 real sequel2 people (both from the production cohort file), 4-core VM,
+sequential invocations. **0 genes called for either person.** Reported straight — this disconfirms
+the Tier 3 design as built, it did not "mostly work."
+
+| Person | hap | self-align | contigs "overlapping" chr6:29.5-33.5M | padded sub-range | outcome |
+|---|---|---|---|---|---|
+| 1000151 | hap1 | 214.9s | 18,447 | 1,882 MB | trim failed |
+| 1000151 | hap2 | 199.1s | 16,726 | 1,785 MB | trim failed |
+| 1000513 | hap1 | 170.0s | 16,280 | 1,387 MB | trim failed |
+| 1000513 | hap2 | 157.3s | 15,070 | 1,337 MB | trim failed |
+
+Per-person wall clock 5.6-7.1 min (well under the 30-min budget) — **speed was never the problem;
+correctness was.**
+
+**Failure A (proximate, fatal): `samtools faidx` cannot index the source FASTA.**
+`Cannot index files compressed with gzip, please use bgzip` — sequel2's `assembly_hap*_fa` appear to
+be plain-gzip, not BGZF, unlike revio/sequel2e's (which run through the identical `trim_assembly()`
+in production without issue). Strong hypothesis, **not yet directly confirmed** — `htsfile` on one
+file of each platform settles it. Note htslib's companion `File truncated at line 1` message is its
+misleading generic complaint when parsing plain gzip as BGZF, not evidence of real corruption.
+
+**Failure B (deeper, the actual design flaw): the "trimmed" output was ~1.3-1.9 GB — essentially the
+whole assembly.** Tier 3's entire purpose was to get ~3.1 GB/hap down to ~4 MB. Root cause: aligning
+a whole-genome assembly against a **chr6-only** reference gives contigs from every other chromosome
+no correct locus to map to, so anything with repetitive/paralogous similarity is forced onto chr6 —
+there is no competing true locus. Compounded by `regions_from_paf()` applying **zero** quality
+filtering (PAF cols 10/11/12 — matches, block length, MAPQ — are parsed but unused).
+
+**Critical subtlety found in review, which rules out the cheap fix: MAPQ is not trustworthy in a
+chr6-only alignment.** minimap2 derives MAPQ from the best-vs-second-best score gap; with the true
+source locus absent from the reference, a spurious repeat-driven hit has nothing to lose to and can
+report confident MAPQ. So "just add a MAPQ filter" is biased in exactly the wrong direction. Length
+(≥~10-50kb) and identity (≥~90%) filters are more defensible, but the principled fix is to align
+against the **whole** hg38 so real competition exists, then filter the PAF to chr6 target hits.
+
+**Separate, independent bug in the same function:** `regions_from_paf()` spans `min(qstart)` to
+`max(qend)` across all overlapping blocks per contig — so even a genuinely-correct MHC contig
+balloons to near-full-length if it has one stray hit elsewhere. Contig-level filtering does not fix
+this; it needs per-contig block clustering.
+
+**Latent bug that n=2 sequential testing structurally could not catch:** `ensure_chr6_ref()` writes
+to a shared `<cache>.tmp` with no per-process uniqueness. Under the production orchestrator's 24
+concurrent workers — where all 991 sequel2 people funnel through Tier 3, likely early — two workers
+can race, and one's `os.replace()` can hit the other's already-moved file, crashing that worker with
+an uncaught `FileNotFoundError`.
+
+**The two failures are coupled, and that coupling is the important lesson: fixing A alone would have
+been worse than failing.** Tier 3 would then have "succeeded" — producing a 1.3-1.9 GB trimmed
+FASTA and feeding it to `immuannot.sh` at 24-way concurrency, unattended, reproducing the original
+~700-750x blowup concern one layer downstream in a tool never tested against an input that large.
+The visible crash is what prevented a silent, expensive, overnight failure.
+
+**Decision (Marc, 2026-08-05): production launches PHASE 1 ONLY** (`--single-phase
+--skip-trim-tier self_align_needed`, 12,261 people, the proven `paf_region` path — untouched by any
+of this). The 991 sequel2 people stay in the cohort file tagged `self_align_needed` and become a
+fast-follow once Tier 3 is genuinely fixed and re-tested. **This is exactly what the two-phase split
+was designed to buy** — the untested path failed in a 13-minute test costing cents, instead of ~40
+hours into a ~$300 unattended run.
