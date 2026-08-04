@@ -355,12 +355,20 @@ def merge_fragments(outroot):
 
 
 def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enable_self_align,
-              auth_token):
+              auth_token, run_start_ts):
     """Runs one phase (a bounded list of people) to completion: resumability scan, heartbeat loop
-    (own state file, own people_total -- so rate/ETA/cost are phase-local, not polluted by any
-    other phase that ran before it in the same process), concurrent dispatch, periodic + final
-    fragment merge. Returns (n_done, n_given_up, wall_seconds). Mount/lock are the CALLER's
-    responsibility (held once for the whole multi-phase run, not per phase)."""
+    (own state file, own people_total -- so rate/ETA are phase-local, not polluted by any other
+    phase that ran before it in the same process), concurrent dispatch, periodic + final fragment
+    merge. Returns (n_done, n_given_up, wall_seconds). Mount/lock are the CALLER's responsibility
+    (held once for the whole multi-phase run, not per phase).
+
+    `run_start_ts` (2026-08-05) is the timestamp the WHOLE run began (before phase 1), used ONLY to
+    compute a COMBINED cost-vs-budget check across every phase run so far in this process -- kept
+    deliberately separate from the phase-local heartbeat state (monitor_state_file), which is what
+    you actually watch on the dashboard to judge "is THIS phase worth continuing." The real $300
+    cap (BRIEF.md) is a total-spend number, not a per-phase one -- since it's the same VM running
+    continuously across both phases, real dollars are proportional to total wall-clock time since
+    the orchestrator started, not phase-local elapsed hours."""
     print(f"\n########## PHASE: {phase_label} ({len(people)} people) ##########", file=sys.stderr)
     print("Scanning for already-completed people (real .gtf.gz existence + real-call check, "
           "not a log entry -- this is what makes killing and relaunching safe)...", file=sys.stderr)
@@ -404,16 +412,21 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
             )
             status, payload = send_heartbeat(d, f, people_total, disk_pct, mem_pct,
                                               **heartbeat_kwargs)
-            cost = payload.get("cost_so_far_usd")
-            if cost is not None and args.budget and cost > args.budget:
-                warn(f"[{phase_label}] cost_so_far_usd={cost:.2f} has EXCEEDED "
-                     f"--budget={args.budget:.2f} (this phase only) -- this is a flag, not an "
+            phase_cost = payload.get("cost_so_far_usd")  # phase-local -- for judging THIS phase
+
+            # Combined cost across every phase run so far in THIS process -- the real number to
+            # check against the true $300 total cap, independent of the phase-local dashboard state.
+            global_elapsed_hours = (time.time() - run_start_ts) / 3600.0
+            global_cost = (global_elapsed_hours * args.vm_rate) if args.vm_rate else None
+            if global_cost is not None and args.budget and global_cost > args.budget:
+                warn(f"[{phase_label}] COMBINED cost_so_far_usd={global_cost:.2f} (all phases, "
+                     f"this run) has EXCEEDED --budget={args.budget:.2f} -- this is a flag, not an "
                      f"auto-stop. Decide whether to let it keep running.")
             if payload.get("anomaly"):
                 warn(f"[{phase_label}] heartbeat anomaly: {payload.get('anomaly_reason')}")
             print(f"  [{phase_label}] [heartbeat] status={status} done={d} failed={f}/{people_total} "
                   f"rate={payload.get('rate_per_hour')}/hr eta_hr={payload.get('eta_hours_remaining')} "
-                  f"cost=${cost}", file=sys.stderr)
+                  f"phase_cost=${phase_cost} combined_cost=${global_cost}", file=sys.stderr)
             with state["lock"]:
                 anc_done_snapshot = dict(state["anc_done"])
             print(f"  [{phase_label}] [heartbeat] per-ancestry done/total (local log only): " +
@@ -540,8 +553,12 @@ def main():
                          "cost_so_far_usd / budget tracking to mean anything. DECISIONS.md's "
                          "~$3.03/hr is a research estimate, not a quoted price -- confirm live.")
     ap.add_argument("--budget", type=float, default=300.0,
-                    help="Applied PER PHASE in default two-phase mode (each phase's cost is "
-                         "tracked from its own state file) -- not a combined two-phase total.")
+                    help="Total spend cap (BRIEF.md's real $300 cap) -- tracked COMBINED across "
+                         "both phases (elapsed wall-clock time since this process started x "
+                         "--vm-rate), not reset per phase. A separate phase-local cost is also "
+                         "shown in each heartbeat log line (from the dashboard state), for judging "
+                         "an individual phase's own cost -- but this flag's warning is the real "
+                         "total-spend check.")
     args = ap.parse_args()
 
     total_cores = args.concurrency * args.threads_per_person
@@ -572,6 +589,8 @@ def main():
              "local budget check below is disabled. Confirm the real n2-highcpu-96 rate in the "
              "Workbench UI and pass it.")
 
+    run_start_ts = time.time()  # combined cost-vs-budget tracking spans every phase from here
+
     try:
         people, ancestry_map, trim_tier_map = load_cohort(args.cohort)
         print(f"Cohort: {len(people)} people loaded from {args.cohort}.", file=sys.stderr)
@@ -580,7 +599,7 @@ def main():
             phase_people = filter_people(people, trim_tier_map, args.skip_trim_tier,
                                           args.only_trim_tier)
             run_phase("single", phase_people, ancestry_map, args, args.monitor_state_file,
-                      args.enable_self_align_fallback, auth_token)
+                      args.enable_self_align_fallback, auth_token, run_start_ts)
             return
 
         # --- Default: automatic two-phase run, no manual intervention between phases ---
@@ -589,10 +608,12 @@ def main():
         print(f"Automatic two-phase run: phase 1 = {len(phase1_people)} people (everyone except "
               f"{SEQUEL2_TIER}), phase 2 = {len(phase2_people)} people (only {SEQUEL2_TIER}, "
               f"self-align fallback auto-enabled). Phase 2 starts automatically the moment phase 1 "
-              f"finishes -- no further command needed.", file=sys.stderr)
+              f"finishes -- no further command needed. Cost is tracked COMBINED across both phases "
+              f"against --budget={args.budget} (not reset per phase).", file=sys.stderr)
 
         run_phase("phase1_main_cohort", phase1_people, ancestry_map, args,
-                  args.monitor_state_file, enable_self_align=False, auth_token=auth_token)
+                  args.monitor_state_file, enable_self_align=False, auth_token=auth_token,
+                  run_start_ts=run_start_ts)
 
         if not phase2_people:
             print("No phase-2 (self_align_needed) people in this cohort -- run complete.",
@@ -610,7 +631,7 @@ def main():
               f"ON, isolated monitor state at {phase2_state_file}) -- no manual step needed.",
               file=sys.stderr)
         run_phase("phase2_self_align", phase2_people, ancestry_map, args, phase2_state_file,
-                  enable_self_align=True, auth_token=auth_token)
+                  enable_self_align=True, auth_token=auth_token, run_start_ts=run_start_ts)
     finally:
         if os.path.exists(lock_path):
             os.remove(lock_path)
