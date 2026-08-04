@@ -4,57 +4,71 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-08-04 — scaling diagnostic done with real data; production orchestrator is the one thing genuinely not built
+## As of 2026-08-04 (end of session) — all pre-launch decisions locked; only two build tasks remain
 
-Two things converged this session for the full-cohort Immuannot run (~13,000-14,521 people):
+Everything needed to decide *how* to run the full-cohort Immuannot production job is now decided
+and recorded in `context/DECISIONS.md`. Nothing here is provisional anymore:
 
-**1. Monitoring subsystem — done, deployed, working.** Built in a parallel session
-(`scripts/monitoring/`), live on Hetzner (`hermes-agent`, 46.225.123.54:8943) as systemd unit
-`hla-monitor.service`. Password-gated dashboard, `POST /heartbeat` receiver, ntfy.sh alerting on
-anomaly/silence. Tested end-to-end with synthetic heartbeats. **One loose end: the Hetzner
-firewall rule for port 8943** — needs Marc's own Hetzner console access, check whether it's been
-added yet before assuming external reachability works. Full detail: `scripts/monitoring/README.md`.
+- **VM: `n2-highcpu-96`, region `us-central1`.**
+- **Concurrency: 24 people at once, 4 threads each (96 total cores).**
+- **Disk: 2TB, no per-person pruning.**
+- **Cost/time estimate: ~$160-200, ~52-58 hours wall-clock** (extrapolated from real 32-core data — see caveat below).
+- **Low-confidence Immuannot calls: keep all of them, with confidence signals as metadata — never filtered.**
+- **Monitoring: already built and deployed** (Hetzner, `hla-monitor.service`, port 8943) — just needs the orchestrator to call it.
 
-**2. Core-scaling diagnostic — done, real data, a decision reached (not yet formally committed).**
-`scripts/scaling_probe.py` (a from-scratch Python rewrite, replacing a bash orchestrator that
-became a full day/night incident — see ENVIRONMENT.md quirks #23-27 before touching anything that
-orchestrates multiple Immuannot invocations) produced real throughput/memory data at a fixed
-32-core budget: **the concurrency/threads-per-person split doesn't affect speed (all within ~2%),
-only memory** — so prefer a moderate split (concurrency ≈ cores/4, threads=4) over maxing
-concurrency, same speed, ~half the memory risk. Full numbers and the extrapolation to a 96-core
-production machine (~52-58h, ~$180-200): `context/EXPERIMENTS.md` (2026-08-03/04 entry),
-`context/DECISIONS.md` (Resolved, "Concurrency vs. threads-per-person split").
+Full rationale and the real scaling data behind these numbers: `context/DECISIONS.md` ("Concurrency
+vs. threads-per-person split" + the VM/disk sub-bullets under it), `context/EXPERIMENTS.md`
+(2026-08-03/04 entry).
 
-**Genuinely not built: the production orchestrator itself.** This is the next concrete task, not
-optional cleanup. It needs, at minimum (each of these is a real lesson paid for this session, not
-speculative):
-- The 8×4-style concurrency/threads config from the Resolved decision above.
-- A single-instance lock (PID-file, refuse to start if another instance is live) — ENVIRONMENT.md quirk #23.
-- A hard mount check at startup that refuses to run at all without a verified working mount — quirk #26.
-- Real resumability (skip already-done people, safe to kill and relaunch) — the pattern
-  `run_experiment_d.sh` already used successfully at 60-person scale.
-- Per-person disk pruning as it goes — at ~81MB/person × 14,521 people ≈ **1.1-1.2 TB** if nothing
-  is ever cleaned up, which would exceed a smaller data disk; the disk-size decision when creating
-  the production VM needs this number, not a guess.
-- Wiring into the already-deployed heartbeat monitor (`scripts/monitoring/README.md`'s "Wiring
-  into the real orchestrator" section has the exact call shape) — call it every ~15 min with
-  `people_done`/`people_failed`/`people_total`/`--vm-rate <the chosen machine's $/hr>`.
+**Caveat carried forward, not yet resolved: the 96-core extrapolation is linear from real 32-core
+data, never confirmed at a higher core count.** Marc's call whether to launch on this basis or
+spend one more small confirmation test first — not decided as of this session's end, and not
+blocking (the orchestrator can be built and smoke-tested regardless of when that call is made).
 
-## Pick up here
+## What's actually left — two things, both spec'd, neither built
 
-1. **Confirm the Hetzner firewall rule for port 8943 is actually in place** (`scripts/monitoring/README.md` step 2) — quick to check, blocks knowing whether the dashboard is externally reachable.
-2. **Decide: commit to `n1-highcpu-96` now, or spend one more small `scaling_probe.py` test at a higher core count first** to confirm the flat-throughput extrapolation holds past 32 cores. Marc's call — not yet made as of this session's end.
-3. **Build the production orchestrator** — the bullet list above is the spec. Consider Python from the start (not bash) given this session's experience — `scaling_probe.py` is a reasonable starting skeleton, not a from-scratch design.
-4. **Build the full-cohort person list.** `scripts/build_immuannot_cohort.py` exists but was built for a small verified test batch (`-n` up to a few dozen) — check whether it needs adjustting to comfortably enumerate the full ~13,000-14,521 assembly-holding population, not just verify a small sample.
-5. Once the orchestrator exists and is smoke-tested small, launch the real run — cost/time budget from step 2's decision, monitored live via the already-deployed dashboard.
+1. **The production orchestrator.** Full implementation brief:
+   `scripts/production_orchestrator/BRIEF.md` — locked-in config, required safety behavior (single-
+   instance lock, hard mount check, real resumability, no `du`/`df` on broad scope), and why each
+   requirement exists (every one is a real incident from this session, see ENVIRONMENT.md quirks
+   #23-#27). Recommended starting point: extend `scripts/scaling_probe.py`'s already-working
+   patterns (mount check, lock, `ThreadPoolExecutor` concurrency) rather than starting from zero.
+2. **The full cohort list.** `scripts/build_immuannot_cohort.py` exists but was built for small
+   verified test batches (`-n`, defaults to 40, stops early) — needs extending to enumerate the
+   real full population (~13,000-14,521, exact number TBD), and has one real open scope question:
+   whether to include `sequel2`'s 991 people (AFR-enriched, missing the alignment files the current
+   trim step needs) via a new whole-contig fallback, or deliberately exclude them. Detailed in the
+   orchestrator brief above — resolve explicitly with Marc, don't default silently either way.
 
-## Watch / blockers
+Both are one self-contained brief (`scripts/production_orchestrator/BRIEF.md`) — a fresh session
+can be pointed directly at that file plus this one and have everything needed to start building.
 
-- **The gcsfuse mount does not survive a VM restart or a stop — this bit this session hard, repeatedly, across many hours.** Any new script that reads the mount should hard-fail-fast if it's missing (quirk #26), not assume a human remembered to check.
-- **A restarted VM proves whatever was running already exited — there is no "VM kills a mid-run job" mode.** If you come back to a restarted VM after an unattended run and find thin/empty results, diagnose it as "why did a completed/crashed run produce nothing," not "was it cut off partway" (quirk #14 addendum, 2026-08-03).
-- **Never run two instances of the same per-person orchestrator concurrently** — even with output-file isolation via `--out-suffix`, the shared per-person *intermediate* directory (trimmed FASTA, `.gtf.gz`) is not isolated between invocations and will get silently corrupted (quirk #23).
-- **This session worked in a second Verily Workbench workspace** (institutional/Stanford-pod billing, project `wb-cordial-leechee-9743`, distinct from the original personal workspace `wb-glacial-potato-8710`) to get a bigger test VM. Getting that workspace to actually access Controlled Tier data required a real VPC Service Controls / app-policy troubleshooting saga (workspace-level data linking + a group policy scoped to that specific workspace) — not logged as a durable quirk since it was a one-time institutional-workspace-setup issue, but worth remembering if a THIRD workspace is ever created: link Controlled Tier data before creating any compute environment in it.
-- `~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart on any workspace; the mount, background processes, and activated pixi shell do not.
-- **DRB1 is confirmed the hardest locus by six independent, converging lines of evidence** (cross-tool disagreement, both tools' own confidence signals, confidence-filtering nearly eliminating it under every truth-source and direct-comparison variant tried) — treat any new DRB1 result skeptically-but-not-surprised; this is a well-established, real property of the locus, not a fluke. Unrelated to this session's scaling work, but still standing.
-- **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a specific new reason.
+## Watch / blockers (carried from earlier this session — still true, will matter for the orchestrator)
+
+- **The gcsfuse mount does not survive a VM restart or a stop.** Any new script that reads the
+  mount must hard-fail-fast if it's missing (quirk #26) — do not rely on a human remembering to
+  check first, this failed multiple times this session, for both Marc and the assistant giving
+  instructions.
+- **A restarted VM proves whatever was running already exited** — there is no "VM kills a mid-run
+  job" mode. Thin/empty results after a restart means diagnose "why did it produce nothing," not
+  "was it cut off partway" (quirk #14 addendum).
+- **Never run two instances of the same per-person orchestrator concurrently** — the shared
+  per-person *intermediate* directory is not isolated between invocations even when final output
+  files are, and will get silently corrupted (quirk #23).
+- **Confirm the Hetzner firewall rule for port 8943 is actually in place** before relying on the
+  dashboard being externally reachable — `scripts/monitoring/README.md` step 2, needs Marc's own
+  Hetzner console access, not something a Workbench-side session can do.
+- This session worked in a second Verily Workbench workspace (`wb-cordial-leechee-9743`,
+  Stanford-pod billing) to get a bigger test VM — getting Controlled Tier data linked to that
+  workspace required a real VPC-SC/app-policy troubleshooting saga (workspace-level data linking +
+  a group policy scoped to that workspace). Not logged as a durable quirk (one-time
+  institutional-workspace-setup issue), but if a third workspace is ever created: **link Controlled
+  Tier data before creating any compute environment in it.**
+- `~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart on any workspace; the
+  mount, background processes, and activated pixi shell do not.
+- **DRB1 is confirmed the hardest locus by six independent, converging lines of evidence** —
+  unrelated to this session's scaling work, but still standing; treat any new DRB1 result
+  skeptically-but-not-surprised.
+- **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a
+  specific new reason.
 - Marc and Aleix both work in this repo directly and concurrently — normal, not an anomaly.
