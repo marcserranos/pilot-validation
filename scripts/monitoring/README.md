@@ -11,7 +11,8 @@
   heartbeat reports an anomaly.
 - **`heartbeat_client.py`** — runs on the Workbench pipeline VM (or anywhere). Exposes
   `send_heartbeat(people_done, people_failed, people_total, current_disk_pct, current_mem_avail_pct)`
-  for the future orchestrator to call every ~15 min, and a CLI for manual/synthetic testing.
+  for the future orchestrator to call every **~5 min** (revised 2026-08-04 from the original ~15
+  min plan — see "Cadence" below), and a CLI for manual/synthetic testing.
 - **This README.**
 
 Nothing here touches the Hermes Agent project on the same box (different port, different systemd
@@ -196,15 +197,36 @@ built yet) only reports **cumulative** `people_done`/`people_failed` counts each
 per-person outcome log — so a literal "last 50 people" window isn't available to compute from.
 Instead, `heartbeat_client.py` keeps a tiny local state file (`client_state.json`, gitignored) of
 the previous call's cumulative counts, and computes the failure rate **among people completed
-since the last heartbeat** (i.e. a time-windowed proxy, naturally scoped to roughly one ~15-min
-cadence interval rather than a fixed people-count). This is documented here rather than silently
-diverging from the brief's wording. If a true fixed-N rolling window ever matters more than this
-approximation, the orchestrator would need to report a per-person outcome log instead of just
-cumulative counts — not needed for the current anomaly-detection use case.
+since the last heartbeat** (i.e. a time-windowed proxy, naturally scoped to roughly one cadence
+interval rather than a fixed people-count). At the ~5-min cadence below and the production
+24-worker config, that window naturally captures on the order of ~20-25 people per interval — a
+reasonable sample size, not too noisy. This is documented here rather than silently diverging from
+the brief's wording. If a true fixed-N rolling window ever matters more than this approximation,
+the orchestrator would need to report a per-person outcome log instead of just cumulative counts —
+not needed for the current anomaly-detection use case.
+
+## Cadence: revised to ~5 minutes (2026-08-04, was ~15 min in the original BRIEF.md plan)
+
+Reasoning (Marc's question, answered directly): heartbeat overhead is negligible at any interval
+from 1 minute to 45 — it's a few in-memory counters and one small HTTP POST, nothing a 96-core VM
+or this small Hetzner box would notice. The real trade-off is stall-detection latency vs. noise.
+**5 minutes** is the sweet spot: meaningfully faster stall detection than 15 min (every minute a
+real stall goes unnoticed on a ~$3/hr VM is money spent producing nothing — this project had a
+real, hours-long stall incident this session), while going shorter than ~5 min stops buying
+anything, since human reaction time becomes the actual bottleneck, not detection time. **The
+watchdog's stale threshold should move from the original 25 min to ~12-15 min** (2-3x the new
+cadence, same slack ratio as before) — update `MONITOR_STALE_MINUTES` in `~/hla-monitor/.env` on
+the Hetzner box and restart the service (`systemctl restart hla-monitor`) to apply; not yet done as
+of 2026-08-04, since the orchestrator that would actually use this cadence doesn't exist yet.
+**One hard requirement carried from this session's own incidents: the orchestrator must compute
+`people_done`/`people_failed`/etc. from in-memory counters it already tracks, never by re-scanning
+the output directory** — a broad filesystem scan on every heartbeat would reintroduce the exact
+`du`/`df`-hanging failure mode this project spent a full day/night diagnosing (ENVIRONMENT.md
+quirk #25).
 
 ## Wiring into the real orchestrator (later, small step)
 
-Once the production orchestrator exists, it just needs to call, every ~15 minutes:
+Once the production orchestrator exists, it just needs to call, every ~5 minutes:
 
 ```python
 from heartbeat_client import send_heartbeat

@@ -25,7 +25,7 @@ launching, not after.
 | Concurrency | 24 people at once, 4 threads each (24×4=96 cores) | DECISIONS.md — speed is flat across concurrency/thread splits at a fixed core budget, so use the split with the best memory headroom + existing track record |
 | Data disk | 2TB (2000GB), **no per-person pruning** | ~81MB/person × 14,521 ≈ 1.15TB + margin; disk cost is trivial at this run length, pruning bugs are a real historical risk in this project |
 | Low-confidence calls | **Call everyone. Keep every call, including low-confidence ones.** Record `template_distance`, `template_warning`, and the novel-allele `"new"` tag as metadata columns — never filter or drop a call for being low-confidence. | Decided earlier this session, explicit user instruction — do not silently reintroduce a confidence filter |
-| Monitoring | POST a heartbeat to the already-deployed Hetzner receiver every ~15 min | `scripts/monitoring/README.md` "Wiring into the real orchestrator" section has the exact call shape; use `heartbeat_client.py`'s `send_heartbeat()` |
+| Monitoring | POST a heartbeat to the already-deployed Hetzner receiver every ~5 min (revised 2026-08-04 -- see monitoring/README.md "Cadence") | `scripts/monitoring/README.md` "Wiring into the real orchestrator" section has the exact call shape; use `heartbeat_client.py`'s `send_heartbeat()` |
 | Cost cap | **$300 total** | User's explicit budget; the 96-core config estimates ~$160-200, leaving real margin — don't casually blow past this without flagging it |
 
 **GPU: confirmed not applicable — do not add it.** minimap2/Immuannot have no GPU code path.
@@ -105,7 +105,7 @@ standalone CLI. Read `scripts/monitoring/README.md`'s "Wiring into the real orch
 for the exact call shape and required fields (`people_done`, `people_failed`, `people_total`,
 `--vm-rate` — pass **the real confirmed `n2-highcpu-96` hourly rate from the Workbench UI when the
 VM is created**, not the ~$3.03/hr estimate in DECISIONS.md, which is a research estimate, not a
-quoted price). Call it roughly every 15 minutes from within the main processing loop — not more
+quoted price). Call it roughly every ~5 minutes from within the main processing loop — not more
 often (this was designed as minimal sampling, not continuous telemetry, per the original ask).
 
 ## Before the real launch — smoke test, don't skip this
