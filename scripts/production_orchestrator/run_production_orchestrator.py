@@ -220,13 +220,20 @@ def bump_attempts(outroot, pid):
     return n
 
 
-def load_cohort(cohort_path, skip_trim_tiers):
+def load_cohort(cohort_path, skip_trim_tiers, only_trim_tiers=None):
     """Returns (people, ancestry_map). ancestry_map is {person_id: ancestry_pred_or_'NA'} --
     build_immuannot_cohort.py's ancestry join (2026-08-04), used ONLY for local per-ancestry
     progress logging (see log_ancestry_progress()) -- never sent to the remote heartbeat dashboard,
     which stays aggregate-counts-only per monitoring/README.md. If the cohort file predates the
     ancestry join (no ancestry_pred column), every person maps to 'NA' -- degrades gracefully,
-    doesn't block a launch."""
+    doesn't block a launch.
+
+    `only_trim_tiers` (2026-08-05, two-phase launch): the inverse of `skip_trim_tiers` -- restricts
+    to JUST the given tier(s) instead of excluding them. Lets phase 2 of a two-phase launch (e.g.
+    "everyone except self_align_needed" first, then "only self_align_needed" as its own observable,
+    abortable second run) target the exact right subset from the SAME cohort file, without needing
+    a separate cohort export step. Mutually exclusive with skip_trim_tiers in practice (pass one or
+    the other), though both are technically applied if both are given."""
     if not os.path.isfile(cohort_path):
         die(f"cohort file not found: {cohort_path} -- run build_immuannot_cohort.py first.")
     df = pd.read_csv(cohort_path, sep="\t", dtype=str)
@@ -239,6 +246,13 @@ def load_cohort(cohort_path, skip_trim_tiers):
         df = df[~df["trim_tier"].isin(skip)]
         print(f"--skip-trim-tier {sorted(skip)}: excluded {before - len(df)}/{before} people from "
               f"this launch (they remain in the cohort file for a later batch).", file=sys.stderr)
+    only = set(only_trim_tiers or [])
+    if only:
+        before = len(df)
+        df = df[df["trim_tier"].isin(only)]
+        print(f"--only-trim-tier {sorted(only)}: restricted to {len(df)}/{before} people "
+              f"(everyone else in the cohort file is left untouched by this launch).",
+              file=sys.stderr)
     if "ancestry_pred" in df.columns:
         ancestry_map = {pid: (a if pd.notna(a) else "NA")
                         for pid, a in zip(df["person_id"], df["ancestry_pred"])}
@@ -353,6 +367,12 @@ def main():
                     help="Exclude a trim_tier from this launch (repeatable). E.g. "
                          "--skip-trim-tier self_align_needed to hold sequel2-shaped people back "
                          "for a later batch. Excluded people stay in the cohort file, untouched.")
+    ap.add_argument("--only-trim-tier", action="append", default=[],
+                    help="Restrict this launch to JUST the given trim_tier(s) (repeatable) -- the "
+                         "inverse of --skip-trim-tier. E.g. --only-trim-tier self_align_needed for "
+                         "a phase-2 launch that targets exactly the sequel2-shaped people held back "
+                         "from a phase-1 --skip-trim-tier self_align_needed run, from the SAME "
+                         "cohort file, without a separate export step.")
     ap.add_argument("--max-attempts", type=int, default=3,
                     help="After this many failed attempts, a person is marked given-up (not "
                          "retried on future relaunches) instead of consuming a worker slot on a "
@@ -362,6 +382,15 @@ def main():
                          "'Cadence'. Do not go below ~60s; heartbeat overhead is negligible but "
                          "there's no benefit past human reaction time.")
     ap.add_argument("--monitor-url", default=os.environ.get("MONITOR_URL", DEFAULT_MONITOR_URL))
+    ap.add_argument("--monitor-state-file", default=None,
+                    help="Local state file heartbeat_client uses to compute rate/ETA/rolling-"
+                         "failure-rate (default: heartbeat_client's own client_state.json, shared "
+                         "across all invocations). REQUIRED to be a FRESH, distinct path for a "
+                         "phase-2/second launch on the same VM (e.g. "
+                         "~/pipeline_outputs/monitor_state_phase2.json) -- otherwise phase 2's "
+                         "rate_per_hour/eta_hours_remaining are computed against phase 1's elapsed "
+                         "hours plus a much smaller people_done, giving a badly wrong (too-low) "
+                         "rate right when you need an honest number to decide whether to abort.")
     ap.add_argument("--vm-rate", type=float, default=None,
                     help="REAL Workbench-UI-confirmed USD/hour for the running VM -- required for "
                          "cost_so_far_usd / budget tracking to mean anything. DECISIONS.md's "
@@ -391,7 +420,7 @@ def main():
              "Workbench UI and pass it.")
 
     try:
-        people, ancestry_map = load_cohort(args.cohort, args.skip_trim_tier)
+        people, ancestry_map = load_cohort(args.cohort, args.skip_trim_tier, args.only_trim_tier)
         print(f"Cohort: {len(people)} people loaded from {args.cohort} (after any --skip-trim-tier "
               f"filtering).", file=sys.stderr)
 
@@ -430,11 +459,14 @@ def main():
                     d, f = state["done"], state["failed"]
                 disk_pct = disk_used_pct(args.outroot)
                 mem_pct = mem_avail_pct()
-                status, payload = send_heartbeat(
-                    d, f, people_total, disk_pct, mem_pct,
+                heartbeat_kwargs = dict(
                     receiver_url=args.monitor_url, auth_token=auth_token,
                     vm_hourly_rate_usd=args.vm_rate, budget_usd=args.budget,
                 )
+                if args.monitor_state_file:
+                    heartbeat_kwargs["state_path"] = args.monitor_state_file
+                status, payload = send_heartbeat(d, f, people_total, disk_pct, mem_pct,
+                                                  **heartbeat_kwargs)
                 cost = payload.get("cost_so_far_usd")
                 if cost is not None and args.budget and cost > args.budget:
                     warn(f"cost_so_far_usd={cost:.2f} has EXCEEDED --budget={args.budget:.2f} -- "
