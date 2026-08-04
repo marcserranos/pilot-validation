@@ -75,6 +75,24 @@ if [ "$#" -lt 4 ]; then
   exit 1
 fi
 
+# --- Hard mount check, added 2026-08-04 after repeated real incidents: the gcsfuse mount at
+# ~/mnt/aou-controlled does not survive a VM restart (ENVIRONMENT.md quirk #11/#14), and this
+# script previously had NO check for that -- it would silently continue past a Phase 0 that FATAL'd
+# instantly on a missing manifest (no `set -e`, so a failed subprocess doesn't stop the script),
+# then get stuck deep in Phase 1 for hours with no further explanation. "Remember to remount and
+# verify before launching" failed multiple times across one session (both the human and the
+# assistant giving instructions forgot at different points) -- this makes it structurally
+# impossible to skip: the script now refuses to start at all without a real, working mount. ---
+MOUNT="$HOME/mnt/aou-controlled"
+MOUNT_CHECK_FILE="$MOUNT/v9/wgs/long_read/manifest.tsv"
+if [ ! -f "$MOUNT_CHECK_FILE" ]; then
+  echo "FATAL: $MOUNT_CHECK_FILE not found -- the gcsfuse mount at $MOUNT is not up." >&2
+  echo "This does NOT survive a VM restart. Remount, THEN verify with ls, THEN retry:" >&2
+  echo "  mkdir -p $MOUNT && gcsfuse --billing-project <your-workspace-project> --implicit-dirs vwb-aou-datasets-controlled $MOUNT" >&2
+  echo "  ls $MOUNT_CHECK_FILE   # must show the real file before running this script again" >&2
+  exit 1
+fi
+
 ALL_PEOPLE=("$@")
 N_PEOPLE=${#ALL_PEOPLE[@]}
 NPROC=$(nproc)
