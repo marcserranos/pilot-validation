@@ -50,6 +50,7 @@ from collections import Counter
 import pandas as pd
 
 LR_MANIFEST = "v9/wgs/long_read/manifest.tsv"
+ANCESTRY_TSV = "v9/wgs/short_read/snpindel/aux/ancestry/ancestry_preds.tsv"
 FA_COLS = ["assembly_hap1_fa", "assembly_hap2_fa"]
 ALN_COLS = ["assembly_hap1_aln2_hg38_bam", "assembly_hap2_aln2_hg38_bam"]
 PAF_COLS = ["assembly_hap1_aln2_hg38_paf", "assembly_hap2_aln2_hg38_paf"]
@@ -238,7 +239,39 @@ def main():
               f"whether to launch them (e.g. --skip-trim-tier self_align_needed to hold them back "
               f"for a later batch) -- this script does not make that call.", file=sys.stderr)
 
-    eligible[["person_id", "platform", "trim_tier", "n_rows"]].to_csv(args.out, sep="\t", index=False)
+    # --- Ancestry join (2026-08-04, cheap and near-free -- Aim 1 is ancestry-stratified frequency
+    # analysis, and sequel2's 991 people are ~95% AFR, exactly the group at risk of being silently
+    # excluded by the sequel2 gap above -- see it directly here instead of discovering it only
+    # during downstream analysis). Best-effort: a missing/unreadable ancestry TSV degrades to an
+    # "ancestry_pred" column of NA rather than failing the whole cohort build -- this is an
+    # enrichment, not a hard Immuannot requirement.
+    ancestry_path = os.path.join(args.mount, ANCESTRY_TSV)
+    if os.path.exists(ancestry_path):
+        anc = pd.read_csv(ancestry_path, sep="\t", dtype=str, usecols=["research_id", "ancestry_pred"])
+        anc = anc.rename(columns={"research_id": "person_id"})
+        eligible = eligible.merge(anc, on="person_id", how="left")
+        n_matched = eligible["ancestry_pred"].notna().sum()
+        print(f"\n=== Ancestry join: {n_matched}/{len(eligible)} eligible people matched in "
+              f"{ancestry_path} ===", file=sys.stderr)
+        print("=== Eligible-cohort ancestry distribution ===", file=sys.stderr)
+        for anc_label, n in Counter(eligible["ancestry_pred"].fillna("NA")).most_common():
+            print(f"  {n:6d}  {anc_label}", file=sys.stderr)
+        if n_needs_fallback:
+            print("\n=== self_align_needed (sequel2 gap) ancestry distribution -- this is the "
+                  "group at risk of silent exclusion ===", file=sys.stderr)
+            fallback_rows = eligible[eligible["trim_tier"] == "self_align_needed"]
+            for anc_label, n in Counter(fallback_rows["ancestry_pred"].fillna("NA")).most_common():
+                pct = 100 * n / max(len(fallback_rows), 1)
+                print(f"  {n:6d} ({pct:5.1f}%)  {anc_label}", file=sys.stderr)
+    else:
+        warn_msg = (f"ancestry TSV not found at {ancestry_path} -- ancestry_pred column will be "
+                    f"empty. Not fatal (this is an enrichment, not a hard requirement), but the "
+                    f"per-ancestry breakdown above is skipped.")
+        print(f"\nNOTE: {warn_msg}", file=sys.stderr)
+        eligible["ancestry_pred"] = None
+
+    eligible[["person_id", "platform", "trim_tier", "n_rows", "ancestry_pred"]].to_csv(
+        args.out, sep="\t", index=False)
     print(f"\nWrote {len(eligible)} eligible person_ids to {args.out}", file=sys.stderr)
     print(f"Full per-row checkpoint (all columns' individual flags) at {checkpoint_path}",
           file=sys.stderr)

@@ -43,6 +43,28 @@ cost — never person_ids or alleles. This is the thing to actually watch during
 52-58 hour run; the aggregate TSVs above are the thing to pull results from afterward, from inside
 the Workbench.
 
+## How to actually launch it (tmux + tee — not optional)
+
+ENVIRONMENT.md quirk #14's standing practice for any unattended run over a few minutes: launch
+inside `tmux` (or `nohup ... & disown`) **and** `tee` full stdout/stderr to a persistent log file.
+Without this, a dropped SSH/browser session sends the foreground process a `SIGHUP` — killing the
+whole orchestrator near-instantly — and that failure mode is indistinguishable from "the VM
+restarted" by inspecting output files alone (this already happened once this project, cost a
+misdiagnosed multi-hour incident). Do not launch this bare in a plain terminal:
+
+```bash
+tmux new -s immuannot_prod
+cd ~/repos/pilot-validation && pixi shell -e specimmune
+export MONITOR_AUTH_TOKEN=<from ~/hla-monitor/.env on the Hetzner box>
+python3 scripts/production_orchestrator/run_production_orchestrator.py \
+    --vm-rate <REAL Workbench-UI-confirmed USD/hour> \
+    2>&1 | tee -a ~/pipeline_outputs/production_orchestrator.log
+# Ctrl-b d to detach; `tmux attach -t immuannot_prod` to reattach later.
+```
+
+The persistent log is what actually proves how far the run got if you come back to a restarted VM
+and find thin/empty results — never trust "looks idle, must be done" (quirk #14 addendum).
+
 ## Compliance note (carried from DECISIONS.md, still open)
 
 Whether even bare `person_id`s belong in a public-repo-adjacent operational record is an open

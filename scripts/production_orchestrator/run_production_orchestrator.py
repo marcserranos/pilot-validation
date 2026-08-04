@@ -41,11 +41,14 @@ exactly the failure mode monitoring/BRIEF.md was built to prevent.
 import argparse
 import concurrent.futures
 import glob
+import gzip
 import os
+import re
 import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 
 import pandas as pd
 
@@ -151,12 +154,40 @@ def person_output_paths(outroot, pid):
     return (os.path.join(person_dir, "hap1.gtf.gz"), os.path.join(person_dir, "hap2.gtf.gz"))
 
 
+_GTF_CALL_RE = re.compile(r'(consensus|allele) "[^"]+"')
+
+
+def gtf_has_real_call(gtf_gz_path):
+    """File existence alone is NOT sufficient (ENVIRONMENT.md quirks #17/#18: both SpecImmune and
+    SpecHLA have separately, actually shipped a real, existing output file while exiting 0 and
+    having silently produced near-zero real content -- a coarse success signal like exit code or
+    file existence was not enough for either tool, and there's no reason to assume Immuannot is
+    immune to the same class of bug just because it hasn't been caught here yet). Cheap check:
+    the gtf.gz decompresses and contains at least one real gene/allele attribute line -- mirrors
+    run_immuannot_person.py's own parse_gtf() regex, just as a boolean instead of building the
+    full calls dict. A truly empty or corrupt gtf.gz (0 real calls) is treated as NOT done, so a
+    relaunch retries it instead of permanently trusting a hollow success."""
+    try:
+        with gzip.open(gtf_gz_path, "rt") as f:
+            for line in f:
+                if line.startswith("#"):
+                    continue
+                if _GTF_CALL_RE.search(line):
+                    return True
+        return False
+    except OSError:
+        return False
+
+
 def person_done(outroot, pid):
     """Real resumability check, per BRIEF.md: the expected OUTPUT file, not a log entry and not
     run_immuannot_person.py's own canonical-immuannot_calls.tsv check (which is blind to
-    --out-suffix-isolated concurrent results -- see that script's --out-suffix docstring)."""
+    --out-suffix-isolated concurrent results -- see that script's --out-suffix docstring). Both
+    haplotype .gtf.gz files must exist AND actually contain >=1 real call each -- see
+    gtf_has_real_call()."""
     hap1_gtf, hap2_gtf = person_output_paths(outroot, pid)
-    return os.path.isfile(hap1_gtf) and os.path.isfile(hap2_gtf)
+    return (os.path.isfile(hap1_gtf) and os.path.isfile(hap2_gtf)
+            and gtf_has_real_call(hap1_gtf) and gtf_has_real_call(hap2_gtf))
 
 
 def gave_up_path(outroot, pid):
@@ -190,6 +221,12 @@ def bump_attempts(outroot, pid):
 
 
 def load_cohort(cohort_path, skip_trim_tiers):
+    """Returns (people, ancestry_map). ancestry_map is {person_id: ancestry_pred_or_'NA'} --
+    build_immuannot_cohort.py's ancestry join (2026-08-04), used ONLY for local per-ancestry
+    progress logging (see log_ancestry_progress()) -- never sent to the remote heartbeat dashboard,
+    which stays aggregate-counts-only per monitoring/README.md. If the cohort file predates the
+    ancestry join (no ancestry_pred column), every person maps to 'NA' -- degrades gracefully,
+    doesn't block a launch."""
     if not os.path.isfile(cohort_path):
         die(f"cohort file not found: {cohort_path} -- run build_immuannot_cohort.py first.")
     df = pd.read_csv(cohort_path, sep="\t", dtype=str)
@@ -202,7 +239,12 @@ def load_cohort(cohort_path, skip_trim_tiers):
         df = df[~df["trim_tier"].isin(skip)]
         print(f"--skip-trim-tier {sorted(skip)}: excluded {before - len(df)}/{before} people from "
               f"this launch (they remain in the cohort file for a later batch).", file=sys.stderr)
-    return list(df["person_id"])
+    if "ancestry_pred" in df.columns:
+        ancestry_map = {pid: (a if pd.notna(a) else "NA")
+                        for pid, a in zip(df["person_id"], df["ancestry_pred"])}
+    else:
+        ancestry_map = {pid: "NA" for pid in df["person_id"]}
+    return list(df["person_id"]), ancestry_map
 
 
 def scan_already_done(outroot, people, max_workers=32):
@@ -349,24 +391,36 @@ def main():
              "Workbench UI and pass it.")
 
     try:
-        people = load_cohort(args.cohort, args.skip_trim_tier)
+        people, ancestry_map = load_cohort(args.cohort, args.skip_trim_tier)
         print(f"Cohort: {len(people)} people loaded from {args.cohort} (after any --skip-trim-tier "
               f"filtering).", file=sys.stderr)
 
-        print("Scanning for already-completed people (real .gtf.gz existence check, not a log "
-              "entry -- this is what makes killing and relaunching safe)...", file=sys.stderr)
+        print("Scanning for already-completed people (real .gtf.gz existence + real-call check, "
+              "not a log entry -- this is what makes killing and relaunching safe)...", file=sys.stderr)
         done_set, gave_up_set = scan_already_done(args.outroot, people)
         worklist = [p for p in people if p not in done_set and p not in gave_up_set]
         print(f"  {len(done_set)} already done (skipped), {len(gave_up_set)} previously given up "
               f"after {args.max_attempts}+ attempts (skipped -- see .orchestrator_gave_up markers "
               f"for review), {len(worklist)} to process this launch.", file=sys.stderr)
 
+        # Per-ancestry progress (2026-08-04) -- LOCAL log only, never sent to the remote heartbeat
+        # dashboard (monitoring/README.md keeps that aggregate-counts-only by design). In-memory
+        # counters only, same as the aggregate done/failed counts -- never re-derived by scanning
+        # the output directory. Motivation: sequel2 (the self_align_needed / --skip-trim-tier
+        # candidate) is ~95% AFR, so a failure mode that disproportionately hits one ancestry group
+        # should be visible live, not discovered after the fact in a downstream analysis.
+        anc_total = Counter(ancestry_map.get(p, "NA") for p in people)
+        anc_done = Counter(ancestry_map.get(p, "NA") for p in done_set)
+        print("  Cohort ancestry distribution: " +
+              ", ".join(f"{a}={n}" for a, n in anc_total.most_common()), file=sys.stderr)
+
         if not worklist:
             print("Nothing left to do -- every person is already done or given-up.", file=sys.stderr)
             merge_fragments(args.outroot)
             return
 
-        state = {"done": len(done_set), "failed": len(gave_up_set), "lock": threading.Lock()}
+        state = {"done": len(done_set), "failed": len(gave_up_set), "lock": threading.Lock(),
+                 "anc_done": anc_done}
         people_total = len(people)
         stop_event = threading.Event()
 
@@ -391,6 +445,12 @@ def main():
                 print(f"  [heartbeat] status={status} done={d} failed={f}/{people_total} "
                       f"rate={payload.get('rate_per_hour')}/hr eta_hr={payload.get('eta_hours_remaining')} "
                       f"cost=${cost}", file=sys.stderr)
+                with state["lock"]:
+                    anc_done_snapshot = dict(state["anc_done"])
+                print("  [heartbeat] per-ancestry done/total (local log only, not sent to the "
+                      "remote dashboard): " +
+                      ", ".join(f"{a}={anc_done_snapshot.get(a, 0)}/{n}"
+                                for a, n in anc_total.most_common()), file=sys.stderr)
                 stop_event.wait(args.heartbeat_interval_sec)
 
         hb_thread = threading.Thread(target=heartbeat_loop, daemon=True)
@@ -417,6 +477,7 @@ def main():
                 if ok:
                     with state["lock"]:
                         state["done"] += 1
+                        state["anc_done"][ancestry_map.get(pid, "NA")] += 1
                     print(f"  [{i}/{len(worklist)}] {pid}: DONE ({elapsed:.0f}s)", file=sys.stderr)
                 else:
                     n_attempts = bump_attempts(args.outroot, pid)
