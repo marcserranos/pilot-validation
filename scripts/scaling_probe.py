@@ -163,24 +163,41 @@ def main():
 
         n_failed = sum(1 for _, rc, _ in results if rc != 0)
         total_mb = mem_total_mb()
+        # Report BOTH peak (worst single 2s sample -- a brief spike) and mean (the sustained
+        # level across the whole run) -- added 2026-08-04, Marc: "it's peak memory, so I don't
+        # really care, or I don't really know, if it was a peak or an actual sustained value."
+        # A single "peak" number can't distinguish a momentary spike from real sustained
+        # pressure; reporting both lets that judgment actually be made instead of guessed at.
         mem_min = min(mem_readings) if mem_readings else None
+        mem_mean = (sum(mem_readings) / len(mem_readings)) if mem_readings else None
         peak_pct = (100 * (total_mb - mem_min) / total_mb) if (mem_min and total_mb) else None
+        mean_pct = (100 * (total_mb - mem_mean) / total_mb) if (mem_mean and total_mb) else None
 
-        # Migrate the old (pre-threads_per_person) results file in place if needed, so earlier
-        # concurrency=4/8/16 rows (all implicitly threads_per_person=1) aren't lost or left with a
-        # mismatched schema -- backfill threads_per_person=1 and total_cores=concurrency for them.
+        # Migrate any older-schema results file in place, so earlier rows aren't lost or left
+        # mismatched: v1 (7 cols, implicit threads_per_person=1, peak-only) -> v2 (9 cols, explicit
+        # threads_per_person, still peak-only) -> v3 (10 cols, adds mean_mem_used_pct). Backfills
+        # what wasn't measured at the time (threads_per_person=1 for v1 rows; mean=peak for v1/v2
+        # rows, since per-sample data wasn't kept -- an approximation, not a real mean, but clearly
+        # labeled as such by construction, not silently wrong).
         header = ("timestamp\tconcurrency\tthreads_per_person\ttotal_cores\tn_people\tn_failed\t"
-                  "wall_clock_seconds\tseconds_per_person\tmem_used_peak_pct\n")
+                  "wall_clock_seconds\tseconds_per_person\tmem_used_peak_pct\tmem_used_mean_pct\n")
         if os.path.exists(RESULTS):
             old_lines = open(RESULTS).read().splitlines()
-            if old_lines and "threads_per_person" not in old_lines[0]:
-                print("NOTE: migrating older results file to the new schema (backfilling "
-                      "threads_per_person=1 for pre-existing rows).", file=sys.stderr)
+            if old_lines and "mem_used_mean_pct" not in old_lines[0]:
+                print("NOTE: migrating older results file to the current schema (backfilling "
+                      "threads_per_person=1 / mean=peak where not originally measured).",
+                      file=sys.stderr)
                 migrated = [header.rstrip("\n")]
                 for line in old_lines[1:]:
                     cols = line.split("\t")
-                    ts, conc, n_people, n_fail, wallv, spp, mem = cols
-                    migrated.append(f"{ts}\t{conc}\t1\t{conc}\t{n_people}\t{n_fail}\t{wallv}\t{spp}\t{mem}")
+                    if len(cols) == 7:  # v1: no threads_per_person/total_cores column yet
+                        ts, conc, n_people, n_fail, wallv, spp, mem = cols
+                        migrated.append(f"{ts}\t{conc}\t1\t{conc}\t{n_people}\t{n_fail}\t{wallv}\t"
+                                        f"{spp}\t{mem}\t{mem}")
+                    elif len(cols) == 9:  # v2: has threads_per_person/total_cores, no mean yet
+                        migrated.append("\t".join(cols) + f"\t{cols[-1]}")
+                    else:
+                        migrated.append(line)  # already current schema
                 with open(RESULTS, "w") as f:
                     f.write("\n".join(migrated) + "\n")
 
@@ -190,11 +207,12 @@ def main():
                 f.write(header)
             f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')}\t{concurrency}\t{threads_per_person}\t"
                     f"{total_cores}\t{len(people)}\t{n_failed}\t{wall:.1f}\t{wall/len(people):.1f}\t"
-                    f"{f'{peak_pct:.1f}' if peak_pct is not None else '-'}\n")
+                    f"{f'{peak_pct:.1f}' if peak_pct is not None else '-'}\t"
+                    f"{f'{mean_pct:.1f}' if mean_pct is not None else '-'}\n")
 
         print(f"=== DONE: concurrency={concurrency}, threads_per_person={threads_per_person}, "
-              f"wall={wall:.1f}s, {n_failed}/{len(people)} failed, peak mem {peak_pct:.1f}% -- "
-              f"appended to {RESULTS} ===", file=sys.stderr)
+              f"wall={wall:.1f}s, {n_failed}/{len(people)} failed, mem peak {peak_pct:.1f}% / "
+              f"mean {mean_pct:.1f}% -- appended to {RESULTS} ===", file=sys.stderr)
     finally:
         if os.path.exists(LOCK):
             os.remove(LOCK)
