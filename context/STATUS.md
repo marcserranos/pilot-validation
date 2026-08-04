@@ -62,26 +62,24 @@ Paste back: the `real`/`user`/`sys` time line, and the `self_align_seconds` /
 think it's fine" into a real number to decide on (BRIEF.md: "$10 vs $100 vs an extra day" — Marc's
 framing).
 
-**2026-08-05 — bench test aborted, replaced with a live two-phase launch instead.** Marc: didn't
-want to spend unknown debugging time on an untested ~20min-2hr bench test with no time budget for
-it. **New plan, decided with Marc:** launch the real production run in two sequential phases on the
-same VM, watched live on the dashboard, abortable if phase 2 looks too slow/expensive:
-- **Phase 1:** everyone except `self_align_needed` (`--skip-trim-tier self_align_needed`, no
-  `--enable-self-align-fallback`) — the ~12,261 people with a normal, already-proven trim path.
-- **Phase 2:** only `self_align_needed` (`--only-trim-tier self_align_needed
-  --enable-self-align-fallback`, new flag pair added 2026-08-05) — the 991 sequel2 people, run
-  right after phase 1 finishes, same VM. Watch the dashboard's rate/ETA for phase 2 specifically;
-  if it implies days instead of hours or a real budget blowout, abort (Ctrl-C — note this waits for
-  the current in-flight wave, up to `--concurrency` people, to finish naturally before exiting, not
-  an instant kill) and reconsider rather than let it run unattended.
-- **Required for phase 2's numbers to mean anything:** pass a FRESH `--monitor-state-file` (e.g.
-  `~/pipeline_outputs/monitor_state_phase2.json`) for phase 2 — otherwise its rate/ETA get computed
-  against phase 1's already-elapsed hours plus a much smaller people_done, giving a misleadingly low
-  rate right when an honest number is needed most.
+**2026-08-05 — bench test aborted, replaced with a live two-phase launch — now fully automatic in
+ONE command (Marc: "I don't want to intervene... make everything on the same run").** Didn't want
+to spend unknown debugging time on an untested ~20min-2hr bench test with no time budget for it,
+and didn't want to have to manually type a second command to start phase 2 either. **Current
+behavior, default, no flags needed:** a single `run_production_orchestrator.py` invocation runs
+phase 1 (everyone except `self_align_needed`, ~12,261 people, normal proven trim path) to
+completion, then AUTOMATICALLY continues into phase 2 (only `self_align_needed`, the 991 sequel2
+people, self-align fallback auto-enabled) — same process, same lock, no second command. Each phase
+gets its own heartbeat state file (phase 2's is auto-derived at
+`<outroot>/monitor_state_phase2.json`) so phase 2's rate/ETA/cost on the dashboard are never
+diluted by phase 1's already-elapsed hours — that's the number to watch to decide whether to Ctrl-C
+phase 2 (note: this waits for the current in-flight wave to finish, not an instant kill; a relaunch
+with the same command resumes correctly regardless of where it was aborted).
+`--single-phase` + `--skip-trim-tier`/`--only-trim-tier` preserves the old one-shot-filtered
+behavior for the smoke test.
 
-Exact two-phase launch commands: see chat, not duplicated here (this file is for durable state, not
-copy-paste command logs — the orchestrator's own `--help` and `RESULTS_LOCATION.md` are the source
-of truth for flags).
+Exact launch command: see chat / `RESULTS_LOCATION.md` / the orchestrator's own `--help`, not
+duplicated here (this file is for durable state, not copy-paste command logs).
 
 ## Carried forward from earlier 2026-08-04 — all pre-launch VM/config decisions locked
 

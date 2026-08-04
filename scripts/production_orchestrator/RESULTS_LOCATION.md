@@ -62,6 +62,12 @@ python3 scripts/production_orchestrator/run_production_orchestrator.py \
 # Ctrl-b d to detach; `tmux attach -t immuannot_prod` to reattach later.
 ```
 
+**This one command runs both phases automatically** (2026-08-05) — phase 1 (everyone except the
+sequel2/`self_align_needed` group) then phase 2 (just that group, self-align fallback auto-enabled)
+the moment phase 1 finishes, no second command needed. Watch the dashboard during phase 2
+specifically (own isolated rate/ETA/cost, `<outroot>/monitor_state_phase2.json`) to decide whether
+to let it finish or Ctrl-C it.
+
 The persistent log is what actually proves how far the run got if you come back to a restarted VM
 and find thin/empty results — never trust "looks idle, must be done" (quirk #14 addendum).
 
