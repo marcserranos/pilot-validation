@@ -12,7 +12,9 @@ needs to type 8 classical HLA genes on chr6 -- but assembly contigs are NOT refe
 strings (they're de novo sequence, arbitrary contig IDs), so we can't naively slice
 "chr6:29,500,000-33,500,000" out of them the way slice_and_fastq.sh does for aligned BAMs.
 
-Two-tier design, preferring the tighter one:
+Three-tier design, preferring the tighter one (Tier 3 added 2026-08-04, UNTESTED AT SCALE, opt-in
+via --enable-self-align-fallback -- see the module-level comment near MINIMAP2_ASM_PRESET below
+for the sequel2 motivation and Marc's ~700-750x-blowup concern that shaped this design):
   1. PREFERRED -- true sub-range extraction via each haplotype's own assembly-to-hg38 .paf file
      (assembly_hap{1,2}_aln2_hg38_paf). A .paf line's qstart/qend/tstart/tend are the REAL aligned
      boundaries of that block, not an estimate, so regions_from_paf() takes the union of
@@ -25,7 +27,14 @@ Two-tier design, preferring the tighter one:
   2. FALLBACK -- whole-contig extraction via the assembly-to-hg38 .bam (assembly_hap{1,2}_aln2_hg38_bam),
      used only if this person's .paf is missing or has nothing recognizable overlapping the region.
      No CIGAR/indel math, no risk of clipping a gene -- just less tight than tier 1.
-Both confirmed present alongside the raw assembly FASTA for revio/sequel2e per the census.
+  3. TIER 3 / SELF-ALIGN, opt-in via --enable-self-align-fallback -- used only when BOTH the .paf
+     AND the aln-to-hg38 .bam are missing (sequel2's 991 people: raw assembly FASTA present, no
+     alignment-to-hg38 files at all, per reports/lr_data_census/README.md). Self-aligns the hap
+     FASTA against a chr6-only reference slice with minimap2 (own synthetic .paf, parsed by the
+     same regions_from_paf() as tier 1) instead of feeding Immuannot the whole ~3.1Gb/hap untrimmed
+     assembly. UNTESTED AT SCALE as of 2026-08-04 -- smoke-test on real sequel2 people before
+     trusting it for a production run.
+Tiers 1+2 confirmed present alongside the raw assembly FASTA for revio/sequel2e per the census.
 
 Per person: resolves assembly_hap1_fa/assembly_hap2_fa AND assembly_hap1_aln2_hg38_bam/
 assembly_hap2_aln2_hg38_bam mount-relative paths from the v9 lrWGS manifest (existence-checked
@@ -75,6 +84,19 @@ DEFAULT_REGION = "chr6:29500000-33500000"  # the project's standing HLA window (
 # "a really safe reduction" for the analogous concern here (not clipping a gene near a coordinate-
 # mapping boundary), not a new untested number.
 DEFAULT_PAD = 100_000
+# Tier 3 (self-align) constants -- untested at scale as of 2026-08-04, see --enable-self-align-
+# -fallback below. sequel2 (991 people) has assembly_hap{1,2}_fa but no assembly_hap{1,2}_aln2_hg38_
+# {bam,paf} -- reports/lr_data_census/README.md. Rather than feed Immuannot the whole ~3.1Gb/hap
+# untrimmed assembly (which the BRIEF.md fallback description originally implied -- estimated
+# ~700-750x bigger than the normal ~4.2Mb trimmed input, a real risk of blowing up time/cost, per
+# Marc's 2026-08-04 concern), self-align each hap FASTA against chr6 ONLY (not the whole genome)
+# with minimap2, producing our own synthetic .paf in the exact format regions_from_paf() already
+# parses -- then trim exactly as Tier 1 does. Turns "whole assembly" into "one extra minimap2 pass
+# + a normal-sized trim." Needs a chr6-only reference slice, cached once from the full hg38
+# reference already on the VM (ENVIRONMENT.md: ~/ref/Homo_sapiens_assembly38.fasta).
+HG38_REF_DEFAULT = os.path.expanduser("~/ref/Homo_sapiens_assembly38.fasta")
+CHR6_REF_CACHE_DEFAULT = os.path.expanduser("~/ref/chr6.fasta")
+MINIMAP2_ASM_PRESET = "asm5"  # same-species assembly-vs-reference alignment, <5% divergence
 
 
 def die(msg):
@@ -177,6 +199,40 @@ def regions_from_paf(paf_path, chrom, region_start, region_end, pad):
     return regions, qlens, seen_tnames
 
 
+def ensure_chr6_ref(hg38_ref, cache_path):
+    """Extracts chr6 alone from the full hg38 reference, once, and caches it -- so self-align
+    only ever indexes ~170Mb (one chromosome), not the full ~3.1Gb genome, keeping Tier 3's cost
+    close to a normal alignment step rather than a whole-genome-vs-whole-genome pass. Idempotent:
+    a second call with an existing, non-empty cache is a no-op."""
+    if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+        return cache_path
+    if not os.path.exists(hg38_ref):
+        return None
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    tmp_path = cache_path + ".tmp"
+    with open(tmp_path, "w") as out:
+        proc = subprocess.run(["samtools", "faidx", hg38_ref, "chr6"], stdout=out,
+                               stderr=subprocess.PIPE, text=True)
+    if proc.returncode != 0 or os.path.getsize(tmp_path) == 0:
+        print(f"    WARNING: could not extract chr6 from {hg38_ref}: {proc.stderr}", file=sys.stderr)
+        os.remove(tmp_path)
+        return None
+    os.replace(tmp_path, cache_path)
+    return cache_path
+
+
+def self_align_paf(fa_path, chr6_ref, out_paf_path, threads):
+    """Runs minimap2 in PAF-output mode (no -a) directly against the cached chr6-only reference --
+    output is already the exact tab-separated PAF format regions_from_paf() parses, so Tier 3 reuses
+    that function unmodified once this file exists. Returns (ok, stderr)."""
+    with open(out_paf_path, "w") as out:
+        proc = subprocess.run(
+            ["minimap2", "-x", MINIMAP2_ASM_PRESET, "-t", str(threads), chr6_ref, fa_path],
+            stdout=out, stderr=subprocess.PIPE, text=True)
+    ok = proc.returncode == 0 and os.path.getsize(out_paf_path) > 0
+    return ok, proc.stderr
+
+
 def trim_assembly(fa_path, targets, out_fa_path):
     """samtools faidx extracts each entry in `targets` -- either a bare contig name (whole contig,
     the fallback path) or a "contig:start-end" region string (the preferred sub-range path via
@@ -272,7 +328,7 @@ def process_haplotype(pid, hap, fa_rel, paf_rel, aln_rel, person_dir, immuannot_
            "trim_method": None, "n_contigs": None,
            "whole_contig_mb": None, "padded_mb": None, "trimmed_mb": None,
            "contig_lookup_seconds": None, "trim_seconds": None, "immuannot_seconds": None,
-           "hap_total_seconds": None}
+           "hap_total_seconds": None, "self_align_seconds": None}
     hap_t0 = time.perf_counter()
     fa_path = os.path.join(args.mount, fa_rel)
 
@@ -303,9 +359,56 @@ def process_haplotype(pid, hap, fa_rel, paf_rel, aln_rel, person_dir, immuannot_
             print(f"  {hap}: .paf present but 0 contigs overlap {args.region} -- target names "
                   f"seen in this .paf: {sorted(seen_tnames)[:10]} -- falling back to "
                   f"whole-contig via .bam.", file=sys.stderr)
-    else:
-        print(f"  {hap}: no .paf resolved for this person -- using whole-contig fallback.",
+    elif aln_rel:
+        print(f"  {hap}: no .paf resolved for this person -- using whole-contig fallback via .bam.",
               file=sys.stderr)
+    else:
+        print(f"  {hap}: no .paf AND no aln-to-hg38 .bam resolved for this person (Tier 1/Tier 2 "
+              f"both unavailable -- the sequel2 gap, ENVIRONMENT.md/lr_data_census).", file=sys.stderr)
+
+    # --- Tier 3 (self-align, 2026-08-04, untested at scale -- see module-level comment): only
+    # reached when NEITHER a real .paf NOR a real aln-to-hg38 .bam resolved for this haplotype
+    # (the sequel2 gap). Self-aligns the raw assembly FASTA against a chr6-only reference slice
+    # with minimap2, producing our own synthetic .paf that regions_from_paf() parses exactly like
+    # a real one -- so this still gets a proper padded SUB-RANGE trim, not the whole ~3.1Gb/hap
+    # assembly. Opt-in only (--enable-self-align-fallback) until validated on real sequel2 people.
+    if targets is None and not aln_rel:
+        if not args.enable_self_align_fallback:
+            print(f"  {hap}: SKIP -- Tier 1/2 unavailable and --enable-self-align-fallback not "
+                  f"passed (this is the untested sequel2 fallback path -- see run_immuannot_person.py "
+                  f"module docstring / production_orchestrator/BRIEF.md).", file=sys.stderr)
+            return row, {}
+        chr6_ref = ensure_chr6_ref(args.hg38_ref, args.chr6_ref_cache)
+        if chr6_ref is None:
+            print(f"  {hap}: SKIP -- could not prepare chr6-only reference from {args.hg38_ref} "
+                  f"for self-align.", file=sys.stderr)
+            return row, {}
+        self_align_t0 = time.perf_counter()
+        synth_paf = os.path.join(person_dir, f"{hap}.self_align.paf")
+        ok, err = self_align_paf(fa_path, chr6_ref, synth_paf, threads)
+        self_align_seconds = time.perf_counter() - self_align_t0
+        row["self_align_seconds"] = round(self_align_seconds, 2)
+        if not ok:
+            print(f"  {hap}: SKIP -- self-align minimap2 failed after {self_align_seconds:.1f}s: {err}",
+                  file=sys.stderr)
+            return row, {}
+        chrom, rstart, rend = parse_region(args.region)
+        regions, qlens, seen_tnames = regions_from_paf(synth_paf, chrom, rstart, rend, args.pad)
+        if regions:
+            targets = [f"{c}:{s + 1}-{e}" for c, (s, e) in regions.items()]
+            trim_method = "self_align_region"
+            whole_bp = sum(qlens[c] for c in regions)
+            padded_bp = sum(e - s for s, e in regions.values())
+            row["n_contigs"] = len(regions)
+            row["whole_contig_mb"] = round(whole_bp / 1e6, 2)
+            row["padded_mb"] = round(padded_bp / 1e6, 2)
+            print(f"  {hap}: self-align (minimap2 -x {MINIMAP2_ASM_PRESET} vs chr6, {self_align_seconds:.1f}s) "
+                  f"found {len(regions)} contig(s) overlapping {args.region} -- padded sub-range "
+                  f"{padded_bp/1e6:.2f} MB", file=sys.stderr)
+        else:
+            print(f"  {hap}: SKIP -- self-align produced a .paf but 0 contigs overlap {args.region} "
+                  f"(target names seen: {sorted(seen_tnames)[:10]}).", file=sys.stderr)
+            return row, {}
 
     if targets is None:
         aln_path = os.path.join(args.mount, aln_rel)
@@ -391,14 +494,23 @@ def process_person(pid, lr, args, immuannot_script):
         return [], []
     missing_fa = [h for h, p in fa_paths.items() if p is None]
     missing_aln = [h for h, p in aln_paths.items() if p is None]
-    if missing_fa or missing_aln:
-        print(f"  SKIP: missing assembly FASTA {missing_fa or 'none'} / "
-              f"aln-to-hg38 BAM {missing_aln or 'none'} -- this person's platform likely lacks "
-              f"assembly data (only revio/sequel2e/sequel2 do -- reports/lr_data_census/README.md), "
-              f"contradicting the 'they're all revio' assumption for this specific person. "
-              f"Not treated as a bug -- flag which person_ids hit this so we know what fraction "
-              f"of the 60 are actually usable.", file=sys.stderr)
+    # assembly_hap*_fa is the ONE hard requirement (Immuannot's real dependency -- see module
+    # docstring). Missing aln-to-hg38 BAM is no longer an automatic skip (2026-08-04) -- it's the
+    # sequel2 gap that Tier 3 (self-align, --enable-self-align-fallback) exists to cover. Without
+    # that flag, a missing aln still resolves to a per-haplotype SKIP inside process_haplotype
+    # (clear reason logged there), not a whole-person skip here -- so a person missing only ONE
+    # haplotype's aln still gets the other haplotype processed.
+    if missing_fa:
+        print(f"  SKIP: missing assembly FASTA {missing_fa} -- this person's platform likely lacks "
+              f"assembly data entirely (only revio/sequel2e/sequel2 do -- "
+              f"reports/lr_data_census/README.md). Not treated as a bug -- flag which person_ids "
+              f"hit this so the real usable fraction of the cohort is known.", file=sys.stderr)
         return [], []
+    if missing_aln:
+        print(f"  NOTE: missing aln-to-hg38 BAM for {missing_aln} -- Tier 1/2 unavailable for "
+              f"{'that haplotype' if len(missing_aln) == 1 else 'both haplotypes'}; will "
+              f"{'attempt Tier 3 self-align' if args.enable_self_align_fallback else 'SKIP (pass --enable-self-align-fallback to attempt Tier 3 instead)'}.",
+              file=sys.stderr)
 
     person_dir = os.path.join(args.outroot, str(pid), "immuannot_output")
     os.makedirs(person_dir, exist_ok=True)
@@ -480,6 +592,20 @@ def main():
     ap.add_argument("--time-budget-min", type=float, default=30,
                     help="Per-person minutes to compare against when printing the verdict "
                          "(informational only -- does not abort a run).")
+    ap.add_argument("--enable-self-align-fallback", action="store_true",
+                    help="Attempt Tier 3 (self-align via minimap2 against a chr6-only reference "
+                         "slice) for any haplotype missing BOTH .paf and aln-to-hg38 .bam -- the "
+                         "sequel2 gap (991 people, ~95%% AFR, per reports/lr_data_census/README.md). "
+                         "UNTESTED AT SCALE as of 2026-08-04 -- explicit smoke-test-first flag, not "
+                         "the default. Without it, those haplotypes are SKIPped with a clear reason "
+                         "instead of silently producing no calls.")
+    ap.add_argument("--hg38-ref", default=HG38_REF_DEFAULT,
+                    help=f"Full hg38 reference FASTA, used once to carve out the chr6-only slice "
+                         f"for Tier 3 self-align (default {HG38_REF_DEFAULT}, per ENVIRONMENT.md).")
+    ap.add_argument("--chr6-ref-cache", default=CHR6_REF_CACHE_DEFAULT,
+                    help=f"Where the chr6-only reference slice is cached after first extraction "
+                         f"(default {CHR6_REF_CACHE_DEFAULT}) -- built once, reused by every "
+                         f"subsequent Tier 3 haplotype/person, not re-extracted per call.")
     ap.add_argument("--force", action="store_true",
                     help="Re-process a person even if already present in immuannot_calls.tsv "
                          "(default: skip -- makes a 60-person run safe to kill and re-launch "
