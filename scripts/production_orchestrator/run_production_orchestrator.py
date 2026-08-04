@@ -243,6 +243,39 @@ def bump_attempts(outroot, pid):
 
 
 SEQUEL2_TIER = "self_align_needed"
+# Must match run_immuannot_person.py's own defaults -- duplicated as plain constants rather than
+# imported, since that module pulls in pandas and lives outside this package. Only used for the
+# up-front phase-2 prerequisite check below.
+HG38_REF_DEFAULT = os.path.expanduser("~/ref/Homo_sapiens_assembly38.fasta")
+CHR6_REF_CACHE_DEFAULT = os.path.expanduser("~/ref/chr6.fasta")
+
+
+def check_phase2_prereqs():
+    """Tier 3 (self-align) needs a chr6 reference slice, carved once from the full hg38 FASTA.
+    bootstrap_vm.sh does NOT download that FASTA, so a freshly-bootstrapped production VM can
+    reach phase 2 without it -- and the failure mode is quiet: ensure_chr6_ref() returns None and
+    every sequel2 person is SKIPped one by one, ~40 hours into the run, long after anyone is
+    watching. Checked ONCE at launch instead, in the same spirit as the hard mount check
+    (BRIEF.md requirement #1): surface it while the human is still at the keyboard.
+
+    Returns a problem string, or None if phase 2 has what it needs."""
+    if os.path.isfile(CHR6_REF_CACHE_DEFAULT) and os.path.getsize(CHR6_REF_CACHE_DEFAULT) > 0:
+        return None  # already carved by a previous run -- the full FASTA is no longer needed
+    if os.path.isfile(HG38_REF_DEFAULT):
+        return None
+    return (
+        f"phase 2 (the {SEQUEL2_TIER} / sequel2 group) needs a chr6 reference slice, carved from "
+        f"{HG38_REF_DEFAULT} -- but NEITHER that file NOR a previously-carved {CHR6_REF_CACHE_DEFAULT} "
+        f"exists on this VM. bootstrap_vm.sh does not fetch it. Phase 1 is unaffected and will run "
+        f"fine, but every phase-2 person would be skipped. Fix it any time BEFORE phase 1 ends "
+        f"(~2 days of headroom) with:\n"
+        f"    mkdir -p ~/ref && gcloud storage cp \\\n"
+        f"      gs://genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta \\\n"
+        f"      gs://genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta.fai \\\n"
+        f"      ~/ref/\n"
+        f"  (~3GB, public bucket -- plain gs:// works, no requester-pays flags needed, "
+        f"ENVIRONMENT.md quirk #11.)"
+    )
 
 
 def load_cohort(cohort_path):
@@ -621,6 +654,11 @@ def main():
               f"self-align fallback auto-enabled). Phase 2 starts automatically the moment phase 1 "
               f"finishes -- no further command needed. Cost is tracked COMBINED across both phases "
               f"against --budget={args.budget} (not reset per phase).", file=sys.stderr)
+
+        if phase2_people:
+            problem = check_phase2_prereqs()
+            if problem:
+                warn(f"PHASE 2 PREREQUISITE MISSING -- {problem}")
 
         run_phase("phase1_main_cohort", phase1_people, ancestry_map, args,
                   args.monitor_state_file, enable_self_align=False, auth_token=auth_token,

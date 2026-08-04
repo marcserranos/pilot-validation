@@ -118,6 +118,33 @@ else
   bad "v9/wgs/long_read/manifest.tsv not found under the mount -- gcsfuse may not actually be up."
 fi
 
+# --- 6. hg38 reference (only needed by the Tier 3 self-align fallback) ---
+# Added 2026-08-05: run_immuannot_person.py's Tier 3 (--enable-self-align-fallback, used for the
+# ~991 sequel2 people who have assembly FASTAs but no aln-to-hg38 BAM/PAF) carves a chr6-only
+# slice out of this FASTA to self-align against. Without it, the production orchestrator's phase 2
+# skips every one of those people -- quietly, one at a time, ~2 days into an unattended run.
+# Public Broad bucket, so plain gs:// works with no requester-pays flags (ENVIRONMENT.md quirk #11).
+# Skipped automatically if a chr6 slice was already carved by a previous run.
+step "6. hg38 reference (for the Tier 3 self-align fallback)"
+mkdir -p "$HOME/ref"
+if [ -s "$HOME/ref/chr6.fasta" ]; then
+  ok "chr6 slice already carved at ~/ref/chr6.fasta -- full hg38 FASTA not needed."
+elif [ -s "$HOME/ref/Homo_sapiens_assembly38.fasta" ]; then
+  ok "hg38 reference already present at ~/ref/Homo_sapiens_assembly38.fasta."
+else
+  echo "  Downloading hg38 reference (~3GB, public bucket)..." >&2
+  if gcloud storage cp \
+      gs://genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta \
+      gs://genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta.fai \
+      "$HOME/ref/" 2>/dev/null; then
+    ok "hg38 reference downloaded to ~/ref/."
+  else
+    # Deliberately NOT a hard failure: phase 1 (~12,261 people, the bulk of the run) needs none of
+    # this, and the orchestrator re-checks and warns at launch anyway.
+    echo "  WARNING: hg38 reference download failed. Phase 1 is unaffected; fix before phase 2." >&2
+  fi
+fi
+
 # --- Summary ---
 step "Summary"
 if [ "$fail" -eq 0 ]; then

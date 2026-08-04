@@ -81,6 +81,23 @@ behavior for the smoke test.
 Exact launch command: see chat / `RESULTS_LOCATION.md` / the orchestrator's own `--help`, not
 duplicated here (this file is for durable state, not copy-paste command logs).
 
+## Pre-flight state as of 2026-08-05 — see `scripts/production_orchestrator/PREFLIGHT.md`
+
+That file is the rolling launch checklist (what's verified, what's still blocking). Cleared this
+session, on the Hetzner box directly: firewall/port 8943 confirmed reachable externally, receiver
+redeployed with a server-side cost model using the **real quoted rates ($3.55/h VM + $81.60/mo
+disk**, not DECISIONS.md's ~$3.03/hr research estimate), dashboard redesigned, stale threshold
+25→15 min, and the **first-ever real heartbeat end-to-end test against the deployed box** (all
+prior testing was loopback-only). Two real bugs found and fixed while doing it: `mem_avail_pct` was
+inverted (sent *used*, consumers read it as *available* — would have fired a spurious anomaly push
+early in the run and stayed silent during a real near-OOM), and the budget check was resetting
+per-phase instead of tracking the real $300 total.
+
+**The biggest remaining unknown is deliberately called out in PREFLIGHT.md item A: the Workbench
+VM has never actually POSTed a heartbeat to the Hetzner box**, and that workspace sits behind a
+VPC-SC perimeter that explicitly warns about egress to outside services. Proven-from-the-box is not
+proven-from-the-VM. Test it before launching, not after.
+
 ## Carried forward from earlier 2026-08-04 — all pre-launch VM/config decisions locked
 
 Everything needed to decide *how* to run the full-cohort Immuannot production job is now decided
