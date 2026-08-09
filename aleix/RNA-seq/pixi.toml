@@ -1,0 +1,16 @@
+[workspace]
+name = "rnaseq-repertoire-env"
+version = "0.1.0"
+description = "Pixi environment for TRUST4 (TCR/BCR repertoire assembly from AoU RNA-seq BAMs) -- Aleix's RNA-seq workstream"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = "3.12.*"
+pip = "*"
+samtools = "1.21.*"
+trust4 = "*"
+pandas = "2.3.3.*"
+
+[pypi-dependencies]
+# add here if a step needs something not on bioconda

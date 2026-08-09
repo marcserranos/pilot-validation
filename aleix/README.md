@@ -1,5 +1,9 @@
 # aleix/ — HLA-Resolve workstream
 
+> **Handed off 2026-08-03.** HLA calling continues with Marc; this file is kept as the
+> historical record of Phase 1. Active work moved to RNA-seq / immune repertoire — see
+> **[`RNA-seq/`](RNA-seq/)**.
+
 Isolated workspace for Aleix's tasks, kept separate from Marc's Experiments A–D (`../context/`, `../scripts/`). The science, environment quirks, and prior results still live in `../context/` — read those for *why*; this folder is *my* new work.
 
 > Data rule unchanged from the root repo: **no AoU participant data here.** Public reference material (the Lai truth table, tool docs) is fine — it is not participant data.

@@ -1,0 +1,12 @@
+# Aleix RNA-seq workspace -- ignore bulky/local outputs, keep written-up results
+results/*
+!results/*.md
+!results/*.csv
+*.bam
+*.bai
+*.fastq
+*.fastq.gz
+*.cram
+*.fa
+*.fa.fai
+.pixi/
