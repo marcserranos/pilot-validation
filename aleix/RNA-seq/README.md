@@ -117,6 +117,10 @@ than the long-read HLA stack (no DeepVariant/sawfish/pbsv/sniffles). Recommended
 - [x] one participant's RNA BAM path resolved (1000291)
 - [x] TRUST4 run on that one sample — needed `--abnormalUnmapFlag`, now fixed in the script
 - [x] CDR3 count recorded in `results/` — **2,013, feasibility confirmed**
-- [ ] pick a real ~25-person pilot cohort via `ancestry_preds.tsv` (not another arbitrary first-row pick)
+- [x] real 100-person cohort built (17/17/17/17/16/16 across ancestry groups)
+- [x] `--jobs 1` vs `--jobs 3` timed on 3 people — 2.55x speedup, near-ideal, no CPU contention
+- [ ] `--jobs` efficiency sweep (4/6/8/12/16) running overnight —
+  `scripts/run_rnaseq_jobs_sweep.sh`, results in `~/pipeline_outputs/rnaseq/jobs_sweep/summary.tsv`
+- [ ] pick best `--jobs`, finish the remaining cohort
 - [ ] check whether recovery is even across ancestry groups
 - [ ] attach HLA labels (AoU-native + our own long-read calls) once repertoires exist for the pilot
