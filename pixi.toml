@@ -25,6 +25,7 @@ arpack = "*"
 pandas = "*"
 matplotlib = "*"  # added 2026-07-10 for experiment_a_ext_ancestry_clustering.py (PNG plots only, no display needed)
 scikit-learn = "*"  # added 2026-07-18 for celiac/narcolepsy sanity-check L1 logistic regression
+umap-learn = "*"  # added 2026-08-10 for cluster_hla_by_ancestry.py; PCA-only still works without it
 samtools = ">=1.10"
 bwa = "0.7.17.*"
 bowtie2 = ">=2.3"

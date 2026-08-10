@@ -4,6 +4,32 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-08-10 — production run finished; post-processing scripts built, tested, not yet run on real data
+
+Full-cohort production run completed (Phase 1 only, per the 2026-08-05 Tier 3 decision below).
+Built `scripts/production_analysis/` (3 scripts + README) for supervisor-report post-processing:
+completeness/coverage/demographics, an AoU-native-vs-Immuannot confidence-threshold sweep +
+distribution plot, and PCA/UMAP HLA-vs-ancestry clustering. Full design rationale in each script's
+docstring and `scripts/production_analysis/README.md`.
+
+**Verified against synthetic fixtures matching the exact real schemas (not yet run against the
+real production output — no VM access this session, see ENVIRONMENT.md quirk #28)** — this caught
+and fixed 4 real bugs before handoff: a mislabeled funnel-chart axis, non-integer histogram bins
+on a discrete variable, a `np.float64` repr leaking into a markdown report, and a legend
+overlapping a data annotation on the confidence-sweep chart. The umap-learn dependency's graceful
+fallback (skip UMAP, keep PCA) was also verified by testing with it deliberately absent.
+
+**Also resolved this session (parallel to the above, same conversation):** the "is heartbeat
+telemetry to Hetzner allowed" compliance question (research-only, no code change — verdict: gray
+area, not a clear yes/no, flagged to raise with the AoU sponsor/IRB, see the new DECISIONS.md
+entry) and the "resize compute without losing the disk" question (Verily Workbench: stop → Edit →
+change machine type → Update, persistent disk untouched — confirmed via current Workbench docs).
+
+**Next: run all three scripts on the real production output** on the resized (not 96-core) VM,
+per `scripts/production_analysis/README.md`. Two follow-on figure ideas flagged but not built
+(allele-frequency-by-ancestry spectrum, a DRB1-evidence-convergence capstone) — see that README's
+"Ideas not built yet" section.
+
 ## As of 2026-08-04 (cont.) — orchestrator + cohort builder built, not yet run; sequel2 decision blocked on one VM test
 
 Both build tasks from `scripts/production_orchestrator/BRIEF.md` are now written (this repo, this
