@@ -7,28 +7,35 @@
 ## As of 2026-08-10 — production run finished; post-processing scripts built, tested, not yet run on real data
 
 Full-cohort production run completed (Phase 1 only, per the 2026-08-05 Tier 3 decision below).
-Built `scripts/production_analysis/` (3 scripts + README) for supervisor-report post-processing:
+Built `scripts/production_analysis/` (5 scripts + README) for supervisor-report post-processing:
 completeness/coverage/demographics, an AoU-native-vs-Immuannot confidence-threshold sweep +
-distribution plot, and PCA/UMAP HLA-vs-ancestry clustering. Full design rationale in each script's
-docstring and `scripts/production_analysis/README.md`.
+distribution plot, PCA/UMAP HLA-vs-ancestry clustering, an allele-frequency-by-ancestry spectrum
+(Aim 1), and a capstone figure synthesizing the 6 prior findings behind "DRB1 is the hardest
+locus." Full design rationale in each script's docstring and `scripts/production_analysis/README.md`,
+including a full step-by-step (resized VM → git pull → pixi install → gcsfuse remount if needed →
+run → where results land).
 
 **Verified against synthetic fixtures matching the exact real schemas (not yet run against the
 real production output — no VM access this session, see ENVIRONMENT.md quirk #28)** — this caught
-and fixed 4 real bugs before handoff: a mislabeled funnel-chart axis, non-integer histogram bins
-on a discrete variable, a `np.float64` repr leaking into a markdown report, and a legend
-overlapping a data annotation on the confidence-sweep chart. The umap-learn dependency's graceful
-fallback (skip UMAP, keep PCA) was also verified by testing with it deliberately absent.
+and fixed 4 real bugs before handoff (first 3 scripts): a mislabeled funnel-chart axis, non-integer
+histogram bins on a discrete variable, a `np.float64` repr leaking into a markdown report, and a
+legend overlapping a data annotation on the confidence-sweep chart. The umap-learn dependency's
+graceful fallback (skip UMAP, keep PCA) was also verified by testing with it deliberately absent.
+The 2 newest scripts (allele-frequency, DRB1 capstone) were also run against synthetic fixtures
+before handoff and rendered clean on the first pass.
 
 **Also resolved this session (parallel to the above, same conversation):** the "is heartbeat
 telemetry to Hetzner allowed" compliance question (research-only, no code change — verdict: gray
-area, not a clear yes/no, flagged to raise with the AoU sponsor/IRB, see the new DECISIONS.md
-entry) and the "resize compute without losing the disk" question (Verily Workbench: stop → Edit →
+area, not a clear yes/no, flagged to raise with the AoU sponsor/IRB, see the DECISIONS.md entry)
+and the "resize compute without losing the disk" question (Verily Workbench: stop → Edit →
 change machine type → Update, persistent disk untouched — confirmed via current Workbench docs).
 
-**Next: run all three scripts on the real production output** on the resized (not 96-core) VM,
-per `scripts/production_analysis/README.md`. Two follow-on figure ideas flagged but not built
-(allele-frequency-by-ancestry spectrum, a DRB1-evidence-convergence capstone) — see that README's
-"Ideas not built yet" section.
+**Next: run all five scripts on the real production output** on the resized (not 96-core) VM, per
+`scripts/production_analysis/README.md`'s step-by-step. One open gap in that guide, flagged not
+guessed: the real GCP billing project for the production workspace (`wb-cordial-leechee-9743`)
+isn't recorded anywhere in this repo — only the earlier pilot workspace's is. Needed only for the
+one script that reads AoU-native data from the bucket mount; find it in the Workbench UI or via
+`gcloud config get-value project` before that step.
 
 ## As of 2026-08-04 (cont.) — orchestrator + cohort builder built, not yet run; sequel2 decision blocked on one VM test
 

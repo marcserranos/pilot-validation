@@ -1,10 +1,12 @@
 # Production-run post-processing & supervisor report
 
-Three scripts, built 2026-08-10 after the full-cohort Immuannot production run finished, to answer
-Marc's ask: completeness/coverage/demographics, a confidence-threshold discrepancy sweep vs
-AoU-native, a confidence distribution plot, and HLA-vs-ancestry clustering. All are cheap I/O over
-small TSVs + per-person `.gtf.gz` files — **run these on the resized, cheap Workbench environment**
-(`scripts/monitoring/README.md`'s "resize the compute" note), not the 96-core production VM.
+Five scripts, built 2026-08-10 after the full-cohort Immuannot production run finished, covering
+everything Marc asked for: completeness/coverage/demographics, a confidence-threshold discrepancy
+sweep vs AoU-native, a confidence distribution plot, HLA-vs-ancestry clustering, an
+allele-frequency-by-ancestry spectrum, and a capstone figure synthesizing this project's
+"DRB1 is the hardest locus" finding. All are cheap I/O over small TSVs + per-person `.gtf.gz`
+files — **run these on the resized, cheap Workbench environment**, not the 96-core production VM
+(see "Step by step," below, for the full path from a freshly-resized VM to results).
 
 ## Run order
 
@@ -13,26 +15,30 @@ cd ~/repos/pilot-validation && pixi shell -e spechla   # pandas/matplotlib/sklea
 pixi install -e spechla   # first time only, to pick up umap-learn (added 2026-08-10)
 
 python3 scripts/production_analysis/analyze_completeness_and_demographics.py
-python3 scripts/production_analysis/analyze_confidence_vs_aou_native.py
+python3 scripts/production_analysis/analyze_confidence_vs_aou_native.py       # needs the gcsfuse mount -- see below
 python3 scripts/production_analysis/cluster_hla_by_ancestry.py
+python3 scripts/production_analysis/analyze_allele_frequency_by_ancestry.py
+python3 scripts/production_analysis/summarize_drb1_evidence_capstone.py       # no pipeline data read at all
 ```
 
-Each is independent (different inputs read, different output dir) — run them in any order, or
-just the ones you need. Defaults assume the standard `~/pipeline_outputs/` layout from
+Each is independent (different inputs, different output dir) — run them in any order, or just the
+ones you need. Defaults assume the standard `~/pipeline_outputs/` layout from
 `scripts/production_orchestrator/RESULTS_LOCATION.md`; override with `--calls`/`--cohort`/
 `--timing`/`--aou-tsv`/`--outroot` if your paths differ.
 
 ## What each produces
 
-| Script | Output dir | Figures | Answers |
-|---|---|---|---|
-| `analyze_completeness_and_demographics.py` | `production_analysis/completeness/` | `completeness_overview.png` (6-panel), `timing_stats.png` | Did the pipeline capture data correctly? Who got covered, by ancestry and platform? Basic operational stats. |
-| `analyze_confidence_vs_aou_native.py` | `production_analysis/confidence/` | `baseline_concordance_by_gene.png`, `confidence_threshold_sweep.png`, `confidence_distribution.png` | How does AoU-native compare to Immuannot at full scale? How does that discrepancy change as confidence tightens, per gene? What does the confidence distribution look like per gene (mean/median/clustering)? |
-| `cluster_hla_by_ancestry.py` | `production_analysis/clustering/` | `pca_pc1_pc2_by_ancestry.png`, `umap_by_ancestry.png` | Does HLA genotype structure correlate with ancestry under PCA/UMAP? |
+| Script | Output dir | Figures | Answers | Needs the gcsfuse mount? |
+|---|---|---|---|---|
+| `analyze_completeness_and_demographics.py` | `production_analysis/completeness/` | `completeness_overview.png` (6-panel), `timing_stats.png` | Did the pipeline capture data correctly? Who got covered, by ancestry and platform? Basic operational stats. | No |
+| `analyze_confidence_vs_aou_native.py` | `production_analysis/confidence/` | `baseline_concordance_by_gene.png`, `confidence_threshold_sweep.png`, `confidence_distribution.png` | How does AoU-native compare to Immuannot at full scale? How does that discrepancy change as confidence tightens, per gene? What does the confidence distribution look like per gene (mean/median/clustering)? | **Yes** — reads AoU-native's `hla_genotypes.tsv` from the mount |
+| `cluster_hla_by_ancestry.py` | `production_analysis/clustering/` | `pca_pc1_pc2_by_ancestry.png`, `umap_by_ancestry.png` | Does HLA genotype structure correlate with ancestry under PCA/UMAP? | No |
+| `analyze_allele_frequency_by_ancestry.py` | `production_analysis/allele_frequency/` | `allele_frequency_spectrum.png` (8-panel) | What does the actual allele-frequency spectrum look like per gene, per ancestry? (Aim 1) | No |
+| `summarize_drb1_evidence_capstone.py` | `production_analysis/drb1_capstone/` | `drb1_evidence_capstone.png` (6-panel) | Why does this project keep concluding DRB1 is unreliable? (synthesizes 6 prior findings — see caveat below) | No (reads no pipeline data at all) |
 
-All write a markdown report alongside the PNGs (`*_report.md` / `completeness_report.md`) with the
-numeric tables behind each figure — paste these into the supervisor report directly, they're
-already aggregate-only prose+tables, same discipline as every other analysis script in this repo.
+All write a markdown report alongside the PNGs with the numeric tables behind each figure — paste
+these into the supervisor report directly, they're already aggregate-only prose+tables, same
+discipline as every other analysis script in this repo.
 
 ## Design notes worth knowing before reading the figures
 
@@ -42,7 +48,9 @@ already aggregate-only prose+tables, same discipline as every other analysis scr
 - **The sweep's discrepancy floor (right edge) is an estimate of AoU-native's real error rate
   against high-confidence ground truth** — not the discrepancy at threshold=0 alone; look at where
   the curve visibly levels off, same interpretation as the existing n=60 confidence-matched-truth
-  work (`scripts/analyze_confidence_matched_truth.py`), now at full production scale.
+  work (`scripts/analyze_confidence_matched_truth.py`), now at full production scale. The right
+  edge often gets noisy from shrinking N — the shaded area behind the lines shows this; read a
+  thin-N tail skeptically.
 - **The clustering script's PCA/UMAP scatter plots are one dot per real person** — no identifiers on
   them, but structurally person-level in a way most of this project's outputs deliberately aren't.
   This is standard AoU Workbench research-figure practice (AoU's own ancestry PCA plots are built
@@ -57,21 +65,85 @@ already aggregate-only prose+tables, same discipline as every other analysis scr
   Phase 2 was disabled for this production launch after Tier 3 failed testing
   (`context/EXPERIMENTS.md`, 2026-08-05). Expected, not a bug — the completeness script's markdown
   says this explicitly so it isn't mistaken for a problem when reviewing the report.
+- **The DRB1 capstone script is different in kind from the other four.** It reads no live pipeline
+  data at all — it transcribes six already-published findings from earlier, smaller pilots
+  (Experiment D n=60, the AoU callset validation report, Experiment F n=60), each hardcoded with an
+  exact citation to its source file. It will not automatically reflect anything new the other four
+  scripts find in the full production cohort. If the full-scale results change the DRB1 story
+  (better or worse), that's a genuinely new, real finding worth adding as a 7th line — not
+  something this script would surface on its own.
+- **The allele-frequency script's ancestry variable is AoU's genetic-ancestry prediction**
+  (`ancestry_pred`, from `immuannot_cohort_full.tsv`), same convention as every other ancestry
+  figure in this project (`context/DECISIONS.md` — preferred over self-reported race).
 
-## Ideas not built yet — flagged, not implemented, in case they're wanted
+## Step by step: from a freshly-resized VM to results in hand
 
-Raised while designing the above, in the spirit of "what else would be worth showing a supervisor":
+Assumes the Workbench Cloud Environment has already been resized down per the earlier session's
+confirmed procedure (stop → three-dot menu → Edit → change machine type → Update) — this section
+picks up from there.
 
-1. **Allele-frequency spectrum by ancestry** (top-K alleles per gene, faceted/stacked by ancestry
-   group) — directly serves this project's Aim 1 (`context/TASK_CONTEXT.md`, ancestry-stratified
-   HLA allele frequency) and hasn't been done yet at full cohort scale, only smaller pilots.
-2. **A capstone "DRB1 is the hardest locus" summary figure** pulling together the six independent,
-   already-documented lines of evidence for this (`context/DECISIONS.md`) into one compact visual —
-   this project's single most-repeated finding, never presented as one unified figure.
-
-Both are readily buildable from data these three scripts already load — say the word and either
-can be added as a fourth script rather than folded into the existing ones (keeps each script's
-output/runtime scoped to what it's already named for).
+1. **Start the resized environment** from the Workbench UI and open its Jupyter terminal tab. It
+   should boot noticeably faster than the 96-core VM did.
+2. **Sanity-check you're on the right disk before doing anything else:**
+   ```bash
+   ls ~/pipeline_outputs/immuannot_calls.tsv ~/pipeline_outputs/immuannot_cohort_full.tsv
+   ```
+   Both should exist and be non-empty (`ls -la` to check size) — this confirms the resize
+   preserved the persistent disk and you're not looking at a fresh/empty one.
+3. **Pull the latest code** (this session's 5 new scripts aren't on the VM yet):
+   ```bash
+   cd ~/repos/pilot-validation && git pull
+   ```
+4. **Activate the environment and install the one new dependency** (`umap-learn`, added this
+   session):
+   ```bash
+   pixi shell -e spechla
+   ```
+   Wait for the `(omni-hla-pilot:spechla)` prompt prefix before pasting anything else (quirk #1/#2
+   — `pixi shell` can silently land in a non-activated shell, or miss its activation hook). Then,
+   as its own separate paste:
+   ```bash
+   pixi install -e spechla
+   ```
+5. **Only if you're running `analyze_confidence_vs_aou_native.py`** (the one script that reads
+   AoU-native data from the bucket): remount gcsfuse. **The billing project for this run's actual
+   workspace (`wb-cordial-leechee-9743`, the Stanford-pod one used for the 96-core VM) isn't
+   recorded anywhere in this repo** — only the original pilot workspace's
+   (`wb-glacial-potato-8710`) is (`context/ENVIRONMENT.md`). Don't guess/reuse that value blindly.
+   Find the right one first: either check the Workbench UI's workspace/environment details panel,
+   or run `gcloud config get-value project` in the terminal. Then, as its own paste (quirk #2 —
+   never chain the mount and a consumer command together):
+   ```bash
+   mkdir -p ~/mnt/aou-controlled
+   gcsfuse --billing-project <the real billing project> --implicit-dirs vwb-aou-datasets-controlled ~/mnt/aou-controlled
+   ```
+   Verify it actually resolved before trusting it (separate paste):
+   ```bash
+   ls ~/mnt/aou-controlled/v9/wgs
+   ```
+   The other 4 scripts don't need this step at all.
+6. **Run the scripts** (any order, from `~/repos/pilot-validation`, inside the activated `spechla`
+   shell):
+   ```bash
+   python3 scripts/production_analysis/analyze_completeness_and_demographics.py
+   python3 scripts/production_analysis/analyze_confidence_vs_aou_native.py
+   python3 scripts/production_analysis/cluster_hla_by_ancestry.py
+   python3 scripts/production_analysis/analyze_allele_frequency_by_ancestry.py
+   python3 scripts/production_analysis/summarize_drb1_evidence_capstone.py
+   ```
+   Each prints its markdown report to the terminal as it finishes, in addition to writing it to
+   disk — so you can read results immediately without leaving the terminal.
+7. **Where results land:** everything goes under `~/pipeline_outputs/production_analysis/`, one
+   subdirectory per script (`completeness/`, `confidence/`, `clustering/`, `allele_frequency/`,
+   `drb1_capstone/`), each holding its PNG figure(s) + a `*_report.md`. Nothing writes outside that
+   tree, and nothing here downloads or exports anything — to actually view the PNGs and put
+   together the supervisor deck, either:
+   - Open them directly in the Workbench's Jupyter file browser (image preview works there), or
+   - Paste the markdown tables into your report as-is (already aggregate-only prose+tables), or
+   - If you want the images themselves outside the Workbench: that's a real file-egress action
+     (unlike the aggregate-only telemetry this project already treats as a separate, lesser
+     question) — go through AoU's official reviewed download workflow for these PNGs specifically,
+     don't improvise a new path for it.
 
 ## Compliance reminder
 
