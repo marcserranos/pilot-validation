@@ -42,6 +42,40 @@ whole-blood RNA-seq BAM: 2,013 CDR3s from person 1000291, all 7 chain types repr
 `--abnormalUnmapFlag` fix (now in `scripts/run_trust4_sample.sh`) because AoU's STAR run
 uses `--outSAMunmapped Within`, which TRUST4 doesn't handle by default.
 
+## Batch runs (N-person cohorts)
+
+Three scripts, mirroring `../../../scripts/build_experiment_d_cohort.py`'s established
+pattern exactly:
+
+1. `python3 scripts/build_rnaseq_cohort.py --total 100` — ancestry-stratified pick,
+   ground-truth-verified against the mount. Writes `~/pipeline_outputs/rnaseq/cohort.tsv`
+   (VM-local, has real research_ids — see privacy note below).
+2. `bash scripts/run_rnaseq_batch.sh <cohort.tsv> --jobs N` — resumable (skips anyone
+   already done), includes the `--abnormalUnmapFlag` fix by default.
+3. `pixi run python3 scripts/aggregate_rnaseq_results.py <cohort.tsv>` — produces a
+   VM-local per-person detail file AND a de-identified, ancestry-group-level `.csv` in
+   `results/` (the only one of the three that's safe to commit).
+
+**Test small before trusting a time estimate for the full run.** `head -4 cohort.tsv >
+cohort.test3.tsv`, then run that slice at `--jobs 1` vs `--jobs 3` and compare wall-clock
+time. Extraction streams the whole BAM over the network-mounted bucket — if that's the
+real bottleneck (not CPU), more parallel jobs may not scale the way more vCPUs would
+suggest. Untested as of 2026-08-10; don't assume either direction.
+
+**Naive sequential estimate for 100 people:** ~9 min/person (the one proven data point) ×
+100 ≈ 15 hours, though real depth varies across the cohort (QC histogram shows most
+people 95–145M read pairs, tail past 350M), so more honestly 12–25 hours sequential.
+Could be much less with working parallelism — that's exactly what the small test above
+answers before committing to an unattended multi-hour run.
+
+### Privacy convention for this batch tooling
+
+`cohort.tsv`, per-person TRUST4 output, and `batch_summary_detail.tsv` all contain real
+`research_id`s and **stay VM-local under `~/pipeline_outputs/`, never committed** — same
+posture `build_experiment_d_cohort.py` already established for the HLA workstream. Only
+`aggregate_rnaseq_results.py`'s **ancestry-group-level** summary (no individual IDs) is
+safe to commit, and it's the only one of the three scripts that writes into `results/`.
+
 ## How we work together on this (the git loop)
 
 1. Scripts and docs are authored **here**, in this repo, on the local machine (with Claude).

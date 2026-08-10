@@ -37,6 +37,7 @@ THREADS=$(nproc)
 BCRTCR_FA="$REF_DIR/hg38_bcrtcr.fa"
 IMGT_FA="$REF_DIR/human_IMGT+C.fa"
 
+rm -rf "$OUT"
 mkdir -p "$OUT"
 echo "==== TRUST4 :: $SAMPLE :: $(date) ===="
 
