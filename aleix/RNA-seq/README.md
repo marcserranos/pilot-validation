@@ -27,11 +27,20 @@ so our own HLA calls (AoU-native + long-read, from the HLA-Resolve workstream) b
 supervisor papers, and the two-directions comparison (expression vs. repertoire) are in the
 `RNAseq_directions*.pptx` decks in `slides/`.
 
-**Step 0, unresolved:** the RNA-seq manifest (`research_id -> RNA BAM path`) has not been
-located yet. Every other AoU data type in this project (srWGS CRAM, lrWGS BAM, HLA calls,
-ancestry) resolves through a `v9/...manifest.*` file — the RNA-seq one almost certainly
-follows the same pattern but the exact path is unconfirmed. Finding it is the actual first
-task on the machine. `scripts/find_rnaseq_manifest.sh` is a discovery helper, not an answer.
+**RNA-seq manifest — found 2026-08-10:**
+`gs://vwb-aou-datasets-controlled/v9/multiomics/rnaseq/manifest.tsv`
+(columns: `sampleid`, `research_id`, `markduplicates_bam_file_path`,
+`markduplicates_bam_index_path`). Sibling dir `v9/multiomics/` also holds `proteomics/`.
+The `rnaseq/` dir itself has `manifest.tsv`, `rnaseq_metadata.tsv`, `eqtl/`, `rnaseqc2/`,
+`rsem/`, `sqtl/` — matches the deliverables table in the primary-source PDF. BAMs are
+mark-duplicates-applied (`.md.bam`), physically under
+`pooled/multiomics/v9_base/rnaseq/bam/`.
+
+**Feasibility — confirmed 2026-08-10.** TRUST4 recovers a real repertoire from an AoU
+whole-blood RNA-seq BAM: 2,013 CDR3s from person 1000291, all 7 chain types represented,
+~9 min end-to-end. Full writeup: `results/1000291_trust4_smoke_test.md`. Required a
+`--abnormalUnmapFlag` fix (now in `scripts/run_trust4_sample.sh`) because AoU's STAR run
+uses `--outSAMunmapped Within`, which TRUST4 doesn't handle by default.
 
 ## How we work together on this (the git loop)
 
@@ -66,11 +75,14 @@ than the long-read HLA stack (no DeepVariant/sawfish/pbsv/sniffles). Recommended
 
 ## Status checklist
 
-- [ ] VM created
-- [ ] repo cloned on VM, gcsfuse mounted (same recipe as the HLA workstream)
-- [ ] pixi env built (`pixi install` against this folder's `pixi.toml`)
-- [ ] RNA-seq manifest located
-- [ ] TRUST4 reference files fetched, vendored into `reference/`
-- [ ] one participant's RNA BAM path resolved
-- [ ] TRUST4 run on that one sample
-- [ ] CDR3 count recorded in `results/` -- the feasibility answer
+- [x] VM created (`n1-highmem-8`, 8 vCPU / 52 GB RAM, 100 GB disk)
+- [x] repo cloned on VM, gcsfuse mounted (same recipe as the HLA workstream)
+- [x] pixi env built (`pixi install` against this folder's `pixi.toml`)
+- [x] RNA-seq manifest located — `v9/multiomics/rnaseq/manifest.tsv`
+- [x] TRUST4 reference files fetched, vendored into `reference/`
+- [x] one participant's RNA BAM path resolved (1000291)
+- [x] TRUST4 run on that one sample — needed `--abnormalUnmapFlag`, now fixed in the script
+- [x] CDR3 count recorded in `results/` — **2,013, feasibility confirmed**
+- [ ] pick a real ~25-person pilot cohort via `ancestry_preds.tsv` (not another arbitrary first-row pick)
+- [ ] check whether recovery is even across ancestry groups
+- [ ] attach HLA labels (AoU-native + our own long-read calls) once repertoires exist for the pilot
