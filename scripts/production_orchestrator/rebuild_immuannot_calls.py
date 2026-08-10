@@ -28,11 +28,21 @@ file is renamed aside first, not deleted, so nothing is lost even if this script
 Does NOT touch immuannot_timing.tsv -- that file's dedup key was already correct
 (`[person_id, hap]`), it was never affected by this bug.
 
-Usage (via `pixi run -e spechla`; this is I/O-bound gzip parsing, not compute, so the resized
-cheap VM is fine for this too):
+Usage (via `pixi run -e spechla`; this is I/O-bound gzip parsing on the LOCAL disk, not the
+gcsfuse-mounted bucket -- the resized cheap VM is fine for this, a bigger VM is unlikely to help
+much beyond a handful of threads):
   python3 scripts/production_orchestrator/rebuild_immuannot_calls.py
+
+**Before running the real repair, measure the real rate first** -- don't trust a guessed estimate
+for an operation touching your whole production cohort:
+  python3 scripts/production_orchestrator/rebuild_immuannot_calls.py --limit 200
+This processes only the first 200 people, writes to a SEPARATE timing-test file (never touches the
+real immuannot_calls.tsv), and prints a measured people/second rate plus an extrapolated total time
+for the full cohort. Only run the real repair (no --limit) once that extrapolation looks
+reasonable.
 """
 import argparse
+import concurrent.futures
 import gzip
 import os
 import re
@@ -92,52 +102,91 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--outroot", default=DEFAULT_OUTROOT)
     ap.add_argument("--out", default=None, help="Defaults to <outroot>/immuannot_calls.tsv")
-    ap.add_argument("--checkpoint-every", type=int, default=500,
-                    help="Print progress every N people (this can take a while over 12k+ people, "
-                         "I/O-bound gzip reads -- ENVIRONMENT.md's checkpoint/progress-visibility "
-                         "discipline for any job over a few minutes).")
+    ap.add_argument("--threads", type=int, default=8,
+                    help="Parallel workers -- this is I/O-bound gzip reading on local disk, not "
+                         "CPU-bound, so threading helps despite the GIL (same reasoning as this "
+                         "project's other FUSE/disk-I/O-bound scripts, e.g. lr_manifest_format_"
+                         "census.py). Default 8; raise if the VM has more cores and step 1's timing "
+                         "test shows it helps.")
+    ap.add_argument("--limit", type=int, default=None,
+                    help="TIMING TEST MODE: only process the first N people, write to a separate "
+                         "file (never touches the real immuannot_calls.tsv), print a measured "
+                         "rate and an extrapolated full-cohort time estimate, then exit. Run this "
+                         "BEFORE the real repair (no --limit) to know how long the real one will "
+                         "take, instead of guessing.")
+    ap.add_argument("--checkpoint-every", type=int, default=200,
+                    help="Print progress every N people (ENVIRONMENT.md's checkpoint/progress-"
+                         "visibility discipline for any job over a few minutes).")
     args = ap.parse_args()
-    out_path = args.out or os.path.join(args.outroot, "immuannot_calls.tsv")
-
-    if os.path.exists(out_path):
-        backup_path = out_path + f".corrupted-backup-{time.strftime('%Y%m%d-%H%M%S')}"
-        shutil.move(out_path, backup_path)
-        print(f"Existing (corrupted) file moved aside, not deleted: {backup_path}", file=sys.stderr)
 
     person_dirs = sorted(
         d for d in os.listdir(args.outroot)
         if os.path.isdir(os.path.join(args.outroot, d, "immuannot_output"))
     )
-    print(f"Found {len(person_dirs)} person directories with an immuannot_output/ subfolder under "
+    total_people = len(person_dirs)
+    print(f"Found {total_people} person directories with an immuannot_output/ subfolder under "
           f"{args.outroot}.", file=sys.stderr)
     if not person_dirs:
         sys.exit(f"FATAL: no person directories found under {args.outroot} -- check --outroot.")
 
+    is_timing_test = args.limit is not None
+    if is_timing_test:
+        person_dirs = person_dirs[:args.limit]
+        out_path = os.path.join(args.outroot, "immuannot_calls.timing_test.tsv")
+        print(f"--limit {args.limit}: TIMING TEST MODE, processing {len(person_dirs)} people, "
+              f"writing to {out_path} (the real immuannot_calls.tsv is NOT touched).", file=sys.stderr)
+    else:
+        out_path = args.out or os.path.join(args.outroot, "immuannot_calls.tsv")
+        if os.path.exists(out_path):
+            backup_path = out_path + f".corrupted-backup-{time.strftime('%Y%m%d-%H%M%S')}"
+            shutil.move(out_path, backup_path)
+            print(f"Existing (corrupted) file moved aside, not deleted: {backup_path}", file=sys.stderr)
+
     all_rows = []
     n_no_gtf = 0
     t0 = time.time()
-    for i, pid in enumerate(person_dirs, 1):
-        person_dir = os.path.join(args.outroot, pid, "immuannot_output")
-        rows = rebuild_person(pid, person_dir)
-        if not rows:
-            n_no_gtf += 1
-        all_rows.extend(rows)
-        if i % args.checkpoint_every == 0 or i == len(person_dirs):
-            elapsed = time.time() - t0
-            print(f"  [{i}/{len(person_dirs)}] {len(all_rows)} gene rows so far, "
-                  f"{n_no_gtf} people with no readable GTF, {elapsed:.0f}s elapsed", file=sys.stderr)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as pool:
+        futures = {
+            pool.submit(rebuild_person, pid, os.path.join(args.outroot, pid, "immuannot_output")): pid
+            for pid in person_dirs
+        }
+        for i, fut in enumerate(concurrent.futures.as_completed(futures), 1):
+            rows = fut.result()
+            if not rows:
+                n_no_gtf += 1
+            all_rows.extend(rows)
+            if i % args.checkpoint_every == 0 or i == len(person_dirs):
+                elapsed = time.time() - t0
+                rate = i / elapsed if elapsed > 0 else 0
+                print(f"  [{i}/{len(person_dirs)}] {len(all_rows)} gene rows so far, "
+                      f"{n_no_gtf} people with no readable GTF, {elapsed:.0f}s elapsed "
+                      f"({rate:.1f} people/sec)", file=sys.stderr)
 
     if not all_rows:
         sys.exit("FATAL: rebuilt 0 gene rows across every person directory -- something is "
                  "fundamentally wrong (wrong --outroot? GTFs actually missing, not just "
-                 "mis-merged?). Not writing an empty file over the backup.")
+                 "mis-merged?). Not writing an empty file over any backup.")
 
+    elapsed = time.time() - t0
     df = pd.DataFrame(all_rows)
     df.to_csv(out_path, sep="\t", index=False)
 
+    if is_timing_test:
+        rate = len(person_dirs) / elapsed if elapsed > 0 else 0
+        est_full_seconds = total_people / rate if rate > 0 else float("inf")
+        print(f"\n=== Timing test done: {len(person_dirs)} people in {elapsed:.0f}s "
+              f"({rate:.1f} people/sec) ===", file=sys.stderr)
+        print(f"Extrapolated to the full cohort ({total_people} people): "
+              f"~{est_full_seconds:.0f}s (~{est_full_seconds / 60:.1f} min).", file=sys.stderr)
+        print(f"Delete the test file when done looking at it: rm {out_path}", file=sys.stderr)
+        print(f"If that estimate looks acceptable, rerun WITHOUT --limit for the real repair.",
+              file=sys.stderr)
+        return
+
     genes_seen = sorted(df["gene"].unique())
     classical_genes_present = [g for g in genes_seen if g.startswith("HLA-")]
-    print(f"\nWrote {len(df)} rows ({df['person_id'].nunique()} people) to {out_path}.", file=sys.stderr)
+    print(f"\nWrote {len(df)} rows ({df['person_id'].nunique()} people) to {out_path} in "
+          f"{elapsed:.0f}s.", file=sys.stderr)
     print(f"{len(genes_seen)} distinct genes present: {genes_seen}", file=sys.stderr)
     if not classical_genes_present:
         print("\nWARNING: still 0 'HLA-'-prefixed genes present after rebuild -- the classical "

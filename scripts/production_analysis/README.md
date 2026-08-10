@@ -19,7 +19,15 @@ raw per-person `hap{1,2}.gtf.gz` files (deliberately kept, not pruned) — the p
 this could otherwise re-merge from were already deleted by `merge_fragments()` itself.
 **You don't need to run the repair manually — `run_all.sh` below detects this exact symptom and
 repairs it automatically before running anything else, and every individual script also refuses to
-run (loud `FATAL`, not a silent empty result) if it ever sees this again.**
+run (loud `FATAL`, not a silent empty result) if it ever sees this again.** The repair reads local
+disk files (not the gcsfuse bucket), so it's fast — but `run_all.sh` doesn't just assume that: it
+first times a 200-person sample, extrapolates the real full-cohort time from a measured rate, and
+only proceeds automatically if that estimate is under 15 minutes (`MAX_AUTO_REPAIR_MIN` env var to
+change the threshold). If the real cohort turns out slower than expected, it stops and tells you
+instead of silently running long. To check the timing yourself before running anything else:
+```bash
+pixi run -e spechla -- python3 scripts/production_orchestrator/rebuild_immuannot_calls.py --limit 200
+```
 
 ## Run everything in one command
 

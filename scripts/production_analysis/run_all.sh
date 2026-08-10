@@ -49,7 +49,23 @@ print(bare.isin(GENES).sum())
 echo "  $N_CLASSICAL rows currently match a classical HLA gene."
 if [ "$N_CLASSICAL" -eq 0 ]; then
   echo "  0 classical-gene rows -- this is the known 2026-08-10 merge_fragments() dedup bug."
-  echo "  Auto-running the repair (safe: old file backed up, never deleted)..."
+  echo "  Measuring repair speed on a 200-person sample before committing to the full run..."
+  python3 "$SCRIPT_DIR/../production_orchestrator/rebuild_immuannot_calls.py" --outroot "$OUTROOT" --limit 200 2>&1 | tee /tmp/repair_timing_test.log
+  EST_MIN=$(grep -oE '~[0-9.]+ min' /tmp/repair_timing_test.log | tail -1 | grep -oE '[0-9.]+')
+  MAX_MIN="${MAX_AUTO_REPAIR_MIN:-15}"
+  EXCEEDS=$(python3 -c "print(1 if float('${EST_MIN:-0}') > float('$MAX_MIN') else 0)" 2>/dev/null || echo 0)
+  if [ -z "$EST_MIN" ]; then
+    echo "  WARNING: could not parse the timing estimate -- proceeding with the full repair anyway (couldn't gate on an unreadable estimate)."
+  elif [ "$EXCEEDS" = "1" ]; then
+    echo ""
+    echo "STOPPING: estimated full repair time (~${EST_MIN} min) exceeds the auto-run threshold (${MAX_MIN} min)." >&2
+    echo "This is NOT a failure -- it's a deliberate pause so a long operation never runs silently." >&2
+    echo "Options: (a) rerun this same command with MAX_AUTO_REPAIR_MIN=<bigger number> to raise the threshold and let it proceed," >&2
+    echo "         (b) run the repair manually: python3 $SCRIPT_DIR/../production_orchestrator/rebuild_immuannot_calls.py --outroot $OUTROOT" >&2
+    echo "         (c) resize to a bigger VM first if you want it faster (see scripts/production_analysis/README.md)." >&2
+    exit 1
+  fi
+  echo "  Estimate (~${EST_MIN:-unknown} min) is within the ${MAX_MIN}-min auto-run threshold -- running the real repair now..."
   python3 "$SCRIPT_DIR/../production_orchestrator/rebuild_immuannot_calls.py" --outroot "$OUTROOT"
   REPAIR_STATUS=$?
   if [ $REPAIR_STATUS -ne 0 ]; then
