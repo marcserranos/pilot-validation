@@ -412,7 +412,18 @@ def merge_fragments(outroot):
             continue
         merged = pd.concat(frames, ignore_index=True)
         key = "person_id"
-        merged = merged.drop_duplicates(subset=[key] if base == "immuannot_calls" else [key, "hap"],
+        # BUG FIX (2026-08-10, found post-run): immuannot_calls.tsv has one row PER GENE per
+        # person, not one row per person -- deduping on `[key]` alone silently collapsed every
+        # person down to a single surviving row (whichever sorted alphabetically last in the
+        # concatenated frame, keep="last"). Since genes are written in sorted() order and
+        # "HLA-"-prefixed classical genes sort before non-prefixed MICA/MICB/TAP1/TAP2, this
+        # systematically discarded every classical HLA gene's row for every person across the
+        # whole production run, each time this function ran (every 500 completions). The fix:
+        # dedup key must include "gene" for the calls file, same as "hap" already does for timing.
+        # See scripts/production_orchestrator/rebuild_immuannot_calls.py for the one-time repair
+        # of a canonical file already corrupted by the old behavior (fragments were already
+        # deleted by the time this was found, so the repair reads the raw per-person GTFs instead).
+        merged = merged.drop_duplicates(subset=[key, "gene"] if base == "immuannot_calls" else [key, "hap"],
                                          keep="last")
         merged.to_csv(canonical, sep="\t", index=False)
         # Delete merged fragments once safely folded into the canonical file -- keeps every future

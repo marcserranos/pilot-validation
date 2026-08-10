@@ -1,17 +1,50 @@
 # Production-run post-processing & supervisor report
 
-Five scripts, built 2026-08-10 after the full-cohort Immuannot production run finished, covering
-everything Marc asked for: completeness/coverage/demographics, a confidence-threshold discrepancy
-sweep vs AoU-native, a confidence distribution plot, HLA-vs-ancestry clustering, an
+Five analysis scripts, built 2026-08-10 after the full-cohort Immuannot production run finished,
+covering everything Marc asked for: completeness/coverage/demographics, a confidence-threshold
+discrepancy sweep vs AoU-native, a confidence distribution plot, HLA-vs-ancestry clustering, an
 allele-frequency-by-ancestry spectrum, and a capstone figure synthesizing this project's
 "DRB1 is the hardest locus" finding. All are cheap I/O over small TSVs + per-person `.gtf.gz`
-files — **run these on the resized, cheap Workbench environment**, not the 96-core production VM
-(see "Step by step," below, for the full path from a freshly-resized VM to results).
+files — **run these on the resized, cheap Workbench environment**, not the 96-core production VM.
 
-## Run order
+## ⚠ Known bug, already fixed — read before running anything
+
+**`merge_fragments()` in `run_production_orchestrator.py` deduplicated `immuannot_calls.tsv` on
+`person_id` alone, silently collapsing every person's 8+ gene rows down to just one (whichever
+sorted alphabetically last — always one of `MICA`/`MICB`/`TAP1`/`TAP2`, never a classical gene).
+Found 2026-08-10 against the real production output. Fixed in `merge_fragments()` (now keys on
+`[person_id, gene]`), and a one-time repair script,
+`scripts/production_orchestrator/rebuild_immuannot_calls.py`, rebuilds the canonical file from the
+raw per-person `hap{1,2}.gtf.gz` files (deliberately kept, not pruned) — the per-worker fragments
+this could otherwise re-merge from were already deleted by `merge_fragments()` itself.
+**You don't need to run the repair manually — `run_all.sh` below detects this exact symptom and
+repairs it automatically before running anything else, and every individual script also refuses to
+run (loud `FATAL`, not a silent empty result) if it ever sees this again.**
+
+## Run everything in one command
 
 ```bash
-cd ~/repos/pilot-validation && pixi shell -e spechla   # pandas/matplotlib/sklearn/umap all live here
+cd ~/repos/pilot-validation && git pull
+pixi run -e spechla -- bash scripts/production_analysis/run_all.sh
+```
+
+That's it — `pixi run` activates the environment for just this command (no separate `pixi shell` +
+`pixi install` steps needed). `run_all.sh`:
+1. Checks `immuannot_calls.tsv` for the bug above; auto-repairs if needed (safe — the old file is
+   renamed aside with a timestamp, never deleted).
+2. Mounts gcsfuse if it isn't already (billing project `wb-cordial-leechee-9743`, confirmed
+   2026-08-10 — override with `AOU_BILLING_PROJECT=...` if this ever runs in a different
+   workspace). Non-fatal if it fails — just skips the one script that needs it.
+3. Runs all 5 scripts, continuing past any individual failure rather than stopping the batch.
+4. Prints one PASS/FAIL/SKIPPED summary table and exactly where every output landed.
+
+Paste the terminal output back, or open the PNGs directly in the Jupyter file browser — no need to
+run anything script-by-script or babysit each step.
+
+## Running scripts individually (advanced / debugging)
+
+```bash
+pixi shell -e spechla   # wait for the (omni-hla-pilot:spechla) prompt
 pixi install -e spechla   # first time only, to pick up umap-learn (added 2026-08-10)
 
 python3 scripts/production_analysis/analyze_completeness_and_demographics.py
@@ -25,6 +58,21 @@ Each is independent (different inputs, different output dir) — run them in any
 ones you need. Defaults assume the standard `~/pipeline_outputs/` layout from
 `scripts/production_orchestrator/RESULTS_LOCATION.md`; override with `--calls`/`--cohort`/
 `--timing`/`--aou-tsv`/`--outroot` if your paths differ.
+
+**Manual gcsfuse mount** (only needed for `analyze_confidence_vs_aou_native.py`; `run_all.sh`
+does this automatically). Billing project is `wb-cordial-leechee-9743` (confirmed 2026-08-10 via
+`gcloud config get-value project`, for the Stanford-pod workspace this production run actually
+used — don't reuse the earlier pilot workspace's `wb-glacial-potato-8710`, they're different GCP
+projects). Paste as two separate commands (quirk #2 — never chain the mount and a consumer command
+together):
+```bash
+mkdir -p ~/mnt/aou-controlled
+gcsfuse --billing-project wb-cordial-leechee-9743 --implicit-dirs vwb-aou-datasets-controlled ~/mnt/aou-controlled
+```
+Then verify it actually resolved before trusting it:
+```bash
+ls ~/mnt/aou-controlled/v9/wgs
+```
 
 ## What each produces
 
@@ -90,50 +138,19 @@ picks up from there.
    ```
    Both should exist and be non-empty (`ls -la` to check size) — this confirms the resize
    preserved the persistent disk and you're not looking at a fresh/empty one.
-3. **Pull the latest code** (this session's 5 new scripts aren't on the VM yet):
+3. **Pull the latest code:**
    ```bash
    cd ~/repos/pilot-validation && git pull
    ```
-4. **Activate the environment and install the one new dependency** (`umap-learn`, added this
-   session):
+4. **Run everything with the one command from "Run everything in one command," above:**
    ```bash
-   pixi shell -e spechla
+   pixi run -e spechla -- bash scripts/production_analysis/run_all.sh
    ```
-   Wait for the `(omni-hla-pilot:spechla)` prompt prefix before pasting anything else (quirk #1/#2
-   — `pixi shell` can silently land in a non-activated shell, or miss its activation hook). Then,
-   as its own separate paste:
-   ```bash
-   pixi install -e spechla
-   ```
-5. **Only if you're running `analyze_confidence_vs_aou_native.py`** (the one script that reads
-   AoU-native data from the bucket): remount gcsfuse. **The billing project for this run's actual
-   workspace (`wb-cordial-leechee-9743`, the Stanford-pod one used for the 96-core VM) isn't
-   recorded anywhere in this repo** — only the original pilot workspace's
-   (`wb-glacial-potato-8710`) is (`context/ENVIRONMENT.md`). Don't guess/reuse that value blindly.
-   Find the right one first: either check the Workbench UI's workspace/environment details panel,
-   or run `gcloud config get-value project` in the terminal. Then, as its own paste (quirk #2 —
-   never chain the mount and a consumer command together):
-   ```bash
-   mkdir -p ~/mnt/aou-controlled
-   gcsfuse --billing-project <the real billing project> --implicit-dirs vwb-aou-datasets-controlled ~/mnt/aou-controlled
-   ```
-   Verify it actually resolved before trusting it (separate paste):
-   ```bash
-   ls ~/mnt/aou-controlled/v9/wgs
-   ```
-   The other 4 scripts don't need this step at all.
-6. **Run the scripts** (any order, from `~/repos/pilot-validation`, inside the activated `spechla`
-   shell):
-   ```bash
-   python3 scripts/production_analysis/analyze_completeness_and_demographics.py
-   python3 scripts/production_analysis/analyze_confidence_vs_aou_native.py
-   python3 scripts/production_analysis/cluster_hla_by_ancestry.py
-   python3 scripts/production_analysis/analyze_allele_frequency_by_ancestry.py
-   python3 scripts/production_analysis/summarize_drb1_evidence_capstone.py
-   ```
-   Each prints its markdown report to the terminal as it finishes, in addition to writing it to
-   disk — so you can read results immediately without leaving the terminal.
-7. **Where results land:** everything goes under `~/pipeline_outputs/production_analysis/`, one
+   This alone handles environment activation, the `umap-learn` install, the merge-bug auto-repair,
+   the gcsfuse mount, and all 5 scripts — nothing else to do manually. If you'd rather run scripts
+   one at a time (e.g. to debug a single failure), see "Running scripts individually" above instead
+   — that section also covers the manual mount command and the billing-project caveat in full.
+5. **Where results land:** everything goes under `~/pipeline_outputs/production_analysis/`, one
    subdirectory per script (`completeness/`, `confidence/`, `clustering/`, `allele_frequency/`,
    `drb1_capstone/`), each holding its PNG figure(s) + a `*_report.md`. Nothing writes outside that
    tree, and nothing here downloads or exports anything — to actually view the PNGs and put

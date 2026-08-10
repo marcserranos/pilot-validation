@@ -274,6 +274,17 @@ def main():
     timing = load_timing(args.timing)
     summary = build_person_summary(cohort, calls)
 
+    n_any_output = summary["has_output"].sum()
+    n_any_classical_complete = (summary["n_classical_complete"] > 0).sum()
+    if n_any_output > 0 and n_any_classical_complete == 0:
+        genes_seen = sorted(calls["gene_bare"].unique())[:20]
+        sys.exit(f"FATAL: {n_any_output} people have output, but ZERO have even one of the 8 "
+                 f"classical genes ({GENES}) complete. Genes actually present in {args.calls} "
+                 f"(first 20): {genes_seen}. This is the exact symptom of the 2026-08-10 "
+                 f"merge_fragments() dedup bug -- run "
+                 f"scripts/production_orchestrator/rebuild_immuannot_calls.py first, then rerun "
+                 f"this script.")
+
     overview_path = os.path.join(args.out_dir, "completeness_overview.png")
     timing_path = os.path.join(args.out_dir, "timing_stats.png")
     plot_overview(summary, overview_path)

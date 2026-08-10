@@ -4,6 +4,34 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-08-10 (cont.) — real data run found a real production bug; fixed, repair script + one-command wrapper built
+
+Marc actually ran the post-processing scripts on the real VM. `analyze_completeness_and_demographics.py`
+reported 0% gene-completeness despite 92%+ "any output" -- internally inconsistent, worth chasing.
+Root cause found and fixed: `merge_fragments()`'s dedup of `immuannot_calls.tsv` keyed on
+`person_id` alone instead of `[person_id, gene]`, silently deleting every classical HLA gene's row
+for the entire ~12,000-person cohort, every time it ran. Full account: ENVIRONMENT.md quirk #29.
+
+**Data was recoverable, not lost** -- `scripts/production_orchestrator/rebuild_immuannot_calls.py`
+(new, tested against synthetic fixtures reproducing the exact bug) re-derives a correct
+`immuannot_calls.tsv` from the raw per-person `hap{1,2}.gtf.gz` files, which were deliberately kept.
+All 5 `production_analysis/` scripts now also refuse to run (loud FATAL, not a silent bad result)
+if they ever see this symptom again -- tested against both good and bug-scenario fixtures.
+
+**Built `scripts/production_analysis/run_all.sh`** (Marc, this session: "one script... I don't have
+to be micro-managing the task") -- detects the bug and auto-repairs if needed, mounts gcsfuse
+(billing project `wb-cordial-leechee-9743`, confirmed this session), runs all 5 scripts, prints one
+PASS/FAIL/SKIPPED summary. Invoked via `pixi run -e spechla -- bash scripts/production_analysis/run_all.sh`
+-- no manual `pixi shell`/`pixi install` steps needed. Tested end-to-end against synthetic fixtures
+(bug-scenario auto-repair path + happy path); one portability bug found and fixed along the way
+(`declare -A` needs bash 4+, removed in favor of a plain accumulator, since the target VM's bash
+version wasn't worth assuming).
+
+**Next: Marc runs `run_all.sh` for real** and pastes back the summary + any figures. Not yet
+independently confirmed working against the actual ~12,000-person production cohort at real scale
+(only synthetic fixtures so far) -- watch for anything scale-specific (e.g. gcsfuse mount timing
+under real load, GTF-parsing wall-clock time across 12,000+ people in the repair script).
+
 ## As of 2026-08-10 — production run finished; post-processing scripts built, tested, not yet run on real data
 
 Full-cohort production run completed (Phase 1 only, per the 2026-08-05 Tier 3 decision below).

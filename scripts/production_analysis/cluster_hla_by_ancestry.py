@@ -100,7 +100,14 @@ def load_calls(path):
         if c not in df.columns:
             sys.exit(f"FATAL: {path} missing column '{c}'. Actual: {list(df.columns)}")
     df["gene_bare"] = df["gene"].str.replace("^HLA-", "", regex=True)
-    return df[df["gene_bare"].isin(GENES)]
+    filtered = df[df["gene_bare"].isin(GENES)]
+    if filtered.empty:
+        seen = sorted(df["gene_bare"].unique())[:20]
+        sys.exit(f"FATAL: 0 of {len(df)} rows in {path} match any of the 8 classical genes "
+                 f"{GENES}. Genes actually present (first 20): {seen}. This is the exact "
+                 f"symptom of the 2026-08-10 merge_fragments() dedup bug -- run "
+                 f"scripts/production_orchestrator/rebuild_immuannot_calls.py first.")
+    return filtered
 
 
 def load_ancestry(path):
