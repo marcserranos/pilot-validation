@@ -76,15 +76,17 @@ def load_ancestry(path):
     for c in ["person_id", "ancestry_pred"]:
         if c not in df.columns:
             sys.exit(f"FATAL: {path} missing column '{c}'. Actual: {list(df.columns)}")
+    # Real production file uses lowercase ("afr", "amr", ...) -- found 2026-08-10 (`cut -f5
+    # immuannot_cohort_full.tsv | sort | uniq -c` showed the join worked fine, just lowercase).
+    df["ancestry_pred"] = df["ancestry_pred"].str.upper()
     n_valid = df["ancestry_pred"].isin(ANCESTRY_ORDER).sum()
     if n_valid == 0:
         counts = df["ancestry_pred"].fillna("<NaN>").value_counts().head(10).to_dict()
         sys.exit(f"FATAL: 0 of {len(df)} rows in {path} have a usable ancestry_pred value "
-                 f"(expected one of {ANCESTRY_ORDER}). Actual value counts (top 10): {counts}. "
-                 f"Found 2026-08-10: this cohort file's ancestry join likely never resolved -- "
-                 f"check whether build_immuannot_cohort.py's ancestry join ran with the gcsfuse "
-                 f"mount actually up (it degrades to all-NA silently if the ancestry TSV wasn't "
-                 f"reachable at cohort-build time, per that script's own docstring).")
+                 f"(expected one of {ANCESTRY_ORDER}, case-insensitive). Actual value counts "
+                 f"(top 10): {counts}. Check whether build_immuannot_cohort.py's ancestry join "
+                 f"ran with the gcsfuse mount actually up (it degrades to all-NA silently if the "
+                 f"ancestry TSV wasn't reachable at cohort-build time).")
     return dict(zip(df["person_id"], df["ancestry_pred"]))
 
 

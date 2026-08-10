@@ -185,7 +185,35 @@ def load_aou_native(path, cohort_person_ids):
 
 
 def load_confidence(person_ids, outroot):
-    """{(person_id, gene): (worst_template_distance_or_None, any_warning_bool)}."""
+    """{(person_id, gene): (worst_template_distance_or_None, any_warning_bool)}.
+
+    Prefers the cache rebuild_immuannot_calls.py writes (immuannot_confidence.tsv) -- built in
+    the same pass that already reads every hap{1,2}.gtf.gz, so reading it here avoids re-opening
+    and re-parsing ~24,000 gzip files a second time (Marc, 2026-08-10). Falls back to the slower
+    direct-GTF-parse path if the cache doesn't exist (e.g. someone runs this script without ever
+    having run the repair, or against a cohort that was never affected by the merge bug)."""
+    cache_path = os.path.join(outroot, "immuannot_confidence.tsv")
+    if os.path.exists(cache_path):
+        print(f"  using cached confidence signals from {cache_path} (skipping GTF re-parse)",
+              file=sys.stderr)
+        df = pd.read_csv(cache_path, sep="\t", dtype=str, keep_default_na=False)
+        df["gene_bare"] = df["gene"].str.replace("^HLA-", "", regex=True)
+        wanted = set(str(p) for p in person_ids)
+        out = {}
+        for _, r in df.iterrows():
+            if r["person_id"] not in wanted or r["gene_bare"] not in GENES:
+                continue
+            td_raw = r["worst_template_distance"]
+            td = float(td_raw) if td_raw not in ("", "None", "nan") else None
+            warn = str(r["any_warning"]).strip().lower() in {"true", "1"}
+            out[(r["person_id"], r["gene_bare"])] = (td, warn)
+        return out
+    return _load_confidence_from_gtf(person_ids, outroot)
+
+
+def _load_confidence_from_gtf(person_ids, outroot):
+    """Slow path: re-parses raw GTFs directly. Only used when the rebuild script's cache isn't
+    available -- see load_confidence()'s docstring."""
     out = {}
     for pid in person_ids:
         per_hap = {}
@@ -290,11 +318,25 @@ def build_threshold_grid(pooled_td, max_threshold=5.0, n_points=24):
     wastes most of its points on territory where the threshold barely excludes anything -- 14 of
     16 points were flat. Capping at max_threshold (default 5, Marc's suggestion) concentrates the
     grid where the data actually lives; bounded by the real observed max so a sparse/low-range
-    dataset never gets an artificially wide, mostly-empty grid either."""
+    dataset never gets an artificially wide, mostly-empty grid either.
+
+    template_distance is a real edit distance (reference/README_Immuannot.md: "the edit distance
+    between the target sequence and the template allele") -- edit distance is integer-valued by
+    definition (a count of substitutions/insertions/deletions), so intermediate fractional
+    thresholds like 0.43 can't actually change which calls pass/fail; they just interpolate
+    between two thresholds that behave identically. Detected automatically (not assumed) --
+    Marc's intuition, 2026-08-10 -- so a future non-integer confidence signal still gets the
+    continuous grid instead of a wrong assumption baked in."""
     if not pooled_td:
         return [0, 1, 2, 3, 5]
+    is_integer_valued = all(float(v).is_integer() for v in pooled_td)
     cap = min(max_threshold, max(pooled_td))
-    grid = sorted(set(round(x, 2) for x in np.linspace(0, max(cap, 0.1), n_points)))
+    if is_integer_valued:
+        grid = list(range(0, int(cap) + 1))
+        if not grid:
+            grid = [0]
+    else:
+        grid = sorted(set(round(x, 2) for x in np.linspace(0, max(cap, 0.1), n_points)))
     return grid
 
 
@@ -369,16 +411,22 @@ def plot_threshold_sweep(combined, out_path, max_threshold=5.0):
     ax.set_xscale("symlog", linthresh=linthresh)
     # symlog's default tick locator/formatter renders "10^0"/"10^-1" scientific notation -- not
     # what a "max allowed distance" axis should show. Don't subsample the (linearly-spaced) grid
-    # for ticks either -- linear-spaced values bunch up once placed on a log-spaced axis. Instead
-    # generate ticks that are themselves evenly spaced in symlog space: a doubling sequence
-    # from linthresh up to the cap, plus one linear-region point below linthresh.
-    tick_vals = [0.0, linthresh / 2, linthresh]
-    v = linthresh
+    # for ticks either -- linear-spaced values bunch up once placed on a log-spaced axis.
     cap = grid[-1]
-    while v < cap:
-        v = round(v * 2, 2)
-        tick_vals.append(min(v, cap))
-    tick_vals = sorted(set(round(t, 2) for t in tick_vals))
+    grid_is_integer = all(float(v).is_integer() for v in grid)
+    if grid_is_integer and cap <= 12:
+        # Small integer grid (the common case, template_distance is a real edit distance) --
+        # just use the grid's own values directly, no need for log-doubling tick generation.
+        tick_vals = [float(v) for v in grid]
+    else:
+        # Continuous (or a wide integer) grid: generate ticks evenly spaced in symlog space --
+        # a doubling sequence from linthresh up to the cap, plus one linear-region point below.
+        tick_vals = [0.0, linthresh / 2, linthresh]
+        v = linthresh
+        while v < cap:
+            v = round(v * 2, 2)
+            tick_vals.append(min(v, cap))
+        tick_vals = sorted(set(round(t, 2) for t in tick_vals))
     ax.set_xticks(tick_vals)
     ax.set_xticklabels([f"{t:g}" for t in tick_vals])
     ax.set_xlabel("Max allowed template_distance kept  (looser ←  → stricter / higher certainty)")
@@ -482,7 +530,8 @@ def main():
     aou_calls = load_aou_native(args.aou_tsv, set(person_ids))
     print(f"  {len(aou_calls)} (person, gene) AoU-native calls", file=sys.stderr)
     print(f"Loading Immuannot confidence signals for {len(person_ids)} people "
-          f"(reads hap1/hap2 .gtf.gz -- this is the slow step, I/O not CPU bound)...", file=sys.stderr)
+          f"(uses the rebuild script's cache if present, otherwise re-parses hap1/hap2 .gtf.gz -- "
+          f"see the log line just below for which one actually happened)...", file=sys.stderr)
     confidence = load_confidence(person_ids, args.outroot)
     print(f"  confidence signal found for {len(confidence)} (person, gene) pairs", file=sys.stderr)
 

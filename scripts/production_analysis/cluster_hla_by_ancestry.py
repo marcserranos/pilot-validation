@@ -115,6 +115,8 @@ def load_ancestry(path):
     for c in ["person_id", "ancestry_pred"]:
         if c not in df.columns:
             sys.exit(f"FATAL: {path} missing column '{c}'. Actual: {list(df.columns)}")
+    # Real production file uses lowercase ("afr", "amr", ...) -- found 2026-08-10.
+    df["ancestry_pred"] = df["ancestry_pred"].str.upper()
     return dict(zip(df["person_id"], df["ancestry_pred"]))
 
 

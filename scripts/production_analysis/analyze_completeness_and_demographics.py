@@ -58,7 +58,10 @@ def load_cohort(path):
             sys.exit(f"FATAL: {path} missing expected column '{c}'. Actual columns: {list(df.columns)}")
     if "ancestry_pred" not in df.columns:
         df["ancestry_pred"] = None
-    df["ancestry_pred"] = df["ancestry_pred"].fillna("NA")
+    # Real production file uses lowercase ("afr", "amr", ...) -- found 2026-08-10, confirmed via
+    # `cut -f5 immuannot_cohort_full.tsv | sort | uniq -c`. Normalize case here rather than assume
+    # a convention from documentation alone.
+    df["ancestry_pred"] = df["ancestry_pred"].fillna("NA").str.upper()
     valid_before = df["ancestry_pred"].isin(ANCESTRY_ORDER[:-1]).sum()  # exclude "NA" itself
     df.loc[~df["ancestry_pred"].isin(ANCESTRY_ORDER), "ancestry_pred"] = "NA"
     if valid_before == 0 and len(df) > 0:
