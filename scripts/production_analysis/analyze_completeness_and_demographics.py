@@ -59,7 +59,15 @@ def load_cohort(path):
     if "ancestry_pred" not in df.columns:
         df["ancestry_pred"] = None
     df["ancestry_pred"] = df["ancestry_pred"].fillna("NA")
+    valid_before = df["ancestry_pred"].isin(ANCESTRY_ORDER[:-1]).sum()  # exclude "NA" itself
     df.loc[~df["ancestry_pred"].isin(ANCESTRY_ORDER), "ancestry_pred"] = "NA"
+    if valid_before == 0 and len(df) > 0:
+        print(f"\nWARNING: 0 of {len(df)} people in {path} have a usable ancestry_pred value -- "
+              f"the ancestry breakdown below will show everyone under 'NA'. This is NOT a "
+              f"completeness-script problem; it means the cohort file's ancestry join likely never "
+              f"resolved. Non-fatal here (the rest of this report is still valid), but "
+              f"analyze_allele_frequency_by_ancestry.py and cluster_hla_by_ancestry.py both need "
+              f"real ancestry labels and will refuse to run until this is fixed.\n", file=sys.stderr)
     return df
 
 

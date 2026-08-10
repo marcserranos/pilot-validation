@@ -163,10 +163,16 @@ def load_immuannot_calls(path):
             for _, r in df.iterrows()}
 
 
-def load_aou_native(path):
+def load_aou_native(path, cohort_person_ids):
+    """AoU-native's own TSV covers the WHOLE AoU cohort (535,658+ people) -- filtering to just the
+    production cohort's person_ids, not just for speed/memory (4.28M rows -> ~12k), but because an
+    unfiltered load makes the printed count actively misleading (looked like 4.28M AoU-native
+    calls existed for a ~12k-person run -- found 2026-08-10 comparing against the real production
+    output)."""
     df = pd.read_csv(path, sep="\t", dtype=str)
     if "research_id" not in df.columns:
         sys.exit(f"FATAL: {path} missing 'research_id'. Actual columns (first 10): {list(df.columns)[:10]}")
+    df = df[df["research_id"].isin(cohort_person_ids)]
     out = {}
     for _, r in df.iterrows():
         pid = r["research_id"]
@@ -263,7 +269,7 @@ def plot_baseline_forest(combined, out_path):
     ax.errorbar(pts, ys, xerr=[los, his], fmt="o", color="#2C5C8A", ecolor="#88AACC",
                 elinewidth=2, capsize=4, markersize=7)
     for y, p, n in zip(ys, pts, ns):
-        ax.text(p + 2.5, y, f"{p:.0f}% (n={human_count(n)})", va="center", fontsize=8)
+        ax.text(p + 2.5, y, f"{p:.0f}% (n={human_count(n)} alleles)", va="center", fontsize=8)
     ax.set_yticks(ys)
     ax.set_yticklabels(GENES)
     ax.invert_yaxis()
@@ -277,17 +283,25 @@ def plot_baseline_forest(combined, out_path):
     plt.close(fig)
 
 
-def build_threshold_grid(pooled_td, n_points=16):
+def build_threshold_grid(pooled_td, max_threshold=5.0, n_points=24):
+    """Most real template_distance values cluster near 0 with a long thin tail (confirmed
+    2026-08-10 against real production data -- every gene's median sits near 0 while a few
+    outliers reach 100-200). A grid spanning the full range (e.g. pooled 99th percentile, ~30)
+    wastes most of its points on territory where the threshold barely excludes anything -- 14 of
+    16 points were flat. Capping at max_threshold (default 5, Marc's suggestion) concentrates the
+    grid where the data actually lives; bounded by the real observed max so a sparse/low-range
+    dataset never gets an artificially wide, mostly-empty grid either."""
     if not pooled_td:
         return [0, 1, 2, 3, 5]
-    p99 = float(np.percentile(pooled_td, 99))
-    grid = sorted(set(round(x, 1) for x in np.linspace(0, max(p99, 1), n_points)))
+    cap = min(max_threshold, max(pooled_td))
+    grid = sorted(set(round(x, 2) for x in np.linspace(0, max(cap, 0.1), n_points)))
     return grid
 
 
-def plot_threshold_sweep(combined, out_path):
+def plot_threshold_sweep(combined, out_path, max_threshold=5.0):
+    linthresh = 0.5
     all_td = [row["worst_td"] for row in combined.values() if row["worst_td"] is not None]
-    grid = build_threshold_grid(all_td)
+    grid = build_threshold_grid(all_td, max_threshold=max_threshold)
 
     per_gene_curve = {g: {"x": [], "y": [], "n": []} for g in GENES}
     mean_curve = {"x": [], "y": []}
@@ -325,17 +339,48 @@ def plot_threshold_sweep(combined, out_path):
 
     ax2 = ax.twinx()
     ax2.fill_between(pooled_n_curve["x"], pooled_n_curve["n"], color="#CCCCCC", alpha=0.25, zorder=0)
-    ax2.set_ylabel("n (person, gene) pairs considered, pooled across genes", fontsize=9, color="#888")
+    # This is an ALLELE-level count (up to 2 per person x gene, one per haplotype), not a
+    # person-gene pair count -- field2_concordance()/compare_genotype() score each haplotype
+    # separately. Mislabeled as "(person, gene) pairs" before 2026-08-10; fixed after the real
+    # production run showed ~172K here against only 97,724 actual (person, gene) pairs -- the
+    # ~1.76x ratio is explained by most genotypes contributing 2 comparable alleles, not a bug.
+    ax2.set_ylabel("n allele-level comparisons, pooled across genes", fontsize=9, color="#888")
     ax2.tick_params(axis="y", colors="#888")
-    # Annotate N at a handful of points (start, ~mid, end) rather than every point -- keeps the
-    # main discrepancy lines legible per Marc's "if the numbers allow" caveat.
-    idxs = sorted(set([0, len(pooled_n_curve["x"]) // 2, len(pooled_n_curve["x"]) - 1]))
-    for i in idxs:
-        if i < len(pooled_n_curve["x"]):
-            x, n = pooled_n_curve["x"][i], pooled_n_curve["n"][i]
-            ax2.text(x, n, human_count(n), fontsize=8, color="#666", ha="center", va="bottom")
+    # Annotate N at 3 points spread by VALUE (loosest, linthresh, strictest), not by linear index
+    # position -- picking indices from a linearly-spaced grid and placing them on a symlog axis
+    # bunched two of the three annotations on top of each other (found 2026-08-10: "2.6K" appeared
+    # twice, overlapping, near the loosest end).
+    target_xs = [pooled_n_curve["x"][-1], linthresh, 0.0]
+    xs_arr = pooled_n_curve["x"]
+    seen_i = set()
+    for target in target_xs:
+        i = min(range(len(xs_arr)), key=lambda j: abs(xs_arr[j] - target))
+        if i in seen_i:
+            continue
+        seen_i.add(i)
+        x, n = xs_arr[i], pooled_n_curve["n"][i]
+        ax2.text(x, n, human_count(n), fontsize=8, color="#666", ha="center", va="bottom")
 
     ax.invert_xaxis()  # 0/strict on the right -- "raising certainty" reads left-to-right
+    # symlog (not plain log): 0 is a real, common, meaningful value here (most confident calls) --
+    # plain log can't render it. symlog linearizes near 0 and logs beyond linthresh, which is
+    # exactly what a "cluster at 0, thin tail beyond" distribution needs (Marc, 2026-08-10: "add a
+    # log scale... or a much more restrictive window (perhaps 5 as the max)" -- did both).
+    ax.set_xscale("symlog", linthresh=linthresh)
+    # symlog's default tick locator/formatter renders "10^0"/"10^-1" scientific notation -- not
+    # what a "max allowed distance" axis should show. Don't subsample the (linearly-spaced) grid
+    # for ticks either -- linear-spaced values bunch up once placed on a log-spaced axis. Instead
+    # generate ticks that are themselves evenly spaced in symlog space: a doubling sequence
+    # from linthresh up to the cap, plus one linear-region point below linthresh.
+    tick_vals = [0.0, linthresh / 2, linthresh]
+    v = linthresh
+    cap = grid[-1]
+    while v < cap:
+        v = round(v * 2, 2)
+        tick_vals.append(min(v, cap))
+    tick_vals = sorted(set(round(t, 2) for t in tick_vals))
+    ax.set_xticks(tick_vals)
+    ax.set_xticklabels([f"{t:g}" for t in tick_vals])
     ax.set_xlabel("Max allowed template_distance kept  (looser ←  → stricter / higher certainty)")
     ax.set_ylabel("Discrepancy vs AoU-native, Field 2 (%)")
     ax.set_title("Discrepancy vs AoU-native as the Immuannot confidence bar tightens, per gene\n"
@@ -395,7 +440,14 @@ def plot_confidence_violin_scatter(combined, out_path, max_points_per_gene=2500)
     ax.legend(loc="upper right", fontsize=8, frameon=False)
     ax.set_xticks(range(len(GENES)))
     ax.set_xticklabels(GENES)
-    ax.set_ylabel("Worst-haplotype template_distance (lower = more confident)")
+    # symlog, not plain log: template_distance=0 is the single most common, most meaningful value
+    # (perfect match) -- plain log excludes it. Real production data (2026-08-10) showed most
+    # calls clustered at/near 0 with a long thin tail to 100-200, squashing the informative part
+    # into a thin band at the bottom of a linear axis -- symlog fixes that (Marc's request).
+    ax.set_yscale("symlog", linthresh=1)
+    ax.set_ylim(bottom=0)  # template_distance is never negative -- symlog defaults to a
+                            # symmetric range around 0 otherwise, showing a misleading negative tick
+    ax.set_ylabel("Worst-haplotype template_distance (lower = more confident, symlog scale)")
     ax.set_title("Immuannot confidence distribution by gene, full production cohort\n"
                  f"(scatter subsampled to {max_points_per_gene}/gene for render clarity; "
                  "mean/median use all data)", fontsize=10)
@@ -412,6 +464,11 @@ def main():
     ap.add_argument("--outroot", default=DEFAULT_OUTROOT,
                      help="Where <person_id>/immuannot_output/hap{1,2}.gtf.gz live")
     ap.add_argument("--out-dir", default=os.path.join(DEFAULT_OUTROOT, "production_analysis", "confidence"))
+    ap.add_argument("--max-threshold", type=float, default=5.0,
+                     help="Cap on the threshold-sweep x-axis (default 5, per Marc's request "
+                          "2026-08-10 -- most template_distance values cluster near 0, a wider "
+                          "range mostly plots flat lines). Combined with a symlog x-axis, not "
+                          "either/or.")
     args = ap.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
@@ -419,11 +476,11 @@ def main():
     imm_calls = load_immuannot_calls(args.calls)
     print(f"  {len(imm_calls)} (person, gene) Immuannot calls", file=sys.stderr)
 
-    print("Loading AoU-native calls...", file=sys.stderr)
-    aou_calls = load_aou_native(args.aou_tsv)
-    print(f"  {len(aou_calls)} (person, gene) AoU-native calls", file=sys.stderr)
-
     person_ids = sorted(set(pid for pid, _ in imm_calls))
+
+    print(f"Loading AoU-native calls (filtered to this cohort's {len(person_ids)} people)...", file=sys.stderr)
+    aou_calls = load_aou_native(args.aou_tsv, set(person_ids))
+    print(f"  {len(aou_calls)} (person, gene) AoU-native calls", file=sys.stderr)
     print(f"Loading Immuannot confidence signals for {len(person_ids)} people "
           f"(reads hap1/hap2 .gtf.gz -- this is the slow step, I/O not CPU bound)...", file=sys.stderr)
     confidence = load_confidence(person_ids, args.outroot)
@@ -436,7 +493,7 @@ def main():
     scatter_path = os.path.join(args.out_dir, "confidence_distribution.png")
 
     plot_baseline_forest(combined, forest_path)
-    grid = plot_threshold_sweep(combined, sweep_path)
+    grid = plot_threshold_sweep(combined, sweep_path, max_threshold=args.max_threshold)
     plot_confidence_violin_scatter(combined, scatter_path)
 
     md = [
