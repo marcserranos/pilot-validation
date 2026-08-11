@@ -119,8 +119,15 @@ than the long-read HLA stack (no DeepVariant/sawfish/pbsv/sniffles). Recommended
 - [x] CDR3 count recorded in `results/` — **2,013, feasibility confirmed**
 - [x] real 100-person cohort built (17/17/17/17/16/16 across ancestry groups)
 - [x] `--jobs 1` vs `--jobs 3` timed on 3 people — 2.55x speedup, near-ideal, no CPU contention
-- [ ] `--jobs` efficiency sweep (4/6/8/12/16) running overnight —
-  `scripts/run_rnaseq_jobs_sweep.sh`, results in `~/pipeline_outputs/rnaseq/jobs_sweep/summary.tsv`
-- [ ] pick best `--jobs`, finish the remaining cohort
-- [ ] check whether recovery is even across ancestry groups
-- [ ] attach HLA labels (AoU-native + our own long-read calls) once repertoires exist for the pilot
+- [x] `--jobs` efficiency sweep (4/6/8/12/16), overnight — non-monotonic, population
+  noise between the different test slices dominated the signal; no evidence of a hard
+  ceiling up to 16. All configs beat sequential by 1.9–4.1x. See `run_rnaseq_jobs_sweep.sh`.
+- [x] full 100-person cohort completed at `--jobs 12`
+- [x] **ancestry recovery check — done, and it's uneven.** AFR highest (7,406 mean
+  CDR3s), EAS lowest (4,538) — 1.63x spread, consistent across all 5 major chain types.
+  Full writeup: `results/rnaseq_100person_ancestry_writeup.md`.
+- [ ] **resolve reference-bias vs depth-confound** — `scripts/check_depth_confound.py`
+  written, not yet run. This is the next real question.
+- [ ] attach HLA labels (AoU-native + our own long-read calls) once the confound is resolved
+- [ ] second 100-person cohort on a different machine (decided 2026-08-11) — real
+  machine-to-machine comparison instead of another noisy same-machine sweep
