@@ -126,8 +126,14 @@ than the long-read HLA stack (no DeepVariant/sawfish/pbsv/sniffles). Recommended
 - [x] **ancestry recovery check — done, and it's uneven.** AFR highest (7,406 mean
   CDR3s), EAS lowest (4,538) — 1.63x spread, consistent across all 5 major chain types.
   Full writeup: `results/rnaseq_100person_ancestry_writeup.md`.
-- [ ] **resolve reference-bias vs depth-confound** — `scripts/check_depth_confound.py`
-  written, not yet run. This is the next real question.
-- [ ] attach HLA labels (AoU-native + our own long-read calls) once the confound is resolved
-- [ ] second 100-person cohort on a different machine (decided 2026-08-11) — real
-  machine-to-machine comparison instead of another noisy same-machine sweep
+- [x] **depth confound checked** — explains ~40% of the gap (1.63x -> 1.38x
+  normalized), not all of it. AFR/EAS stay the extremes either way. Not fully closed.
+  `results/rnaseq_depth_confound_check.csv`.
+- [ ] **remaining confounds** — RNA quality (RQS), cell composition proxy, and a
+  Kruskal-Wallis significance test on the residual gap. `scripts/check_ancestry_confounds.py`
+  written, not yet run — needs `pixi install` first (added `scipy`).
+- [ ] attach HLA labels (AoU-native + our own long-read calls) once confounds are resolved
+- [ ] second 100-person cohort on a **different machine** (decided 2026-08-11) — real
+  machine-to-machine comparison, and doubles ancestry-group sample size (16-17 -> ~33-34
+  per group). Use `build_rnaseq_cohort.py --total 100 --skip 17` on the new machine so
+  it's a genuinely different 100 people, not a repeat of the first cohort.

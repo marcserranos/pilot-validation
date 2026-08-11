@@ -11,6 +11,7 @@ pip = "*"
 samtools = "1.21.*"
 trust4 = "*"
 pandas = "2.3.3.*"
+scipy = "*"
 
 [pypi-dependencies]
 # add here if a step needs something not on bioconda

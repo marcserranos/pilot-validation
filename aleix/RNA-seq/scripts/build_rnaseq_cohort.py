@@ -74,6 +74,13 @@ def main():
     ap.add_argument("--force", action="store_true",
                     help="Overwrite an existing cohort.tsv. Refused by default so an "
                          "in-flight batch run's cohort can't silently change under it.")
+    ap.add_argument("--skip", type=int, default=0,
+                    help="Skip this many confirmed-existing candidates per ancestry group "
+                         "(same deterministic sort order) before picking. For building a "
+                         "second, non-overlapping cohort on a different machine -- e.g. "
+                         "--skip 17 to skip past a prior 100-person pick (17/17/17/17/16/16). "
+                         "Uses the same value for every group regardless of how many that "
+                         "group actually took, so it's always safe to over-skip slightly.")
     args = ap.parse_args()
 
     if os.path.exists(args.out) and not args.force:
@@ -116,15 +123,20 @@ def main():
         target = per_group[grp]
         pool = merged[merged["ancestry"] == grp].sort_values("research_id")
         confirmed = []
+        skipped = 0
         for _, row in pool.iterrows():
             if len(confirmed) >= target:
                 break
             full_path = os.path.join(args.mount, row["bam_rel_path"])
             if os.path.exists(full_path):
+                if skipped < args.skip:
+                    skipped += 1
+                    continue
                 confirmed.append(row)
         flag = "  <-- SHORT" if len(confirmed) < target else ""
+        skip_note = f", skipped {skipped}" if args.skip else ""
         print(f"  {grp}: target {target}, {len(pool)} in manifest, "
-              f"{len(confirmed)} confirmed-existing picked{flag}", file=sys.stderr)
+              f"{len(confirmed)} confirmed-existing picked{skip_note}{flag}", file=sys.stderr)
         if confirmed:
             picks.append(pd.DataFrame(confirmed))
 
