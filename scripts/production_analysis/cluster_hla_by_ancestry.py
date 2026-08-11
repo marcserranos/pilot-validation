@@ -265,6 +265,17 @@ def main():
     ap.add_argument("--out-dir", default=os.path.join(DEFAULT_OUTROOT, "production_analysis", "clustering"))
     ap.add_argument("--umap-neighbors", type=int, default=30)
     ap.add_argument("--umap-min-dist", type=float, default=0.25)
+    ap.add_argument("--confident-max-distance", type=float, default=None,
+                    help="Max per-person worst-template_distance (across all 8 genes) to count as "
+                         "'confident' for the filter-first mini-cluster experiment. Requiring "
+                         "EXACTLY 0 across all 16 calls is too strict for real data (confirmed "
+                         "2026-08-11: 0 of 6,651 real people cleared it) -- default is data-driven: "
+                         "the smallest threshold that keeps at least --confident-min-n people, "
+                         "printed so it's visible, not silently guessed. Pass an explicit value to "
+                         "override.")
+    ap.add_argument("--confident-min-n", type=int, default=200,
+                    help="Used only to auto-pick --confident-max-distance when it isn't given "
+                         "explicitly: the minimum subset size worth refitting a PCA/UMAP on.")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
@@ -356,14 +367,47 @@ def main():
                 os.path.join(args.out_dir, "umap_by_confidence_posthoc.png"),
                 extra_note=f"n_neighbors={args.umap_neighbors}, min_dist={args.umap_min_dist}")
 
-        # Experiment B ("filter first, remap"): keep only people who are distance-0 (exact
-        # reference match) on all 8 genes, refit PCA/UMAP from scratch on that subset only.
-        confident_mask = [t == "0 (exact)" for t in td_tiers]
+        # Distribution of per-person worst template_distance (max across all 8 genes, both haps)
+        # -- printed explicitly so the "confident" cutoff is visible, not a guessed magic number.
+        # Requiring EXACTLY 0 across all 16 calls was tried first and confirmed too strict on real
+        # data (0 of 6,651 people cleared it, 2026-08-11) -- an AND across 16 independent-ish draws
+        # is a much harsher bar than any single call's own confidence.
+        valid_td = sorted(v for v in person_td.values() if v is not None)
+        n_missing_td = len(mat) - len(valid_td)
+        if valid_td:
+            import numpy as _np
+            qs = _np.percentile(valid_td, [0, 25, 50, 75, 90, 100])
+            dist_line = (f"Per-person worst template_distance (max across 8 genes): "
+                         f"min={qs[0]:.0f} p25={qs[1]:.0f} median={qs[2]:.0f} p75={qs[3]:.0f} "
+                         f"p90={qs[4]:.0f} max={qs[5]:.0f} ({n_missing_td} people missing confidence "
+                         f"data for at least one gene).")
+            print(f"  {dist_line}", file=sys.stderr)
+            conf_section.append(dist_line)
+
+        # Experiment B ("filter first, remap"): keep only people at/under a max worst-distance,
+        # refit PCA/UMAP from scratch on that subset only. Threshold is either explicit
+        # (--confident-max-distance) or auto-picked as the smallest value that keeps at least
+        # --confident-min-n people, so the experiment is runnable on real data instead of
+        # collapsing to n=0 the way the exactly-0 version did.
+        if args.confident_max_distance is not None:
+            threshold = args.confident_max_distance
+            threshold_note = "(explicit --confident-max-distance)"
+        elif len(valid_td) >= args.confident_min_n:
+            threshold = valid_td[args.confident_min_n - 1]
+            threshold_note = f"(auto: smallest threshold keeping >= {args.confident_min_n} people)"
+        else:
+            threshold = valid_td[-1] if valid_td else None
+            threshold_note = "(auto: only option, uses everyone with confidence data)"
+
+        confident_mask = [person_td[pid] is not None and person_td[pid] <= threshold for pid in mat.index] \
+            if threshold is not None else [False] * len(mat)
         n_confident = sum(confident_mask)
-        print(f"  {n_confident} of {len(mat)} people are distance-0 on all 8 genes -- refitting "
-              f"PCA/UMAP on that subset only...", file=sys.stderr)
-        conf_section.append(f"{n_confident} of {len(mat)} people ({100 * n_confident / len(mat):.1f}%) "
-                             f"are distance-0 (exact IMGT reference match) on all 8 genes.")
+        print(f"  Using max_distance <= {threshold} {threshold_note} -- {n_confident} of {len(mat)} "
+              f"people qualify. Refitting PCA/UMAP on that subset...", file=sys.stderr)
+        conf_section.append(f"Filter-first subset: max_distance <= {threshold} {threshold_note} -- "
+                             f"{n_confident} of {len(mat)} people ({100 * n_confident / len(mat):.1f}%).")
+
+        confident_only_plotted = False
         if n_confident >= 20:
             mat_c = mat.loc[confident_mask]
             labels_c = [l for l, k in zip(labels, confident_mask) if k]
@@ -376,8 +420,9 @@ def main():
             var_c = pca_c.explained_variance_ratio_
             plot_embedding(pcs_c[:, :2], labels_c,
                            f"PC1 ({100 * var_c[0]:.1f}% var)", f"PC2 ({100 * var_c[1]:.1f}% var)",
-                           "PCA, distance-0-only people, colored by ancestry",
+                           f"PCA, confident-only people (max_distance <= {threshold}), colored by ancestry",
                            os.path.join(args.out_dir, "pca_confident_only.png"))
+            confident_only_plotted = True
             sil_pca_c = silhouette_score(pcs_c[:, :2], labels_c) if len(set(labels_c)) > 1 else float("nan")
             conf_section.append(f"PCA (confident-only, refit from scratch): PC1+PC2 explain "
                                  f"{100 * (var_c[0] + var_c[1]):.1f}% of variance, silhouette "
@@ -387,14 +432,14 @@ def main():
                                       random_state=args.seed)
                 emb_c = reducer_c.fit_transform(X_c)
                 plot_embedding(emb_c, labels_c, "UMAP-1", "UMAP-2",
-                               "UMAP, distance-0-only people, colored by ancestry",
+                               f"UMAP, confident-only people (max_distance <= {threshold}), colored by ancestry",
                                os.path.join(args.out_dir, "umap_confident_only.png"),
                                extra_note=f"n_neighbors={args.umap_neighbors}, min_dist={args.umap_min_dist}")
                 sil_umap_c = silhouette_score(emb_c, labels_c) if len(set(labels_c)) > 1 else float("nan")
                 conf_section.append(f"UMAP (confident-only, refit from scratch) silhouette: "
                                      f"{sil_umap_c:.3f} (full-cohort UMAP silhouette was {sil_umap:.3f}).")
         else:
-            conf_section.append(f"Too few distance-0 people ({n_confident}) to refit a meaningful "
+            conf_section.append(f"Too few confident people ({n_confident}) to refit a meaningful "
                                  f"embedding -- skipping the filter-first experiment.")
 
     md = [
@@ -419,10 +464,16 @@ def main():
     for line in conf_section:
         md.append(f"- {line}\n")
     if confidence is not None:
-        md.append("\nFigures: `pca_by_confidence_posthoc.png`, "
-                  + ("`umap_by_confidence_posthoc.png`, " if HAVE_UMAP else "")
-                  + "`pca_confident_only.png`"
-                  + (", `umap_confident_only.png`" if HAVE_UMAP else "") + "\n")
+        conf_figs = ["pca_by_confidence_posthoc.png"]
+        if HAVE_UMAP:
+            conf_figs.append("umap_by_confidence_posthoc.png")
+        if confident_only_plotted:
+            conf_figs.append("pca_confident_only.png")
+            if HAVE_UMAP:
+                conf_figs.append("umap_confident_only.png")
+        md.append("\nFigures: " + ", ".join(f"`{f}`" for f in conf_figs)
+                  + ("" if confident_only_plotted else " (confident-only refit skipped, too few "
+                     "people cleared the threshold)") + "\n")
 
     md_text = "\n".join(md)
     md_path = os.path.join(args.out_dir, "clustering_report.md")
