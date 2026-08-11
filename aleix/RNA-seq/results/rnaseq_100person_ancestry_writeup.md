@@ -1,11 +1,14 @@
 # RNA-seq repertoire recovery across ancestry — 100-person pilot — 2026-08-11
 
-**Headline: recovery is NOT even across ancestry, and depth only partly explains it.**
-AFR shows the highest mean CDR3 recovery (7,406), EAS the lowest (4,538) — a 1.63x
-spread. Normalizing by each person's actual sequencing depth shrinks that to 1.38x —
-depth is a real, partial contributor, but a meaningful gap survives after controlling
-for it. See "Depth-confound check" below — this is resolved to first order, not fully
-closed.
+**Headline, corrected 2026-08-11: a visually striking ancestry pattern that does NOT
+reach statistical significance at this sample size.** AFR shows the highest mean CDR3
+recovery (7,406), EAS the lowest (4,538) — a 1.63x spread, partly (not fully) explained
+by sequencing depth. But a formal Kruskal-Wallis test across all 6 groups gives
+**p = 0.18** — well above the conventional 0.05 threshold. The earlier version of this
+document argued the 5-of-5-chain-types consistency made this "unlikely to be chance" —
+that was an intuitive pattern-match, not a statistical test, and the actual test does
+not support that claim as strongly. Treat this as suggestive and worth a larger cohort,
+not as a confirmed finding.
 
 ## Methodology
 
@@ -37,13 +40,21 @@ closed.
 high-CDR3 people are pulling that group's mean up; the typical AMR person looks more
 like the median than the mean.
 
-## Why this doesn't look like pure noise
+## The pattern that looked compelling — and why it isn't proof
 
 Chain-level breakdown (TRA/TRB/IGH/IGK/IGL — the 5 chains with substantial counts;
 TRG/TRD are too low-count to read much into): **AFR is highest, and EAS is lowest, in
-every one of the 5 major chain types.** The same ancestry group winning or losing across
-five largely independent measurements is much less likely to be chance than a single
-pairwise comparison would suggest.
+every one of the 5 major chain types.** That consistency is genuinely part of why this
+looked like more than noise on first read.
+
+**But it isn't a substitute for a real significance test, and the real test doesn't
+back it up as strongly** — see "Significance test" below. The 5 chain types aren't
+independent measurements the way the informal argument implicitly treated them: they
+all come from the same 100 people, driven substantially by the same per-person depth
+and immune-diversity variation already documented in "Depth-confound check." Five
+correlated measurements agreeing is much weaker evidence than five independent ones
+would be. Keeping this section rather than deleting it, because the correction itself
+is the useful record here.
 
 ## Depth-confound check — run 2026-08-11, `../scripts/check_depth_confound.py`
 
@@ -75,19 +86,44 @@ person's actual depth (from `rnaseq_metadata.tsv`) and re-comparing by ancestry 
   variance (76%) comes from something else — plausibly genuine immune diversity between
   individuals, consistent with the very wide within-group ranges already noted.
 
-**Honest bottom line:** depth is ruled out as a *full* explanation but confirmed as a
-*partial* one. The ~1.38x residual gap, with AFR/EAS still at the extremes, is a more
-credible signal than the raw 1.63x — but it is not yet proof of reference/pipeline
-bias specifically. Unchecked confounds remain: RNA quality (RQS), blood cell
-composition, batch/collection site. Treat this as narrowed-down and still open, not
-resolved.
+**Bottom line at this stage:** depth is ruled out as a *full* explanation but confirmed
+as a *partial* one. The ~1.38x residual gap, with AFR/EAS still at the extremes, was a
+more credible signal than the raw 1.63x — but see the significance test below before
+weighting this too heavily.
+
+## Remaining confounds + significance test — run 2026-08-11, `../scripts/check_ancestry_confounds.py`
+
+Two more mundane explanations, checked and **ruled out**:
+
+| | Correlation with CDR3 | Range across ancestry |
+|---|---|---|
+| RQS (RNA quality, 0–10 scale) | r = 0.061 (none) | 7.82–8.00 (flat) |
+| T-cell fraction (chain-based proxy) | r = −0.409 (moderate, real) | 0.409–0.446 (flat) |
+
+RQS doesn't predict recovery at all. T-cell fraction does correlate moderately with
+CDR3 count (plausibly: more B-cell-heavy samples recover more distinct sequences,
+since somatic hypermutation keeps generating new B-cell variants) — but since neither
+metric varies meaningfully by ancestry, neither can be driving the ancestry gap.
+
+**The significance test: Kruskal-Wallis across all 6 ancestry groups, raw CDR3 counts.
+H = 7.62, p = 0.18.** Above the conventional 0.05 threshold — **the between-ancestry
+differences are not statistically distinguishable from noise at this sample size.**
+This is the single most important correction in this document: the "5-of-5 chain
+types" pattern described above is real in the data but does not clear the bar for
+statistical significance once individual variance is properly accounted for.
+
+**What this means:** not "there is no ancestry effect," but "we cannot yet tell,
+given n=16–17 per group and this much within-group spread." The direct next step —
+the planned second 100-person cohort on a different machine — is now motivated by
+statistical necessity (roughly doubling n per group to ~33–34), not just extra data
+for its own sake.
 
 ## Caveats
 
-- n=16–17 per group; within-group ranges are large (e.g. AFR spans 2,310–17,015 —
-  7.4x), so individual variance is substantial relative to the between-group gap. No
-  formal significance test run yet.
+- n=16–17 per group in this analysis; a properly powered answer needs more people per
+  group, which is exactly what the second cohort is for.
 - Cohort pick is deterministic (sorted by research_id within each ancestry group), not
   randomized — unlikely to matter but not ruled out as a selection effect.
+- Depth, RQS, and T-cell fraction are checked; batch/collection site is not.
 - This is one pipeline (TRUST4) and one library prep (AoU's Watchmaker + Polaris
   Depletion, whole blood) — doesn't generalize to repertoire recovery methods generally.
