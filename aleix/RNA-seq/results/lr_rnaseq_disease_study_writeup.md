@@ -79,7 +79,62 @@ directly checkable confound that did not exist before today.**
 
 ## 3. What this cohort is made of
 
-Top conditions (denominator 7,726):
+### 3.0 Coverage — how much of "all diseases" we can actually report
+
+| | |
+|---|---|
+| Distinct conditions recorded across the cohort | **12,172** |
+| Reportable at n ≥ 20 (AoU disclosure floor) | **2,463** |
+| Suppressed as below the floor | **9,709 (79.8%)** |
+| ICD-10 3-character categories present | 1,352 |
+| …reportable at n ≥ 20 | 778 |
+
+Full ranked lists: `lr_rnaseq_all_conditions.csv` (2,463 SNOMED concepts) and
+`lr_rnaseq_icd3_categories.csv` (778 ICD-10 categories).
+
+**Four-fifths of the distinct conditions in this cohort occur in fewer than 20 people.**
+That is not a data problem — it is the long tail of medicine, and it quantifies something
+we previously only asserted: **rare-disease work is not possible in this cohort**, and no
+increase in analytical care changes that. The tail is invisible by disclosure rule, not by
+oversight.
+
+### 3.1 The real disease ranking — ICD-10 3-character categories
+
+The SNOMED concept list (§3.2) fragments single diseases into dozens of near-identical
+variants, which makes each look smaller than it is. The 3-character ICD-10 category is the
+level most people mean by "a disease", and it produces a materially different — and more
+honest — picture:
+
+| ICD | Commonest label | n | % |
+|---|---|---|---|
+| M25 | Shoulder/joint pain | 2,894 | 37.5 |
+| E78 | Hyperlipidemia | 2,687 | 34.8 |
+| M54 | Low back pain | 2,645 | 34.2 |
+| M79 | Muscle pain | 2,614 | 33.8 |
+| I10 | Essential hypertension | 2,608 | 33.8 |
+| R10 | Abdominal pain | 2,339 | 30.3 |
+| G89 | Chronic pain | 2,002 | 25.9 |
+| R07 | Chest pain | 1,922 | 24.9 |
+| R06 | Dyspnea | 1,920 | 24.9 |
+| K21 | Gastro-oesophageal reflux | 1,768 | 22.9 |
+| R05 | Cough | 1,713 | 22.2 |
+| G47 | **Obstructive sleep apnoea** | 1,644 | 21.3 |
+| F41 | **Anxiety disorder** | 1,595 | 20.6 |
+| E66 | Obesity | 1,541 | 19.9 |
+| F32 | **Major depression, single episode** | 1,438 | 18.6 |
+
+**Three things this view surfaces that the concept-level list hid:**
+
+1. **Musculoskeletal pain dominates.** M25, M54 and M79 take three of the top four slots —
+   over a third of the cohort each. Aggregated, chronic pain is the defining feature of this
+   population, ahead of any cardiometabolic diagnosis.
+2. **Mental health is a top-tier burden.** Anxiety 20.6% and major depression 18.6% both
+   enter the top 15 here, and neither appeared in the concept-level top 20. Roughly one in
+   five.
+3. **Obstructive sleep apnoea at 21.3%** is far above general-population estimates and is
+   consistent with the cardiometabolic loading (obesity 19.9%).
+
+### 3.2 Concept-level top 20 (denominator 7,726)
 
 | Condition | n | % |
 |---|---|---|
