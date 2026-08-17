@@ -1,3 +1,7 @@
 *.local.md
 *.local.*
 .DS_Store
+
+# Python bytecode (from local syntax checks)
+__pycache__/
+*.pyc

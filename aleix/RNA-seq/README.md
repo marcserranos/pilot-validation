@@ -89,12 +89,31 @@ safe to commit, and it's the only one of the three scripts that writes into `res
 No more pasting full command blocks back and forth — the VM always has the current script via
 `git pull`.
 
+## Reference documents (written 2026-08-17, week of "foundation, not batch runs")
+
+Four research documents, primary-sourced, written without VM access. Read in this order:
+
+1. **`reference/AOU_RNASEQ_DATA_REPORT.md`** — what the 8,980-sample RNA-seq dataset
+   actually is: generation, quality, every deliverable, what it can and cannot support.
+   Ends with 6 numbered lookups (N1–N6) that need a VM.
+2. **`reference/TRUST4_DEEP_DIVE.md`** — how TRUST4 works, read off its **source code**:
+   the 4 stages, the 3 candidate-capture routes, the **two-pass BAM read** that explains
+   every performance observation we've made, every parameter, every output column, and the
+   honest limitation list. Ends with 7 concrete design recommendations.
+3. **`reference/POST_TRUST4_OPTIONS.md`** — shallow map of what comes after: summary
+   statistics → clustering/database lookup → embeddings (SCEPTR) → supervised
+   classification. Organized around the constraint that bulk RNA-seq gives **unpaired**
+   chains.
+4. **`reference/LR_RNASEQ_DISEASE_STUDY.md`** — design for the long-read × RNA-seq overlap
+   disease study, with the 3-script pipeline and what's needed from Aleix (T1–T6).
+
 ## Layout
 
 - **`scripts/`** — everything runnable. Read a script before running it; nothing here is
   proven yet (see confidence tags inside each file).
-- **`reference/`** — TRUST4's small db files once fetched (`hg38_bcrtcr.fa`,
-  `human_IMGT+C.fa` — a few MB each, not participant data, safe to vendor once we have them).
+- **`reference/`** — the four research docs above, plus TRUST4's small db files once
+  fetched (`hg38_bcrtcr.fa`, `human_IMGT+C.fa` — a few MB each, not participant data, safe
+  to vendor once we have them).
 - **`results/`** — `results/*` is gitignored except `.md`/`.csv` — same policy as
   `../results/`. Bulky outputs (BAMs, assembled contigs) stay on the VM; written-up numbers
   come back here.
@@ -129,9 +148,19 @@ than the long-read HLA stack (no DeepVariant/sawfish/pbsv/sniffles). Recommended
 - [x] **depth confound checked** — explains ~40% of the gap (1.63x -> 1.38x
   normalized), not all of it. AFR/EAS stay the extremes either way. Not fully closed.
   `results/rnaseq_depth_confound_check.csv`.
-- [ ] **remaining confounds** — RNA quality (RQS), cell composition proxy, and a
-  Kruskal-Wallis significance test on the residual gap. `scripts/check_ancestry_confounds.py`
-  written, not yet run — needs `pixi install` first (added `scipy`).
+- [x] **remaining confounds run** — RQS (r=0.061) and cell-composition proxy (flat across
+  ancestry) both ruled out. **Kruskal-Wallis H=7.62, p=0.18 — not significant.** The
+  ancestry pattern is real in the data but does not clear the bar at this n.
+- [ ] **five further QC confounds, never checked** — library complexity, 3' bias, rRNA
+  rate, globin rate, expression profiling efficiency. All already computed by AoU and
+  sitting in `v9/multiomics/rnaseq/rnaseqc2/`. Zero compute. See data report item **N4** —
+  highest value-per-minute check available.
+- [ ] **switch recovery metric to rarefaction** rather than post-hoc depth normalization —
+  see TRUST4 deep dive §8.5. Probably the most important methodological fix outstanding.
+- [ ] **LR × RNA-seq overlap count** — `scripts/check_lr_rnaseq_overlap.py`, written and
+  ready, ~1 min on the VM. **Gates the whole disease study.** Expected ~240–530 under
+  independent sampling; likely more, and likely AFR-skewed.
+- [ ] disease study steps 2–3 (notebook + analysis) — see `reference/LR_RNASEQ_DISEASE_STUDY.md`
 - [ ] attach HLA labels (AoU-native + our own long-read calls) once confounds are resolved
 - [ ] second 100-person cohort on a **different machine** (decided 2026-08-11) — real
   machine-to-machine comparison, and doubles ancestry-group sample size (16-17 -> ~33-34
