@@ -151,10 +151,28 @@ than the long-read HLA stack (no DeepVariant/sawfish/pbsv/sniffles). Recommended
 - [x] **remaining confounds run** — RQS (r=0.061) and cell-composition proxy (flat across
   ancestry) both ruled out. **Kruskal-Wallis H=7.62, p=0.18 — not significant.** The
   ancestry pattern is real in the data but does not clear the bar at this n.
-- [ ] **five further QC confounds, never checked** — library complexity, 3' bias, rRNA
-  rate, globin rate, expression profiling efficiency. All already computed by AoU and
-  sitting in `v9/multiomics/rnaseq/rnaseqc2/`. Zero compute. See data report item **N4** —
-  highest value-per-minute check available.
+- [x] **QC confounds checked (N4, 2026-08-17)** — 16 AoU-computed metrics. Nothing
+  explains the gap. `Mean 3' bias` trips the two-part test but the direction is
+  inconsistent (AMR: highest bias, second-highest recovery) and 4% of variance can't
+  produce a 1.63x gap. `Genes Detected` is the best recovery predictor found (r=0.608,
+  37% of variance) but flat across ancestry — a covariate, not a confound. `Base Mismatch`
+  varies by ancestry (p=0.028, the reference-bias signature) but doesn't predict recovery.
+  `results/rnaseq_qc_confounds_check.csv`.
+- [x] **read length verified constant at 146 bp** across all 8,980 samples → TRUST4's
+  k-mer threshold is 29 bp for everyone; per-sample extraction stringency ruled out.
+- [x] **N1: 8,980 samples = 8,980 unique people.** No technical replicates.
+- [x] **LR x RNA-seq overlap measured: 8,327 people**, 34.2x above independent-sampling
+  expectation, ancestrally balanced (EUR 29.7% … MID 5.1%), 5 of 6 groups >1,000.
+- [x] **disease study complete** — 12,172 conditions, 2,463 reportable, 7 of 10
+  immune-mediated families viable for case/control. `results/lr_rnaseq_disease_study_writeup.md`.
+- [ ] **check whether disease burden predicts CDR3 recovery** — new lead, both variables
+  now exist per-person for the same people. Cheap.
+- [ ] **UNRESOLVED, needs Marc + supervisors: real research_ids are committed to a PUBLIC
+  GitHub repo**, bound to individual-level findings, in at least 6 files (incl.
+  `results/1000291_trust4_smoke_test.md`, `context/ENVIRONMENT.md`). Already listed as an
+  open question in `context/DECISIONS.md`; escalated 2026-08-17, still undecided.
+  **Consequence for workflow: do NOT add git push credentials to the VM** — paste results
+  back so a human reviews every byte that leaves the controlled environment.
 - [ ] **switch recovery metric to rarefaction** rather than post-hoc depth normalization —
   see TRUST4 deep dive §8.5. Probably the most important methodological fix outstanding.
 - [ ] **LR × RNA-seq overlap count** — `scripts/check_lr_rnaseq_overlap.py`, written and
