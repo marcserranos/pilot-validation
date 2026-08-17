@@ -240,12 +240,24 @@ def main():
     # likely a real, followed diagnosis than a single-visit code.
     ranking["mean_codes_per_affected"] = \
         (ranking["total_occurrences"] / ranking["n_people"]).round(1)
-    ranking = ranking[ranking["n_people"] >= args.min_cell].head(args.top_n)
-    ranking[["condition_name", "n_people", "prevalence_pct",
-             "mean_codes_per_affected"]].to_csv(
+    n_all_concepts = len(ranking)
+    ranking = ranking[ranking["n_people"] >= args.min_cell]
+    cols = ["condition_name", "n_people", "prevalence_pct", "mean_codes_per_affected"]
+
+    # FULL table -- every condition that clears the disclosure floor, not just the top N.
+    # "Quantify the diseases fully" means this file; the top-N file below is only a
+    # presentation convenience carved out of it.
+    ranking[cols].to_csv(os.path.join(outdir, "lr_rnaseq_all_conditions.csv"), index=False)
+    ranking[cols].head(args.top_n).to_csv(
         os.path.join(outdir, "lr_rnaseq_top_conditions.csv"), index=False)
-    print(f"\nTop {min(args.top_n, len(ranking))} conditions "
-          f"(denominator = {denom:,} people with EHR):")
+
+    print(f"\nCONDITION COVERAGE (denominator = {denom:,} people with EHR):")
+    print(f"  distinct conditions recorded in this cohort : {n_all_concepts:,}")
+    print(f"  reportable at n >= {args.min_cell:<3}                        : {len(ranking):,}")
+    print(f"  suppressed as below the disclosure floor     : "
+          f"{n_all_concepts - len(ranking):,}")
+    print("  -> full ranked list: lr_rnaseq_all_conditions.csv")
+    print(f"\nTop 20 of {len(ranking):,}:")
     print(ranking[["condition_name", "n_people", "prevalence_pct"]].head(20).to_string(index=False))
 
     # ---------------- 4. ICD-10 chapters ----------------
@@ -264,6 +276,27 @@ def main():
         chap.to_csv(os.path.join(outdir, "lr_rnaseq_icd_chapters.csv"), index=False)
         print("\nBurden by ICD-10 chapter:")
         print(chap.head(12).to_string(index=False))
+
+        # Middle granularity: the 3-character ICD-10 category (E11 = type 2 diabetes,
+        # J45 = asthma, M06 = rheumatoid arthritis). Chapters are too coarse to be a
+        # disease list and individual SNOMED concepts are too fine (dozens of near-identical
+        # variants per disease). This is the level most people mean by "a disease".
+        icd["icd3"] = icd["source_code"].astype(str).str[:3]
+        icd3 = icd.groupby("icd3").agg(
+            n_people=("research_id", "nunique"),
+            n_distinct_concepts=("condition_concept_id", "nunique"),
+            commonest_name=("condition_name",
+                            lambda s: s.value_counts().idxmax() if len(s) else ""),
+        ).reset_index().sort_values("n_people", ascending=False)
+        icd3["prevalence_pct"] = (icd3["n_people"] / max(denom, 1) * 100).round(1)
+        n_icd3_all = len(icd3)
+        icd3 = icd3[icd3["n_people"] >= args.min_cell]
+        icd3.to_csv(os.path.join(outdir, "lr_rnaseq_icd3_categories.csv"), index=False)
+        print(f"\nICD-10 3-character categories: {n_icd3_all:,} present, "
+              f"{len(icd3):,} reportable at n >= {args.min_cell} "
+              f"-> lr_rnaseq_icd3_categories.csv")
+        print(icd3[["icd3", "commonest_name", "n_people", "prevalence_pct"]]
+              .head(15).to_string(index=False))
     else:
         print("\nNo ICD-10 source codes found -- chapter rollup skipped. Check whether this "
               "CDR populates condition_source_concept_id, or fall back to a SNOMED "
