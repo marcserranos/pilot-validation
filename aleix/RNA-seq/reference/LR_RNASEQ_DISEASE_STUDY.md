@@ -69,7 +69,36 @@ this study is normalized by EHR-years, or it is wrong.** This is why
 
 ---
 
-## 3. How big is the overlap? — the analysis I can do without the VM
+## 3. How big is the overlap? — **MEASURED 2026-08-17**
+
+> **RESOLVED. The overlap is 8,327 people — 92.7% of the entire RNA-seq cohort.**
+> Observed / expected under independent sampling: **34.2×**. The RNA-seq cohort is
+> effectively *nested inside* the long-read cohort. My pre-measurement estimate below
+> (~240–530) was wrong by a factor of ~20, and Aleix's recollection of "around 9k" was
+> right. The prediction that failed was the assumption of independent sampling; the
+> correct model is that AoU built **one designed multi-omics cohort** and ran several
+> assays on it.
+>
+> **The ancestry prediction failed too, in the opposite direction from expected.** I
+> predicted an AFR skew inherited from the v7 long-read pilot (94.9% AFR on `sequel2`).
+> The measured overlap is the most ancestrally balanced cohort in this entire project:
+>
+> | Ancestry | n | % |
+> |---|---|---|
+> | EUR | 2,475 | 29.7% |
+> | AMR | 1,791 | 21.5% |
+> | AFR | 1,369 | 16.4% |
+> | EAS | 1,172 | 14.1% |
+> | SAS | 1,092 | 13.1% |
+> | MID | 427 | 5.1% |
+>
+> EUR is under a third. For comparison, UK Biobank is ~94% European. This is a
+> deliberately diversity-designed cohort, and it is the single most valuable property of
+> this dataset for our purposes — it means ancestry-stratified repertoire work is
+> genuinely powered here, with ≥1,000 people in five of six groups.
+>
+> **Everything below this box is the pre-measurement reasoning, kept because the failed
+> prediction is the useful record.** Live numbers: `../results/lr_rnaseq_overlap_summary.csv`.
 
 We do not know the answer, but we can bracket it, which tells us what result would be
 *surprising*.

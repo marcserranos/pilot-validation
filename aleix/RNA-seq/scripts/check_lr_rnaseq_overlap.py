@@ -155,7 +155,12 @@ def main():
         print("\nNo overlap -- Task 2 as specified is not possible. Stop here and re-plan.")
 
     # ---------- ancestry breakdown ----------
+    # Normalize case: the v9 TSV ships lowercase values ("eur", "afr", ...) but every
+    # prior results file in this workstream is uppercase, because
+    # build_rnaseq_cohort.py:114 upper-cases on read. Match it, or the overlap cohort
+    # silently fails to join against the existing ancestry summaries.
     anc = anc[["research_id", "ancestry_pred"]].rename(columns={"ancestry_pred": "ancestry"})
+    anc["ancestry"] = anc["ancestry"].astype(str).str.strip().str.upper()
     overlap_df = pd.DataFrame({"research_id": sorted(both)}).merge(anc, on="research_id",
                                                                   how="left")
     overlap_df["ancestry"] = overlap_df["ancestry"].fillna("unlabeled")
