@@ -116,6 +116,10 @@ def main():
     if not {"research_id", "ancestry"} <= set(cohort.columns):
         die(f"cohort files need research_id + ancestry. Got: {list(cohort.columns)}")
     cohort["ancestry"] = cohort["ancestry"].astype(str).str.strip().str.upper()
+    # Keep ONLY the join key and the grouping variable. Cohort files in this workstream
+    # are sometimes repurposed detail files that already carry n_cdr3 -- without this,
+    # the merge below silently suffixes to n_cdr3_x/n_cdr3_y and the bare column vanishes.
+    cohort = cohort[["research_id", "ancestry"]]
     before = len(cohort)
     cohort = cohort.drop_duplicates(subset="research_id")
     if len(cohort) < before:

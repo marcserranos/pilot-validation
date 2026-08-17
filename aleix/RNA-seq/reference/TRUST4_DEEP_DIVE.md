@@ -100,10 +100,15 @@ if (readLen / 5 > hitLenRequired) hitLenRequired = readLen / 5
 if (hitLenRequired > 101)         hitLenRequired = 101
 ```
 
-For AoU's **151 bp** reads: `151/5 = 30`, so **30 bp** is the required exact match. Not
-exposed as a flag — it is derived from read length. Worth knowing because it means
-**recovery sensitivity is a function of read length**, and AoU's read length is fixed. We
-cannot tune this without patching source, and we should not.
+**Verified live 2026-08-17:** AoU's read length is **146 bp**, and it is **constant across
+all 8,980 samples** (single distinct value in the RNA-SeQC2 `Read Length` column). So
+`146/5 = 29` — a **29 bp** exact match is required, identically for everyone.
+
+This kills a hypothesis worth having raised: because the threshold is *derived from read
+length*, if read length had varied between samples then extraction stringency would have
+differed person to person, which would have been a direct mechanistic recovery confound.
+It doesn't vary, so it can't contribute to the ancestry gap. It also means we cannot tune
+sensitivity here without patching source, and we should not.
 
 A **low-complexity filter** also drops reads that are ≥50% one base, or have ≥10% Ns, or
 have ≤2 occurrences of two or more bases. Sensible junk removal.
