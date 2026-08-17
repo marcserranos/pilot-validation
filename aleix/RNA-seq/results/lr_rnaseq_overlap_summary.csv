@@ -1,0 +1,8 @@
+ancestry,n_people,n_with_lr_bam,n_rnaseq_total,n_lr_total,n_overlap_total
+AFR,1369,not_checked,8980,14521,8327
+AMR,1791,not_checked,8980,14521,8327
+EAS,1172,not_checked,8980,14521,8327
+EUR,2475,not_checked,8980,14521,8327
+MID,427,not_checked,8980,14521,8327
+SAS,1092,not_checked,8980,14521,8327
+unlabeled,1,not_checked,8980,14521,8327

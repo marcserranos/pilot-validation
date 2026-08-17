@@ -207,6 +207,11 @@ def main():
         n_people=("research_id", "count"),
         n_with_lr_bam=("lr_bam_rel_path", lambda s: int(s.notna().sum())),
     ).reset_index()
+    if not args.check_bams:
+        # Without --check-bams the column is all-NA, which aggregates to a literal 0 and
+        # reads as "zero people have a long-read BAM" -- the opposite of what it means.
+        # Say "not_checked" instead.
+        summary["n_with_lr_bam"] = "not_checked"
     summary["n_rnaseq_total"] = len(rna_ids)
     summary["n_lr_total"] = len(lr_ids)
     summary["n_overlap_total"] = len(both)
