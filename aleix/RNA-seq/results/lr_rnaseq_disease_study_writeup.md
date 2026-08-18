@@ -201,6 +201,114 @@ clearly not, and no amount of definitional care will rescue 76 neurologic cases.
 
 ---
 
+## 4b. Deep dive - HLA-linked, autoimmune, immunodeficiency, tumor detail (2026-08-18)
+
+The family-level screen above answers "is this direction viable." It cannot answer "how
+many people have rheumatoid arthritis specifically," or separate psoriasis from psoriatic
+arthritis, or tell a lymphoid malignancy (where the tumor cells *are* a clonal receptor
+sequence) from a solid one. `scripts/deep_immune_breakdown.py` runs against the same
+cached phenotype files -- no new BigQuery call -- and matches each disease primarily on its
+**3-character ICD-10 code** rather than name substring, which is more precise wherever that
+code block is genuinely exclusive to one disease (confirmed per-code before use, not
+assumed -- see the caveat below).
+
+### HLA-linked diseases
+
+The most direct candidates for testing a repertoire<->HLA association, since HLA type
+shapes which receptors survive thymic selection in the first place.
+
+| Disease | HLA association | Cases | % |
+|---|---|---|---|
+| Psoriasis | Cw6 | **208** | 2.69 |
+| Rheumatoid arthritis | shared epitope | **199** | 2.58 |
+| Type 1 diabetes | DR3/DR4 | **179** | 2.32 |
+| Systemic lupus erythematosus | DR2/DR3 | 96 | 1.24 |
+| Multiple sclerosis | DRB1*15:01 | 55 | 0.71 |
+| Psoriatic arthritis | Cw6/B27 | 43 | 0.56 |
+| Celiac disease | DQ2/DQ8 | 33 | 0.43 |
+| Ankylosing spondylitis | B27 | 25 | 0.32 |
+| Narcolepsy | DQB1*06:02 | 25 | 0.32 |
+| Behcet disease | B51 | <20 | -- |
+| Graves disease | DR3 | <20 | -- |
+
+**Psoriasis, rheumatoid arthritis and type 1 diabetes are the three practical near-term
+candidates** -- each clears ~180-210 cases, comfortably above the 200-case working
+threshold used elsewhere in this study.
+
+### Autoimmune - specific diseases (not families)
+
+22 named diseases screened; 16 clear the n>=20 disclosure floor.
+
+| Disease | Cases | % | | Disease | Cases | % |
+|---|---|---|---|---|---|---|
+| Psoriasis | 208 | 2.69 | | Vitiligo | 50 | 0.65 |
+| Rheumatoid arthritis | 199 | 2.58 | | Alopecia areata | 44 | 0.57 |
+| Type 1 diabetes | 179 | 2.32 | | Psoriatic arthritis | 43 | 0.56 |
+| Hashimoto thyroiditis | 154 | 1.99 | | Celiac disease | 33 | 0.43 |
+| Sjogren syndrome | 127 | 1.64 | | Systemic sclerosis | 29 | 0.38 |
+| Lupus (SLE) | 96 | 1.24 | | Ankylosing spondylitis | 25 | 0.32 |
+| Ulcerative colitis | 89 | 1.15 | | Myasthenia gravis, autoimmune hepatitis, Guillain-Barre, Graves, pemphigus, Addison | each <20 |  |
+| Crohn disease | 83 | 1.07 | | | | |
+| Multiple sclerosis | 55 | 0.71 | | | | |
+| Vasculitis | 51 | 0.66 | | | | |
+
+### Immunodeficiency - specific subtypes
+
+| Subtype | Cases | % |
+|---|---|---|
+| Other immunodeficiency (ICD D84) | 280 | 3.62 |
+| Other immune-mechanism disorder (D89) | 170 | 2.20 |
+| HIV | 98 | 1.27 |
+| IgA / antibody deficiency | 52 | 0.67 |
+| Neutropenia | 43 | 0.56 |
+| Transplant status (any organ) | 28 | 0.36 |
+| Drug-induced immunosuppression, GVHD, CVID | each <20 | -- |
+
+**Most immunodeficiency-coded people fall into the two unavoidably broad ICD buckets**
+(D84/D89, 450 of ~653 total) rather than a named subtype -- a real limit of ICD-10
+granularity for this category specifically, not a matching artifact. Directly relevant to
+repertoire interpretation regardless: an immunosuppressed person's repertoire reflects a
+suppressed immune system, not a baseline one, and this is a candidate confound for any
+future repertoire-based model.
+
+### Tumors - lymphoid vs. solid
+
+**Lymphoid tumors are the most repertoire-relevant category in the whole cohort.** In these
+cancers the malignant cells often *are* a single massively expanded T-cell or B-cell
+clone -- TRUST4 output is not just descriptive of them, in principle it can detect them
+directly, the same way clinical MRD (measurable residual disease) testing works.
+
+| Lymphoid / hematologic | Cases | % | | Solid (context only) | Cases | % |
+|---|---|---|---|---|---|---|
+| MGUS (monoclonal gammopathy) | **83** | 1.07 | | Prostate cancer | 187 | 2.42 |
+| Non-Hodgkin lymphoma | 64 | 0.83 | | Breast cancer | 162 | 2.10 |
+| Multiple myeloma | 32 | 0.41 | | Lung cancer | 116 | 1.50 |
+| Lymphoid leukemia (CLL/ALL) | 25 | 0.32 | | Colorectal cancer | 65 | 0.84 |
+| MDS, myeloid leukemia, Hodgkin, mycosis fungoides | each <20 | -- | | Melanoma, kidney, bladder | each <20-61 | -- |
+
+MGUS at 1.07% is consistent with published prevalence in an older-skewing adult
+population -- a good sign the matching is behaving.
+
+### A methodology correction worth recording
+
+The first pass through this breakdown used the 3-character ICD-10 code as the *sole*
+match for every disease, on the assumption that all such codes are exclusive to one
+condition. **That assumption was wrong for 10 of the 12 non-oncology codes checked**, and
+one -- narcolepsy matched to `G47`, the broad "sleep disorders" block -- produced a
+clinically impossible 21.3% prevalence, identical to the cohort's already-reported sleep
+apnea rate. Every code was re-checked individually for whether its ICD block is genuinely
+exclusive; nine more were found to bundle the target disease with something clinically
+distinct (Graves' with non-autoimmune goiter, Addison's with Cushing's -- the *opposite*
+condition, celiac with unrelated malabsorption, and others) and were switched to
+name-matching alone. The type 1 vs. type 2 diabetes split (E10/E11) that motivated using
+ICD codes in the first place remains correct -- that block genuinely is exclusive.
+
+**Standing caveat, unchanged from the family-level screen:** this is still a screen, not a
+validated phenotype. Name-substring fallbacks inherit the same over-matching risk as
+before. Anything used in a real analysis needs a proper curated concept-set definition.
+
+---
+
 ## 5. What follows
 
 **The repertoire direction is viable, on exactly the phenotypes where it should be.** The
