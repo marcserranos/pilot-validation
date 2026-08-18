@@ -1,0 +1,58 @@
+section,condition,n_people_reportable,pct_of_cohort
+HLA-LINKED DISEASES,Psoriasis (HLA-Cw6),208,2.69
+HLA-LINKED DISEASES,Rheumatoid arthritis (HLA shared epitope),199,2.58
+HLA-LINKED DISEASES,Type 1 diabetes (HLA-DR3/DR4),179,2.32
+HLA-LINKED DISEASES,Systemic lupus erythematosus (HLA-DR2/DR3),96,1.24
+HLA-LINKED DISEASES,Multiple sclerosis (HLA-DRB1*15:01),55,0.71
+HLA-LINKED DISEASES,Psoriatic arthritis (HLA-Cw6/B27),43,0.56
+HLA-LINKED DISEASES,Celiac disease (HLA-DQ2/DQ8),33,0.43
+HLA-LINKED DISEASES,Ankylosing spondylitis (HLA-B27),25,0.32
+HLA-LINKED DISEASES,Narcolepsy (HLA-DQB1*06:02),25,0.32
+HLA-LINKED DISEASES,Behcet disease (HLA-B51),<20,
+HLA-LINKED DISEASES,Graves disease (HLA-DR3),<20,
+AUTOIMMUNE -- specific diseases,Psoriasis,208,2.69
+AUTOIMMUNE -- specific diseases,Rheumatoid arthritis,199,2.58
+AUTOIMMUNE -- specific diseases,Type 1 diabetes,179,2.32
+AUTOIMMUNE -- specific diseases,Hashimoto / autoimmune thyroiditis,154,1.99
+AUTOIMMUNE -- specific diseases,Sjogren syndrome,127,1.64
+AUTOIMMUNE -- specific diseases,Systemic lupus erythematosus,96,1.24
+AUTOIMMUNE -- specific diseases,Ulcerative colitis,89,1.15
+AUTOIMMUNE -- specific diseases,Crohn disease,83,1.07
+AUTOIMMUNE -- specific diseases,Multiple sclerosis,55,0.71
+AUTOIMMUNE -- specific diseases,Vasculitis (systemic),51,0.66
+AUTOIMMUNE -- specific diseases,Vitiligo,50,0.65
+AUTOIMMUNE -- specific diseases,Alopecia areata,44,0.57
+AUTOIMMUNE -- specific diseases,Psoriatic arthritis,43,0.56
+AUTOIMMUNE -- specific diseases,Celiac disease,33,0.43
+AUTOIMMUNE -- specific diseases,Systemic sclerosis,29,0.38
+AUTOIMMUNE -- specific diseases,Ankylosing spondylitis,25,0.32
+AUTOIMMUNE -- specific diseases,Myasthenia gravis,<20,
+AUTOIMMUNE -- specific diseases,Autoimmune hepatitis,<20,
+AUTOIMMUNE -- specific diseases,Guillain-Barre syndrome,<20,
+AUTOIMMUNE -- specific diseases,Graves disease,<20,
+AUTOIMMUNE -- specific diseases,Pemphigus,<20,
+AUTOIMMUNE -- specific diseases,Addison disease,<20,
+IMMUNODEFICIENCY -- specific subtypes,Other immunodeficiency (D84),280,3.62
+IMMUNODEFICIENCY -- specific subtypes,"Immune-mechanism disorder, other (D89)",170,2.20
+IMMUNODEFICIENCY -- specific subtypes,HIV,98,1.27
+IMMUNODEFICIENCY -- specific subtypes,Selective IgA / antibody deficiency,52,0.67
+IMMUNODEFICIENCY -- specific subtypes,Neutropenia,43,0.56
+IMMUNODEFICIENCY -- specific subtypes,Transplant status (any organ),28,0.36
+IMMUNODEFICIENCY -- specific subtypes,Immunosuppressed state (drug-induced),<20,
+IMMUNODEFICIENCY -- specific subtypes,Graft-versus-host disease,<20,
+IMMUNODEFICIENCY -- specific subtypes,Common variable immunodeficiency (CVID),<20,
+TUMORS -- lymphoid / hematologic (repertoire-relevant),MGUS (monoclonal gammopathy),83,1.07
+TUMORS -- lymphoid / hematologic (repertoire-relevant),Non-Hodgkin lymphoma,64,0.83
+TUMORS -- lymphoid / hematologic (repertoire-relevant),Multiple myeloma,32,0.41
+TUMORS -- lymphoid / hematologic (repertoire-relevant),Lymphoid leukemia (incl. CLL/ALL),25,0.32
+TUMORS -- lymphoid / hematologic (repertoire-relevant),Myelodysplastic syndrome,<20,
+TUMORS -- lymphoid / hematologic (repertoire-relevant),Myeloid leukemia,<20,
+TUMORS -- lymphoid / hematologic (repertoire-relevant),Hodgkin lymphoma,<20,
+TUMORS -- lymphoid / hematologic (repertoire-relevant),Mycosis fungoides / cutaneous T-cell lymphoma,<20,
+TUMORS -- solid (general immune-surveillance context),Prostate cancer,187,2.42
+TUMORS -- solid (general immune-surveillance context),Breast cancer,162,2.10
+TUMORS -- solid (general immune-surveillance context),Lung cancer,116,1.50
+TUMORS -- solid (general immune-surveillance context),Colorectal cancer,65,0.84
+TUMORS -- solid (general immune-surveillance context),Melanoma,61,0.79
+TUMORS -- solid (general immune-surveillance context),Kidney cancer,50,0.65
+TUMORS -- solid (general immune-surveillance context),Bladder cancer,36,0.47
