@@ -56,34 +56,34 @@ HLA_LINKED = [
     ("Celiac disease (HLA-DQ2/DQ8)",            ["K90"], ["celiac", "coeliac"]),
     ("Type 1 diabetes (HLA-DR3/DR4)",           ["E10"], ["type 1 diabetes"]),
     ("Psoriasis (HLA-Cw6)",                     ["L40"], ["psoriasis"]),
-    ("Psoriatic arthritis (HLA-Cw6/B27)",       ["M07"], ["psoriatic arthritis"]),
+    ("Psoriatic arthritis (HLA-Cw6/B27)",       [], ["psoriatic arthritis"]),  # M07 dropped: includes enteropathic arthropathy
     ("Multiple sclerosis (HLA-DRB1*15:01)",     ["G35"], ["multiple sclerosis"]),
     ("Rheumatoid arthritis (HLA shared epitope)",["M05","M06"], ["rheumatoid arthritis"]),
     ("Systemic lupus erythematosus (HLA-DR2/DR3)",["M32"], ["systemic lupus", "lupus erythematosus"]),
     ("Graves disease (HLA-DR3)",                ["E05"], ["graves disease"]),
-    ("Narcolepsy (HLA-DQB1*06:02)",             ["G47"], ["narcolepsy"]),
-    ("Behcet disease (HLA-B51)",                ["M35"], ["behcet"]),
+    ("Narcolepsy (HLA-DQB1*06:02)",             [], ["narcolepsy"]),  # G47 dropped: dominated by sleep apnea, not narcolepsy-specific
+    ("Behcet disease (HLA-B51)",                [], ["behcet"]),  # M35 dropped: shared block with Sjogren/PMR/other connective tissue disease
 ]
 
 AUTOIMMUNE_SPECIFIC = [
     ("Rheumatoid arthritis",        ["M05","M06"], ["rheumatoid arthritis"]),
     ("Systemic lupus erythematosus",["M32"], ["systemic lupus", "lupus erythematosus"]),
-    ("Sjogren syndrome",            ["M35"], ["sjogren", "sjögren"]),
+    ("Sjogren syndrome",            [], ["sjogren", "sjögren"]),  # M35 dropped: shared block with Behcet/PMR/other
     ("Systemic sclerosis",          ["M34"], ["systemic sclerosis", "scleroderma"]),
     ("Ankylosing spondylitis",      ["M45"], ["ankylosing spondylitis"]),
-    ("Psoriatic arthritis",         ["M07"], ["psoriatic arthritis"]),
+    ("Psoriatic arthritis",         [], ["psoriatic arthritis"]),  # M07 dropped: includes enteropathic arthropathy
     ("Vasculitis (systemic)",       ["M30","M31"], ["vasculitis", "polyarteritis"]),
     ("Type 1 diabetes",             ["E10"], ["type 1 diabetes"]),
-    ("Hashimoto / autoimmune thyroiditis", ["E06"], ["hashimoto", "autoimmune thyroiditis"]),
-    ("Graves disease",              ["E05"], ["graves disease"]),
-    ("Addison disease",             ["E27"], ["addison"]),
+    ("Hashimoto / autoimmune thyroiditis", [], ["hashimoto", "autoimmune thyroiditis"]),  # E06 dropped: includes non-autoimmune (viral) thyroiditis
+    ("Graves disease",              [], ["graves disease"]),  # E05 dropped: includes toxic nodular goiter (non-autoimmune)
+    ("Addison disease",             [], ["addison"]),  # E27 dropped: includes Cushing syndrome (opposite condition)
     ("Crohn disease",               ["K50"], ["crohn"]),
     ("Ulcerative colitis",          ["K51"], ["ulcerative colitis"]),
-    ("Celiac disease",              ["K90"], ["celiac", "coeliac"]),
-    ("Autoimmune hepatitis",        ["K75"], ["autoimmune hepatitis"]),
+    ("Celiac disease",              [], ["celiac", "coeliac"]),  # K90 dropped: includes other malabsorption syndromes
+    ("Autoimmune hepatitis",        [], ["autoimmune hepatitis"]),  # K75 dropped: includes other inflammatory liver disease
     ("Multiple sclerosis",          ["G35"], ["multiple sclerosis"]),
-    ("Myasthenia gravis",           ["G70"], ["myasthenia gravis"]),
-    ("Guillain-Barre syndrome",     ["G61"], ["guillain"]),
+    ("Myasthenia gravis",           [], ["myasthenia gravis"]),  # G70 dropped: includes other myoneural disorders
+    ("Guillain-Barre syndrome",     [], ["guillain"]),  # G61 dropped: includes other inflammatory polyneuropathy
     ("Psoriasis",                   ["L40"], ["psoriasis"]),
     ("Vitiligo",                    ["L80"], ["vitiligo"]),
     ("Pemphigus",                   ["L10"], ["pemphigus"]),
@@ -109,7 +109,7 @@ TUMOR_LYMPHOID = [
     ("Lymphoid leukemia (incl. CLL/ALL)",["C91"], ["lymphocytic leukemia", "lymphoblastic leukemia"]),
     ("Myeloid leukemia",                ["C92"], ["myeloid leukemia"]),
     ("Multiple myeloma",                ["C90"], ["multiple myeloma", "plasma cell myeloma"]),
-    ("MGUS (monoclonal gammopathy)",    ["D47"], ["monoclonal gammopathy", "mgus"]),
+    ("MGUS (monoclonal gammopathy)",    [], ["monoclonal gammopathy", "mgus"]),  # D47 dropped: includes other uncertain-behavior lymphoid neoplasms
     ("Myelodysplastic syndrome",        ["D46"], ["myelodysplastic"]),
 ]
 
