@@ -53,14 +53,14 @@ import pandas as pd
 
 HLA_LINKED = [
     ("Ankylosing spondylitis (HLA-B27)",        ["M45"], ["ankylosing spondylitis"]),
-    ("Celiac disease (HLA-DQ2/DQ8)",            ["K90"], ["celiac", "coeliac"]),
+    ("Celiac disease (HLA-DQ2/DQ8)",            [], ["celiac", "coeliac"]),  # K90 dropped: includes other malabsorption syndromes
     ("Type 1 diabetes (HLA-DR3/DR4)",           ["E10"], ["type 1 diabetes"]),
     ("Psoriasis (HLA-Cw6)",                     ["L40"], ["psoriasis"]),
     ("Psoriatic arthritis (HLA-Cw6/B27)",       [], ["psoriatic arthritis"]),  # M07 dropped: includes enteropathic arthropathy
     ("Multiple sclerosis (HLA-DRB1*15:01)",     ["G35"], ["multiple sclerosis"]),
     ("Rheumatoid arthritis (HLA shared epitope)",["M05","M06"], ["rheumatoid arthritis"]),
     ("Systemic lupus erythematosus (HLA-DR2/DR3)",["M32"], ["systemic lupus", "lupus erythematosus"]),
-    ("Graves disease (HLA-DR3)",                ["E05"], ["graves disease"]),
+    ("Graves disease (HLA-DR3)",                [], ["graves"]),  # E05 dropped (toxic nodular goiter); single word safe against apostrophe
     ("Narcolepsy (HLA-DQB1*06:02)",             [], ["narcolepsy"]),  # G47 dropped: dominated by sleep apnea, not narcolepsy-specific
     ("Behcet disease (HLA-B51)",                [], ["behcet"]),  # M35 dropped: shared block with Sjogren/PMR/other connective tissue disease
 ]
@@ -75,7 +75,7 @@ AUTOIMMUNE_SPECIFIC = [
     ("Vasculitis (systemic)",       ["M30","M31"], ["vasculitis", "polyarteritis"]),
     ("Type 1 diabetes",             ["E10"], ["type 1 diabetes"]),
     ("Hashimoto / autoimmune thyroiditis", [], ["hashimoto", "autoimmune thyroiditis"]),  # E06 dropped: includes non-autoimmune (viral) thyroiditis
-    ("Graves disease",              [], ["graves disease"]),  # E05 dropped: includes toxic nodular goiter (non-autoimmune)
+    ("Graves disease",              [], ["graves"]),  # single word: safe against "Graves' disease" apostrophe
     ("Addison disease",             [], ["addison"]),  # E27 dropped: includes Cushing syndrome (opposite condition)
     ("Crohn disease",               ["K50"], ["crohn"]),
     ("Ulcerative colitis",          ["K51"], ["ulcerative colitis"]),
