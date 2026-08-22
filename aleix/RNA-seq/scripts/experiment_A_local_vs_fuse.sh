@@ -20,18 +20,26 @@
 # collides with real batch output under ~/pipeline_outputs/rnaseq/<research_id>/, and
 # nothing needs to be deleted between arms.
 #
-# BEFORE RUNNING: check local disk space (`df -h ~`). This copies every person's BAM to
-# local disk once -- if BAMs are large and the reference cohort is big, this can fill the
-# disk. Size the reference cohort to what your disk actually has room for; this script
-# does not manage disk space for you.
+# DISK BUDGET, live-measured 2026-08-22: this VM has 28G free, and AoU RNA-seq BAMs run
+# 4.8-6.3GB each (avg ~5.5GB) -- so bulk-copying an entire cohort at once, as an earlier
+# version of this script did, would blow the disk budget past about 4 people. Fixed by
+# batching the LOCAL arm: copy JOBS people, run TRUST4 on them, delete their local copies,
+# move to the next batch of JOBS. This decouples reference-cohort SIZE from local disk
+# capacity -- the cohort can be as large as we want; only one batch's worth of BAMs is
+# ever on disk at a time. JOBS doubles as the batch size for exactly this reason, and is
+# also used for the FUSE arm at the same value, deliberately -- the two arms must use
+# identical concurrency or the comparison stops isolating read method and starts also
+# comparing parallelism level, which is Experiment B's question, not this one's.
 #
 # Usage:  bash experiment_A_local_vs_fuse.sh <cohort.tsv> [JOBS]
 #   cohort.tsv: research_id, ancestry, bam_rel_path -- from build_rnaseq_cohort.py, unmodified.
-#   JOBS: parallelism, same value used for both arms (default 8).
+#   JOBS: concurrency AND local-arm batch size (default 3 -- sized so 3 * 6.3GB worst-case
+#         stays well under this VM's 28G free; re-check `df -h ~` and adjust if disk
+#         availability has changed).
 set -uo pipefail
 
 COHORT="${1:?need the reference cohort tsv (research_id, ancestry, bam_rel_path)}"
-JOBS="${2:-8}"
+JOBS="${2:-3}"
 
 REPO=~/repos/pilot-validation
 SCRIPT_DIR="$REPO/aleix/RNA-seq/scripts"
@@ -39,9 +47,11 @@ MOUNT=~/mnt/aou-controlled
 EXP_DIR=~/pipeline_outputs/rnaseq/experiments/expA
 LOCAL_BAM_DIR="$EXP_DIR/local_bams"
 RESULTS="$EXP_DIR/results.tsv"
+CHUNK_DIR="$EXP_DIR/chunks"
 
 [[ -s "$COHORT" ]] || { echo "MISSING cohort file: $COHORT"; exit 1; }
-mkdir -p "$EXP_DIR" "$LOCAL_BAM_DIR"
+rm -rf "$CHUNK_DIR"
+mkdir -p "$EXP_DIR" "$LOCAL_BAM_DIR" "$CHUNK_DIR"
 printf 'research_id\tarm\tseconds\n' > "$RESULTS"
 
 N_TOTAL=$(($(wc -l < "$COHORT") - 1))
@@ -74,9 +84,7 @@ tail -n +2 "$COHORT" | cut -f1,3 | \
 ARM1_END=$(date +%s)
 echo "ARM 1 (fuse) total wall time: $((ARM1_END-ARM1_START))s"
 
-# ---------- Stage: bulk-copy every BAM to local disk, timed separately from the run ----------
-echo ""
-echo "---- STAGING: parallel copy to local disk ----"
+# ---------- ARM 2: batched local copy + run -- JOBS people on disk at a time, never more ----------
 copy_one() {
   local research_id="$1" bam_rel="$2"
   local src="$MOUNT/$bam_rel"
@@ -87,13 +95,6 @@ copy_one() {
 export -f copy_one
 export LOCAL_BAM_DIR
 
-COPY_START=$(date +%s)
-tail -n +2 "$COHORT" | cut -f1,3 | \
-  xargs -P "$JOBS" -L1 bash -c 'copy_one "$1" "$2"' _
-COPY_END=$(date +%s)
-echo "Local copy stage total wall time: $((COPY_END-COPY_START))s"
-
-# ---------- ARM 2: against the local copies ----------
 run_local() {
   local research_id="$1"
   local bam="$LOCAL_BAM_DIR/${research_id}.bam"
@@ -110,19 +111,40 @@ run_local() {
   echo "[$research_id/local] $((end-start))s"
 }
 export -f run_local
+export SCRIPT_DIR EXP_DIR RESULTS
+
+# research_id + bam_rel_path only (2 cols), then chopped into JOBS-sized chunk files.
+tail -n +2 "$COHORT" | cut -f1,3 | split -l "$JOBS" -d -a 3 - "$CHUNK_DIR/chunk_"
+N_CHUNKS=$(ls "$CHUNK_DIR"/chunk_* 2>/dev/null | wc -l)
 
 echo ""
-echo "---- ARM 2: LOCAL (pre-copied to disk) ----"
-ARM2_START=$(date +%s)
-tail -n +2 "$COHORT" | cut -f1 | \
-  xargs -P "$JOBS" -L1 bash -c 'run_local "$1"' _
-ARM2_END=$(date +%s)
-echo "ARM 2 (local) total wall time: $((ARM2_END-ARM2_START))s"
+echo "---- ARM 2: LOCAL, batched $JOBS-at-a-time ($N_CHUNKS batches) to respect disk space ----"
+COPY_S=0
+ARM2_S=0
+for chunk in "$CHUNK_DIR"/chunk_*; do
+  n_here=$(wc -l < "$chunk")
+  echo "  batch $(basename "$chunk"): $n_here people"
+
+  CS=$(date +%s)
+  cut -f1,2 "$chunk" | xargs -P "$JOBS" -L1 bash -c 'copy_one "$1" "$2"' _
+  CE=$(date +%s)
+  COPY_S=$((COPY_S + CE - CS))
+
+  RS=$(date +%s)
+  cut -f1 "$chunk" | xargs -P "$JOBS" -L1 bash -c 'run_local "$1"' _
+  RE=$(date +%s)
+  ARM2_S=$((ARM2_S + RE - RS))
+
+  # free the disk before the next batch -- this is the whole point of batching.
+  cut -f1 "$chunk" | while read -r rid; do
+    rm -f "$LOCAL_BAM_DIR/${rid}.bam" "$LOCAL_BAM_DIR/${rid}.bam.bai"
+  done
+done
+echo "Local copy stage total wall time (summed across batches): ${COPY_S}s"
+echo "Local TRUST4 run total wall time (summed across batches): ${ARM2_S}s"
 
 # ---------- summary ----------
-COPY_S=$((COPY_END-COPY_START))
 ARM1_S=$((ARM1_END-ARM1_START))
-ARM2_S=$((ARM2_END-ARM2_START))
 EFFECTIVE_LOCAL=$((COPY_S + ARM2_S))
 echo ""
 echo "==== SUMMARY :: $(date) ===="
@@ -141,6 +163,5 @@ else
   echo "   latency. Local copying is not worth adopting; keep FUSE as the baseline for B."
 fi
 echo ""
-echo "Local BAM copies are still on disk at $LOCAL_BAM_DIR -- delete with"
-echo "  rm -rf $LOCAL_BAM_DIR"
-echo "if you need the space back."
+echo "Each batch's local BAM copies were deleted immediately after that batch's TRUST4"
+echo "run, so nothing is left on disk -- $LOCAL_BAM_DIR should be empty."
