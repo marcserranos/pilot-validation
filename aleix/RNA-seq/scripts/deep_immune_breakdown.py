@@ -123,6 +123,22 @@ TUMOR_SOLID = [
     ("Kidney cancer",   ["C64"], ["kidney cancer", "renal cell"]),
 ]
 
+# Added 2026-08-27 per Cole Shanks (Slack): "another disease we should actually look at is
+# Alzheimers... Parkinsons disease, Atherosclerosis/CAD, Long Covid, which actually has an
+# ICD code now (ICD-10 U09.9)". These don't share the HLA-linked/autoimmune/tumor mechanism
+# of the sections above -- they're a feasibility check (do we even have enough cases?), not
+# a repertoire-mechanism claim. Alzheimer's and Parkinson's both have reported (weaker,
+# non-classical) HLA-region GWAS hits; atherosclerosis/CAD has an established inflammatory-
+# immune component; Long Covid is post-viral immune dysregulation -- so a TCR/BCR repertoire
+# link isn't absurd for any of them, just far less direct than e.g. T1D or ankylosing
+# spondylitis.
+OTHER_CONDITIONS_OF_INTEREST = [
+    ("Alzheimer disease",                       ["G30"], ["alzheimer"]),
+    ("Parkinson disease",                       ["G20"], ["parkinson"]),
+    ("Atherosclerosis / coronary artery disease",["I70","I25"], ["atherosclero", "coronary artery disease"]),
+    ("Long COVID (post COVID-19 condition)",    ["U09"], ["post covid", "post-covid", "long covid"]),
+]
+
 SECTIONS = [
     ("HLA-LINKED DISEASES", HLA_LINKED,
      "Diseases with an established genetic association to specific HLA alleles. These "
@@ -144,6 +160,12 @@ SECTIONS = [
     ("TUMORS -- solid (general immune-surveillance context)", TUMOR_SOLID,
      "Common solid cancers. Included for scale/context, not because repertoire data "
      "is expected to be as directly diagnostic as for the lymphoid tumors above."),
+    ("OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27)", OTHER_CONDITIONS_OF_INTEREST,
+     "Alzheimer's, Parkinson's, atherosclerosis/CAD, and Long COVID. A feasibility check "
+     "(do we have enough cases at all), not an established HLA/repertoire mechanism claim "
+     "the way the sections above are. NOTE on Long COVID: U09 is a young code (introduced "
+     "Oct 2021 in ICD-10-CM) -- anyone diagnosed with post-COVID sequelae before their EHR "
+     "records started using it will be undercounted here."),
 ]
 
 
