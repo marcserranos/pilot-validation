@@ -164,16 +164,20 @@ def clean_gene_name(raw_name):
     return raw_name, None
 
 
-NOVELTY_CLASS_BY_DEPTH = {2: "protein_altering", 3: "synonymous", 4: "beyond_cds"}
+NOVELTY_CLASS_BY_DEPTH = {1: "undetermined", 2: "protein_altering", 3: "synonymous", 4: "beyond_cds"}
 
 
 def parse_consensus(consensus):
     """Derive n_fields/is_novel/novelty_depth/novelty_class from the consensus allele string.
 
-    "new" is spliced INTO the colon-delimited allele string at a variable field depth (2, 3, or 4)
-    that itself encodes novelty severity (reference/IMMUANNOT_GTF_SPEC.md part B) -- it is not a
-    separate flag. `consensus` can also be the literal string "undetermined" (ambiguous typing),
-    which has no fields to parse at all.
+    "new" is spliced INTO the colon-delimited allele string at a variable field depth (1, 2, 3, or
+    4) that itself encodes novelty severity (reference/IMMUANNOT_GTF_SPEC.md part B) -- it is not a
+    separate flag. Depth 1 (even the first/gene-resolution field unresolved) arises when
+    `consensusCall()`'s `os.path.commonprefix()` truncation collapses tied candidate alleles that
+    disagree at field 1 -- rare (3/50 in the production recon sample) but real; SCHEMA.md classifies
+    it as `novelty_class = "undetermined"`, not an error. `consensus` can also be the literal string
+    "undetermined" (ambiguous typing), which has no fields to parse at all -- distinct from a depth-1
+    novelty call, which still has real (if unresolved) fields.
 
     Returns (n_fields, is_novel, novelty_depth, novelty_class, warn_msg_or_None).
     """
@@ -189,7 +193,7 @@ def parse_consensus(consensus):
     warn = None
     if novelty_class is None:
         warn = (f"unexpected novelty depth {depth} in consensus {consensus!r} "
-                f"(expected 2, 3, or 4 per nameNewHlaAllele()'s truncation rule)")
+                f"(expected 1, 2, 3, or 4 per nameNewHlaAllele()'s truncation rule)")
     return n_fields, True, depth, novelty_class, warn
 
 

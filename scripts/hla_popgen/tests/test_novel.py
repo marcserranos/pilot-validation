@@ -204,29 +204,30 @@ def test_build_table3_recurrence_and_passes_qc():
       - HASH_A: same sequence, 2 different persons, 1 ancestry each (AFR, AFR) -> passes_qc True.
       - HASH_B: same sequence, 1 person, 2 haplotypes (both haps of person P2) -> only 1 person ->
         passes_qc False (recurrence gate requires DIFFERENT persons, not just >1 haplotype).
-      - HASH_C: singleton, 1 person, has_warning True -> passes_qc False on two counts.
+      - HASH_C: singleton, 1 person, carries the default-disqualifying 'inframe_stop' warning token
+        -> passes_qc False on two counts (recurrence AND token-aware warning gate).
     """
     matched_rows = [
         {"person_id": "P1", "hap": "hap1", "gene": "HLA-A", "gene_class": "classical_I",
          "cds_seq_sha1": "HASH_A" + "0" * 34, "cds_len": 1000, "nearest_allele": "HLA-A*01:01",
          "cds_distance": 2, "n_aa_changes": 1, "novelty_class": "protein_altering",
-         "has_warning": False, "is_homopolymer_indel_only": False},
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
         {"person_id": "P2", "hap": "hap1", "gene": "HLA-A", "gene_class": "classical_I",
          "cds_seq_sha1": "HASH_A" + "0" * 34, "cds_len": 1000, "nearest_allele": "HLA-A*01:01",
          "cds_distance": 2, "n_aa_changes": 1, "novelty_class": "protein_altering",
-         "has_warning": False, "is_homopolymer_indel_only": False},
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
         {"person_id": "P3", "hap": "hap1", "gene": "HLA-A", "gene_class": "classical_I",
          "cds_seq_sha1": "HASH_B" + "0" * 34, "cds_len": 900, "nearest_allele": "HLA-A*02:01",
          "cds_distance": 1, "n_aa_changes": 0, "novelty_class": "synonymous",
-         "has_warning": False, "is_homopolymer_indel_only": False},
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
         {"person_id": "P3", "hap": "hap2", "gene": "HLA-A", "gene_class": "classical_I",
          "cds_seq_sha1": "HASH_B" + "0" * 34, "cds_len": 900, "nearest_allele": "HLA-A*02:01",
          "cds_distance": 1, "n_aa_changes": 0, "novelty_class": "synonymous",
-         "has_warning": False, "is_homopolymer_indel_only": False},
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
         {"person_id": "P4", "hap": "hap1", "gene": "HLA-A", "gene_class": "classical_I",
          "cds_seq_sha1": "HASH_C" + "0" * 34, "cds_len": 800, "nearest_allele": "HLA-A*03:01",
          "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
-         "has_warning": True, "is_homopolymer_indel_only": False},
+         "warning_tokens": frozenset(["inframe_stop"]), "is_homopolymer_indel_only": False},
     ]
     ancestry_by_person = {"P1": "AFR", "P2": "AFR", "P3": "EUR", "P4": "AMR"}
     table3 = novel.build_table3(matched_rows, ancestry_by_person)
@@ -246,10 +247,150 @@ def test_build_table3_recurrence_and_passes_qc():
           bool(row_b["passes_qc"]) is False)
 
     row_c = table3[table3["cds_seq_sha1"].str.startswith("HASH_C")].iloc[0]
-    check("HASH_C: passes_qc False (singleton AND has_warning)", bool(row_c["passes_qc"]) is False)
+    check("HASH_C: passes_qc False (singleton AND disqualifying 'inframe_stop' warning token)",
+          bool(row_c["passes_qc"]) is False)
 
     check("novel_id is deterministic (sha1-based, recomputable)",
           row_a["novel_id"] == f"HLA-A_nov_{('HASH_A' + '0'*34)[:8]}")
+
+
+def test_build_table3_token_aware_warning_gate():
+    """Regression for Fix 2 (SCHEMA.md 'template_warning policy'): a blanket 'any warning'
+    passes_qc gate would reject ~95% of real-data candidates. The gate must be TOKEN-AWARE:
+    'partial_CDS' benign by default, only 'inframe_stop' disqualifies by default, and the
+    disqualifying set must be caller-configurable (the --disqualifying-warnings CLI flag)."""
+    matched_rows = [
+        {"person_id": "P1", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
+         "cds_seq_sha1": "BENIGN0" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-B*07:02",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(["partial_CDS"]), "is_homopolymer_indel_only": False},
+        {"person_id": "P2", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
+         "cds_seq_sha1": "BENIGN0" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-B*07:02",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(["no-start_codon", "no-stop_codon"]),
+         "is_homopolymer_indel_only": False},
+        {"person_id": "P3", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
+         "cds_seq_sha1": "BADONE0" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-B*08:01",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(["inframe_stop"]), "is_homopolymer_indel_only": False},
+        {"person_id": "P4", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
+         "cds_seq_sha1": "BADONE0" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-B*08:01",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(["inframe_stop"]), "is_homopolymer_indel_only": False},
+    ]
+    ancestry_by_person = {"P1": "AFR", "P2": "EUR", "P3": "AFR", "P4": "EUR"}
+
+    table3_default = novel.build_table3(matched_rows, ancestry_by_person)
+    benign_row = table3_default[table3_default["cds_seq_sha1"].str.startswith("BENIGN0")].iloc[0]
+    bad_row = table3_default[table3_default["cds_seq_sha1"].str.startswith("BADONE0")].iloc[0]
+    check("default gate: partial_CDS/no-start_codon/no-stop_codon do NOT disqualify (2 unrelated "
+          "persons, benign tokens only) -> passes_qc True",
+          bool(benign_row["passes_qc"]) is True)
+    check("default gate: inframe_stop DOES disqualify even with 2 unrelated persons -> passes_qc "
+          "False", bool(bad_row["passes_qc"]) is False)
+
+    table3_no_gate = novel.build_table3(matched_rows, ancestry_by_person,
+                                          disqualifying_warnings=frozenset())
+    bad_row_no_gate = table3_no_gate[
+        table3_no_gate["cds_seq_sha1"].str.startswith("BADONE0")].iloc[0]
+    check("--disqualifying-warnings '' (empty set) makes inframe_stop no longer disqualifying "
+          "-> passes_qc True", bool(bad_row_no_gate["passes_qc"]) is True)
+
+    table3_strict = novel.build_table3(
+        matched_rows, ancestry_by_person,
+        disqualifying_warnings=frozenset(["partial_CDS", "inframe_stop"]))
+    benign_row_strict = table3_strict[
+        table3_strict["cds_seq_sha1"].str.startswith("BENIGN0")].iloc[0]
+    check("configuring partial_CDS as disqualifying (via the CLI-equivalent argument) actually "
+          "disqualifies it -> passes_qc False", bool(benign_row_strict["passes_qc"]) is False)
+
+
+def test_novelty_depth1_undetermined_classification():
+    """Regression for Fix 1 (SCHEMA.md Table 1): novelty_depth==1 (even the first/gene-resolution
+    field unresolved, from consensusCall()'s commonprefix truncation colliding on tied candidates)
+    must classify as novelty_class == 'undetermined', not crash, not silently drop, and not get
+    mis-bucketed into protein_altering/synonymous/beyond_cds."""
+    n_fields, is_novel, depth, novelty_class, warn = extract.parse_consensus("HLA-A*new")
+    check("depth-1 novel allele is_novel True", is_novel is True)
+    check("depth-1 novelty_depth == 1", depth == 1, detail=str(depth))
+    check("depth-1 novelty_class == 'undetermined'", novelty_class == "undetermined",
+          detail=str(novelty_class))
+    check("depth-1 does not raise an 'unexpected novelty depth' warning", warn is None,
+          detail=str(warn))
+
+    check("NOVELTY_CLASS_BY_DEPTH has an entry for every depth 1-4 (no KeyError/None risk on a "
+          "dict .get(depth) elsewhere)",
+          all(d in extract.NOVELTY_CLASS_BY_DEPTH for d in (1, 2, 3, 4)),
+          detail=str(extract.NOVELTY_CLASS_BY_DEPTH))
+
+    # End-to-end through build_table1_row: must not crash and must carry the classification through
+    # to the Table 1 row dict, with no fabricated warning.
+    row = {
+        "contig": "ctg1", "gene_id": "IAG100001", "gene_name_raw": "HLA-A",
+        "template_allele": "HLA-A*01:01:01:01", "template_distance": "3",
+        "gene_start": 1000, "gene_end": 4000, "strand": "+",
+        "consensus": "HLA-A*new", "alleles": "HLA-A*01:01:01:01,HLA-A*01:02:01:01",
+        "template_warning": None, "cds_distance": None, "cds_mut": None,
+    }
+    t1_row, row_warn = extract.build_table1_row("P1", "hap1", row)
+    check("build_table1_row does not crash on a depth-1 novel consensus", t1_row is not None)
+    check("build_table1_row: novelty_depth == 1 survives to the Table 1 row",
+          t1_row["novelty_depth"] == 1, detail=str(t1_row["novelty_depth"]))
+    check("build_table1_row: novelty_class == 'undetermined' survives to the Table 1 row",
+          t1_row["novelty_class"] == "undetermined", detail=str(t1_row["novelty_class"]))
+    check("build_table1_row: is_novel True for a depth-1 call", t1_row["is_novel"] is True)
+    check("build_table1_row: no spurious warning raised for a legitimate depth-1 call",
+          row_warn is None, detail=str(row_warn))
+
+
+def test_novelty_depth1_excluded_from_headline_but_kept_in_table3():
+    """Regression for Fix 1's steer in 03_novel_alleles.py: an 'undetermined' (depth-1) novel
+    cluster must still appear in Table 3 (the TSV's grain is every distinct novel sequence cluster)
+    but must be excluded from the report's headline novel-allele counts and surfaced as its own
+    explicitly-labelled, explicitly-counted category."""
+    matched_rows = [
+        {"person_id": "P1", "hap": "hap1", "gene": "HLA-C", "gene_class": "classical_I",
+         "cds_seq_sha1": "UNDET00" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-C*01:02",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "undetermined",
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
+        {"person_id": "P2", "hap": "hap1", "gene": "HLA-C", "gene_class": "classical_I",
+         "cds_seq_sha1": "UNDET00" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-C*01:02",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "undetermined",
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
+        {"person_id": "P3", "hap": "hap1", "gene": "HLA-C", "gene_class": "classical_I",
+         "cds_seq_sha1": "RESOLVD" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-C*02:02",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
+        {"person_id": "P4", "hap": "hap1", "gene": "HLA-C", "gene_class": "classical_I",
+         "cds_seq_sha1": "RESOLVD" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-C*02:02",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(), "is_homopolymer_indel_only": False},
+    ]
+    ancestry_by_person = {"P1": "AFR", "P2": "EUR", "P3": "AFR", "P4": "EUR"}
+    table3 = novel.build_table3(matched_rows, ancestry_by_person)
+    check("Table 3 keeps the undetermined cluster (2 clusters total, not silently dropped)",
+          len(table3) == 2, detail=str(len(table3)))
+    undet_row = table3[table3["cds_seq_sha1"].str.startswith("UNDET00")].iloc[0]
+    check("undetermined cluster still gets passes_qc computed like any other (recurrence-gated)",
+          bool(undet_row["passes_qc"]) is True)
+    check("undetermined cluster's novelty_class is preserved verbatim in Table 3",
+          undet_row["novelty_class"] == "undetermined")
+
+    for c in novel.TABLE3_COLUMNS:
+        if c not in table3.columns:
+            table3[c] = None
+    md_path = "/tmp/hla_test_novel_report.md"
+    md_text = novel.write_report(
+        md_path, table3,
+        {"n_novel_table1_rows": 4, "n_matched": 4, "n_ambiguous_copy": 0, "n_missing_cds": 0},
+        __import__("pandas").DataFrame(
+            {"novel_rate": [0.1], "n_calls": [10], "n_novel": [1]}, index=["AFR"]),
+        {"table3": "novel_alleles.tsv"}, matched_rows)
+    check("report explicitly states the undetermined cluster count",
+          "undetermined` (gene-level-unresolved) clusters: 1" in md_text, detail=md_text[:2000])
+    check("report's headline 'resolved identity' cluster count is 1, not 2 (excludes the "
+          "undetermined cluster)",
+          "resolved identity (`novel_id`) | 1 |" in md_text)
 
 
 def test_ambiguous_copy_index_excluded():
@@ -452,6 +593,9 @@ def main():
     print("\n-- Unit tests: 03_novel_alleles.py QC / clustering logic --")
     test_homopolymer_indel_detection()
     test_build_table3_recurrence_and_passes_qc()
+    test_build_table3_token_aware_warning_gate()
+    test_novelty_depth1_undetermined_classification()
+    test_novelty_depth1_excluded_from_headline_but_kept_in_table3()
     test_ambiguous_copy_index_excluded()
 
     print("\n-- Integration test: ancestry gradient survives 01 -> 02 -> 03 --")

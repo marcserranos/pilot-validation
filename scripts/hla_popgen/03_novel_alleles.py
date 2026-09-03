@@ -106,6 +106,36 @@ DEFAULT_REPORTS_DIR_NAME = os.path.join("reports", "hla_popgen")
 CS_TOKEN_RE = re.compile(r":\d+|\*[a-z]{2}|[+-][a-z]+", re.IGNORECASE)
 HEADER_KEY_RE = re.compile(r"^(.*)_(\d+)$")
 
+# SCHEMA.md "template_warning policy": 00_recon_vm.py measured template_warning present on 95.3% of
+# transcript rows in the real 50-person production sample -- near-ubiquitous, because it describes
+# whether the TEMPLATE's CDS could be cleanly reconstructed from the gene-level alignment
+# (searchTemplate.py's checkCDScompleteness()), not whether the typing call itself is wrong.
+# Pseudogenes legitimately have no valid start/stop codon and will always warn; partial_CDS fires
+# whenever the trimmed contig truncates a gene's span. A blanket "any warning" gate (the pre-existing
+# convention in analyze_confidence_matched_truth.py) would reject ~95% of all calls on real data --
+# not a small tail, a silent near-total collapse of the analysis. Every filter must instead be
+# TOKEN-AWARE: only `inframe_stop` genuinely suggests a broken CDS reconstruction and is the
+# defensible default disqualifier for novel-allele QC. This default is a CLI flag
+# (--disqualifying-warnings), never hardcoded past this one module-level constant.
+DEFAULT_DISQUALIFYING_WARNINGS = frozenset(["inframe_stop"])
+
+
+def warning_tokens(template_warning):
+    """Split a (possibly comma-joined, possibly NaN/None) template_warning value into a set of
+    tokens. Per reference/IMMUANNOT_GTF_SPEC.md part A: 'template_warning "no-start_codon,
+    inframe_stop,..."' -- comma-joined, conditional (absent, not zero, when checkCDScompleteness()
+    raised nothing)."""
+    if template_warning is None or (isinstance(template_warning, float) and pd.isna(template_warning)):
+        return frozenset()
+    s = str(template_warning).strip()
+    if not s or s.lower() in ("nan", "none"):
+        return frozenset()
+    return frozenset(t.strip() for t in s.split(",") if t.strip())
+
+
+def has_disqualifying_warning(tokens, disqualifying_set):
+    return bool(tokens & disqualifying_set)
+
 
 # ---------------------------------------------------------------------------
 # cds.fa.gz parsing / matching
@@ -194,8 +224,9 @@ def match_novel_rows(table1, outroot):
 
     matched_rows carry exactly what's needed to cluster + report: person_id, hap, gene, gene_class,
     cds_seq_sha1, cds_len, nearest_allele, cds_distance, n_aa_changes, novelty_class,
-    has_warning, is_homopolymer_indel_only. NEVER the sequence itself (kept in a side dict, written
-    only to the VM-only fasta).
+    warning_tokens (frozenset -- see module docstring "template_warning policy": NEVER collapse this
+    to a bare has-any-warning bool, that gate rejects ~95% of real calls), is_homopolymer_indel_only.
+    NEVER the sequence itself (kept in a side dict, written only to the VM-only fasta).
     """
     table1 = table1.copy()
     table1["is_novel_bool"] = table1["is_novel"].astype(str).str.lower().isin(["true", "1"])
@@ -246,7 +277,7 @@ def match_novel_rows(table1, outroot):
                 "cds_distance": row.get("cds_distance"),
                 "n_aa_changes": row.get("n_aa_changes"),
                 "novelty_class": row.get("novelty_class"),
-                "has_warning": str(row.get("has_warning")).lower() == "true",
+                "warning_tokens": warning_tokens(row.get("template_warning")),
                 "is_homopolymer_indel_only": is_homopolymer_indel_only(row.get("cds_mut")),
             })
             n_matched += 1
@@ -263,9 +294,20 @@ def match_novel_rows(table1, outroot):
 # ---------------------------------------------------------------------------
 # Clustering into Table 3
 # ---------------------------------------------------------------------------
-def build_table3(matched_rows, ancestry_by_person):
+def build_table3(matched_rows, ancestry_by_person, disqualifying_warnings=DEFAULT_DISQUALIFYING_WARNINGS):
     """Group matched rows by (gene, cds_seq_sha1) -- the exact-sequence-identity clustering key
-    (NOVEL_LIT.md 2.3). novel_id = <gene>_nov_<sha1[:8]> -- deterministic (SCHEMA.md Table 3)."""
+    (NOVEL_LIT.md 2.3). novel_id = <gene>_nov_<sha1[:8]> -- deterministic (SCHEMA.md Table 3).
+
+    `passes_qc` is TOKEN-AWARE on template_warning (SCHEMA.md "template_warning policy") -- a
+    cluster is disqualified on warnings only if some member carries a token in
+    `disqualifying_warnings` (default: {'inframe_stop'}), never on bare presence of any warning.
+
+    Clusters whose (majority) `novelty_class` is `undetermined` (novelty_depth==1 -- even the
+    gene-level field unresolved, SCHEMA.md Table 1) are still emitted here (Table 3's grain is
+    "every distinct novel sequence cluster") but the caller (`write_report`) must exclude them from
+    headline novel-allele counts and report them as their own labelled category -- an allele whose
+    gene-level identity is unresolved is not a defensible "novel allele" claim.
+    """
     clusters = defaultdict(list)
     for r in matched_rows:
         clusters[(r["gene"], r["cds_seq_sha1"])].append(r)
@@ -290,7 +332,10 @@ def build_table3(matched_rows, ancestry_by_person):
         cds_distance = majority("cds_distance")
         n_aa_changes = majority("n_aa_changes")
         novelty_class = majority("novelty_class")
-        any_warning = any(m["has_warning"] for m in members)
+        cluster_warning_tokens = frozenset().union(*(m["warning_tokens"] for m in members)) \
+            if members else frozenset()
+        any_disqualifying_warning = has_disqualifying_warning(cluster_warning_tokens,
+                                                                disqualifying_warnings)
         is_homopolymer = any(m["is_homopolymer_indel_only"] for m in members)
 
         ancestry_counts = Counter()
@@ -300,7 +345,7 @@ def build_table3(matched_rows, ancestry_by_person):
                 ancestry_counts[anc] += 1
 
         n_persons = len(persons)
-        passes_qc = (n_persons >= 2) and (not any_warning) and (not is_homopolymer)
+        passes_qc = (n_persons >= 2) and (not any_disqualifying_warning) and (not is_homopolymer)
 
         out_rows.append({
             "novel_id": novel_id,
@@ -380,9 +425,23 @@ def write_seqs_fasta(path, seqs_by_hash, gene_by_hash):
                 f.write(seq[k:k + 60] + "\n")
 
 
-def write_report(md_path, table3, match_stats, rate_df, out_paths):
+def write_report(md_path, table3, match_stats, rate_df, out_paths, matched_rows,
+                  disqualifying_warnings=DEFAULT_DISQUALIFYING_WARNINGS):
+    # SCHEMA.md Fix 1 steer: a cluster whose gene-level identity is itself unresolved
+    # (novelty_class == "undetermined", novelty_depth==1) is not a defensible "novel allele" claim.
+    # It stays IN Table 3 (the TSV's grain is every distinct novel sequence cluster) but is split out
+    # of every headline novel-allele count here and reported as its own labelled category, with the
+    # count stated explicitly rather than left implicit in a combined total.
+    is_undetermined = table3["novelty_class"] == "undetermined" if len(table3) else pd.Series(
+        dtype=bool)
+    resolved = table3[~is_undetermined] if len(table3) else table3
+    undetermined = table3[is_undetermined] if len(table3) else table3
+
     total_clusters = len(table3)
-    n_pass = int(table3["passes_qc"].sum()) if total_clusters else 0
+    n_undetermined = len(undetermined)
+    n_resolved = len(resolved)
+    n_pass = int(resolved["passes_qc"].sum()) if n_resolved else 0
+    n_undetermined_pass = int(undetermined["passes_qc"].sum()) if n_undetermined else 0
     n_homopolymer = int(table3["is_homopolymer_indel_only"].sum()) if total_clusters else 0
     n_singleton = int((table3["n_persons"] == 1).sum()) if total_clusters else 0
 
@@ -407,21 +466,65 @@ def write_report(md_path, table3, match_stats, rate_df, out_paths):
         f"deleted by Immuannot's own cleanup) -- excluded from Table 3 by design, not a bug.\n"
     )
 
+    md.append("\n## `template_warning` QC policy for this run\n")
+    md.append(
+        f"Disqualifying warning token(s) used in this run's `passes_qc` gate: "
+        f"**{', '.join(sorted(disqualifying_warnings)) or '(none -- every candidate passes on warnings)'}**. "
+        "Per SCHEMA.md's `template_warning` policy, mere presence of ANY warning is NOT a gate -- "
+        "`template_warning` is present on ~95% of real transcript rows (it describes whether the "
+        "template's CDS could be cleanly reconstructed, not whether the typing call is wrong). Only "
+        "the token(s) listed above disqualify a candidate; every other token is treated as benign by "
+        "this run. Override with `--disqualifying-warnings`.\n"
+    )
+    warning_token_counts = Counter()
+    n_candidates_any_warning = 0
+    for r in matched_rows:
+        toks = r.get("warning_tokens") or frozenset()
+        if toks:
+            n_candidates_any_warning += 1
+        warning_token_counts.update(toks)
+    md.append(f"\nWarning-token breakdown among the {len(matched_rows)} matched novel candidates "
+               f"(a candidate may carry more than one token, so counts need not sum to the total; "
+               f"{n_candidates_any_warning} carried at least one token):\n")
+    md.append("| warning token | n candidates | disqualifying in this run? |")
+    md.append("|---|---|---|")
+    if warning_token_counts:
+        for tok, n in warning_token_counts.most_common():
+            flag = "YES" if tok in disqualifying_warnings else "no (benign by default)"
+            md.append(f"| {tok} | {n} | {flag} |")
+    else:
+        md.append("| (none observed) | 0 | -- |")
+
     md.append("\n## Cluster-level summary\n")
+    md.append(
+        "Headline counts below cover only clusters with a RESOLVED gene-level identity "
+        "(`novelty_class != \"undetermined\"`). Depth-1 (`undetermined`) clusters -- even the "
+        "gene-level field unresolved -- are reported separately immediately after, per SCHEMA.md's "
+        "Fix 1 steer: an allele whose gene identity is itself unresolved is not a defensible "
+        "\"novel allele\" claim.\n"
+    )
     md.append("| Metric | Count |")
     md.append("|---|---|")
-    md.append(f"| Distinct novel-allele clusters (`novel_id`) | {total_clusters} |")
-    md.append(f"| Passing all QC gates (`passes_qc`) | {n_pass} |")
+    md.append(f"| Distinct novel-allele clusters, resolved identity (`novel_id`) | {n_resolved} |")
+    md.append(f"| Passing all QC gates (`passes_qc`), resolved identity | {n_pass} |")
     md.append(f"| Singleton (1 person only) -- excluded by the recurrence gate | {n_singleton} |")
     md.append(f"| Flagged homopolymer-indel-only artifact | {n_homopolymer} |")
+    md.append(
+        f"\n**`undetermined` (gene-level-unresolved) clusters: {n_undetermined}** -- included in "
+        f"the Table 3 TSV, EXCLUDED from every headline count above. Of those, {n_undetermined_pass} "
+        f"also pass the recurrence/warning/homopolymer gates (i.e. would look like real novel "
+        f"alleles by every gate except gene-level resolution) -- reported here explicitly rather "
+        f"than folded into either total.\n"
+    )
+    md.append(f"\n(Total clusters across both categories: {total_clusters}.)\n")
 
-    if total_clusters:
-        md.append("\n## Synonymous vs non-synonymous breakdown (`novelty_class`)\n")
-        vc = table3["novelty_class"].fillna("NA (undetermined)").value_counts()
+    if n_resolved:
+        md.append("\n## Synonymous vs non-synonymous breakdown (`novelty_class`, resolved only)\n")
+        vc = resolved["novelty_class"].fillna("NA (no novelty_class)").value_counts()
         md.append("| novelty_class | n clusters | % |")
         md.append("|---|---|---|")
         for cls, n in vc.items():
-            md.append(f"| {cls} | {n} | {100*n/total_clusters:.1f}% |")
+            md.append(f"| {cls} | {n} | {100*n/n_resolved:.1f}% |")
         md.append(
             "\nA strong excess of `protein_altering` (non-synonymous) clusters over what a uniform "
             "random-error process would produce is itself evidence of real biology under balancing "
@@ -430,8 +533,8 @@ def write_report(md_path, table3, match_stats, rate_df, out_paths):
             "where that claim gets a formal statistical treatment.\n"
         )
 
-        md.append("\n## By gene_class\n")
-        gc = table3.groupby("gene_class").agg(
+        md.append("\n## By gene_class (resolved-identity clusters only)\n")
+        gc = resolved.groupby("gene_class").agg(
             n_clusters=("novel_id", "count"), n_passing_qc=("passes_qc", "sum")).reset_index()
         md.append("| gene_class | n clusters | passing QC |")
         md.append("|---|---|---|")
@@ -476,7 +579,16 @@ def main():
                          "-- SCHEMA.md hard rule #5). Default: <repo_root>/reports/hla_popgen")
     ap.add_argument("--sample", action="store_true",
                     help="Write to sample-suffixed output paths (quirk #22b).")
+    ap.add_argument("--disqualifying-warnings", default="inframe_stop",
+                    help="Comma-separated template_warning tokens that disqualify a novel-allele "
+                         "cluster from passes_qc (SCHEMA.md 'template_warning policy' -- mere "
+                         "presence of ANY warning is NOT a valid gate at the real ~95%% warning "
+                         "rate). Default: 'inframe_stop' only. Pass '' for no warning-based "
+                         "disqualification at all.")
     args = ap.parse_args()
+
+    disqualifying_warnings = frozenset(
+        t.strip() for t in args.disqualifying_warnings.split(",") if t.strip())
 
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     table1_path = args.table1 or os.path.join(args.outroot, "hla_calls_rich.tsv")
@@ -500,7 +612,9 @@ def main():
     print(f"  {match_stats}", file=sys.stderr)
 
     print("Clustering by exact CDS sequence identity ...", file=sys.stderr)
-    table3 = build_table3(matched_rows, ancestry_by_person)
+    print(f"  Disqualifying template_warning token(s) for passes_qc: "
+          f"{sorted(disqualifying_warnings) or '(none)'}", file=sys.stderr)
+    table3 = build_table3(matched_rows, ancestry_by_person, disqualifying_warnings)
     gene_by_hash = {r["cds_seq_sha1"]: r["gene"] for r in matched_rows}
 
     for c in TABLE3_COLUMNS:
@@ -513,11 +627,18 @@ def main():
     rate_df = novel_rate_by_ancestry(table1, ancestry_by_person)
 
     md_text = write_report(md_path, table3, match_stats, rate_df,
-                            {"table3": table3_path, "seqs": seqs_path})
+                            {"table3": table3_path, "seqs": seqs_path},
+                            matched_rows, disqualifying_warnings)
 
     elapsed = time.time() - t0
+    n_undetermined = int((table3["novelty_class"] == "undetermined").sum()) if len(table3) else 0
+    n_resolved_pass = int(
+        table3.loc[table3["novelty_class"] != "undetermined", "passes_qc"].sum()
+    ) if len(table3) else 0
     print(f"\nWrote {len(table3)} novel-allele clusters to {table3_path!r} "
-          f"({int(table3['passes_qc'].sum()) if len(table3) else 0} passing QC).",
+          f"({n_resolved_pass} resolved-identity clusters passing QC; "
+          f"{n_undetermined} additional gene-level-undetermined clusters excluded from that "
+          f"headline count -- see report).",
           file=sys.stderr)
     print(f"Wrote {len(seqs_by_hash)} sequences to {seqs_path!r} (VM-only).", file=sys.stderr)
     print(f"Wrote report to {md_path!r}. ({elapsed:.1f}s)", file=sys.stderr)

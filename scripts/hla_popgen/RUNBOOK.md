@@ -39,18 +39,39 @@ It answers, empirically, the questions the source-code spec could not:
 
 **Paste back the JSON block it prints.** That single block settles the open questions.
 
-## Step 2 — rich extraction (Tables 1 & 2)
+## Step 1b — warning-token census (~1 min)
 
-Sanity-check on 50 people first — never launch the full pass blind:
+Recon measured `template_warning` on **95.3%** of transcript rows. That number makes any blanket
+"no warning" filter useless (it would reject ~95% of calls), so the policy has to be token-aware.
+This tells you which tokens to disqualify:
 
 ```bash
-pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py --sample --limit 50
+pixi run -e spechla -- python3 scripts/hla_popgen/00b_warning_census.py --limit 200
 ```
 
-Then the full cohort. It is checkpointed and resumable, so a re-run continues rather than restarts:
+Paste back its two tables. Feed the answer to `03_novel_alleles.py --disqualifying-warnings`
+(default: `inframe_stop` only).
+
+## Step 2 — rich extraction (Tables 1 & 2)
+
+Sanity-check on 200 people first — never launch the full pass blind, and **measure the rate before
+committing to the full run**. Recon took ~6.5 s/person single-threaded; `01` is threaded, but
+confirm the real rate rather than assuming it:
 
 ```bash
-pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py
+{ time pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py --sample --limit 200 ; }
+```
+
+Then the full cohort. It is checkpointed and resumable, so a re-run continues rather than restarts.
+**Launch it inside `tmux` and tee to a log** — standing practice for any unattended run past a few
+minutes (quirk #14/#22: a dropped browser session has silently killed a multi-hour job here before,
+and printed-only output was lost when the VM idled out):
+
+```bash
+tmux new -s extract
+pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py 2>&1 | tee ~/pipeline_outputs/01_extract.log
+```
+```bash
 pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py --validate
 ```
 

@@ -89,6 +89,7 @@ def test_conditional_fields_absent_not_zero():
 
 def test_novelty_depth_classification():
     cases = [
+        ("HLA-A*new", 1, "undetermined"),  # regression: Fix 1, depth-1 gene-level unresolved
         ("HLA-A*02:new", 2, "protein_altering"),
         ("HLA-C*07:01:new", 3, "synonymous"),
         ("HLA-DPB1*17:01:01:new", 4, "beyond_cds"),
@@ -104,6 +105,41 @@ def test_novelty_depth_classification():
     check("is_novel True only when 'new' present",
           extract.parse_consensus("HLA-A*02:new")[1] is True and
           extract.parse_consensus("HLA-A*01:01:01:01")[1] is False)
+    check("depth-1 novel call ('HLA-A*new') is_novel True (not confused with the literal string "
+          "'undetermined' consensus, which has no fields at all)",
+          extract.parse_consensus("HLA-A*new")[1] is True)
+    check("depth-1 does not raise an 'unexpected novelty depth' warning (it's a real, documented "
+          "case per SCHEMA.md, not a parser anomaly)",
+          extract.parse_consensus("HLA-A*new")[4] is None,
+          detail=str(extract.parse_consensus("HLA-A*new")[4]))
+
+
+def test_novelty_depth1_full_row_no_crash_no_misbucket():
+    """Regression for Fix 1: novelty_depth==1 ('HLA-A*new', even the first/gene-resolution field
+    unresolved -- consensusCall()'s commonprefix truncation colliding on tied candidates that
+    disagree at field 1) must not crash build_table1_row, must not be silently dropped, and must
+    not be mis-bucketed into protein_altering/synonymous/beyond_cds via a dict .get(depth) that
+    only expected keys 2/3/4."""
+    check("NOVELTY_CLASS_BY_DEPTH has depth 1 mapped to 'undetermined' (would otherwise KeyError-"
+          "free but silently return None via .get(), mis-classifying a real, documented case)",
+          extract.NOVELTY_CLASS_BY_DEPTH.get(1) == "undetermined",
+          detail=str(extract.NOVELTY_CLASS_BY_DEPTH))
+    row = {
+        "contig": "ctg1", "gene_id": "IAG999001", "gene_name_raw": "HLA-A",
+        "template_allele": "HLA-A*01:01:01:01", "template_distance": "5",
+        "gene_start": 1000, "gene_end": 5000, "strand": "+",
+        "consensus": "HLA-A*new", "alleles": "HLA-A*01:01:01:01,HLA-A*02:01:01:01",
+        "template_warning": "partial_CDS", "cds_distance": None, "cds_mut": None,
+    }
+    t1, warn = extract.build_table1_row("p_depth1", "hap1", row)
+    check("depth-1 row does not crash build_table1_row", t1 is not None)
+    check("depth-1 row: is_novel True", t1["is_novel"] is True)
+    check("depth-1 row: novelty_depth == 1", t1["novelty_depth"] == 1,
+          detail=str(t1["novelty_depth"]))
+    check("depth-1 row: novelty_class == 'undetermined', not None/mis-bucketed",
+          t1["novelty_class"] == "undetermined", detail=str(t1["novelty_class"]))
+    check("depth-1 row: no spurious 'unexpected novelty depth' warning attached",
+          warn is None, detail=str(warn))
 
 
 def test_c4_gene_name_stripping():
@@ -176,6 +212,29 @@ def test_against_fixtures(fixtures_root):
     check("row grain (person_id, hap, contig, gene, copy_index) unique across sampled rows",
           _grain_unique(all_t1_rows))
 
+    # Regression (Fix 1): depth-1 ('undetermined') novelty calls are rare-but-real in the fixture
+    # (~3% of novel variants per make_fixtures.py) and must survive the full parse -> classification
+    # path without crashing, being dropped, or landing in the wrong novelty_class bucket.
+    depth1_rows = [r for r in all_t1_rows if r["novelty_depth"] == 1]
+    check("fixture produces at least one novelty_depth==1 row across the sampled persons "
+          "(if this ever goes to 0, the fixture's own depth-1 generation may have changed shape)",
+          len(depth1_rows) > 0, detail=f"sampled {len(all_t1_rows)} rows, 80 persons")
+    check("every novelty_depth==1 row classifies as novelty_class=='undetermined', none None/"
+          "mis-bucketed", all(r["novelty_class"] == "undetermined" for r in depth1_rows),
+          detail=str({r["novelty_class"] for r in depth1_rows}))
+    check("every novelty_depth==1 row still has is_novel True (not silently dropped from the "
+          "novel-call set)", all(r["is_novel"] for r in depth1_rows))
+
+    # Regression (Fix 2 fixture realism check): template_warning must be near-ubiquitous (~95%),
+    # matching 00_recon_vm.py's real production measurement -- if this collapses back toward the
+    # fixture's old ~4% rate, the token-aware-gate regression test downstream would stop being a
+    # real test of anything.
+    transcript_rows_with_warning = sum(1 for r in all_t1_rows if r["template_warning"])
+    warn_rate = transcript_rows_with_warning / len(all_t1_rows) if all_t1_rows else 0
+    check("fixture's template_warning presence rate is near the real ~95.3% production rate "
+          "(checked >=0.85 to allow sampling noise over 80 persons)", warn_rate >= 0.85,
+          detail=f"rate={warn_rate:.3f} ({transcript_rows_with_warning}/{len(all_t1_rows)})")
+
     # Table 2: pairing must respect contig, not just hap-file membership.
     total_t2 = 0
     total_unpairable = 0
@@ -219,6 +278,7 @@ def main():
     print("=== Unit tests ===")
     for fn in [test_unquoted_template_distance, test_cds_mut_not_split_naively,
                test_conditional_fields_absent_not_zero, test_novelty_depth_classification,
+               test_novelty_depth1_full_row_no_crash_no_misbucket,
                test_c4_gene_name_stripping, test_kir_absent_and_flagged_if_present,
                test_copy_index_suffix, test_ancestry_case_normalization]:
         try:

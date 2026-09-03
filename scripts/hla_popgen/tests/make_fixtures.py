@@ -128,6 +128,17 @@ def _build_novel_variants():
             td = rng.randint(1, 12)
             # Affinity: most novel alleles are near-private to one ancestry, a few are shared.
             affinity = rng.choice(ANCESTRIES) if rng.random() < 0.75 else None
+            # Depth 1 ("HLA-A*new" -- even the first field undetermined) is rare but REAL: the
+            # production recon found 3 such calls in a 50-person sample. It arises when
+            # consensusCall()'s commonprefix truncation collapses tied candidates that disagree at
+            # the very first field. Downstream code must classify it, not crash or mislabel it.
+            if rng.random() < 0.03:
+                gene_variants.append({
+                    "consensus": f"{gene}*new", "td": rng.randint(1, 40), "cds_dist": None,
+                    "cds_mut": None, "warning": "partial_CDS", "affinity": affinity,
+                    "cds_seq": rand_seq(rng, rng.randrange(810, 1101, 3)),
+                })
+                continue
             if depth == 4:
                 # Difference lies outside the CDS (intron/UTR) -- no CDS-level diff to report.
                 cds_dist, cds_mut, warning = 0, None, None
@@ -200,6 +211,18 @@ def write_gtf(path, contigs_genes, rng):
         for gene, copy_index, ancestry in entries:
             consensus, td, cds_dist, cds_mut, warning, cds_seq = make_consensus(
                 rng, gene, ancestry)
+            # template_warning is NEAR-UBIQUITOUS in the real data -- 00_recon_vm.py measured a
+            # 95.3% presence rate across transcript rows on the production cohort (2026-09-03).
+            # It describes the TEMPLATE's CDS reconstruction from the gene-level alignment, not
+            # the correctness of the typing call, and one benign token dominates. The critical
+            # downstream consequence: "has any template_warning" CANNOT be used as a QC gate or a
+            # confidence filter -- it would reject ~95% of all calls. Filters must be
+            # TOKEN-AWARE. The fixture encodes the real rate so any blanket-gate regression fails
+            # loudly here instead of silently emptying a real analysis.
+            if warning is None and rng.random() < 0.95:
+                warning = rng.choices(
+                    ["partial_CDS", "no-stop_codon", "no-start_codon", "inframe_stop"],
+                    weights=[0.80, 0.10, 0.07, 0.03])[0]
             template = f"{gene}*{rng.choice(ALLELE_POOL[gene])}"
             glen = rng.randint(3000, 15000)
             start, end = pos, pos + glen
@@ -301,10 +324,13 @@ def build(outroot, n_people):
             # documented source of copy-number confusion in the MHC.
             genes += [g for g in drb_paralogs if rng.random() < 0.35]
 
-            # THE CIS TRAP: ~18% of haplotypes are fragmented across two contigs, so genes in the
-            # same hap file are NOT necessarily in cis. Any script that pairs DQA1~DQB1 without
-            # checking the contig will silently produce wrong haplotypes on these.
-            if rng.random() < 0.18:
+            # THE CIS TRAP: genes in the same hap file are NOT necessarily in cis. Any script that
+            # pairs DQA1~DQB1 without checking the contig will silently produce wrong haplotypes.
+            # Rate calibrated to the REAL production cohort: 00_recon_vm.py measured 80% of
+            # haplotypes spanning >1 contig over a 50-person sample (2026-09-03) -- the MHC is
+            # genuinely fragmented across assembly contigs far more often than not. An earlier
+            # guess of 18% here was badly optimistic and under-exercised the pairing logic.
+            if rng.random() < 0.80:
                 split = rng.randint(2, max(3, len(genes) - 2))
                 contigs = {f"{hap}_ctg_{pid}_a": [], f"{hap}_ctg_{pid}_b": []}
                 names = list(contigs)

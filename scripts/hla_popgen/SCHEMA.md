@@ -67,8 +67,8 @@ ENVIRONMENT.md quirk #29. Do not repeat it.)
 | `consensus` | str | `consensus` attr, transcript row | **The typing call.** May be `undetermined`. Never use `template_allele` as the call. |
 | `n_fields` | int | derived | Colon-delimited field count of `consensus`. |
 | `is_novel` | bool | derived | `"new"` appears as a field in `consensus`. |
-| `novelty_depth` | int/NA | derived | 1-based index of the field equal to `new` (2, 3, or 4). |
-| `novelty_class` | str/NA | derived | depth 2 → `protein_altering` (non-synonymous or frameshift); depth 3 → `synonymous`; depth 4 → `beyond_cds` (intronic/UTR only). Derived from `nameNewHlaAllele()`'s truncation rule. |
+| `novelty_depth` | int/NA | derived | 1-based index of the field equal to `new` (**1**, 2, 3, or 4). |
+| `novelty_class` | str/NA | derived | depth 1 → `undetermined` (even the first field is unresolved — arises when `consensusCall()`'s commonprefix truncation collapses tied candidates disagreeing at field 1; **rare but real**, 3 occurrences in a 50-person production sample); depth 2 → `protein_altering` (non-synonymous or frameshift); depth 3 → `synonymous`; depth 4 → `beyond_cds` (intronic/UTR only). Derived from `nameNewHlaAllele()`'s truncation rule. |
 | `template_allele` | str | gene row | Structural template only — **not** the genotype. |
 | `template_distance` | int | gene row | **Unquoted in the GTF, unlike every other attribute** — the parser regex must not require quotes. Weighted variant count over the *full gene span incl. introns/UTR*: substitution=1, indel run ≤5bp=1, indel run >5bp=2. Not a Levenshtein distance, not normalized. |
 | `gene_start`, `gene_end` | int | GTF cols 4/5 of gene row | 1-based inclusive, **contig-relative, not hg38**. This span is the alignment span for `template_distance`. |
@@ -77,7 +77,29 @@ ENVIRONMENT.md quirk #29. Do not repeat it.)
 | `cds_mut` | str/NA | transcript row | Conditional on `cds_distance > 0`. Pipe-delimited: `ref_allele \| cs_string \| AAref(codon)<AAobs(codon):...`. |
 | `n_aa_changes` | int/NA | derived from `cds_mut` | Count of `<`-separated codon diffs in the third pipe field. |
 | `template_warning` | str/NA | transcript row | Conditional. Tokens: `partial_CDS`, `inframe_stop`, `no-start_codon`, `no-stop_codon`. |
-| `has_warning` | bool | derived | |
+| `has_warning` | bool | derived | **Do not use as a QC gate or confidence filter.** See the warning policy below. |
+
+### `template_warning` policy — measured, not assumed
+
+`00_recon_vm.py` on the real production cohort (2026-09-03, 50-person sample) measured
+**`template_warning` present on 95.3% of transcript rows.** It is near-ubiquitous.
+
+This matters because it invalidates a filter this project already uses elsewhere. The existing
+confidence convention (`context/DECISIONS.md`, "Confidence-matched truth comparison";
+`scripts/analyze_confidence_matched_truth.py`) is *"`template_distance == 0` AND no
+`template_warning`"* — on the real production data that second clause would **reject roughly 95%
+of all calls**, not a small tail. Any blanket `has_warning == False` gate silently empties the
+analysis.
+
+The reason is semantic: `template_warning` describes whether the **template's CDS could be cleanly
+reconstructed from the gene-level alignment** (`searchTemplate.py`'s `checkCDScompleteness()`), not
+whether the typing call is wrong. Pseudogenes (`HLA-H/J/K/L/...`) legitimately have no valid start
+or stop codon and will always warn, and `partial_CDS` fires whenever the trimmed contig truncates a
+gene's span.
+
+**Rule: every filter on warnings must be TOKEN-AWARE and configurable.** Treat `partial_CDS` as
+benign by default; `inframe_stop` is the token that genuinely suggests a broken reconstruction and
+is the defensible default disqualifier for novel-allele QC. Never gate on mere presence.
 | `alleles` | str | transcript row | Comma-joined tied-best candidate reference alleles. |
 | `n_tied` | int | derived | Ambiguity of the call. |
 | `strand` | str | GTF col 7 | |
