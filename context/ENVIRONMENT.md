@@ -63,6 +63,24 @@ Genomics bucket: **`gs://vwb-aou-datasets-controlled/`** — **requester-pays**:
 | AoU genetic-ancestry predictions | `v9/wgs/short_read/snpindel/aux/ancestry/ancestry_preds.tsv` | `research_id`, `ancestry_pred` (AFR/AMR/EAS/EUR/MID/SAS, excl. "other"), `probabilities` (array, ordered AFR/AMR/EAS/EUR/MID/SAS), `pca_features` |
 | RNA-seq manifest (v9 multiomics) | `v9/multiomics/rnaseq/manifest.tsv` | `sampleid, research_id, markduplicates_bam_file_path, markduplicates_bam_index_path` — BAM only (STAR-aligned), no FASTQ. Row count (8,980) matches the AoU source PDF's stated cohort size exactly. |
 
+### Our own buckets (outputs — NOT AoU source data)
+
+| What | Value |
+|---|---|
+| Workspace / GCP project | `wb-cordial-leechee-9743` (Stanford pod — where the full-cohort production run happened) |
+| Share bucket | `gs://hla-calls-share-wb-cordial-leechee-9743` |
+| Workbench resource ID | `hla_calls_share` (folder: `root`) |
+| Layout | `aggregate/` = the small `*.tsv` deliverables · `pipeline_outputs/` = per-person tree |
+| Requester-pays? | **No** — workspace-owned, so no `--billing-project` flag (unlike the AoU source bucket) |
+| Purpose | Sharing the ~12k-person Immuannot callset with collaborators (Cole) inside the perimeter |
+
+Created 2026-09-03 because the production outputs live **only on the VM's persistent home disk**
+(`~/pipeline_outputs/`, quirk #12) and are therefore invisible to everyone else in the workspace —
+a collaborator looking under the Resources tab sees nothing, which is expected, not a bug. Copying
+into this bucket keeps the data **inside the VPC-SC perimeter, so it is not egress**; it does not
+change the still-open download/publication question in DECISIONS.md. Anyone given access must be
+individually Controlled-Tier approved — these are participant-level genotypes.
+
 - Always resolve file paths via the `v9/` **manifests** — never hand-build into `pooled/` (physical files live under `pooled/wgs/cram/{v7,v8,v9}_base/` and `pooled/longreads/v9_delta/`, stored incrementally across releases).
 - **Wrong-bucket trap:** legacy `gs://fc-aou-datasets-controlled/…` (old Firecloud naming) appears in archived docs — **not** ours.
 - AoU-native HLA typing = **HLA-HD + Polysolver + OptiType** ensemble on srWGS CRAMs; **no lrWGS equivalent exists**. Restrict comparisons to the **8 classical genes** our tools call (A, B, C, DRB1, DQA1, DQB1, DPA1, DPB1) — AoU types 30.

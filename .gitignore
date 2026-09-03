@@ -7,3 +7,7 @@ outputs/
 scripts/monitoring/.env
 scripts/monitoring/*.jsonl
 scripts/monitoring/client_state.json
+
+# hla_popgen scripts write generated output here; real results are produced on the VM
+# and graduate into a curated reports/ dir deliberately, never by a stray local test run.
+reports/hla_popgen/
