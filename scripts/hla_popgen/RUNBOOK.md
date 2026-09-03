@@ -63,14 +63,25 @@ confirm the real rate rather than assuming it:
 ```
 
 Then the full cohort. It is checkpointed and resumable, so a re-run continues rather than restarts.
-**Launch it inside `tmux` and tee to a log** — standing practice for any unattended run past a few
-minutes (quirk #14/#22: a dropped browser session has silently killed a multi-hour job here before,
-and printed-only output was lost when the VM idled out):
+**Launch it detached from the terminal and log to a file** — standing practice for any unattended
+run past a few minutes (quirk #14/#22: a dropped browser session has silently killed a multi-hour
+job here before, and printed-only output was lost when the VM idled out). `tmux` is not installed
+on this VM and there is no sudo to add it (quirk #6) — use `nohup ... & disown` instead, exactly
+the fallback quirk #14 itself names:
 
 ```bash
-tmux new -s extract
-pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py 2>&1 | tee ~/pipeline_outputs/01_extract.log
+nohup pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py \
+    > ~/pipeline_outputs/01_extract.log 2>&1 &
+disown
 ```
+```bash
+tail -f ~/pipeline_outputs/01_extract.log
+```
+
+`Ctrl-C` on the `tail` only stops watching — `disown` detaches the job from this shell, so it
+survives a dropped session or a closed tab. Check it's still alive with
+`ps -ef | grep 01_extract_rich`. Once the log shows it finished:
+
 ```bash
 pixi run -e spechla -- python3 scripts/hla_popgen/01_extract_rich.py --validate
 ```
