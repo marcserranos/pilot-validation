@@ -197,6 +197,28 @@ def test_homopolymer_indel_detection():
           novel.is_homopolymer_indel_only("HLA-A*01:01:01:01|:500|") is False)
 
 
+def test_warning_tokens_na_excluded():
+    """Regression (2026-09-03 real-data census, SCHEMA.md 'template_warning policy'): Immuannot
+    writes the literal string template_warning "NA" to mean NO WARNING on 57.4% of transcript
+    rows. warning_tokens() previously excluded 'nan'/'none' (pandas/Python missing-value
+    spellings) but NOT 'NA', so it returned frozenset({'NA'}) for a clean call -- scoring 57.4%
+    of real data as warned. A literal 'NA' (any case, with surrounding whitespace, standalone or
+    comma-joined with real tokens) must never appear in the returned token set."""
+    for na_spelling in ("NA", "na", "Na", " NA ", "", None, float("nan")):
+        toks = novel.warning_tokens(na_spelling)
+        check(f"warning_tokens({na_spelling!r}) == empty set (NA/absent means clean)",
+              toks == frozenset(), detail=str(toks))
+
+    check("warning_tokens('partial_CDS') == {'partial_CDS'}",
+          novel.warning_tokens("partial_CDS") == frozenset(["partial_CDS"]))
+    check("warning_tokens('NA,partial_CDS') drops the NA token, keeps the real one",
+          novel.warning_tokens("NA,partial_CDS") == frozenset(["partial_CDS"]),
+          detail=str(novel.warning_tokens("NA,partial_CDS")))
+    check("warning_tokens('no-start_codon,no-stop_codon') keeps both real tokens",
+          novel.warning_tokens("no-start_codon,no-stop_codon") ==
+          frozenset(["no-start_codon", "no-stop_codon"]))
+
+
 def test_build_table3_recurrence_and_passes_qc():
     """Hand-built matched rows exercising the recurrence gate the real fixtures can't reach (every
     novel CDS in make_fixtures.py is drawn independently at random, so genuine cross-person identity
@@ -256,14 +278,19 @@ def test_build_table3_recurrence_and_passes_qc():
 
 def test_build_table3_token_aware_warning_gate():
     """Regression for Fix 2 (SCHEMA.md 'template_warning policy'): a blanket 'any warning'
-    passes_qc gate would reject ~95% of real-data candidates. The gate must be TOKEN-AWARE:
-    'partial_CDS' benign by default, only 'inframe_stop' disqualifies by default, and the
-    disqualifying set must be caller-configurable (the --disqualifying-warnings CLI flag)."""
+    passes_qc gate would reject ~95% of real-data candidates -- and that ~95% figure was itself
+    a bug (it counted the attribute's mere presence; Immuannot's literal "NA" token means "no
+    warning" on 57.4% of rows, so the TRUE warning rate is ~38%). The gate must be TOKEN-AWARE:
+    'no-start_codon'/'no-stop_codon' benign by default (correct pseudogene biology),
+    'partial_CDS' and 'inframe_stop' disqualify by default (updated default per the 2026-09-03
+    census: partial_CDS is only ~2.4% of classical-gene calls, so excluding it is cheap and a
+    truncated CDS can't support a novel-allele claim), and the disqualifying set must be
+    caller-configurable (the --disqualifying-warnings CLI flag)."""
     matched_rows = [
         {"person_id": "P1", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
          "cds_seq_sha1": "BENIGN0" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-B*07:02",
          "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
-         "warning_tokens": frozenset(["partial_CDS"]), "is_homopolymer_indel_only": False},
+         "warning_tokens": frozenset(["no-start_codon"]), "is_homopolymer_indel_only": False},
         {"person_id": "P2", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
          "cds_seq_sha1": "BENIGN0" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-B*07:02",
          "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
@@ -277,31 +304,47 @@ def test_build_table3_token_aware_warning_gate():
          "cds_seq_sha1": "BADONE0" + "0" * 33, "cds_len": 1000, "nearest_allele": "HLA-B*08:01",
          "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
          "warning_tokens": frozenset(["inframe_stop"]), "is_homopolymer_indel_only": False},
+        {"person_id": "P5", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
+         "cds_seq_sha1": "PARTIAL0" + "0" * 32, "cds_len": 1000, "nearest_allele": "HLA-B*09:01",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(["partial_CDS"]), "is_homopolymer_indel_only": False},
+        {"person_id": "P6", "hap": "hap1", "gene": "HLA-B", "gene_class": "classical_I",
+         "cds_seq_sha1": "PARTIAL0" + "0" * 32, "cds_len": 1000, "nearest_allele": "HLA-B*09:01",
+         "cds_distance": 1, "n_aa_changes": 1, "novelty_class": "protein_altering",
+         "warning_tokens": frozenset(["partial_CDS"]), "is_homopolymer_indel_only": False},
     ]
-    ancestry_by_person = {"P1": "AFR", "P2": "EUR", "P3": "AFR", "P4": "EUR"}
+    ancestry_by_person = {"P1": "AFR", "P2": "EUR", "P3": "AFR", "P4": "EUR",
+                           "P5": "AFR", "P6": "EUR"}
 
     table3_default = novel.build_table3(matched_rows, ancestry_by_person)
     benign_row = table3_default[table3_default["cds_seq_sha1"].str.startswith("BENIGN0")].iloc[0]
     bad_row = table3_default[table3_default["cds_seq_sha1"].str.startswith("BADONE0")].iloc[0]
-    check("default gate: partial_CDS/no-start_codon/no-stop_codon do NOT disqualify (2 unrelated "
-          "persons, benign tokens only) -> passes_qc True",
-          bool(benign_row["passes_qc"]) is True)
+    partial_row = table3_default[table3_default["cds_seq_sha1"].str.startswith("PARTIAL0")].iloc[0]
+    check("default gate: no-start_codon/no-stop_codon do NOT disqualify (2 unrelated persons, "
+          "benign tokens only) -> passes_qc True", bool(benign_row["passes_qc"]) is True)
     check("default gate: inframe_stop DOES disqualify even with 2 unrelated persons -> passes_qc "
           "False", bool(bad_row["passes_qc"]) is False)
+    check("default gate: partial_CDS DOES disqualify by default (updated default, 2026-09-03) "
+          "even with 2 unrelated persons -> passes_qc False",
+          bool(partial_row["passes_qc"]) is False)
 
     table3_no_gate = novel.build_table3(matched_rows, ancestry_by_person,
                                           disqualifying_warnings=frozenset())
     bad_row_no_gate = table3_no_gate[
         table3_no_gate["cds_seq_sha1"].str.startswith("BADONE0")].iloc[0]
+    partial_row_no_gate = table3_no_gate[
+        table3_no_gate["cds_seq_sha1"].str.startswith("PARTIAL0")].iloc[0]
     check("--disqualifying-warnings '' (empty set) makes inframe_stop no longer disqualifying "
           "-> passes_qc True", bool(bad_row_no_gate["passes_qc"]) is True)
+    check("--disqualifying-warnings '' (empty set) makes partial_CDS no longer disqualifying "
+          "-> passes_qc True", bool(partial_row_no_gate["passes_qc"]) is True)
 
     table3_strict = novel.build_table3(
         matched_rows, ancestry_by_person,
-        disqualifying_warnings=frozenset(["partial_CDS", "inframe_stop"]))
+        disqualifying_warnings=frozenset(["no-start_codon", "partial_CDS", "inframe_stop"]))
     benign_row_strict = table3_strict[
         table3_strict["cds_seq_sha1"].str.startswith("BENIGN0")].iloc[0]
-    check("configuring partial_CDS as disqualifying (via the CLI-equivalent argument) actually "
+    check("configuring no-start_codon as disqualifying (via the CLI-equivalent argument) actually "
           "disqualifies it -> passes_qc False", bool(benign_row_strict["passes_qc"]) is False)
 
 
@@ -592,6 +635,7 @@ def main():
 
     print("\n-- Unit tests: 03_novel_alleles.py QC / clustering logic --")
     test_homopolymer_indel_detection()
+    test_warning_tokens_na_excluded()
     test_build_table3_recurrence_and_passes_qc()
     test_build_table3_token_aware_warning_gate()
     test_novelty_depth1_undetermined_classification()

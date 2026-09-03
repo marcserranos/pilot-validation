@@ -87,6 +87,35 @@ def test_conditional_fields_absent_not_zero():
     check("has_warning is False when template_warning absent", t1["has_warning"] is False)
 
 
+def test_template_warning_na_means_clean():
+    """Regression (2026-09-03 real-data census, SCHEMA.md 'template_warning policy'): Immuannot
+    writes the literal string template_warning "NA" to mean NO WARNING on 57.4% of transcript
+    rows -- much more often than it omits the attribute (4.6%). A literal "NA" must be treated
+    identically to an absent attribute: has_warning False, template_warning normalised to None
+    (not carried forward as the string "NA", which would invite the exact same bug downstream)."""
+    base_row = {
+        "contig": "ctg1", "gene_id": "IAG1", "gene_name_raw": "HLA-A",
+        "template_allele": "HLA-A*01:01:01:01", "template_distance": "0",
+        "gene_start": 100, "gene_end": 200, "strand": "+",
+        "consensus": "HLA-A*01:01:01:01", "alleles": "HLA-A*01:01:01:01",
+        "cds_distance": None, "cds_mut": None,
+    }
+    for na_spelling in ("NA", "na", "Na", " NA ", ""):
+        row = dict(base_row, template_warning=na_spelling)
+        t1, _ = extract.build_table1_row("p1", "hap1", row)
+        check(f"template_warning={na_spelling!r} -> has_warning is False",
+              t1["has_warning"] is False, detail=str(t1["has_warning"]))
+        check(f"template_warning={na_spelling!r} -> normalised to None, not carried as a string",
+              t1["template_warning"] is None, detail=repr(t1["template_warning"]))
+
+    # A real warning token must still be detected as warned and preserved verbatim.
+    row = dict(base_row, template_warning="partial_CDS")
+    t1, _ = extract.build_table1_row("p1", "hap1", row)
+    check("template_warning='partial_CDS' -> has_warning is True", t1["has_warning"] is True)
+    check("template_warning='partial_CDS' -> preserved verbatim",
+          t1["template_warning"] == "partial_CDS", detail=repr(t1["template_warning"]))
+
+
 def test_novelty_depth_classification():
     cases = [
         ("HLA-A*new", 1, "undetermined"),  # regression: Fix 1, depth-1 gene-level unresolved
@@ -225,15 +254,22 @@ def test_against_fixtures(fixtures_root):
     check("every novelty_depth==1 row still has is_novel True (not silently dropped from the "
           "novel-call set)", all(r["is_novel"] for r in depth1_rows))
 
-    # Regression (Fix 2 fixture realism check): template_warning must be near-ubiquitous (~95%),
-    # matching 00_recon_vm.py's real production measurement -- if this collapses back toward the
-    # fixture's old ~4% rate, the token-aware-gate regression test downstream would stop being a
-    # real test of anything.
-    transcript_rows_with_warning = sum(1 for r in all_t1_rows if r["template_warning"])
+    # Regression (NA-is-clean fix, 2026-09-03): the real production census (00b_warning_census.py,
+    # 200 people) found Immuannot writes the literal string `template_warning "NA"` to mean *no
+    # warning* on 57.4% of transcript rows -- so the TRUE warning rate is ~38%, not the ~95.3%
+    # bare-attribute-presence figure this test used to assert (that figure was itself the bug: it
+    # conflated "NA present" with "warned"). make_fixtures.py now emits NA (57%), absent (5%), and
+    # real tokens (38%) in that observed ratio, and build_table1_row's `has_warning` must be false
+    # for `NA`/absent alike. Checked with a wide band (0.25-0.55) to allow sampling noise over 80
+    # persons while still catching a collapse back toward either the old ~95% bug or 0%.
+    transcript_rows_with_warning = sum(1 for r in all_t1_rows if r["has_warning"])
     warn_rate = transcript_rows_with_warning / len(all_t1_rows) if all_t1_rows else 0
-    check("fixture's template_warning presence rate is near the real ~95.3% production rate "
-          "(checked >=0.85 to allow sampling noise over 80 persons)", warn_rate >= 0.85,
+    check("fixture's has_warning rate is near the real ~38% production warning rate, not the old "
+          "~95% bare-presence bug", 0.25 <= warn_rate <= 0.55,
           detail=f"rate={warn_rate:.3f} ({transcript_rows_with_warning}/{len(all_t1_rows)})")
+    check("no Table 1 row anywhere carries the literal string 'NA' as template_warning "
+          "(it must be normalised to None)",
+          all(r["template_warning"] != "NA" for r in all_t1_rows))
 
     # Table 2: pairing must respect contig, not just hap-file membership.
     total_t2 = 0
@@ -277,7 +313,8 @@ def main():
 
     print("=== Unit tests ===")
     for fn in [test_unquoted_template_distance, test_cds_mut_not_split_naively,
-               test_conditional_fields_absent_not_zero, test_novelty_depth_classification,
+               test_conditional_fields_absent_not_zero, test_template_warning_na_means_clean,
+               test_novelty_depth_classification,
                test_novelty_depth1_full_row_no_crash_no_misbucket,
                test_c4_gene_name_stripping, test_kir_absent_and_flagged_if_present,
                test_copy_index_suffix, test_ancestry_case_normalization]:

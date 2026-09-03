@@ -214,7 +214,28 @@ def _scan_gtf_body(gtf_path, hap, stats):
                         stats["novelty_depth_counts"][depth] += 1
                 stats["cds_distance_present"] += int("cds_distance" in attrs)
                 stats["cds_mut_present"] += int("cds_mut" in attrs)
-                stats["template_warning_present"] += int("template_warning" in attrs)
+                # NOTE: the attribute's mere PRESENCE is NOT a warning indicator -- Immuannot
+                # writes the literal string template_warning "NA" to mean *no warning* far more
+                # often (57.4% of transcript rows) than it omits the attribute (4.6%). Counting
+                # presence alone (the old `int("template_warning" in attrs)`) produced the
+                # misleading "~95% of calls warned" headline this script used to report.
+                # `template_warning_real_present` below counts only genuine warning tokens; the
+                # full token breakdown (NA vs absent vs each real token) is also tracked so this
+                # recon output can't be misread the same way again (SCHEMA.md's
+                # "template_warning policy").
+                warn_raw = attrs.get("template_warning")
+                if warn_raw is None:
+                    stats["template_warning_token_counts"]["<absent>"] += 1
+                else:
+                    warn_norm = warn_raw.strip().upper()
+                    if warn_norm in ("", "NA"):
+                        stats["template_warning_token_counts"]["NA"] += 1
+                    else:
+                        stats["template_warning_real_present"] += 1
+                        for tok in warn_raw.split(","):
+                            tok = tok.strip()
+                            if tok:
+                                stats["template_warning_token_counts"][tok] += 1
                 stats["n_transcript_rows"] += 1
 
     stats["n_contigs_per_hapfile"].append(len(contigs_seen))
@@ -331,7 +352,8 @@ def main():
         "novelty_depth_counts": Counter(),
         "cds_distance_present": 0,
         "cds_mut_present": 0,
-        "template_warning_present": 0,
+        "template_warning_real_present": 0,
+        "template_warning_token_counts": Counter(),
         "n_transcript_rows": 0,
         "n_contigs_per_hapfile": [],
         "header_mismatches": [],
@@ -404,8 +426,20 @@ def main():
             "cds_distance_present_rate": pct(stats["cds_distance_present"], stats["n_transcript_rows"]),
             "cds_mut_present": stats["cds_mut_present"],
             "cds_mut_present_rate": pct(stats["cds_mut_present"], stats["n_transcript_rows"]),
-            "template_warning_present": stats["template_warning_present"],
-            "template_warning_present_rate": pct(stats["template_warning_present"], stats["n_transcript_rows"]),
+            # "real" = a genuine warning token, i.e. NOT the literal string "NA" (Immuannot's
+            # spelling of "no warning") and NOT attribute-absent. See
+            # "template_warning_token_breakdown" below for the NA-vs-absent-vs-real split that
+            # makes this unambiguous.
+            "template_warning_real_present": stats["template_warning_real_present"],
+            "template_warning_real_present_rate": pct(stats["template_warning_real_present"], stats["n_transcript_rows"]),
+        },
+        "template_warning_token_breakdown": {
+            "n_transcript_rows": stats["n_transcript_rows"],
+            "counts": dict(stats["template_warning_token_counts"].most_common()),
+            "rates": {
+                tok: pct(count, stats["n_transcript_rows"])
+                for tok, count in stats["template_warning_token_counts"].most_common()
+            },
         },
         "novelty_depth_distribution": dict(stats["novelty_depth_counts"]),
         "header_body_mismatches": {
@@ -488,8 +522,15 @@ def _render_markdown(report):
                  f"({cf['cds_distance_present_rate']})")
     lines.append(f"- cds_mut present: {cf['cds_mut_present']}/{cf['n_transcript_rows']} "
                  f"({cf['cds_mut_present_rate']})")
-    lines.append(f"- template_warning present: {cf['template_warning_present']}/"
-                 f"{cf['n_transcript_rows']} ({cf['template_warning_present_rate']})\n")
+    lines.append(f"- template_warning REAL (excludes Immuannot's literal \"NA\" and absent "
+                 f"attribute, both of which mean *clean*): {cf['template_warning_real_present']}/"
+                 f"{cf['n_transcript_rows']} ({cf['template_warning_real_present_rate']})\n")
+
+    lines.append("## template_warning token breakdown (NA and <absent> are both CLEAN)\n")
+    twb = report["template_warning_token_breakdown"]
+    for tok, count in twb["counts"].items():
+        lines.append(f"- {tok}: {count}/{twb['n_transcript_rows']} ({twb['rates'][tok]})")
+    lines.append("")
 
     lines.append("## Novelty depth distribution (which field 'new' lands in)\n")
     lines.append(str(report["novelty_depth_distribution"]) + "\n")

@@ -1,22 +1,42 @@
 #!/usr/bin/env python3
 """Break down `template_warning` tokens per gene across the cohort.
 
-Why this exists, as its own script: `00_recon_vm.py` measured `template_warning` present on
-**95.3%** of transcript rows on the real production cohort (2026-09-03, 50-person sample). That
-single number invalidates a filter this project already relies on elsewhere -- `context/DECISIONS.md`'s
-confidence convention is "`template_distance == 0` AND no `template_warning`", which on real data
-would reject roughly 95% of all calls rather than a small unreliable tail.
+Why this exists, as its own script: `00_recon_vm.py` originally measured `template_warning`
+present on **95.3%** of transcript rows on the real production cohort (2026-09-03, 50-person
+sample). That number was itself a bug -- it counted the attribute's mere PRESENCE, and Immuannot
+writes the literal string `template_warning "NA"` to mean *no warning* on 57.4% of transcript
+rows, far more often than it omits the attribute entirely (4.6%). The 200-person census this
+script performs (2026-09-03) measured the TRUE breakdown:
 
-But "95% warn" is not actionable on its own, because `template_warning` is not one thing. It
-describes whether the TEMPLATE's CDS could be cleanly reconstructed from the gene-level alignment
-(`searchTemplate.py`'s `checkCDScompleteness()`) -- not whether the typing call is wrong. Some
-tokens are expected and benign:
-  - `partial_CDS`     -- fires whenever the trimmed contig truncates a gene's span
+| value | share | meaning |
+|---|---|---|
+| `NA` (literal) | 57.4% | clean |
+| attribute absent | 4.6% | clean |
+| `partial_CDS` | 24.8% | real warning |
+| `no-start_codon` | 6.8% | real warning (mostly pseudogene biology) |
+| `no-stop_codon` | 6.3% | real warning (mostly pseudogene biology) |
+| `inframe_stop` | 0% | never observed |
+
+So 62% of calls are clean and the true warning rate is ~38%, not ~95%. This still matters:
+`context/DECISIONS.md`'s confidence convention is "`template_distance == 0` AND no
+`template_warning`", and a naive `bool(template_warning)`/`"template_warning" in attrs` check
+would reject the wrong ~95% of calls instead of the real ~38%.
+
+But even 38% is not actionable as a single number, because `template_warning` is not one thing.
+It describes whether the TEMPLATE's CDS could be cleanly reconstructed from the gene-level
+alignment (`searchTemplate.py`'s `checkCDScompleteness()`) -- not whether the typing call is
+wrong. Some tokens are expected and benign:
+  - `partial_CDS`     -- fires whenever the trimmed contig truncates a gene's span (disqualifying
+                         by default: a truncated CDS can't support a novel-allele claim, and it's
+                         only ~2.4% of classical-gene calls)
   - `no-start_codon` / `no-stop_codon` -- structurally NORMAL for the pseudogenes in the 42-gene
-                         panel (HLA-H/J/K/L/...), which genuinely lack valid codons
-  - `inframe_stop`    -- the one token that actually suggests a broken reconstruction
+                         panel (HLA-H/J/K/L/...), which genuinely lack valid codons -- NOT
+                         disqualifying by default
+  - `inframe_stop`    -- the one token that would genuinely suggest a broken reconstruction if it
+                         appeared; disqualifying by default despite never being observed
 So the decision this script informs is: which tokens should disqualify a call, and for which genes.
-`03_novel_alleles.py --disqualifying-warnings` consumes that decision.
+`03_novel_alleles.py --disqualifying-warnings` consumes that decision (default:
+`partial_CDS,inframe_stop`).
 
 Read-only, local disk only (no gcsfuse mount needed), cheap on a sample.
 
@@ -66,9 +86,18 @@ def census(outroot, limit):
                         continue
                     gene = gm.group(1)
                     wm = WARN_RE.search(attrs)
-                    toks = [t.strip() for t in wm.group(1).split(",") if t.strip()] if wm else []
-                    if not toks:
+                    # Immuannot writes the literal string template_warning "NA" to mean *no
+                    # warning* on 57.4% of transcript rows -- far more often than it omits the
+                    # attribute (4.6%). Both spellings of "clean" are folded into the same NONE
+                    # bucket here; treating "NA" as a real token (the original bug) makes clean
+                    # calls look like they carry a warning token called "NA".
+                    raw = wm.group(1).strip() if wm else ""
+                    if raw.upper() in ("", "NA"):
                         toks = [NONE]
+                    else:
+                        toks = [t.strip() for t in raw.split(",") if t.strip()]
+                        if not toks:
+                            toks = [NONE]
                     for t in toks:
                         tok[t] += 1
                         per_gene[gene][t] += 1
@@ -104,11 +133,17 @@ def main():
         top = ", ".join(f"{k}:{v}" for k, v in c.most_common(4) if k != NONE)
         print(f"{gene:16s} {n:6d} {clean:7d} {100.0 * clean / n:6.1f}%  {top}")
 
+    clean_pct = 100.0 * tok.get(NONE, 0) / total
     inframe = tok.get("inframe_stop", 0)
-    print(f"\nIf only `inframe_stop` disqualifies, {100.0 * (1 - inframe / total):.1f}% of calls "
-          f"remain eligible.\nIf ANY warning disqualifies, only "
-          f"{100.0 * tok.get(NONE, 0) / total:.1f}% remain -- which is why the blanket gate is "
-          f"unusable.\nSet the policy via 03_novel_alleles.py --disqualifying-warnings.")
+    print(f"\nTrue clean rate ({NONE}, which folds in Immuannot's literal \"NA\" token): "
+          f"{clean_pct:.1f}% -- NOT the bare-presence figure a naive `bool(template_warning)` or "
+          f"`\"template_warning\" in attrs` check would report.")
+    print(f"If only `inframe_stop` disqualifies, {100.0 * (1 - inframe / total):.1f}% of calls "
+          f"remain eligible (a near-no-op: inframe_stop is essentially never observed).\n"
+          f"If ANY real warning disqualifies, {clean_pct:.1f}% remain -- still a substantial "
+          f"cut, which is why disqualification must be token-aware, not a blanket gate.\n"
+          f"Set the policy via 03_novel_alleles.py --disqualifying-warnings "
+          f"(default: partial_CDS,inframe_stop).")
 
 
 if __name__ == "__main__":

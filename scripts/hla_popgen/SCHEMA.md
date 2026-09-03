@@ -81,25 +81,44 @@ ENVIRONMENT.md quirk #29. Do not repeat it.)
 
 ### `template_warning` policy — measured, not assumed
 
-`00_recon_vm.py` on the real production cohort (2026-09-03, 50-person sample) measured
-**`template_warning` present on 95.3% of transcript rows.** It is near-ubiquitous.
+**The `"NA"` trap — read this before writing any warning filter.** Immuannot writes
+`template_warning "NA"` to mean *no warning*, much more often than it omits the attribute.
+Measured on the production cohort (`00b_warning_census.py`, 200 people, 2026-09-03):
 
-This matters because it invalidates a filter this project already uses elsewhere. The existing
-confidence convention (`context/DECISIONS.md`, "Confidence-matched truth comparison";
-`scripts/analyze_confidence_matched_truth.py`) is *"`template_distance == 0` AND no
-`template_warning`"* — on the real production data that second clause would **reject roughly 95%
-of all calls**, not a small tail. Any blanket `has_warning == False` gate silently empties the
-analysis.
+| value | share | meaning |
+|---|---|---|
+| `NA` (literal string) | 57.4% | **clean** |
+| attribute absent | 4.6% | **clean** |
+| `partial_CDS` | 24.8% | truncated CDS reconstruction |
+| `no-start_codon` | 6.8% | mostly correct pseudogene biology |
+| `no-stop_codon` | 6.3% | mostly correct pseudogene biology |
+| `inframe_stop` | **0** | never observed in 200 people |
+
+So **62% of calls are clean** and the real warning rate is ~38%. A consumer that does
+`bool(template_warning)`, or splits on `,` without excluding `NA`, scores those 57.4% as warned.
+`scripts/production_orchestrator/rebuild_immuannot_calls.py` handles this correctly
+(`warn_val not in {"", "NA"}`) — match that behaviour.
+
+**Warnings are concentrated in genes where they are correct biology, not error.** The 8 classical
+genes are **97.6% clean** (per-gene 96–99%), with `partial_CDS` the only meaningful token. The
+warned population is dominated by pseudogenes and paralogs that genuinely lack valid reading
+frames — `HLA-N` and `HLA-S` are 100% `partial_CDS`; `HLA-P`, `HLA-T` and `HLA-W` are dominated by
+paired `no-start_codon`/`no-stop_codon`; `HLA-DQB2` carries `no-start_codon` on 142/394. These
+are properties of the loci, not defects in the calls.
 
 The reason is semantic: `template_warning` describes whether the **template's CDS could be cleanly
 reconstructed from the gene-level alignment** (`searchTemplate.py`'s `checkCDScompleteness()`), not
-whether the typing call is wrong. Pseudogenes (`HLA-H/J/K/L/...`) legitimately have no valid start
-or stop codon and will always warn, and `partial_CDS` fires whenever the trimmed contig truncates a
-gene's span.
+whether the typing call is wrong.
 
-**Rule: every filter on warnings must be TOKEN-AWARE and configurable.** Treat `partial_CDS` as
-benign by default; `inframe_stop` is the token that genuinely suggests a broken reconstruction and
-is the defensible default disqualifier for novel-allele QC. Never gate on mere presence.
+**Rules:**
+1. Every warning filter must be **token-aware, `NA`-aware, and configurable**. Never gate on mere
+   presence of the attribute.
+2. **Default disqualifying set for novel-allele QC: `partial_CDS` + `inframe_stop`.** A truncated
+   CDS cannot support a novel-allele claim, and at 2.4% of classical-gene calls, excluding it is
+   cheap. `inframe_stop` is retained despite never being observed — it is the token that would
+   genuinely indicate a broken reconstruction if it appeared.
+3. `no-start_codon` / `no-stop_codon` are **not** disqualifying by default — they are expected for
+   pseudogenes. Interpret them per gene class, not globally.
 | `alleles` | str | transcript row | Comma-joined tied-best candidate reference alleles. |
 | `n_tied` | int | derived | Ambiguity of the call. |
 | `strand` | str | GTF col 7 | |

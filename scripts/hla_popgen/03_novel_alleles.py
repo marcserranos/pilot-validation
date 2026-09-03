@@ -107,17 +107,23 @@ CS_TOKEN_RE = re.compile(r":\d+|\*[a-z]{2}|[+-][a-z]+", re.IGNORECASE)
 HEADER_KEY_RE = re.compile(r"^(.*)_(\d+)$")
 
 # SCHEMA.md "template_warning policy": 00_recon_vm.py measured template_warning present on 95.3% of
-# transcript rows in the real 50-person production sample -- near-ubiquitous, because it describes
-# whether the TEMPLATE's CDS could be cleanly reconstructed from the gene-level alignment
-# (searchTemplate.py's checkCDScompleteness()), not whether the typing call itself is wrong.
-# Pseudogenes legitimately have no valid start/stop codon and will always warn; partial_CDS fires
-# whenever the trimmed contig truncates a gene's span. A blanket "any warning" gate (the pre-existing
-# convention in analyze_confidence_matched_truth.py) would reject ~95% of all calls on real data --
-# not a small tail, a silent near-total collapse of the analysis. Every filter must instead be
-# TOKEN-AWARE: only `inframe_stop` genuinely suggests a broken CDS reconstruction and is the
-# defensible default disqualifier for novel-allele QC. This default is a CLI flag
-# (--disqualifying-warnings), never hardcoded past this one module-level constant.
-DEFAULT_DISQUALIFYING_WARNINGS = frozenset(["inframe_stop"])
+# transcript rows in the real 200-person production census (00b_warning_census.py, 2026-09-03) --
+# but that 95% figure was itself a bug: it counted the attribute's mere PRESENCE, and Immuannot
+# writes the literal string `template_warning "NA"` to mean *no warning* on 57.4% of rows (only
+# 4.6% omit the attribute entirely). The TRUE warning rate is ~38%: `partial_CDS` 24.8%,
+# `no-start_codon` 6.8%, `no-stop_codon` 6.3%, `inframe_stop` 0% (never observed in 200 people).
+# `template_warning` describes whether the TEMPLATE's CDS could be cleanly reconstructed from the
+# gene-level alignment (searchTemplate.py's checkCDScompleteness()), not whether the typing call
+# itself is wrong. Pseudogenes legitimately have no valid start/stop codon and will always warn
+# (HLA-N/HLA-S are 100% partial_CDS; HLA-P/HLA-T/HLA-W are dominated by paired no-start/no-stop) --
+# `no-start_codon`/`no-stop_codon` are correct pseudogene biology, not disqualifying by default.
+# `partial_CDS`, however, means the CDS reconstruction was truncated: a truncated CDS cannot
+# support a novel-allele claim, and at only ~2.4% of classical-gene calls, excluding it is cheap.
+# `inframe_stop` is retained despite never being observed in 200 people -- it is the token that
+# would genuinely indicate a broken reconstruction if it appeared. Every filter must be
+# TOKEN-AWARE and `NA`-aware (never gate on bare presence of the attribute). This default is a CLI
+# flag (--disqualifying-warnings), never hardcoded past this one module-level constant.
+DEFAULT_DISQUALIFYING_WARNINGS = frozenset(["partial_CDS", "inframe_stop"])
 
 
 def warning_tokens(template_warning):
@@ -128,9 +134,13 @@ def warning_tokens(template_warning):
     if template_warning is None or (isinstance(template_warning, float) and pd.isna(template_warning)):
         return frozenset()
     s = str(template_warning).strip()
-    if not s or s.lower() in ("nan", "none"):
+    # "NA" (any case) is Immuannot's literal spelling of "no warning" -- it fires on 57.4% of
+    # transcript rows (SCHEMA.md's "template_warning policy"), far more often than the attribute
+    # is simply absent (4.6%). Excluding only "nan"/"none" (pandas/Python missing-value spellings)
+    # and not "NA" was exactly the bug: it returned frozenset({"NA"}) for clean calls.
+    if not s or s.lower() in ("nan", "none", "na"):
         return frozenset()
-    return frozenset(t.strip() for t in s.split(",") if t.strip())
+    return frozenset(t.strip() for t in s.split(",") if t.strip() and t.strip().lower() != "na")
 
 
 def has_disqualifying_warning(tokens, disqualifying_set):
@@ -225,7 +235,8 @@ def match_novel_rows(table1, outroot):
     matched_rows carry exactly what's needed to cluster + report: person_id, hap, gene, gene_class,
     cds_seq_sha1, cds_len, nearest_allele, cds_distance, n_aa_changes, novelty_class,
     warning_tokens (frozenset -- see module docstring "template_warning policy": NEVER collapse this
-    to a bare has-any-warning bool, that gate rejects ~95% of real calls), is_homopolymer_indel_only.
+    to a bare has-any-warning bool -- that gate misreads "NA" as a warning and rejects nearly
+    every call), is_homopolymer_indel_only.
     NEVER the sequence itself (kept in a side dict, written only to the VM-only fasta).
     """
     table1 = table1.copy()
@@ -300,7 +311,9 @@ def build_table3(matched_rows, ancestry_by_person, disqualifying_warnings=DEFAUL
 
     `passes_qc` is TOKEN-AWARE on template_warning (SCHEMA.md "template_warning policy") -- a
     cluster is disqualified on warnings only if some member carries a token in
-    `disqualifying_warnings` (default: {'inframe_stop'}), never on bare presence of any warning.
+    `disqualifying_warnings` (default: {'partial_CDS', 'inframe_stop'}), never on bare presence of
+    any warning (and never on the literal token "NA", which means "no warning" -- see
+    `warning_tokens()`).
 
     Clusters whose (majority) `novelty_class` is `undetermined` (novelty_depth==1 -- even the
     gene-level field unresolved, SCHEMA.md Table 1) are still emitted here (Table 3's grain is
@@ -471,7 +484,8 @@ def write_report(md_path, table3, match_stats, rate_df, out_paths, matched_rows,
         f"Disqualifying warning token(s) used in this run's `passes_qc` gate: "
         f"**{', '.join(sorted(disqualifying_warnings)) or '(none -- every candidate passes on warnings)'}**. "
         "Per SCHEMA.md's `template_warning` policy, mere presence of ANY warning is NOT a gate -- "
-        "`template_warning` is present on ~95% of real transcript rows (it describes whether the "
+        "Immuannot writes the literal string `NA` to mean *no warning* on 57.4% of real transcript "
+        "rows, so the true warning rate is ~38%, not ~95% (a real warning describes whether the "
         "template's CDS could be cleanly reconstructed, not whether the typing call is wrong). Only "
         "the token(s) listed above disqualify a candidate; every other token is treated as benign by "
         "this run. Override with `--disqualifying-warnings`.\n"
@@ -579,11 +593,18 @@ def main():
                          "-- SCHEMA.md hard rule #5). Default: <repo_root>/reports/hla_popgen")
     ap.add_argument("--sample", action="store_true",
                     help="Write to sample-suffixed output paths (quirk #22b).")
-    ap.add_argument("--disqualifying-warnings", default="inframe_stop",
+    ap.add_argument("--disqualifying-warnings", default="partial_CDS,inframe_stop",
                     help="Comma-separated template_warning tokens that disqualify a novel-allele "
                          "cluster from passes_qc (SCHEMA.md 'template_warning policy' -- mere "
-                         "presence of ANY warning is NOT a valid gate at the real ~95%% warning "
-                         "rate). Default: 'inframe_stop' only. Pass '' for no warning-based "
+                         "presence of ANY warning is NOT a valid gate: Immuannot writes the "
+                         "literal string 'NA' to mean 'no warning' on 57.4%% of rows, so the true "
+                         "warning rate is ~38%%, not ~95%%). Default: 'partial_CDS,inframe_stop' "
+                         "-- a truncated CDS can't support a novel-allele claim, and partial_CDS "
+                         "is only ~2.4%% of classical-gene calls so excluding it is cheap. "
+                         "'no-start_codon'/'no-stop_codon' are deliberately excluded from the "
+                         "default: they are expected pseudogene biology (HLA-N/HLA-S are 100%% "
+                         "partial_CDS; HLA-P/HLA-T/HLA-W are dominated by paired no-start/no-stop), "
+                         "not evidence of a broken call. Pass '' for no warning-based "
                          "disqualification at all.")
     args = ap.parse_args()
 

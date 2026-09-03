@@ -363,7 +363,16 @@ def build_table1_row(person_id, hap, row):
     cds_distance = row.get("cds_distance")
     cds_distance = int(cds_distance) if cds_distance is not None else None
     cds_mut = row.get("cds_mut")
-    template_warning = row.get("template_warning")
+    # Immuannot writes template_warning "NA" to mean NO WARNING far more often (57.4%) than it
+    # omits the attribute (4.6%) -- see SCHEMA.md's "template_warning policy". Normalise both
+    # "clean" spellings to None here so the literal string "NA" never leaks downstream and
+    # can't be mistaken for a real warning token again (matches
+    # scripts/production_orchestrator/rebuild_immuannot_calls.py's `warn_val not in {"", "NA"}`).
+    raw_template_warning = row.get("template_warning")
+    if raw_template_warning is not None and raw_template_warning.strip().upper() in {"", "NA"}:
+        template_warning = None
+    else:
+        template_warning = raw_template_warning
     alleles = row.get("alleles")
     n_tied = len(alleles.split(",")) if alleles else None
 
@@ -375,7 +384,7 @@ def build_table1_row(person_id, hap, row):
         "template_distance": template_distance, "gene_start": gene_start, "gene_end": gene_end,
         "template_distance_per_kb": td_per_kb, "cds_distance": cds_distance, "cds_mut": cds_mut,
         "n_aa_changes": n_aa_changes(cds_mut), "template_warning": template_warning,
-        "has_warning": bool(template_warning), "alleles": alleles, "n_tied": n_tied,
+        "has_warning": template_warning is not None, "alleles": alleles, "n_tied": n_tied,
         "strand": row["strand"], "c4_size": c4_size,
     }
     return out, warn

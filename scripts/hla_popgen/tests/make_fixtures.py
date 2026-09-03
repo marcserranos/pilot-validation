@@ -211,18 +211,44 @@ def write_gtf(path, contigs_genes, rng):
         for gene, copy_index, ancestry in entries:
             consensus, td, cds_dist, cds_mut, warning, cds_seq = make_consensus(
                 rng, gene, ancestry)
-            # template_warning is NEAR-UBIQUITOUS in the real data -- 00_recon_vm.py measured a
-            # 95.3% presence rate across transcript rows on the production cohort (2026-09-03).
-            # It describes the TEMPLATE's CDS reconstruction from the gene-level alignment, not
-            # the correctness of the typing call, and one benign token dominates. The critical
-            # downstream consequence: "has any template_warning" CANNOT be used as a QC gate or a
-            # confidence filter -- it would reject ~95% of all calls. Filters must be
-            # TOKEN-AWARE. The fixture encodes the real rate so any blanket-gate regression fails
-            # loudly here instead of silently emptying a real analysis.
-            if warning is None and rng.random() < 0.95:
-                warning = rng.choices(
-                    ["partial_CDS", "no-stop_codon", "no-start_codon", "inframe_stop"],
-                    weights=[0.80, 0.10, 0.07, 0.03])[0]
+            # THE "NA" TRAP. Immuannot writes template_warning "NA" to mean "no warning" far more
+            # often than it omits the attribute -- measured on the production cohort (2026-09-03,
+            # 00b_warning_census.py, 200 people): 57.4% literal "NA", 4.6% attribute absent, and
+            # only ~38% a real warning token. Any consumer doing bool(template_warning) or
+            # splitting on "," without excluding "NA" will score ~62% of all calls as warned when
+            # they are clean. The existing scripts/production_orchestrator/rebuild_immuannot_calls.py
+            # gets this right (`warn_val not in {"", "NA"}`); a first pass of 01/03 here did not.
+            #
+            # So the fixture emits BOTH clean forms in roughly the observed ratio, and real tokens
+            # at the real ~38% rate. A consumer that mishandles "NA" now fails loudly here.
+            #
+            # Token mix also mirrors reality: partial_CDS dominates, no-start/no-stop are
+            # concentrated in pseudogenes (correct biology -- HLA-P/T/W genuinely lack valid
+            # codons), and inframe_stop was observed ZERO times in 200 people.
+            # Warning rate is GENE-CLASS DEPENDENT in reality, not uniform. Measured per-gene
+            # clean rates (200 people): the 8 classical genes are 96-99% clean (97.6% overall,
+            # partial_CDS the only meaningful token), while pseudogenes are almost never clean --
+            # HLA-N and HLA-S are 100% partial_CDS, HLA-P/T/W are dominated by paired
+            # no-start_codon/no-stop_codon. Modelling this as one flat 38% would make a
+            # partial_CDS-disqualifying QC gate look far more destructive on fixtures than it is
+            # on real data, and would mask the fact that warnings are correct biology for the
+            # loci that carry them.
+            if warning is None:
+                gclass = GENE_CLASSES.get(gene, "other")
+                if gclass in ("pseudogene_I", "class_II_paralog"):
+                    warn_rate, pseudo = 0.95, True
+                elif gclass in ("classical_I", "classical_II"):
+                    warn_rate, pseudo = 0.024, False
+                else:
+                    warn_rate, pseudo = 0.15, False
+                roll = rng.random()
+                if roll < warn_rate:
+                    warning = rng.choices(
+                        ["partial_CDS", "no-start_codon,no-stop_codon"],
+                        weights=[0.6, 0.4])[0] if pseudo else "partial_CDS"
+                elif roll < warn_rate + (1 - warn_rate) * 0.92:
+                    warning = "NA"      # literal string meaning "no warning"
+                # else: attribute omitted entirely (the other clean form)
             template = f"{gene}*{rng.choice(ALLELE_POOL[gene])}"
             glen = rng.randint(3000, 15000)
             start, end = pos, pos + glen
