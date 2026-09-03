@@ -137,15 +137,40 @@ part F).
 the code inspects the `cds_mut` diff string (the `algntools.findCodingDiff()` amino-acid diff
 described in part A) and truncates the allele's colon-delimited field list, replacing the deepest
 retained field with the literal string `"new"`:
-- No CDS diff computed at all (gene-level perfect match, `cdsdiff` is falsy/`"NA"`) → 4th field
-  becomes `"new"`: e.g. `HLA-A*01:01:01:new` (synonymous-at-genomic-level / untyped-beyond-CDS case).
-- CDS diff found and **synonymous** (translated AA strings equal on both sides) → 3rd field becomes
-  `"new"`, first 3 fields kept: e.g. `HLA-A*01:01:new`.
-- CDS diff found and **non-synonymous**, no frameshift → 2nd field becomes `"new"`, only first 2
-  fields kept: e.g. `HLA-A*01:new`.
-- **Frameshift** detected (`len(observed_codon_string) != len(reference_codon_string)` for any
-  changed segment) → same truncation as non-synonymous (2nd field → `"new"`), regardless of whether
-  the AA translation happened to look synonymous.
+- **CDS diff found and non-synonymous, or a frameshift** (`len(observed_codon_string) !=
+  len(reference_codon_string)` for any changed segment) → 2nd field becomes `"new"`, only the
+  first field kept: e.g. `HLA-A*new`. **Protein-altering.**
+- **CDS diff found and synonymous** (translated AA strings equal on both sides) → 3rd field
+  becomes `"new"`, first 2 fields kept: e.g. `HLA-A*01:new`. Nucleotide sequence is undocumented
+  but the protein it encodes is a known allele.
+- **No CDS diff at all** (`cdsdiff` is falsy/`"NA"`) → 4th field becomes `"new"`: e.g.
+  `HLA-A*01:01:new`. **Intronic/UTR only** — the observed CDS matches a documented allele's CDS
+  *exactly*.
+
+**RESOLVED, 2026-09 (previously left AMBIGUOUS in this doc — traced directly in
+`callIPDallele.py`'s `callNewAllele()`, not inferred):** depth 4 does **not** correspond to a
+gene-level perfect match (`template_distance == 0`). A truly perfect match never reaches this
+naming code at all — `consensus` is simply set to `template_allele` verbatim, with no `"new"` tag,
+no `cds_distance`, no `cds_mut`. `callNewAllele()` only runs once gene-level `template_distance > 0`
+has already triggered a CDS-level search (part C). Inside that search, the case that produces
+depth-4 `"new"` is `nm_cutoff == 0` — the CDS-only alignment against the reference CDS database
+finds a **perfect** match — meaning: *this specific candidate reference allele's CDS is identical
+to the observed CDS, but the full gene body (introns/UTR) differs from every documented sequence
+of that allele.* So SCHEMA.md's table (depth 4 ⟺ `template_distance>0` with `cds_distance==0`) was
+correct; this doc's earlier prose was not. A synonymous OR non-coding difference is still tagged
+`"new"` — it is never "not novel," only novel at a shallower resolution, exactly mirroring the
+real WHO HLA Nomenclature Committee's 4-field semantics (field 1-2 = protein, field 3 = synonymous
+coding substitution, field 4 = non-coding difference; see hla.alleles.org).
+
+**Practical consequence for downstream analysis:** `template_distance` cannot be used to infer
+*where* a difference sits (coding vs. non-coding) — it mixes both. Only `novelty_class`
+(derived from the field-depth logic above, already in `hla_calls_rich.tsv`) tells you that. For any
+claim about protein/antigen-relevant novelty (i.e. anything feeding TCR-HLA association work),
+filter to `novelty_class == "protein_altering"` specifically — `synonymous` and `beyond_cds` novel
+calls are real new DNA sequence but invisible to a T cell, since it recognizes the protein, not the
+gene body. Report novel-allele/saturation headline numbers stratified by `novelty_class`, never
+lumped, and consider collapsing allele identity to G-group/P-group (hla.alleles.org's
+`hla_nom_g.txt`/`hla_nom_p.txt`) for any analysis where only functional identity matters.
 
 **So: "new" is embedded INSIDE the allele string itself**, at a *variable* colon-delimited field
 depth (2nd, 3rd, or 4th field) that itself encodes coarse novelty severity (protein-changing vs.
