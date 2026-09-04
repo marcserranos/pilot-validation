@@ -15,6 +15,8 @@ Three groups of tests:
 
 Run:
     python3 scripts/hla_popgen/tests/make_fixtures.py --outroot /tmp/hla_fixtures_test -n 300
+    python3 scripts/hla_popgen/01_extract_rich.py --outroot /tmp/hla_fixtures_test/people \\
+        --out-dir /tmp/hla_fixtures_test --sample
     python3 scripts/hla_popgen/tests/test_novel.py --fixtures /tmp/hla_fixtures_test
 """
 import argparse
@@ -473,8 +475,13 @@ def test_ancestry_gradient_integration(fixtures_dir):
     t1 = os.path.join(outroot, "hla_calls_rich.sample.tsv")
     t4 = os.path.join(outroot, "cohort_membership.sample.tsv")
     reports_dir = os.path.join(outroot, "reports")
+    # Person-id directories live under <outroot>/people/ (RUNBOOK.md "Step 1c" / DEFAULT_OUTROOT in
+    # 01/03_*.py) -- the aggregate .tsv files (hla_calls_rich.tsv, cohort_membership.tsv, ...) stay
+    # directly at <outroot>, so 01 needs an explicit --out-dir pointing back there.
+    people_root = os.path.join(outroot, "people")
 
-    r1 = run([os.path.join(HLA_POPGEN_DIR, "01_extract_rich.py"), "--outroot", outroot, "--sample"])
+    r1 = run([os.path.join(HLA_POPGEN_DIR, "01_extract_rich.py"), "--outroot", people_root,
+              "--out-dir", outroot, "--sample"])
     check("01_extract_rich.py exits 0 against fixtures", r1.returncode == 0, detail=r1.stderr[-500:])
 
     r2 = run([os.path.join(HLA_POPGEN_DIR, "02_build_cohorts.py"), "--outroot", outroot,
@@ -485,8 +492,10 @@ def test_ancestry_gradient_integration(fixtures_dir):
               "--skip-mount-check", "--sample"])
     check("02_build_cohorts.py exits 0 against fixtures", r2.returncode == 0, detail=r2.stderr[-500:])
 
-    r3 = run([os.path.join(HLA_POPGEN_DIR, "03_novel_alleles.py"), "--outroot", outroot,
-              "--table1", t1, "--cohort-membership", t4, "--out-dir", reports_dir, "--sample"])
+    seqs_path = os.path.join(reports_dir, "novel_alleles_seqs.sample.fa")
+    r3 = run([os.path.join(HLA_POPGEN_DIR, "03_novel_alleles.py"), "--outroot", people_root,
+              "--table1", t1, "--cohort-membership", t4, "--out-dir", reports_dir,
+              "--seqs-path", seqs_path, "--sample"])
     check("03_novel_alleles.py exits 0 against fixtures", r3.returncode == 0, detail=r3.stderr[-500:])
 
     import pandas as pd
@@ -518,8 +527,12 @@ def test_ancestry_gradient_integration(fixtures_dir):
         check("Table 3 novel_id values are unique (grain: one row per cluster)",
               t3["novel_id"].is_unique, detail=str(t3["novel_id"].duplicated().sum()))
 
-    seqs_path = os.path.join(outroot, "novel_alleles_seqs.sample.fa")
-    check("VM-only sequence FASTA written outside reports/", os.path.exists(seqs_path))
+    # novel_alleles_seqs.fa is written wherever --seqs-path points (default: a DEFAULT_DATA_ROOT
+    # sibling of the other aggregate .tsv files on a real run) -- pointed at the hermetic
+    # reports_dir above so this test run never touches a real ~/pipeline_outputs on whatever
+    # machine happens to run the suite.
+    check("VM-only sequence FASTA written (real nucleotide sequences, never in a report path "
+          "that would otherwise be shared/committed)", os.path.exists(seqs_path), detail=seqs_path)
     if os.path.exists(table3_path):
         with open(table3_path) as f:
             content = f.read()
@@ -555,7 +568,7 @@ def test_saturation_ci_bounds_are_coherent(fixtures_dir):
 
     table1 = sat.load_table1(t1_path)
     ancestry_by_person = sat.load_ancestry(t4_path)
-    matched_rows, _seqs, _stats = novel.match_novel_rows(table1, fixtures_dir)
+    matched_rows, _seqs, _stats = novel.match_novel_rows(table1, os.path.join(fixtures_dir, "people"))
     table1_ident = sat.build_allele_identity_table(table1, matched_rows)
     genes = sorted(table1["gene"].unique())
 

@@ -52,7 +52,9 @@ import os
 import re
 import sys
 
-DEFAULT_OUTROOT = "~/pipeline_outputs"
+# Person-id directories live under people/, not directly at the top level -- see RUNBOOK.md /
+# 00_recon_vm.py's identical note (~12,000 top-level entries breaks the Jupyter file browser).
+DEFAULT_OUTROOT = "~/pipeline_outputs/people"
 CLASSICAL = ["HLA-A", "HLA-B", "HLA-C", "HLA-DRB1", "HLA-DQA1", "HLA-DQB1",
              "HLA-DPA1", "HLA-DPB1"]
 GENE_RE = re.compile(r'gene_name "([^"]+)"')

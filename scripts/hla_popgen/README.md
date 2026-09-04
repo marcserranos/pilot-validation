@@ -65,6 +65,13 @@ settle — chiefly **whether the intermediate files survived on the production V
 (~2 minutes) and prints one JSON block to paste back. Nothing downstream should be trusted until it
 has run.
 
+**On-disk layout:** the ~12,000 per-person `<person_id>/immuannot_output/...` directories live under
+`~/pipeline_outputs/people/`, one level deeper than the aggregate `.tsv`/`.fa` files listed above
+(which stay directly at `~/pipeline_outputs/`) — see SCHEMA.md "On-disk layout" and RUNBOOK.md
+"Step 1c" for why (Jupyter file-browser lag at ~12,000 top-level entries) and the one-time move.
+Every script's `--outroot` default already points at `people/`; `02_build_cohorts.py` is the one
+exception, since it never scans person directories.
+
 ## Research notes
 
 - `research/NOVEL_LIT.md` — novel-allele definition, QC, naming, and the saturation-estimation

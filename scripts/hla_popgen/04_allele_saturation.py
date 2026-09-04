@@ -74,7 +74,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
-DEFAULT_OUTROOT = os.path.expanduser("~/pipeline_outputs")
+# Person-id directories live under people/, not directly at the top level -- see 03_novel_alleles.py's
+# identical note (~12,000 top-level entries breaks the Jupyter file browser, RUNBOOK.md has the fix).
+DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
+DEFAULT_OUTROOT = os.path.join(DEFAULT_DATA_ROOT, "people")
 DEFAULT_REPORTS_DIR_NAME = os.path.join("reports", "hla_popgen")
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 CLASSICAL_GENES = ["HLA-A", "HLA-B", "HLA-C", "HLA-DPA1", "HLA-DPB1", "HLA-DQA1", "HLA-DQB1",
@@ -626,15 +629,16 @@ def main():
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--outroot", default=DEFAULT_OUTROOT,
                     help="Root holding cds.fa.gz (needed to re-derive novel_id per haplotype -- "
-                         "see module docstring on why this re-uses 03's matching logic).")
+                         "see module docstring on why this re-uses 03's matching logic). Default: "
+                         "~/pipeline_outputs/people (NOT ~/pipeline_outputs itself, see RUNBOOK.md).")
     ap.add_argument("--table1", default=None, help="Path to hla_calls_rich.tsv. Default: "
-                                                     "<outroot>/hla_calls_rich.tsv")
+                                                     "~/pipeline_outputs/hla_calls_rich.tsv")
     ap.add_argument("--table3", default=None,
                     help="Path to novel_alleles.tsv -- used only for a sanity cross-check against "
                          "the count of clusters this script independently re-derives.")
     ap.add_argument("--cohort-membership", default=None,
-                    help="Path to cohort_membership.tsv (Table 4). Default: <outroot>/"
-                         "cohort_membership.tsv")
+                    help="Path to cohort_membership.tsv (Table 4). Default: "
+                         "~/pipeline_outputs/cohort_membership.tsv")
     ap.add_argument("--out-dir", default=None,
                     help="Where to write TSVs/figures/report. Default: <repo_root>/reports/"
                          "hla_popgen")
@@ -648,8 +652,8 @@ def main():
     args = ap.parse_args()
 
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    table1_path = args.table1 or os.path.join(args.outroot, "hla_calls_rich.tsv")
-    cohort_path = args.cohort_membership or os.path.join(args.outroot, "cohort_membership.tsv")
+    table1_path = args.table1 or os.path.join(DEFAULT_DATA_ROOT, "hla_calls_rich.tsv")
+    cohort_path = args.cohort_membership or os.path.join(DEFAULT_DATA_ROOT, "cohort_membership.tsv")
     out_dir = args.out_dir or os.path.join(repo_root, DEFAULT_REPORTS_DIR_NAME)
     os.makedirs(out_dir, exist_ok=True)
     suffix = ".sample" if args.sample else ""

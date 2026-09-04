@@ -46,7 +46,12 @@ import sys
 import time
 from collections import Counter, defaultdict
 
-DEFAULT_OUTROOT = os.path.expanduser("~/pipeline_outputs")
+# Person-id directories live under people/, not directly at the top level -- ~12,000 top-level
+# entries makes the Workbench Jupyter file browser unusably slow to render (real incident,
+# 2026-09-04). See RUNBOOK.md for the one-time move; DEFAULT_DATA_ROOT (aggregate .tsv files)
+# does not move.
+DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
+DEFAULT_OUTROOT = os.path.join(DEFAULT_DATA_ROOT, "people")
 DEFAULT_REPORT_DIR_NAME = "reports/hla_popgen"
 
 # Files this script checks for, per haplotype -- exactly the set part E of

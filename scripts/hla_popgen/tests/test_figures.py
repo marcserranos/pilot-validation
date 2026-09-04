@@ -35,7 +35,8 @@ order, ever.
 
 Run:
     python3 scripts/hla_popgen/tests/make_fixtures.py --outroot /tmp/hla_fixtures_test -n 300
-    python3 scripts/hla_popgen/01_extract_rich.py --outroot /tmp/hla_fixtures_test --sample
+    python3 scripts/hla_popgen/01_extract_rich.py --outroot /tmp/hla_fixtures_test/people \\
+        --out-dir /tmp/hla_fixtures_test --sample
     python3 scripts/hla_popgen/02_build_cohorts.py --outroot /tmp/hla_fixtures_test \\
         --table1 /tmp/hla_fixtures_test/hla_calls_rich.sample.tsv \\
         --cohort-full /tmp/hla_fixtures_test/immuannot_cohort_full.tsv \\

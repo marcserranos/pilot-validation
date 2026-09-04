@@ -71,7 +71,16 @@ import re
 import sys
 import time
 
-DEFAULT_OUTROOT = os.path.expanduser("~/pipeline_outputs")
+DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
+# Person-id-named directories live one level deeper, not directly under DEFAULT_DATA_ROOT.
+# ~/pipeline_outputs holding ~12,000 top-level directory entries makes the Workbench Jupyter
+# file browser (and any other tool that lists+stats a directory to render it) unusably slow --
+# real incident, 2026-09-04. The fix is a one-time move (see RUNBOOK.md) of every person_id
+# directory into a `people/` subfolder, keeping only the aggregate .tsv files and a handful of
+# named directories at the top level, where the UI can render them instantly. DEFAULT_OUTROOT
+# (where THIS script looks for <person_id>/immuannot_output/) points at that subfolder;
+# DEFAULT_DATA_ROOT (where the aggregate hla_calls_rich.tsv etc. actually live) does not move.
+DEFAULT_OUTROOT = os.path.join(DEFAULT_DATA_ROOT, "people")
 
 # ---------------------------------------------------------------------------
 # Gene classification -- SCHEMA.md "Gene classification" table, verbatim.
@@ -560,8 +569,9 @@ def main():
                          "~/pipeline_outputs")
     ap.add_argument("--out-dir", default=None,
                     help="Where to write hla_calls_rich.tsv / hla_cis_pairs.tsv. Default: "
-                         "--outroot itself (per-person raw data belongs in ~/pipeline_outputs, "
-                         "not reports/ -- SCHEMA.md hard rule #5).")
+                         "~/pipeline_outputs (the data root, NOT --outroot's people/ subfolder -- "
+                         "per-person raw data belongs in ~/pipeline_outputs, not reports/, "
+                         "SCHEMA.md hard rule #5).")
     ap.add_argument("--sample", action="store_true",
                     help="Write to sample-suffixed output paths (quirk #22b) -- never shares a "
                          "path with a real run.")
@@ -579,7 +589,7 @@ def main():
                          "(person_id, hap, contig, gene, copy_index). Does not re-parse GTFs.")
     args = ap.parse_args()
 
-    out_dir = args.out_dir or args.outroot
+    out_dir = args.out_dir or DEFAULT_DATA_ROOT
     suffix = ".sample" if args.sample else ""
     table1_path = os.path.join(out_dir, f"hla_calls_rich{suffix}.tsv")
     table2_path = os.path.join(out_dir, f"hla_cis_pairs{suffix}.tsv")

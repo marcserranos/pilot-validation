@@ -53,6 +53,10 @@ import sys
 import numpy as np
 import pandas as pd
 
+# Unlike 00/01/03/04, this script never scans <person_id>/immuannot_output/ directories -- it
+# only reads the aggregate hla_calls_rich.tsv and immuannot_cohort_full.tsv, which live directly
+# under ~/pipeline_outputs and do NOT move into the people/ subfolder (see RUNBOOK.md / the
+# identical note in 01_extract_rich.py). So --outroot correctly stays the unmoved top level here.
 DEFAULT_OUTROOT = os.path.expanduser("~/pipeline_outputs")
 DEFAULT_MOUNT = os.path.expanduser("~/mnt/aou-controlled")
 DEFAULT_BILLING_PROJECT = "wb-cordial-leechee-9743"

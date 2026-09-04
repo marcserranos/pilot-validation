@@ -214,7 +214,11 @@ def test_ancestry_case_normalization():
 # Integration-level tests against the real fixture tree
 # ---------------------------------------------------------------------------
 def test_against_fixtures(fixtures_root):
-    persons = extract.discover_persons(fixtures_root, limit=200)
+    # Person-id directories live under <fixtures_root>/people/ (matches the real post-move
+    # production layout, RUNBOOK.md "Step 1c" / DEFAULT_OUTROOT in 01_extract_rich.py) -- only
+    # the aggregate .tsv files stay directly at <fixtures_root>.
+    people_root = os.path.join(fixtures_root, "people")
+    persons = extract.discover_persons(people_root, limit=200)
     check("fixture discovery finds >0 person dirs", len(persons) > 0)
 
     multi_contig_found = False
@@ -222,7 +226,7 @@ def test_against_fixtures(fixtures_root):
     all_t1_rows = []
     for pid in persons[:80]:  # a meaningful chunk, not the whole 200, to keep this test fast
         t1, t2, n_unpairable, warnings = extract.process_person(
-            pid, os.path.join(fixtures_root, pid, "immuannot_output"), strict_header_check=False)
+            pid, os.path.join(people_root, pid, "immuannot_output"), strict_header_check=False)
         all_t1_rows.extend(t1)
         contigs_per_hap = {}
         for row in t1:
@@ -276,7 +280,7 @@ def test_against_fixtures(fixtures_root):
     total_unpairable = 0
     for pid in persons[:80]:
         t1, t2, n_unpairable, _ = extract.process_person(
-            pid, os.path.join(fixtures_root, pid, "immuannot_output"), strict_header_check=False)
+            pid, os.path.join(people_root, pid, "immuannot_output"), strict_header_check=False)
         total_t2 += len(t2)
         total_unpairable += n_unpairable
     check("Table 2 produced some cis pairs", total_t2 > 0)
@@ -284,7 +288,7 @@ def test_against_fixtures(fixtures_root):
           total_unpairable > 0, detail=f"got {total_unpairable}")
     for pid in persons[:20]:
         t1, t2, _, _ = extract.process_person(
-            pid, os.path.join(fixtures_root, pid, "immuannot_output"), strict_header_check=False)
+            pid, os.path.join(people_root, pid, "immuannot_output"), strict_header_check=False)
         contig_of = {(r["hap"], r["gene"]): r["contig"] for r in t1}
         for pair_row in t2:
             gene_a, gene_b = pair_row["pair"].split("~")

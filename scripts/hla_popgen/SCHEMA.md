@@ -32,6 +32,27 @@ the `consensus` typing call. Everything below is already on disk and was simply 
 
 ---
 
+## On-disk layout: `~/pipeline_outputs/people/` (2026-09-04)
+
+`~/pipeline_outputs` holds two very different kinds of thing: a handful of **aggregate** `.tsv`/`.fa`
+files (`hla_calls_rich.tsv`, `hla_cis_pairs.tsv`, `cohort_membership.tsv`, `immuannot_cohort_full.tsv`,
+`immuannot_calls.tsv`, `ancestry_preds.tsv`, `hla_genotypes.tsv`, `novel_alleles_seqs.fa` — the tables
+documented below) and ~12,000 **per-person** `<person_id>/immuannot_output/...` directories (the raw
+GTFs/FASTAs Tables 1–3 are extracted from).
+
+Those ~12,000 person_id-named top-level directories made the Workbench Jupyter file browser
+unusably slow (it lists+stats every top-level entry to render the folder) — see RUNBOOK.md "Step 1c"
+for the incident and the one-time fix. Per-person directories now live one level deeper, under
+`~/pipeline_outputs/people/<person_id>/immuannot_output/...`; the aggregate files above are
+unaffected and still live directly at `~/pipeline_outputs/`. Concretely, in every script here:
+`--outroot` (default `~/pipeline_outputs/people`) means "where do I find `<person_id>/
+immuannot_output/...`" — nothing else; any aggregate-file path (`--table1`, `--cohort-membership`,
+`--out-dir`, etc.) defaults off the unmoved `~/pipeline_outputs` top level instead, never off
+`--outroot`. `02_build_cohorts.py` is the one exception worth noting explicitly: it never scans
+person directories, so its `--outroot` correctly still means the unmoved `~/pipeline_outputs` itself.
+
+---
+
 ## Gene classification (used as `gene_class` throughout)
 
 | `gene_class` | Genes |

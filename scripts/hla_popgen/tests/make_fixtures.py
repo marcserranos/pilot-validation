@@ -334,7 +334,14 @@ def build(outroot, n_people):
 
     for i, pid in enumerate(people):
         ancestry = rng.choices(ANCESTRIES, weights=ANCESTRY_WEIGHTS)[0]
-        pdir = os.path.join(outroot, pid, "immuannot_output")
+        # Person-id directories live under people/, not directly at <outroot> -- matches the real
+        # production layout after the 2026-09-04 move (RUNBOOK.md "Step 1c"): ~12,000 top-level
+        # person_id directories made the Workbench Jupyter file browser unusably slow, so person
+        # dirs were moved one level deeper into people/, leaving only the aggregate .tsv files (and
+        # this one named subfolder) at the top level. Aggregate files below (immuannot_cohort_full.tsv,
+        # ancestry_preds.tsv, hla_genotypes.tsv, FIXTURE_MANIFEST.json) intentionally stay directly
+        # under <outroot> -- only the person-directory placement moves.
+        pdir = os.path.join(outroot, "people", pid, "immuannot_output")
 
         # ~8% of people get NO output at all -- the real run had ~92% "any output".
         if rng.random() < 0.08:

@@ -52,6 +52,47 @@ pixi run -e spechla -- python3 scripts/hla_popgen/00b_warning_census.py --limit 
 Paste back its two tables. Feed the answer to `03_novel_alleles.py --disqualifying-warnings`
 (default: `inframe_stop` only).
 
+## Step 1c — fix the Jupyter UI lag (one-time)
+
+**Real incident, 2026-09-04:** `~/pipeline_outputs` has ~12,000 top-level `person_id`-named
+directories. Opening it in the Workbench Jupyter file browser lags/crashes, because the UI tries to
+list+stat every entry. The fix: move every `person_id` directory one level deeper, into
+`~/pipeline_outputs/people/`, so the top level only has the aggregate `.tsv` files (`hla_calls_rich.tsv`,
+`cohort_membership.tsv`, `immuannot_cohort_full.tsv`, `immuannot_calls.tsv`, `ancestry_preds.tsv`,
+`hla_genotypes.tsv`, `novel_alleles_seqs.fa`) plus the one `people/` folder — a handful of entries the
+UI can render instantly.
+
+**Run this once**, before any script below — `00_recon_vm.py`/`00b_warning_census.py` above already
+default to `--outroot ~/pipeline_outputs/people`, so if you're on a fresh VM that hasn't had this move
+done yet, run it now, before re-running Step 1/1b too:
+
+```bash
+mkdir -p ~/pipeline_outputs/people
+cd ~/pipeline_outputs
+for d in */; do
+  d="${d%/}"
+  [[ "$d" =~ ^[0-9]+$ ]] && mv "$d" people/
+done
+cd -
+```
+
+Why this is safe at ~12,000-entry scale:
+- No shell glob of all 12,000 names in one command (no `mv */ people/`, no brace expansion) — the
+  `for d in */` loop expands the top-level directory listing only, one name at a time, so there's no
+  `ARG_MAX`/command-line-length risk the way a single `mv <12000 names> people/` invocation would have.
+- The `^[0-9]+$` regex test only ever matches pure-digit `person_id` basenames — it will never touch
+  the aggregate `.tsv`/`.fa` files (non-directory, and don't match `*/`  anyway) or any other named
+  directory (`people/` itself, or anything else that isn't a bare integer).
+- **Idempotent/resumable**: if this is interrupted (dropped session, VM restart) and re-run, every
+  already-moved `person_id` directory is simply no longer present at the top level, so `for d in */`
+  won't see it again — the loop just picks up wherever it left off. Safe to re-run any number of times.
+
+Verify afterward:
+```bash
+ls ~/pipeline_outputs | wc -l        # should now be small (a handful of .tsv/.fa files + people/)
+ls ~/pipeline_outputs/people | wc -l # should be ~12,000-ish
+```
+
 ## Step 2 — rich extraction (Tables 1 & 2)
 
 Sanity-check on 200 people first — never launch the full pass blind, and **measure the rate before

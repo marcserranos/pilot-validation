@@ -98,7 +98,13 @@ from collections import Counter, defaultdict
 
 import pandas as pd
 
-DEFAULT_OUTROOT = os.path.expanduser("~/pipeline_outputs")
+# Person-id directories live under people/, not directly at the top level -- ~12,000 top-level
+# entries makes the Workbench Jupyter file browser unusably slow (real incident, 2026-09-04; see
+# RUNBOOK.md for the one-time move). --outroot points at people/ (where cds.fa.gz lives);
+# DEFAULT_DATA_ROOT is the unmoved top level, where hla_calls_rich.tsv/cohort_membership.tsv
+# (written by 01/02) actually live -- do not derive those paths from --outroot any more.
+DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
+DEFAULT_OUTROOT = os.path.join(DEFAULT_DATA_ROOT, "people")
 DEFAULT_REPORTS_DIR_NAME = os.path.join("reports", "hla_popgen")
 
 # minimap2 short-form `cs` tag tokens: ':N' (N identical bases), '*xy' (substitution ref x, obs y),
@@ -580,17 +586,24 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--outroot", default=DEFAULT_OUTROOT,
-                    help="Root holding <person_id>/immuannot_output/hap{1,2}/cds.fa.gz AND where "
-                         "the VM-only novel_alleles_seqs.fa is written (SCHEMA.md hard rule #5).")
+                    help="Root holding <person_id>/immuannot_output/hap{1,2}/cds.fa.gz. Default: "
+                         "~/pipeline_outputs/people (NOT ~/pipeline_outputs itself -- person_id "
+                         "dirs live one level deeper, see RUNBOOK.md).")
     ap.add_argument("--table1", default=None,
-                    help="Path to hla_calls_rich.tsv (Table 1). Default: <outroot>/"
-                         "hla_calls_rich.tsv")
+                    help="Path to hla_calls_rich.tsv (Table 1). Default: "
+                         "~/pipeline_outputs/hla_calls_rich.tsv")
     ap.add_argument("--cohort-membership", default=None,
                     help="Path to cohort_membership.tsv (Table 4, for ancestry). Default: "
-                         "<outroot>/cohort_membership.tsv")
+                         "~/pipeline_outputs/cohort_membership.tsv")
     ap.add_argument("--out-dir", default=None,
                     help="Where to write novel_alleles.tsv + the markdown report (aggregate-only "
                          "-- SCHEMA.md hard rule #5). Default: <repo_root>/reports/hla_popgen")
+    ap.add_argument("--seqs-path", default=None,
+                    help="Where to write the VM-only novel_alleles_seqs.fa (real nucleotide "
+                         "sequences -- never belongs in a report or the repo). Default: "
+                         "~/pipeline_outputs/novel_alleles_seqs[.sample].fa. Override this for any "
+                         "local/fixture run so it doesn't write into a real ~/pipeline_outputs on "
+                         "whatever machine happens to run the script.")
     ap.add_argument("--sample", action="store_true",
                     help="Write to sample-suffixed output paths (quirk #22b).")
     ap.add_argument("--disqualifying-warnings", default="partial_CDS,inframe_stop",
@@ -612,15 +625,17 @@ def main():
         t.strip() for t in args.disqualifying_warnings.split(",") if t.strip())
 
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    table1_path = args.table1 or os.path.join(args.outroot, "hla_calls_rich.tsv")
-    cohort_path = args.cohort_membership or os.path.join(args.outroot, "cohort_membership.tsv")
+    table1_path = args.table1 or os.path.join(DEFAULT_DATA_ROOT, "hla_calls_rich.tsv")
+    cohort_path = args.cohort_membership or os.path.join(DEFAULT_DATA_ROOT, "cohort_membership.tsv")
     out_dir = args.out_dir or os.path.join(repo_root, DEFAULT_REPORTS_DIR_NAME)
     os.makedirs(out_dir, exist_ok=True)
 
     suffix = ".sample" if args.sample else ""
     table3_path = os.path.join(out_dir, f"novel_alleles{suffix}.tsv")
     md_path = os.path.join(out_dir, f"03_novel_alleles_report{suffix}.md")
-    seqs_path = os.path.join(args.outroot, f"novel_alleles_seqs{suffix}.fa")
+    # Written under DEFAULT_DATA_ROOT, not --outroot -- keeps people/ containing ONLY
+    # person-id-named directories, which is what keeps it fast to move/browse/rsync as a unit.
+    seqs_path = args.seqs_path or os.path.join(DEFAULT_DATA_ROOT, f"novel_alleles_seqs{suffix}.fa")
 
     t0 = time.time()
     print(f"Loading Table 1 from {table1_path!r} ...", file=sys.stderr)
