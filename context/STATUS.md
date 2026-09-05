@@ -4,226 +4,74 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-08-10 (cont.) — real data run found a real production bug; fixed, repair script + one-command wrapper built
+## As of 2026-09-05 — hla_popgen pipeline complete end-to-end on the real ~12,233-person cohort
 
-Marc actually ran the post-processing scripts on the real VM. `analyze_completeness_and_demographics.py`
-reported 0% gene-completeness despite 92%+ "any output" -- internally inconsistent, worth chasing.
-Root cause found and fixed: `merge_fragments()`'s dedup of `immuannot_calls.tsv` keyed on
-`person_id` alone instead of `[person_id, gene]`, silently deleting every classical HLA gene's row
-for the entire ~12,000-person cohort, every time it ran. Full account: ENVIRONMENT.md quirk #29.
+All seven `scripts/hla_popgen/` steps (00 recon → 01 extraction → 02 cohorts → 03 novel alleles →
+04 saturation → 05 frequency → 06 structure → 07 cross-cohort) have now run successfully against
+real production data, driven live via Chrome computer-use on the Workbench VM (`18aa4228c0ec`,
+`full-cohort-hla-calling` workspace, `AoU_Jupyter_ComputeEngine_20260805_big_run` instance — see
+ENVIRONMENT.md quirks #31-33 for how this access works). 06 and 07 had been blocked on a
+`pd.NA`-in-list crash (fixed, commit `421484d`) and a missing `--sr-genotypes` mount path (worked
+around live: remounted gcsfuse, passed
+`~/mnt/aou-controlled/v9/wgs/short_read/snpindel/aux/hla_variants/hla_genotypes.tsv` explicitly —
+**RUNBOOK.md does not yet document that 05/07 need the mount; fix this next session**).
 
-**Data was recoverable, not lost** -- `scripts/production_orchestrator/rebuild_immuannot_calls.py`
-(new, tested against synthetic fixtures reproducing the exact bug) re-derives a correct
-`immuannot_calls.tsv` from the raw per-person `hap{1,2}.gtf.gz` files, which were deliberately kept.
-All 5 `production_analysis/` scripts now also refuse to run (loud FATAL, not a silent bad result)
-if they ever see this symptom again -- tested against both good and bug-scenario fixtures.
+### Real headline findings (all reports live at `~/repos/pilot-validation/reports/hla_popgen/` on
+the VM, not yet copied anywhere else — see "Next" below)
 
-**Built `scripts/production_analysis/run_all.sh`** (Marc, this session: "one script... I don't have
-to be micro-managing the task") -- detects the bug and auto-repairs if needed, mounts gcsfuse
-(billing project `wb-cordial-leechee-9743`, confirmed this session), runs all 5 scripts, prints one
-PASS/FAIL/SKIPPED summary. Invoked via `pixi run -e spechla -- bash scripts/production_analysis/run_all.sh`
--- no manual `pixi shell`/`pixi install` steps needed. Tested end-to-end against synthetic fixtures
-(bug-scenario auto-repair path + happy path); one portability bug found and fixed along the way
-(`declare -A` needs bash 4+, removed in favor of a plain accumulator, since the target VM's bash
-version wasn't worth assuming).
+- **Novel alleles (03):** 21,463 distinct novel-allele clusters with resolved gene identity;
+  **1,190 pass every QC gate** (recurrence in ≥2 unrelated people, no disqualifying warning, not a
+  homopolymer artifact). **90.8% of resolved clusters are protein-altering** (non-synonymous/
+  frameshift) — real evidence of biology under balancing selection, not noise. Ancestry gradient
+  in raw novel-call rate: AFR 0.380 > EAS 0.345 > SAS 0.316 > MID 0.307 > AMR 0.303 > EUR 0.267 —
+  confirms the central IPD-reference-bias hypothesis directionally.
+- **Saturation (04):** Rarefaction curves for "all alleles" and "novel alleles only" show **no
+  plateau at all** even at full cohort size (novel-only curve is close to linear) — visually
+  striking, strong support for "the HLA allele space is far from discovered." BUT: every pooled
+  Chao2 richness estimate is flagged `LOW-CONFIDENCE (CI widened)` (Q2=0, too few exact-duplicate
+  novel sequences yet to anchor the estimator), and the **ancestry-stratified "% discovered" table
+  does not cleanly replicate the novel-rate gradient** (e.g. EUR is often NOT the highest %
+  discovered; MID/SAS swing to extremes) — this is very plausibly an artifact of per-ancestry
+  sample size, not a refutation. Real per-ancestry N (from `cohort_membership.tsv`, `cut -f9 |
+  sort | uniq -c`): **AFR 4053, EUR 3109, AMR 2807, SAS 1262, EAS 1499, MID 499** (+23 blank/1 stray
+  header row, quirk #30's known artifact). MID (n=499) and SAS (n=1262) are genuinely thin for a
+  per-gene-per-ancestry Chao2 estimate — **treat the stratified saturation table as directional
+  only until N grows or a less variance-hungry per-ancestry metric is used.**
+- **Cross-cohort (07), template_distance by ancestry — clean confirmatory result:** % of haplotype
+  calls at `template_distance<=0` (exact IPD match): AFR 78.9%, AMR 82.3%, EAS 78.1%, **EUR 84.6%**,
+  MID 80.8%, SAS 79.5% — EUR highest, AFR/EAS lowest, exactly the hypothesized reference-bias
+  signature, and it's a clean gradient (unlike the 04 stratified table above).
+- **Cross-cohort (07), SR-vs-LR "EUR-common-allele" directional bias — UNEXPECTED, needs scrutiny
+  before citing.** Every ancestry group's `(sr_freq - lr_freq)` bias on the 8 EUR-common alleles is
+  **negative**, INCLUDING EUR itself (AFR -0.214%, AMR -1.389%, EAS -0.884%, **EUR -2.123%**, MID
+  -3.111%, SAS -0.750%). The naive hypothesis ("SR over-calls EUR-common alleles specifically in
+  non-EUR ancestries," i.e. positive bias for non-EUR, ~zero for EUR) does not hold in this simple
+  form — EUR's own bias is more negative than most other groups. Plausible explanations not yet
+  investigated: 2-field (SR) vs 4-field-truncated (LR) allele-string matching artifact, or the
+  "EUR-common alleles" selection itself. **Do not report this as confirmed reference-bias evidence
+  without digging into `07_figures_crosscohort.py`'s `compute_sr_lr_disagreement_by_ancestry()`
+  first** — the plain `mean_abs_diff` column (AFR 0.616%, AMR 0.392%, EAS 0.495%, EUR 0.427%, MID
+  0.771%, SAS 0.541%) is a cleaner, less confounded metric and roughly tracks ancestry as expected
+  (MID/AFR highest disagreement) modulo MID's small N.
 
-**Next: Marc runs `run_all.sh` for real** and pastes back the summary + any figures. Not yet
-independently confirmed working against the actual ~12,000-person production cohort at real scale
-(only synthetic fixtures so far) -- watch for anything scale-specific (e.g. gcsfuse mount timing
-under real load, GTF-parsing wall-clock time across 12,000+ people in the repair script).
+### Next
 
-## As of 2026-08-10 — production run finished; post-processing scripts built, tested, not yet run on real data
-
-Full-cohort production run completed (Phase 1 only, per the 2026-08-05 Tier 3 decision below).
-Built `scripts/production_analysis/` (5 scripts + README) for supervisor-report post-processing:
-completeness/coverage/demographics, an AoU-native-vs-Immuannot confidence-threshold sweep +
-distribution plot, PCA/UMAP HLA-vs-ancestry clustering, an allele-frequency-by-ancestry spectrum
-(Aim 1), and a capstone figure synthesizing the 6 prior findings behind "DRB1 is the hardest
-locus." Full design rationale in each script's docstring and `scripts/production_analysis/README.md`,
-including a full step-by-step (resized VM → git pull → pixi install → gcsfuse remount if needed →
-run → where results land).
-
-**Verified against synthetic fixtures matching the exact real schemas (not yet run against the
-real production output — no VM access this session, see ENVIRONMENT.md quirk #28)** — this caught
-and fixed 4 real bugs before handoff (first 3 scripts): a mislabeled funnel-chart axis, non-integer
-histogram bins on a discrete variable, a `np.float64` repr leaking into a markdown report, and a
-legend overlapping a data annotation on the confidence-sweep chart. The umap-learn dependency's
-graceful fallback (skip UMAP, keep PCA) was also verified by testing with it deliberately absent.
-The 2 newest scripts (allele-frequency, DRB1 capstone) were also run against synthetic fixtures
-before handoff and rendered clean on the first pass.
-
-**Also resolved this session (parallel to the above, same conversation):** the "is heartbeat
-telemetry to Hetzner allowed" compliance question (research-only, no code change — verdict: gray
-area, not a clear yes/no, flagged to raise with the AoU sponsor/IRB, see the DECISIONS.md entry)
-and the "resize compute without losing the disk" question (Verily Workbench: stop → Edit →
-change machine type → Update, persistent disk untouched — confirmed via current Workbench docs).
-
-**Next: run all five scripts on the real production output** on the resized (not 96-core) VM, per
-`scripts/production_analysis/README.md`'s step-by-step. One open gap in that guide, flagged not
-guessed: the real GCP billing project for the production workspace (`wb-cordial-leechee-9743`)
-isn't recorded anywhere in this repo — only the earlier pilot workspace's is. Needed only for the
-one script that reads AoU-native data from the bucket mount; find it in the Workbench UI or via
-`gcloud config get-value project` before that step.
-
-## As of 2026-08-04 (cont.) — orchestrator + cohort builder built, not yet run; sequel2 decision blocked on one VM test
-
-Both build tasks from `scripts/production_orchestrator/BRIEF.md` are now written (this repo, this
-session, not yet committed/pushed — confirm with Marc before pushing to the public GitHub repo):
-
-- **`scripts/production_orchestrator/run_production_orchestrator.py`** — extends `scaling_probe.py`.
-  Mount check, PID lock, real resumability (checks each person's actual `hap{1,2}.gtf.gz`, not a
-  log entry), heartbeat every ~5 min from in-memory counters only, periodic fragment-merge into
-  canonical `immuannot_calls.tsv`/`immuannot_timing.tsv`, per-person attempt cap (default 3) with a
-  `.orchestrator_gave_up` marker instead of retrying a deterministically-failing person forever,
-  local budget-vs-cost warning. **Not yet run on any VM — needs the pre-launch smoke test
-  (BRIEF.md "Before the real launch") before the real n2-highcpu-96 launch.**
-- **`scripts/build_immuannot_cohort.py`** — rewritten for the full cohort. No default `-n` cap,
-  platform filter widened to revio+sequel2e+sequel2, row-level existence check + person-level union
-  across a person's multiple manifest rows (quirk #13 discipline), parallelized+checkpointed
-  (`lr_manifest_format_census.py`'s pattern). Outputs `person_id, platform, trim_tier, n_rows` —
-  `trim_tier` is `paf_region` / `bam_whole_contig` / `self_align_needed` (the sequel2 gap) / person
-  excluded entirely if no assembly FASTA at all. **Not yet run for real either — needs the mount.**
-- **`scripts/production_orchestrator/RESULTS_LOCATION.md`** — deliverable #3, written.
-
-### sequel2 (991 people, ~95% AFR): fallback tier BUILT, explicitly NOT validated — blocked on Marc
-
-Raised explicitly with Marc per BRIEF.md's instruction not to silently default either way.
-Marc's read: worried the "whole assembly" framing in BRIEF.md could mean ~100x-plus blowup: correct
-— literally feeding Immuannot the untrimmed ~3.1Gb/hap assembly (no way to know which contig is
-chr6 without an aln-to-hg38 file) is more like **~700-750x** the normal ~4.2Mb trimmed input, not
-~100x. **Built a cheaper Tier 3 instead of the brief's literal "whole assembly" framing**: self-align
-each hap FASTA against a chr6-ONLY reference slice (cached once from the full hg38 ref already on
-the VM) with `minimap2`, producing our own synthetic `.paf` that the existing `regions_from_paf()`
-parses unmodified — turns "whole assembly" into "one extra fast minimap2 pass + a normal-sized
-trim." Implemented in `run_immuannot_person.py` (`--enable-self-align-fallback`, opt-in, off by
-default) — **but genuinely untested**, no VM access from this session to actually time it.
-
-**Decided with Marc (2026-08-04):** don't guess the number — smoke-test it for real on 1-2 actual
-sequel2 people, on the bigger Stanford-pod test VM, before deciding whether sequel2 is in or out of
-the production launch. **I don't have gcloud/SSH access to that VM from this session — Marc runs
-the commands below himself and pastes the output back.**
-
-```bash
-# From ~/repos/pilot-validation on the Stanford-pod VM, mount up, inside pixi shell -e specimmune
-# (or `pixi run -e specimmune --` prefix). Pick 2 real sequel2 person_ids first:
-python3 -c "
-import pandas as pd
-lr = pd.read_csv('~/mnt/aou-controlled/v9/wgs/long_read/manifest.tsv', sep='\t', dtype=str)
-cand = lr[(lr.platform == 'sequel2') & lr.assembly_hap1_fa.notna() & lr.assembly_hap2_fa.notna()]
-print(cand['research_id'].drop_duplicates().head(2).tolist())
-"
-# Then, for each of those 2 ids (replace <PID>):
-{ time python3 scripts/run_immuannot_person.py <PID> --enable-self-align-fallback \
-    --out-suffix .selfalign_test --force ; } 2> ~/pipeline_outputs/selfalign_test_<PID>.log
-```
-
-Paste back: the `real`/`user`/`sys` time line, and the `self_align_seconds` /
-`whole_contig_mb` / `padded_mb` / `trim_seconds` / `immuannot_seconds` columns from
-`~/pipeline_outputs/immuannot_timing.selfalign_test.tsv` for both people. That's what turns "I
-think it's fine" into a real number to decide on (BRIEF.md: "$10 vs $100 vs an extra day" — Marc's
-framing).
-
-**2026-08-05 — bench test aborted, replaced with a live two-phase launch — now fully automatic in
-ONE command (Marc: "I don't want to intervene... make everything on the same run").** Didn't want
-to spend unknown debugging time on an untested ~20min-2hr bench test with no time budget for it,
-and didn't want to have to manually type a second command to start phase 2 either. **Current
-behavior, default, no flags needed:** a single `run_production_orchestrator.py` invocation runs
-phase 1 (everyone except `self_align_needed`, ~12,261 people, normal proven trim path) to
-completion, then AUTOMATICALLY continues into phase 2 (only `self_align_needed`, the 991 sequel2
-people, self-align fallback auto-enabled) — same process, same lock, no second command. Each phase
-gets its own heartbeat state file (phase 2's is auto-derived at
-`<outroot>/monitor_state_phase2.json`) so phase 2's rate/ETA/cost on the dashboard are never
-diluted by phase 1's already-elapsed hours — that's the number to watch to decide whether to Ctrl-C
-phase 2 (note: this waits for the current in-flight wave to finish, not an instant kill; a relaunch
-with the same command resumes correctly regardless of where it was aborted).
-`--single-phase` + `--skip-trim-tier`/`--only-trim-tier` preserves the old one-shot-filtered
-behavior for the smoke test.
-
-Exact launch command: see chat / `RESULTS_LOCATION.md` / the orchestrator's own `--help`, not
-duplicated here (this file is for durable state, not copy-paste command logs).
-
-## Pre-flight state as of 2026-08-05 — see `scripts/production_orchestrator/PREFLIGHT.md`
-
-That file is the rolling launch checklist (what's verified, what's still blocking). Cleared this
-session, on the Hetzner box directly: firewall/port 8943 confirmed reachable externally, receiver
-redeployed with a server-side cost model using the **real quoted rates ($3.55/h VM + $81.60/mo
-disk**, not DECISIONS.md's ~$3.03/hr research estimate), dashboard redesigned, stale threshold
-25→15 min, and the **first-ever real heartbeat end-to-end test against the deployed box** (all
-prior testing was loopback-only). Two real bugs found and fixed while doing it: `mem_avail_pct` was
-inverted (sent *used*, consumers read it as *available* — would have fired a spurious anomaly push
-early in the run and stayed silent during a real near-OOM), and the budget check was resetting
-per-phase instead of tracking the real $300 total.
-
-**The biggest remaining unknown is deliberately called out in PREFLIGHT.md item A: the Workbench
-VM has never actually POSTed a heartbeat to the Hetzner box**, and that workspace sits behind a
-VPC-SC perimeter that explicitly warns about egress to outside services. Proven-from-the-box is not
-proven-from-the-VM. Test it before launching, not after.
-
-## Carried forward from earlier 2026-08-04 — all pre-launch VM/config decisions locked
-
-Everything needed to decide *how* to run the full-cohort Immuannot production job is now decided
-and recorded in `context/DECISIONS.md`. Nothing here is provisional anymore:
-
-- **VM: `n2-highcpu-96`, region `us-central1`.**
-- **Concurrency: 24 people at once, 4 threads each (96 total cores).**
-- **Disk: 2TB, no per-person pruning.**
-- **Cost/time estimate: ~$160-200, ~52-58 hours wall-clock** (extrapolated from real 32-core data — see caveat below).
-- **Low-confidence Immuannot calls: keep all of them, with confidence signals as metadata — never filtered.**
-- **Monitoring: already built and deployed** (Hetzner, `hla-monitor.service`, port 8943) — just needs the orchestrator to call it.
-
-Full rationale and the real scaling data behind these numbers: `context/DECISIONS.md` ("Concurrency
-vs. threads-per-person split" + the VM/disk sub-bullets under it), `context/EXPERIMENTS.md`
-(2026-08-03/04 entry).
-
-**Caveat carried forward, not yet resolved: the 96-core extrapolation is linear from real 32-core
-data, never confirmed at a higher core count.** Marc's call whether to launch on this basis or
-spend one more small confirmation test first — not decided as of this session's end, and not
-blocking (the orchestrator can be built and smoke-tested regardless of when that call is made).
-
-## What's actually left before the real launch
-
-1. **Get the sequel2 self-align timing answer back from Marc** (commands above) and decide
-   in/out/fast-follow for real, not by default.
-2. **Commit + push this session's two new scripts + the `run_immuannot_person.py` Tier 3 addition**
-   to the public GitHub repo (not done yet — confirm with Marc first, per this session's own
-   git-safety discipline) so the VM can `git pull` them.
-3. **Run the pre-launch smoke test** (BRIEF.md "Before the real launch, smoke test, don't skip
-   this"): 24-48 people, one full concurrency wave, confirm resumability (kill mid-run, relaunch,
-   confirm it skips done people), confirm the lock blocks a second launch, confirm the mount check
-   blocks a launch with a dead mount, confirm a heartbeat actually reaches the Hetzner dashboard.
-   **Not yet done — the orchestrator has never been run against real data, this session had no VM
-   access to do it.**
-4. **Confirm the live `n2-highcpu-96` hourly rate in the Workbench UI** when the VM is actually
-   created, pass it via `--vm-rate` — DECISIONS.md's ~$3.03/hr is a research estimate.
-5. **Confirm the Hetzner firewall rule for port 8943** (see below, carried from earlier).
-6. Only then create the real VM and launch.
-
-## Watch / blockers (carried from earlier this session — still true, will matter for the orchestrator)
-
-- **The gcsfuse mount does not survive a VM restart or a stop.** Any new script that reads the
-  mount must hard-fail-fast if it's missing (quirk #26) — do not rely on a human remembering to
-  check first, this failed multiple times this session, for both Marc and the assistant giving
-  instructions.
-- **A restarted VM proves whatever was running already exited** — there is no "VM kills a mid-run
-  job" mode. Thin/empty results after a restart means diagnose "why did it produce nothing," not
-  "was it cut off partway" (quirk #14 addendum).
-- **Never run two instances of the same per-person orchestrator concurrently** — the shared
-  per-person *intermediate* directory is not isolated between invocations even when final output
-  files are, and will get silently corrupted (quirk #23).
-- **Confirm the Hetzner firewall rule for port 8943 is actually in place** before relying on the
-  dashboard being externally reachable — `scripts/monitoring/README.md` step 2, needs Marc's own
-  Hetzner console access, not something a Workbench-side session can do.
-- This session worked in a second Verily Workbench workspace (`wb-cordial-leechee-9743`,
-  Stanford-pod billing) to get a bigger test VM — getting Controlled Tier data linked to that
-  workspace required a real VPC-SC/app-policy troubleshooting saga (workspace-level data linking +
-  a group policy scoped to that workspace). Not logged as a durable quirk (one-time
-  institutional-workspace-setup issue), but if a third workspace is ever created: **link Controlled
-  Tier data before creating any compute environment in it.**
-- `~/ref/`, `~/repos/`, `~/tools/`, `~/pipeline_outputs/` survive a VM restart on any workspace; the
-  mount, background processes, and activated pixi shell do not.
-- **DRB1 is confirmed the hardest locus by six independent, converging lines of evidence** —
-  unrelated to this session's scaling work, but still standing; treat any new DRB1 result
-  skeptically-but-not-surprised.
-- **Gene-panel restriction is a closed question** (Experiment C) — don't re-attempt without a
-  specific new reason.
-- Marc and Aleix both work in this repo directly and concurrently — normal, not an anomaly.
+1. **Fix RUNBOOK.md**: step 5 (05/07) needs the gcsfuse mount + explicit `--sr-genotypes
+   ~/mnt/aou-controlled/v9/wgs/short_read/snpindel/aux/hla_variants/hla_genotypes.tsv` — currently
+   undocumented, cost real time this session to discover live.
+2. **Investigate the EUR-common-allele directional-bias sign** (`07_figures_crosscohort.py`,
+   `compute_sr_lr_disagreement_by_ancestry()`) before using it in any writeup — check 2-field vs
+   4-field truncation alignment between SR and LR allele strings specifically.
+3. **Decide how to treat the 04 ancestry-stratified saturation table** given MID/SAS thinness —
+   either pool to fewer/larger ancestry groups for this specific metric, gate it behind a minimum-N
+   threshold the way `_viz_common.py`'s `MIN_CELL_N_PEOPLE` already does elsewhere, or explicitly
+   caveat it in any report rather than presenting per-ancestry % discovered as reliable.
+4. **Get real figures/reports off the VM into a form Marc and Cole can review** — nothing has left
+   `~/repos/pilot-validation/reports/hla_popgen/` yet. Two paths already exist and are compliant:
+   commit the aggregate-only report to the public GitHub repo (precedent: `reports/
+   full_immuannot_lr_calling/*.png` already there), or copy to the existing share bucket
+   (`gs://hla-calls-share-wb-cordial-leechee-9743/aggregate/`, ENVIRONMENT.md "Our own buckets").
+   Neither has been done yet this session — decide which, since committing to the public repo and
+   copying to the internal share bucket are different audiences (public vs. Cole-only).
+5. Re-run 05 with the `--sr-genotypes` mount path too (not yet confirmed working the same way 07
+   was) and sanity-check its output the same way 06/07 were checked here.
