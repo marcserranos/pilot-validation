@@ -397,7 +397,14 @@ def main():
     mat, n_incomplete = build_dosage_matrix(args, cohort_people)
     anc_map = dict(zip(cohort_people["person_id"], cohort_people["ancestry_pred"]))
     labels = [anc_map.get(pid) for pid in mat.index]
-    keep = [l in vc.ANCESTRY_ORDER for l in labels]
+    # anc_map.get(pid) can be pd.NA/NaN for the small number of people with a missing/malformed
+    # ancestry_pred (ENVIRONMENT.md quirk #30: ~24 blank/malformed rows in the real
+    # immuannot_cohort_full.tsv, out of ~12,233 -- too rare to reliably appear in a 300-person
+    # fixture, which is why this surfaced only at real scale). `pd.NA in list` raises TypeError
+    # rather than returning False, because `in` evaluates `NA == x` for each x and that comparison
+    # itself returns NA, not a bool. Guard with an explicit string check first so NA/NaN short-
+    # circuits to "not kept" instead of reaching the `in` test at all.
+    keep = [isinstance(l, str) and l in vc.ANCESTRY_ORDER for l in labels]
     mat_k = mat.loc[[pid for pid, k in zip(mat.index, keep) if k]]
     labels_k = [l for l, k in zip(labels, keep) if k]
     report.append(f"Allele-dosage matrix: {len(mat)} complete-case people ({n_incomplete} "

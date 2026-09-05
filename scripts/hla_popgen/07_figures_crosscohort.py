@@ -510,7 +510,13 @@ def compute_pairable_fraction(table1, cohort_people, pairs):
     rows = []
     for (pid, hap), grp in sub.groupby(["person_id", "hap"]):
         anc = anc_map.get(pid)
-        if anc not in vc.ANCESTRY_ORDER:
+        # anc can be pd.NA/NaN for the small number of people with a missing/malformed
+        # ancestry_pred (ENVIRONMENT.md quirk #30) -- `NA not in list` raises TypeError rather
+        # than returning True, because `in` evaluates `NA == x` per element and that returns NA,
+        # not a bool (identical failure mode fixed in 06_figures_structure.py's dosage-matrix
+        # filter). Guard with an explicit string check so NA/NaN short-circuits to "skip" instead
+        # of reaching the `in` test.
+        if not isinstance(anc, str) or anc not in vc.ANCESTRY_ORDER:
             continue
         by_gene = grp.groupby("gene_bare")["contig"].apply(set)
         for ga, gb in pairs:

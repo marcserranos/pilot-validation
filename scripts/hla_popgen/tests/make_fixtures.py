@@ -395,6 +395,18 @@ def build(outroot, n_people):
     with open(os.path.join(outroot, "immuannot_cohort_full.tsv"), "w") as f:
         f.write("person_id\tplatform\ttrim_tier\tancestry_pred\tn_rows\n")
         for r in cohort_rows:
+            r = list(r)
+            # A small fraction of real rows have a blank/malformed ancestry_pred -- confirmed on
+            # the production cohort (ENVIRONMENT.md quirk #30: ~24 non-lowercase rows out of
+            # ~13,252, mostly blank, one a literal stray header string), attributed to a minor
+            # checkpoint-concatenation artifact in build_immuannot_cohort.py. This is exactly what
+            # crashed 06_figures_structure.py and 07_figures_crosscohort.py at real scale
+            # (`pd.NA in list` raises TypeError instead of returning False) -- both now fixed, but
+            # a 300-person fixture at the real ~0.18% rate would only average ~0.5 such rows, too
+            # rare to reliably re-exercise the fix. Using ~2% here (deliberately higher than
+            # reality, for reliable test coverage, not realism) guarantees several every run.
+            if rng.random() < 0.02:
+                r[3] = ""
             f.write("\t".join(map(str, r)) + "\n")
 
     # ancestry_preds.tsv mirrors the real AoU schema: a hard label plus a 6-way probability array
