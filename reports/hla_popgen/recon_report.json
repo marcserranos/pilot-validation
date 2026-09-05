@@ -1,0 +1,419 @@
+{
+  "meta": {
+    "outroot": "/home/jupyter/pipeline_outputs",
+    "n_people_sampled": 50,
+    "elapsed_seconds": 324.2,
+    "extrapolated_to_n_people": 12000
+  },
+  "MOST_IMPORTANT_file_presence_and_bytes": {
+    "hap1.gtf.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 9257.1,
+      "extrapolated_total_bytes": 222171360
+    },
+    "hap1.trimmed.fa": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 9696626.9,
+      "extrapolated_total_bytes": 232719045600
+    },
+    "hap1/cds.fa.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 7833.7,
+      "extrapolated_total_bytes": 188009280
+    },
+    "hap1/mm2.ipd.cds.paf.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 851785.7,
+      "extrapolated_total_bytes": 20442856800
+    },
+    "hap1/mm2.ipd.gen.paf.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 793614.2,
+      "extrapolated_total_bytes": 19046739840
+    },
+    "hap1/gene.filtered.paf": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 7094784.5,
+      "extrapolated_total_bytes": 170274828480
+    },
+    "hap2.gtf.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 8958.6,
+      "extrapolated_total_bytes": 215005920
+    },
+    "hap2.trimmed.fa": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 9699819.2,
+      "extrapolated_total_bytes": 232795659840
+    },
+    "hap2/cds.fa.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 7681.1,
+      "extrapolated_total_bytes": 184345920
+    },
+    "hap2/mm2.ipd.cds.paf.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 804414.0,
+      "extrapolated_total_bytes": 19305936000
+    },
+    "hap2/mm2.ipd.gen.paf.gz": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 756873.4,
+      "extrapolated_total_bytes": 18164962560
+    },
+    "hap2/gene.filtered.paf": {
+      "checked": 50,
+      "present": 50,
+      "presence_rate": "100.0%",
+      "n_observed": 50,
+      "mean_bytes": 6704709.1,
+      "extrapolated_total_bytes": 160913018400
+    }
+  },
+  "n_people_zero_output": 0,
+  "gtf_attribute_inventory": {
+    "gene": {
+      "gene_id": {
+        "count": 3589,
+        "examples": [
+          "IAG000013",
+          "IAG000014"
+        ]
+      },
+      "gene_name": {
+        "count": 3589,
+        "examples": [
+          "HLA-DQA2",
+          "HLA-DQB1"
+        ]
+      },
+      "template_allele": {
+        "count": 3421,
+        "examples": [
+          "HLA-DQA2*01:01:02:11",
+          "HLA-DQB1*03:01:01:03"
+        ]
+      },
+      "template_distance": {
+        "count": 3421,
+        "examples": [
+          "1",
+          "0"
+        ]
+      }
+    },
+    "transcript": {
+      "gene_id": {
+        "count": 3589,
+        "examples": [
+          "IAG000013",
+          "IAG000014"
+        ]
+      },
+      "transcript_id": {
+        "count": 3589,
+        "examples": [
+          "IAT000013",
+          "IAT000014"
+        ]
+      },
+      "gene_name": {
+        "count": 3589,
+        "examples": [
+          "HLA-DQA2",
+          "HLA-DQB1"
+        ]
+      },
+      "consensus": {
+        "count": 3421,
+        "examples": [
+          "HLA-DQA2*01:01:02:new",
+          "HLA-DQB1*03:01:01:03"
+        ]
+      },
+      "alleles": {
+        "count": 3421,
+        "examples": [
+          "HLA-DQA2*01:01:02:01,HLA-DQA2*01:01:02:02,HLA-DQA2*01:01:02:03,HLA-DQA2*01:01:02:04,HLA-DQA2*01:01:02:05,HLA-DQA2*01:01:02:06,HLA-DQA2*01:01:02:07,HLA-DQA2*01:01:02:08,HLA-DQA2*01:01:02:09,HLA-DQA2*01:01:02:10,HLA-DQA2*01:01:02:11,HLA-DQA2*01:01:02:12,HLA-DQA2*01:01:02:13,HLA-DQA2*01:01:02:14,HLA-DQA2*01:01:02:15,HLA-DQA2*01:01:02:16",
+          "HLA-DQB1*03:01:01:03"
+        ]
+      },
+      "template_warning": {
+        "count": 3421,
+        "examples": [
+          "NA",
+          "partial_CDS"
+        ]
+      },
+      "cds_distance": {
+        "count": 1155,
+        "examples": [
+          "0",
+          "1"
+        ]
+      },
+      "cds_mut": {
+        "count": 331,
+        "examples": [
+          "HLA-DPB2*01:01:01|:531*ga:244|Lys(AAG)<Glu(GAG),HLA-DPB2*01:01:02|:416*gc:359|Tre(ACC)<Tre(ACG);",
+          "HLA-DPA2*01:01:01:02|:549+g:183|Gly(GGG)<GG(GG),HLA-DPA2*01:01:01:03|:549+g:183|Gly(GGG)<GG(GG);"
+        ]
+      },
+      "pipetide_key": {
+        "count": 168,
+        "examples": [
+          "ProCysLeuAsp",
+          "LeuSerIleHis"
+        ]
+      }
+    },
+    "UTR": {
+      "gene_id": {
+        "count": 6717,
+        "examples": [
+          "IAG000013",
+          "IAG000014"
+        ]
+      },
+      "transcript_id": {
+        "count": 6717,
+        "examples": [
+          "IAT000013",
+          "IAT000014"
+        ]
+      },
+      "gene_name": {
+        "count": 6717,
+        "examples": [
+          "HLA-DQA2",
+          "HLA-DQB1"
+        ]
+      }
+    },
+    "exon": {
+      "gene_id": {
+        "count": 26801,
+        "examples": [
+          "IAG000013",
+          "IAG000014"
+        ]
+      },
+      "transcript_id": {
+        "count": 26801,
+        "examples": [
+          "IAT000013",
+          "IAT000014"
+        ]
+      },
+      "gene_name": {
+        "count": 26801,
+        "examples": [
+          "HLA-DQA2",
+          "HLA-DQB1"
+        ]
+      },
+      "exon_number": {
+        "count": 26801,
+        "examples": [
+          "4",
+          "3"
+        ]
+      }
+    },
+    "stop_codon": {
+      "gene_id": {
+        "count": 2425,
+        "examples": [
+          "IAG000013",
+          "IAG000014"
+        ]
+      },
+      "transcript_id": {
+        "count": 2425,
+        "examples": [
+          "IAT000013",
+          "IAT000014"
+        ]
+      },
+      "gene_name": {
+        "count": 2425,
+        "examples": [
+          "HLA-DQA2",
+          "HLA-DQB1"
+        ]
+      },
+      "codon": {
+        "count": 2257,
+        "examples": [
+          "TGA",
+          "TAA"
+        ]
+      }
+    },
+    "CDS": {
+      "gene_id": {
+        "count": 26561,
+        "examples": [
+          "IAG000013",
+          "IAG000014"
+        ]
+      },
+      "transcript_id": {
+        "count": 26561,
+        "examples": [
+          "IAT000013",
+          "IAT000014"
+        ]
+      },
+      "gene_name": {
+        "count": 26561,
+        "examples": [
+          "HLA-DQA2",
+          "HLA-DQB1"
+        ]
+      }
+    },
+    "start_codon": {
+      "gene_id": {
+        "count": 2992,
+        "examples": [
+          "IAG000013",
+          "IAG000014"
+        ]
+      },
+      "transcript_id": {
+        "count": 2992,
+        "examples": [
+          "IAT000013",
+          "IAT000014"
+        ]
+      },
+      "gene_name": {
+        "count": 2992,
+        "examples": [
+          "HLA-DQA2",
+          "HLA-DQB1"
+        ]
+      },
+      "codon": {
+        "count": 2824,
+        "examples": [
+          "ATG"
+        ]
+      }
+    }
+  },
+  "undocumented_attr_keys": [],
+  "gene_inventory": {
+    "HLA-DQA2": 101,
+    "HLA-DQB2": 100,
+    "TAP2": 99,
+    "HLA-DOB": 99,
+    "HLA-DPA2": 98,
+    "HLA-DPB1": 98,
+    "HLA-DPA1": 98,
+    "HLA-DOA": 98,
+    "HLA-DMB": 98,
+    "HLA-E": 98,
+    "HLA-N": 98,
+    "HLA-DQA1": 97,
+    "HLA-L": 97,
+    "HLA-DQB1": 96,
+    "HLA-DMA": 96,
+    "HLA-S": 96,
+    "HLA-W": 96,
+    "HLA-A": 96,
+    "HLA-DRA": 95,
+    "HLA-B": 95,
+    "HLA-J": 95,
+    "HLA-G": 95,
+    "HLA-V": 95,
+    "HLA-DRB1": 94,
+    "HLA-DPB2": 94,
+    "TAP1": 94,
+    "HLA-F": 94,
+    "HLA-P": 94,
+    "C4A": 94,
+    "HLA-C": 93,
+    "MICA": 92,
+    "MICB": 88,
+    "HLA-H": 87,
+    "HLA-T": 86,
+    "HLA-U": 85,
+    "HLA-K": 84,
+    "C4B": 74,
+    "HLA-DRB3": 38,
+    "HLA-DRB4": 28,
+    "HLA-Y": 16,
+    "HLA-HFE": 11,
+    "HLA-DRB5": 9
+  },
+  "KIR_GENES_FOUND": [],
+  "contigs_per_hapfile": {
+    "n_hapfiles_seen": 100,
+    "n_multi_contig": 80,
+    "fraction_multi_contig": "80.0%",
+    "max_contigs_seen": 16
+  },
+  "template_distance": {
+    "n": 3421,
+    "min": 0,
+    "max": 123,
+    "mean": 2.61,
+    "n_zero_exact": 2275
+  },
+  "conditional_field_presence": {
+    "n_transcript_rows": 3589,
+    "cds_distance_present": 1155,
+    "cds_distance_present_rate": "32.2%",
+    "cds_mut_present": 331,
+    "cds_mut_present_rate": "9.2%",
+    "template_warning_present": 3421,
+    "template_warning_present_rate": "95.3%"
+  },
+  "novelty_depth_distribution": {
+    "4": 734,
+    "2": 314,
+    "3": 104,
+    "1": 3
+  },
+  "header_body_mismatches": {
+    "n_mismatches": 0,
+    "examples": []
+  },
+  "malformed_lines": 0,
+  "unreadable_gtfs": []
+}
