@@ -1,6 +1,10 @@
 # Mutation topology: where novel differences land along the CDS (`09_mutation_topology.py`)
 
-Methodology: scripts/hla_popgen/research/VIZ_LIT.md addendum (2026-09). Each stem = one codon position; height = number of haplotype-level novel-difference observations at that position (recurrence-weighted, not a per-cluster count -- see module docstring). Position comes from `cds_mut`'s aa-diff field, first tied candidate only.
+Methodology: scripts/hla_popgen/research/VIZ_LIT.md addendum (2026-09). Each stem = one codon position; height = number of haplotype-level novel-difference OBSERVATIONS at that position -- a recurrence count across the cohort, NOT the number of distinct amino-acid substitution types (capped near 19-20 by definition; recurrence is not, since many different haplotypes can independently carry the same substitution). Color is the call's own `novelty_class` (protein_altering/synonymous/beyond_cds/undetermined) -- a true per-codon synonymous call was attempted and reverted after a real-data regression; see module docstring for exactly why (short version: real `cds_mut` amino-acid labels are multi-letter and occasionally-garbled, entries can be indel-consolidated across several residues, and some entries have no diff pair at all -- none of which the synthetic test fixture modeled).
+
+
+## Why the plot is mostly protein_altering (red)
+This is the real class balance, not a labeling bug: of resolved novel clusters cohort-wide (03_novel_alleles.py's report), 90.8% are `protein_altering`, 3.2% `synonymous`, 6.1% `beyond_cds`. A thin green sliver here is the correct picture, not evidence something is hidden.
 
 
 ## Top-5 hottest codons per gene
@@ -14,12 +18,12 @@ Methodology: scripts/hla_popgen/research/VIZ_LIT.md addendum (2026-09). Each ste
 | HLA-A | 6 | 19 | protein_altering |
 | HLA-B | 207 | 74 | protein_altering |
 | HLA-B | 14 | 58 | protein_altering |
-| HLA-B | 119 | 39 | protein_altering |
 | HLA-B | 6 | 29 | protein_altering |
-| HLA-B | 180 | 28 | protein_altering |
+| HLA-B | 71 | 27 | protein_altering |
+| HLA-B | 42 | 26 | protein_altering |
 | HLA-C | 44 | 39 | protein_altering |
 | HLA-C | 79 | 29 | protein_altering |
-| HLA-C | 72 | 28 | protein_altering |
+| HLA-C | 72 | 27 | protein_altering |
 | HLA-C | 86 | 26 | protein_altering |
 | HLA-C | 174 | 23 | protein_altering |
 | HLA-DPA1 | 117 | 35 | protein_altering |
