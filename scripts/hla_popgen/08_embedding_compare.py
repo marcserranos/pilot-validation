@@ -211,7 +211,12 @@ def plot_two_color(coords, index, ancestry_by_person, novel_carrier, xlabel, yla
                     out_path_prefix, var_note=""):
     """One embedding, two coloring panels side by side: ancestry, and novel-carrier status."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13.5, 6))
-    anc_labels = [ancestry_by_person.get(pid) for pid in index]
+    # ancestry_by_person values can be pd.NA (missing ancestry_pred, vc.normalize_ancestry) --
+    # `pd.NA == anc` returns pd.NA, not False, which makes `mask.any()` raise ("boolean value of
+    # NA is ambiguous") the moment any point has unknown ancestry. Coerce to plain str/None first
+    # so every comparison is a real bool.
+    anc_labels = [pid_anc if isinstance(pid_anc, str) else None
+                  for pid_anc in (ancestry_by_person.get(pid) for pid in index)]
     for anc in vc.ANCESTRY_ORDER:
         mask = np.array([l == anc for l in anc_labels])
         if not mask.any():
