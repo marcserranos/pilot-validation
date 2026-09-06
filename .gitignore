@@ -7,3 +7,4 @@ outputs/
 scripts/monitoring/.env
 scripts/monitoring/*.jsonl
 scripts/monitoring/client_state.json
+embedding_cache.pkl
