@@ -1,0 +1,9 @@
+pair	allele_group	diagnosis	n_carriers	n_diagnosed	n_both	n_cohort	OR_raw	OR_raw_lo	OR_raw_hi	p_fisher_raw	OR_ancestry_adjusted	p_CMH_ancestry_adjusted	n_ancestry_strata_used	significant_raw_p05	significant_bonferroni	significant_cmh_p05	significant_cmh_bonferroni
+B*27 / ank. spondylitis	B*27 (spondyloarthritis)	Ankylosing spondylitis (HLA-B27)	423	28	9	9355	10.2	4.59	22.68	2.3267580882896475e-06	9.5	4.3492454082638687e-10	6	True	True	True	True
+DQ2 / celiac	DQA1*05:01 / DQ2 (celiac)	Celiac disease (HLA-DQ2/DQ8)	1227	38	5	9355	1.0	0.39	2.58	1.0	0.92	0.9469156796641108	6	False	False	False	False
+DQ8 / T1D	DQB1*03:02 / DQ8 (T1D)	Type 1 diabetes (HLA-DR3/DR4)	1600	204	49	9355	1.55	1.12	2.15	0.010858336465755153	1.56	0.012749248379181233	6	True	False	True	False
+Cw6 / psoriasis	C*06:02 (psoriasis)	Psoriasis (HLA-Cw6)	1339	223	43	9355	1.44	1.03	2.02	0.04138532064655418	1.35	0.11279300966131045	6	True	False	False	False
+DRB1*04 / RA	DRB1*04 (rheumatoid arthritis)	Rheumatoid arthritis (HLA shared epitope)	100	253	6	9355	2.33	1.01	5.36	0.05357260561472427	2.06	0.15023787564146018	6	False	False	False	False
+DRB1*15:01 / MS	DRB1*15:01 (multiple sclerosis)	Multiple sclerosis (HLA-DRB1*15:01)	738	68	10	9355	2.03	1.03	3.98	0.06470365780487011	1.91	0.09518506242482494	6	False	False	False	False
+DQB1*06:02 / narcolepsy	DQB1*06:02 (narcolepsy)	Narcolepsy (HLA-DQB1*06:02)	1551	25	2	9355	0.44	0.1	1.85	0.41545465823475886	0.41	0.40550769229854744	6	False	False	False	False
+B*51 / Behcet	B*51 (Behcet's disease)	Behcet disease (HLA-B51)	766	6	2	9355	5.62	1.03	30.72	0.08049004061254746	4.4	0.20303348404068144	4	False	False	False	False
