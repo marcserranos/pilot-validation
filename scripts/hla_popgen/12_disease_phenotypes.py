@@ -167,6 +167,13 @@ def main():
       AND co.condition_concept_id != 0
     """
     cond = run_query(sql_cond, args.project)
+    # BigQuery returns person_id as int64 (the CDR's underlying column type); `ids` (from the
+    # embedding cache / cohort_membership.tsv) is str. Every downstream `matches.get(pid, ...)`
+    # lookup keyed off `ids` would silently miss without this cast -- confirmed as a real bug
+    # 2026-09: the wide multi-hot file came back all-False because of exactly this mismatch, while
+    # the single-label file happened to work because it round-trips through a TSV read back with
+    # dtype=str before ever being compared against `ids` again.
+    cond["person_id"] = cond["person_id"].astype(str)
     print(f"  {len(cond):,} condition rows for {cond['person_id'].nunique():,} people with "
           f">=1 condition on record.", file=sys.stderr)
 
@@ -199,10 +206,20 @@ def main():
         hit = set(matches.get(pid, []))
         wide_rows.append({"person_id": pid, **{lbl: (lbl in hit) for lbl in labels_all}})
     wide_df = pd.DataFrame(wide_rows)
+    wide_true_total = int(wide_df[labels_all].sum().sum())
+    # Sanity check against the exact incident this caught 2026-09 (a pid-type mismatch silently
+    # zeroed the whole wide file) -- n_any counted from `matches` directly, wide_true_total counted
+    # from the file about to be written; they must be equal (every match landed in exactly one
+    # wide-file cell) or something upstream of this file is broken again.
+    if wide_true_total != sum(len(v) for v in matches.values()):
+        die(f"Wide file has {wide_true_total} True cells but `matches` has "
+            f"{sum(len(v) for v in matches.values())} total matches -- a lookup/type mismatch "
+            f"dropped rows silently. Do not trust this file; fix before rerunning.")
     wide_path = os.path.join(args.outdir, "person_disease_labels_wide.tsv")
     wide_df.to_csv(wide_path, sep="\t", index=False)
     print(f"Wrote {wide_path!r} ({len(wide_df)} rows x {len(labels_all)} disease columns, "
-          f"person-level, VM-local, DO NOT COMMIT).", file=sys.stderr)
+          f"{wide_true_total} True cells matching `matches` exactly, person-level, VM-local, "
+          f"DO NOT COMMIT).", file=sys.stderr)
 
     # Aggregate, small-cell-suppressed -- safe to look at / eventually commit if wanted.
     counts = out_df["disease_label"].value_counts()
