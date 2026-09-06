@@ -188,6 +188,22 @@ def main():
     print(f"Wrote {person_path!r} ({len(out_df)} rows, person-level, VM-local, DO NOT COMMIT).",
           file=sys.stderr)
 
+    # Wide multi-hot file: one boolean column per disease, ALL matches kept independently -- a
+    # person diagnosed with both T1D and celiac counts toward BOTH tests. Needed for
+    # 13_disease_allele_association.py's per-disease carrier-rate comparison; the single-label
+    # file above (first match only) would silently under-count co-morbid people for every disease
+    # except their first-listed one. Also VM-local, never committed.
+    labels_all = [lbl for lbl, *_j in HLA_LINKED]
+    wide_rows = []
+    for pid in ids:
+        hit = set(matches.get(pid, []))
+        wide_rows.append({"person_id": pid, **{lbl: (lbl in hit) for lbl in labels_all}})
+    wide_df = pd.DataFrame(wide_rows)
+    wide_path = os.path.join(args.outdir, "person_disease_labels_wide.tsv")
+    wide_df.to_csv(wide_path, sep="\t", index=False)
+    print(f"Wrote {wide_path!r} ({len(wide_df)} rows x {len(labels_all)} disease columns, "
+          f"person-level, VM-local, DO NOT COMMIT).", file=sys.stderr)
+
     # Aggregate, small-cell-suppressed -- safe to look at / eventually commit if wanted.
     counts = out_df["disease_label"].value_counts()
     agg_rows = []
