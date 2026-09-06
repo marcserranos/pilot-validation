@@ -219,9 +219,30 @@ def build_collapsed_matrix(mat_full_columns, collapsed_idents, complete):
     return mat, n_dropped_slots, n_total_slots
 
 
+def load_real_disease_labels(path):
+    """Reads 12_disease_phenotypes.py's person_disease_labels.tsv (VM-local, per-person, real
+    EHR-confirmed diagnosis -- see that script's HLA_LINKED list, reused here verbatim for the
+    color/legend order so this is the SAME 8 disease definitions, not a re-derivation). Returns
+    ({pid: label_or_None}, {label: n}, n_multiple, label_order)."""
+    df = pd.read_csv(path, sep="\t", dtype={"person_id": str})
+    import importlib.util
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(
+        "hla_popgen_disease_phenotypes", os.path.join(here, "12_disease_phenotypes.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    label_order = [lbl for lbl, *_j in mod.HLA_LINKED]
+    labels = {row.person_id: row.disease_label for row in df.itertuples()
+              if isinstance(row.disease_label, str)}
+    n_multiple = int((df["n_matches"] > 1).sum())
+    counts = Counter(labels.values())
+    return labels, counts, n_multiple, label_order
+
+
 # ---------------------------------------------------------------------------
-# Disease-allele carrier labels -- computed directly from a dosage matrix's own columns, no need
-# to touch Table 1 again (works identically on mat_full or mat_collapsed).
+# Disease-allele carrier labels (PROXY, from allele identity -- see --real-disease-labels for the
+# non-proxy version) -- computed directly from a dosage matrix's own columns, no need to touch
+# Table 1 again (works identically on mat_full or mat_collapsed).
 # ---------------------------------------------------------------------------
 def disease_labels_from_matrix(mat):
     """Returns ({pid: group_label_or_None}, {group_label: n_carriers}, n_multiple)."""
@@ -320,7 +341,7 @@ class LockedEmbedding:
 # Plotting
 # ---------------------------------------------------------------------------
 def plot_panel(ax, coords, index, color_kind, ancestry_by_person=None, novel_frac=None,
-               disease_labels=None, title=""):
+               disease_labels=None, label_order=None, title=""):
     if coords is None:
         ax.text(0.5, 0.5, "umap-learn not installed", ha="center", va="center", fontsize=9,
                 color="#999999", transform=ax.transAxes)
@@ -341,13 +362,14 @@ def plot_panel(ax, coords, index, color_kind, ancestry_by_person=None, novel_fra
         sc = ax.scatter(coords[:, 0], coords[:, 1], s=6, alpha=0.6, c=vals, cmap="viridis",
                         vmin=0, vmax=1, edgecolors="none")
     elif color_kind == "disease":
+        label_order = label_order if label_order is not None else \
+            [lbl for lbl, *_j in DISEASE_ALLELE_GROUPS]
         labels = [disease_labels.get(pid) for pid in index]
         is_carrier = np.array([l is not None for l in labels])
         ax.scatter(coords[~is_carrier, 0], coords[~is_carrier, 1], s=5, alpha=0.25,
                    color=NONE_COLOR, edgecolors="none", zorder=1)
-        color_map = {lbl: DISEASE_COLORS[i % len(DISEASE_COLORS)]
-                     for i, (lbl, *_j) in enumerate(DISEASE_ALLELE_GROUPS)}
-        for lbl, _gene, _grp in DISEASE_ALLELE_GROUPS:
+        color_map = {lbl: DISEASE_COLORS[i % len(DISEASE_COLORS)] for i, lbl in enumerate(label_order)}
+        for lbl in label_order:
             mask = np.array([l == lbl for l in labels])
             if mask.any():
                 ax.scatter(coords[mask, 0], coords[mask, 1], s=16, alpha=0.9,
@@ -451,28 +473,34 @@ def build_sanity_check_figure(full_raw, full_pca, coll_raw_indep, coll_pca_indep
 
 
 def build_disease_figure(coords_full_raw, coords_full_pca, index_full, disease_labels, counts,
-                         n_multiple, out_dir, suffix):
+                         n_multiple, out_dir, suffix, label_order=None, source_note="HLA-disease-"
+                         "allele carrier status", filename="disease_alleles"):
+    """label_order: ordered list of label strings (defaults to DISEASE_ALLELE_GROUPS' own labels
+    for the allele-proxy coloring). Pass the real HLA_LINKED label order + a note saying so when
+    coloring by actual EHR diagnosis instead -- see 12_disease_phenotypes.py."""
+    label_order = label_order if label_order is not None else \
+        [lbl for lbl, *_j in DISEASE_ALLELE_GROUPS]
     dis_dir = os.path.join(out_dir, "disease")
     os.makedirs(dis_dir, exist_ok=True)
-    present = [(lbl, gene, grp) for lbl, gene, grp in DISEASE_ALLELE_GROUPS if counts.get(lbl, 0) > 0]
+    present = [lbl for lbl in label_order if counts.get(lbl, 0) > 0]
     fig, axes = plt.subplots(1, 2, figsize=(15, 7))
     for ax, coords, sub in [(axes[0], coords_full_raw, "raw UMAP"),
                             (axes[1], coords_full_pca, "PCA-denoised UMAP")]:
         plot_panel(ax, coords, index_full, "disease", disease_labels=disease_labels,
-                  title=f"full_enriched, {sub}, colored by HLA-disease-allele carrier status")
-    color_map = {lbl: DISEASE_COLORS[i % len(DISEASE_COLORS)]
-                 for i, (lbl, *_j) in enumerate(DISEASE_ALLELE_GROUPS)}
+                  label_order=label_order,
+                  title=f"full_enriched, {sub}, colored by {source_note}")
+    color_map = {lbl: DISEASE_COLORS[i % len(DISEASE_COLORS)] for i, lbl in enumerate(label_order)}
     handles = [plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=NONE_COLOR,
                           markersize=7, label=f"none of these ({len(index_full) - sum(counts.values())})")]
-    for lbl, _gene, _grp in present:
+    for lbl in present:
         handles.append(plt.Line2D([0], [0], marker="o", color="none",
                                   markerfacecolor=color_map[lbl], markersize=8,
                                   label=f"{lbl} (n={counts[lbl]})"))
     fig.legend(handles=handles, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.25),
               frameon=False, fontsize=8)
-    fig.suptitle(f"Do carriers of well-known HLA-disease alleles cluster? ({n_multiple} people "
-                "matched >1 group, shown by their first match)", y=1.03, fontsize=11)
-    path = os.path.join(dis_dir, f"disease_alleles{suffix}.png")
+    fig.suptitle(f"Colored by {source_note} ({n_multiple} people matched >1 group, shown by "
+                "their first match)", y=1.03, fontsize=11)
+    path = os.path.join(dis_dir, f"{filename}{suffix}.png")
     fig.savefig(path, dpi=130, bbox_inches="tight")
     plt.close(fig)
     print(f"  wrote {path}", file=sys.stderr)
@@ -591,7 +619,13 @@ def main():
                     help="Also fit collapsed_nearest_ref and known_only INDEPENDENTLY (not "
                          "projected) and compare -- see module docstring.")
     ap.add_argument("--disease-alleles", action="store_true",
-                    help="Also color full_enriched by curated HLA-disease-allele carrier status.")
+                    help="Also color full_enriched by curated HLA-disease-allele carrier status "
+                         "(a proxy -- close to tautological on an allele-identity embedding).")
+    ap.add_argument("--real-disease-labels", default=None,
+                    help="Path to 12_disease_phenotypes.py's person_disease_labels.tsv (real "
+                         "EHR-confirmed diagnosis, not an allele proxy) -- VM-local, per-person, "
+                         "never commit this file's contents. Implies --disease-alleles's figure "
+                         "output but colors by actual diagnosis instead.")
     ap.add_argument("--from-cache", action="store_true",
                     help="Skip loading Table 1 / fitting entirely; rebuild figures from "
                          "<out-dir>/embedding_cache.pkl (written by a prior non-cached run).")
@@ -757,7 +791,28 @@ def main():
                       f"fits also resemble full_enriched, the locked-mapping similarity is real, "
                       f"not a projection artifact.\n")
 
-    if args.disease_alleles:
+    if args.real_disease_labels:
+        print(f"Loading REAL diagnosis labels from {args.real_disease_labels!r} ...",
+              file=sys.stderr)
+        disease_labels, counts, n_multiple, label_order = load_real_disease_labels(
+            args.real_disease_labels)
+        dis_path, present = build_disease_figure(
+            coords_by_cell[("full_enriched", "raw_ancestry")],
+            coords_by_cell[("full_enriched", "pca_ancestry")],
+            index_by_col["full_enriched"], disease_labels, counts, n_multiple, out_dir, suffix,
+            label_order=label_order, source_note="ACTUAL EHR-confirmed diagnosis (not an allele "
+            "proxy)", filename="disease_real_diagnosis")
+        report.append(f"\n## Real EHR-confirmed disease diagnosis coloring\n"
+                      f"Actual diagnosis, not allele-carrier proxy -- see "
+                      f"`scripts/hla_popgen/12_disease_phenotypes.py`'s `HLA_LINKED` list "
+                      f"(reused verbatim from `origin/aleix/hla-resolve-phase1`'s "
+                      f"`deep_immune_breakdown.py`, ICD-10-3char + SNOMED-substring definitions). "
+                      f"{sum(counts.values())} of {len(index_by_col['full_enriched'])} people "
+                      f"matched >=1 disease definition ({n_multiple} matched more than one, shown "
+                      f"by first match). Figure: `{dis_path}`\n\n| disease | n people |\n|---|---|\n")
+        for lbl in label_order:
+            report.append(f"| {lbl} | {counts.get(lbl, 0)} |")
+    elif args.disease_alleles:
         # Rebuild from the cache's raw arrays directly (works whether or not we just fit this run
         # -- the cache was written above either way -- disease_labels_from_matrix only needs a
         # DataFrame with the right columns).
@@ -770,7 +825,8 @@ def main():
             coords_by_cell[("full_enriched", "raw_ancestry")],
             coords_by_cell[("full_enriched", "pca_ancestry")],
             index_by_col["full_enriched"], disease_labels, counts, n_multiple, out_dir, suffix)
-        report.append(f"\n## HLA-disease-allele carrier coloring\n"
+        report.append(f"\n## HLA-disease-allele carrier coloring (PROXY -- see "
+                      f"--real-disease-labels for actual diagnosis)\n"
                       f"Curated, exploratory list ({len(DISEASE_ALLELE_GROUPS)} groups) -- see "
                       f"`DISEASE_ALLELE_GROUPS` in the script for caveats. "
                       f"{sum(counts.values())} people matched at least one group "
