@@ -14,7 +14,9 @@ Implements VIZ_LIT.md 1.6, 1.7, and Part 2 (the continuous-ancestry differentiat
   4. Ternary plot of a 3-component admixture subset (renormalized), colored by carrier status
      (VIZ_LIT.md 1.4/2.4).
   5. ADMIXTURE-style stacked "barcode" plot of the full continuous 6-way probabilities
-     (VIZ_LIT.md 1.5), downsampled above 5,000 people per its own stated failure mode.
+     (VIZ_LIT.md 1.5), downsampled above 5,000 people per its own stated failure mode by default
+     (override with --admixture-max-people; --barcode-only skips every other figure in this
+     script, for cheaply re-running just this one against a large cohort like sr).
 
 Encoding choice for PCA/UMAP mirrors cluster_hla_by_ancestry.py exactly (2-field allele-dosage,
 complete 8-classical-gene cases only, unordered hap1/hap2, no imputation) so this script
@@ -377,6 +379,15 @@ def main():
                      help="Comma-separated pair of ancestries for the 2D continuum scatter plane.")
     ap.add_argument("--ternary-ancestries", default="AFR,EUR,AMR",
                      help="Comma-separated triple of ancestries for the ternary plot.")
+    ap.add_argument("--admixture-max-people", type=int, default=5000,
+                     help="Downsample cap for the admixture barcode plot (VIZ_LIT.md 1.5's own "
+                          "documented overplotting threshold). Pass a number >= cohort size "
+                          "(e.g. a large value like 20000) to plot every person with no "
+                          "downsampling.")
+    ap.add_argument("--barcode-only", action="store_true",
+                     help="Skip PCA/UMAP, Fst, and the continuum/ternary figures -- produce only "
+                          "the admixture barcode. Use this for large cohorts (e.g. --cohort sr, "
+                          "~500K people) where the other figures are expensive and not wanted.")
     args = ap.parse_args()
 
     cohort_df = vc.load_cohort_membership(
@@ -391,6 +402,14 @@ def main():
     report = [f"# Population-structure figures -- cohort `{cohort_label}`\n",
               f"N people (cohort membership) = {len(cohort_people)}.\n"]
     fig_paths = []
+
+    if args.barcode_only:
+        barcode_path = os.path.join(out_dir, "admixture_barcode.png")
+        plot_admixture_barcode(cohort_people, barcode_path, max_people=args.admixture_max_people,
+                                seed=args.seed)
+        report.append(f"\n## Figures (barcode-only run)\n- `{barcode_path}`")
+        vc.write_report(os.path.join(out_dir, "structure_report.md"), report)
+        return
 
     # ---- 1. PCA / UMAP on allele dosage --------------------------------------------------
     print("Building allele-dosage matrix (complete 8-gene cases only)...", file=sys.stderr)
@@ -466,7 +485,8 @@ def main():
         report.append(f"\nSkipped continuum/ternary figures: no calls for gene {gene}.\n")
 
     barcode_path = os.path.join(out_dir, "admixture_barcode.png")
-    plot_admixture_barcode(cohort_people, barcode_path, seed=args.seed)
+    plot_admixture_barcode(cohort_people, barcode_path, max_people=args.admixture_max_people,
+                            seed=args.seed)
     fig_paths.append(barcode_path)
 
     report.append("\n## Figures\n")
