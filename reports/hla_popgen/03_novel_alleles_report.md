@@ -45,6 +45,19 @@ Headline counts below cover only clusters with a RESOLVED gene-level identity (`
 (Total clusters across both categories: 21538.)
 
 
+## Confidence tiers (singleton-inclusive read, 2026-09 discovery-certainty review)
+The `passes_qc` gate above requires recurrence in >=2 unrelated people, on the conservative assumption that a singleton could be an unreproducible assembly artifact. Per the literature review in NOVEL_LIT.md's addendum (HiFi/ONT phased-consensus long reads are high-fidelity -- QV30-50 -- and the dominant real artifact class, homopolymer indels, is independently flagged already), a clean singleton is better read as a real but *unconfirmed* discovery, not noise by default. `confidence_tier` keeps the artifact flags as a hard cap regardless of recurrence, but no longer excludes clean singletons outright:
+
+| confidence_tier | n clusters | meaning |
+|---|---|---|
+| high | 904 | recurrent in >=3 unrelated people, clean |
+| recurrent | 292 | recurrent in exactly 2 unrelated people, clean |
+| singleton_clean | 2797 | seen in exactly 1 person, but not homopolymer/disqualified -- real, unconfirmed |
+| flagged_artifact | 17545 | homopolymer-indel-only OR disqualifying template_warning, REGARDLESS of recurrence |
+
+**Singleton-inclusive novel-allele count (`passes_qc_singleton_ok`): 3993** (vs. 1190 under the strict recurrence-only gate) -- adds 2797 clean singletons back in as real-but-unconfirmed discoveries. `both_haps_one_person` (same-person hap1+hap2 co-occurrence) is recorded per cluster as a weak secondary consistency signal only -- it is NOT used to promote a tier on its own, since it cannot rule out a systematic per-person assembly artifact.
+
+
 ## Synonymous vs non-synonymous breakdown (`novelty_class`, resolved only)
 
 | novelty_class | n clusters | % |
