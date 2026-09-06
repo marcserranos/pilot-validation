@@ -74,6 +74,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
+try:
+    from scipy.optimize import curve_fit
+    HAVE_SCIPY_OPT = True
+except ImportError:
+    HAVE_SCIPY_OPT = False
+
 # Person-id directories live under people/, not directly at the top level -- see 03_novel_alleles.py's
 # identical note (~12,000 top-level entries breaks the Jupyter file browser, RUNBOOK.md has the fix).
 DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
@@ -180,6 +186,84 @@ def chao2_extrapolate(S_obs, Q, m, t):
     if f0_hat <= 0 or Q1 == 0:
         return float(S_obs)
     return S_obs + f0_hat * (1 - (1 - Q1 / (m * f0_hat + Q1)) ** (t - m))
+
+
+
+# ---------------------------------------------------------------------------
+# Discovery-rate curve fitting -- a SECOND, complementary asymptotic-richness estimator alongside
+# Chao2/ACE, per the 2026-09 discovery-rate-convergence literature review (NOVEL_LIT.md addendum):
+# Efron & Thisted (1976) and the ecology accumulation-curve literature (Clench 1979; Colwell et al.
+# 2012) both connect the SHAPE of the whole rarefaction curve S(N) -- not just Q1/Q2 at one point --
+# to an asymptotic total S_max. Chao2 uses only the two lowest-order rarity counts (Q1, Q2); a
+# saturating-curve fit uses the entire accumulation trajectory already computed by
+# rarefaction_curve() above, and is a genuinely different estimator with a different bias direction
+# (see module docstring "HLA-specific caveats" in the report text), not a re-derivation of Chao2 --
+# report both, never silently prefer one.
+#
+# Clench (1979) / Michaelis-Menten form: S(N) = S_max * N / (b + N). Its derivative,
+# dS/dN = S_max*b / (b+N)^2, is the closed-form "marginal discovery rate" -- the instantaneous
+# analogue of the Good-Turing Q1/N statistic -- and integrates cleanly:
+#   integral_{N0}^{inf} dS/dN dN = S_max*b/(b+N0) = S_max - S(N0)
+# i.e. "the number of alleles still out there" is EXACTLY the area under the fitted discovery-rate
+# curve from today's sample size to infinity. This closed-form identity is why Clench is used here
+# rather than an arbitrary saturating family -- the "integrate the rate to get the total" intuition
+# a curve-fit family should make literal, not just plausible.
+# ---------------------------------------------------------------------------
+def clench_curve(n, s_max, b):
+    return s_max * n / (b + n)
+
+
+def clench_rate(n, s_max, b):
+    """dS/dN for the Clench curve -- the closed-form marginal discovery rate."""
+    return s_max * b / (b + n) ** 2
+
+
+def fit_clench_asymptote(steps, mean, lo, hi):
+    """Fit the Clench/Michaelis-Menten saturating curve to an empirical (permutation-averaged)
+    rarefaction curve. Returns a dict with the point estimate plus a CURVE-BASED bracket (refit on
+    the curve's own 2.5/97.5 percentile bands, NOT a proper resample-and-refit bootstrap -- cheap
+    and reuses bands already computed, but report it as a sensitivity bracket, not a calibrated CI).
+    Returns all-NaN if scipy is unavailable or the fit doesn't converge (fails toward reporting
+    nothing rather than a silently wrong asymptote)."""
+    out = {"s_max": np.nan, "b": np.nan, "s_max_lo": np.nan, "s_max_hi": np.nan, "fit_ok": False}
+    if not HAVE_SCIPY_OPT or len(steps) < 10:
+        return out
+    n_last, s_last = float(steps[-1]), float(mean[-1])
+
+    def _fit(y):
+        try:
+            popt, _ = curve_fit(
+                clench_curve, steps.astype(float), y.astype(float),
+                p0=[max(2 * s_last, s_last + 1), n_last],
+                bounds=([s_last, 1e-6], [np.inf, np.inf]), maxfev=10000)
+            return float(popt[0]), float(popt[1])
+        except Exception:
+            return None
+    fit = _fit(mean)
+    if fit is None:
+        return out
+    out["s_max"], out["b"] = fit
+    out["fit_ok"] = True
+    fit_lo = _fit(lo)  # curve fit to the LOWER band -> a smaller/comparable S_max bracket edge
+    fit_hi = _fit(hi)  # curve fit to the UPPER band -> a larger S_max bracket edge
+    edges = [f[0] for f in (fit_lo, fit_hi) if f is not None]
+    if edges:
+        out["s_max_lo"], out["s_max_hi"] = min(edges + [out["s_max"]]), max(edges + [out["s_max"]])
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Full frequency-of-frequency spectrum (Q_k for every k, not just Q1/Q2) -- "how the counts
+# progress" (1x, 2x, 3x, ... occurrence classes), the direct empirical object both Chao2 and the
+# Clench fit are summaries of.
+# ---------------------------------------------------------------------------
+def frequency_spectrum_rows(gene, category, ancestry, Q, S_obs):
+    rows = []
+    for k in sorted(Q):
+        rows.append({"gene": gene, "category": category, "ancestry": ancestry,
+                     "occurrence_k": k, "n_alleles": Q[k],
+                     "share_of_S_obs": round(Q[k] / S_obs, 4) if S_obs else np.nan})
+    return rows
 
 
 def ewens_watterson_expected_k(theta, n):
@@ -316,10 +400,11 @@ def build_unit_sets(table1_ident, ancestry_by_person, gene, ancestry, category):
 # ---------------------------------------------------------------------------
 def analyze(table1_ident, ancestry_by_person, genes, n_bootstrap, n_permutations):
     """Returns (richness_df, extrapolation_df, curves: {(gene,category,ancestry): (steps,mean,lo,hi)},
-    neutral_df)."""
+    neutral_df, spectrum_df, discovery_fit_df)."""
     richness_rows = []
     extrap_rows = []
     neutral_rows = []
+    spectrum_rows = []
     curves = {}
 
     groups = ANCESTRY_ORDER + [None]  # None = pooled
@@ -333,6 +418,7 @@ def analyze(table1_ident, ancestry_by_person, genes, n_bootstrap, n_permutations
                 if m == 0:
                     continue
                 S_obs, m, Q = incidence_freqs(unit_sets)
+                spectrum_rows.extend(frequency_spectrum_rows(gene, category, anc_label, Q, S_obs))
 
                 c2 = chao2(S_obs, Q, m)
                 c2_lo, c2_hi = bootstrap_ci(unit_sets, chao2, n_bootstrap=n_bootstrap, seed=hash(
@@ -438,8 +524,38 @@ def analyze(table1_ident, ancestry_by_person, genes, n_bootstrap, n_permutations
                         unit_sets, n_permutations=n_permutations,
                         seed=hash((gene, category, anc_label)) % (2 ** 31))
 
+    # Discovery-rate curve fits (Clench asymptote): classical genes, 'novel' category only,
+    # pooled + every ancestry -- reuses the rarefaction curves just computed above, no extra
+    # permutation work. See fit_clench_asymptote()'s docstring for why this is a genuinely
+    # complementary estimator to Chao2, not a re-derivation of it.
+    discovery_fit_rows = []
+    for gene in CLASSICAL_GENES:
+        if gene not in genes:
+            continue
+        for anc_label in ANCESTRY_ORDER + ["POOLED"]:
+            key = (gene, "novel", anc_label)
+            if key not in curves:
+                continue
+            steps, mean, lo, hi = curves[key]
+            if len(steps) < 10:
+                continue
+            fit = fit_clench_asymptote(steps, mean, lo, hi)
+            s_obs_now = float(mean[-1])
+            discovery_fit_rows.append({
+                "gene": gene, "ancestry": anc_label, "n_haplotypes_observed": int(steps[-1]),
+                "S_obs_now": s_obs_now, "clench_s_max": round(fit["s_max"], 2),
+                "clench_s_max_bracket_lo": round(fit["s_max_lo"], 2) if fit["fit_ok"] else None,
+                "clench_s_max_bracket_hi": round(fit["s_max_hi"], 2) if fit["fit_ok"] else None,
+                "clench_b": round(fit["b"], 2) if fit["fit_ok"] else None,
+                "pct_discovered_clench": round(100 * s_obs_now / fit["s_max"], 1)
+                    if fit["fit_ok"] and fit["s_max"] > 0 else None,
+                "additional_alleles_projected_infinite_sampling":
+                    round(fit["s_max"] - s_obs_now, 1) if fit["fit_ok"] else None,
+                "fit_ok": fit["fit_ok"],
+            })
+
     return (pd.DataFrame(richness_rows), pd.DataFrame(extrap_rows), curves,
-            pd.DataFrame(neutral_rows))
+            pd.DataFrame(neutral_rows), pd.DataFrame(spectrum_rows), pd.DataFrame(discovery_fit_rows))
 
 
 # ---------------------------------------------------------------------------
@@ -487,6 +603,83 @@ def plot_discovery_curves(curves, genes, category, out_path, title_suffix):
     plt.close(fig)
 
 
+def plot_discovery_rate_convergence(curves, discovery_fit_df, genes, out_path):
+    """The 'how does the rate of discovery progress, and where does it converge' figure: empirical
+    pooled rarefaction curve (solid) + fitted Clench asymptote (dashed, extrapolated to 3x the
+    observed sample size), with the fitted S_max drawn as a horizontal reference line. This is the
+    curve-fit answer to Chao2's point estimate -- see fit_clench_asymptote()'s docstring for the
+    exact sense in which it's a genuinely different (not redundant) estimator."""
+    fig, axes = plt.subplots(2, 4, figsize=(20, 9))
+    fit_by_gene = {r["gene"]: r for _, r in discovery_fit_df.iterrows()} if len(
+        discovery_fit_df) else {}
+    for ax, gene in zip(axes.flat, genes):
+        key = (gene, "novel", "POOLED")
+        if key not in curves:
+            ax.axis("off")
+            continue
+        steps, mean, lo, hi = curves[key]
+        if len(steps) == 0:
+            ax.axis("off")
+            continue
+        ax.plot(steps, mean, color="#333333", lw=2, label="observed (pooled)")
+        ax.fill_between(steps, lo, hi, color="#333333", alpha=0.12)
+        fit_row = fit_by_gene.get(gene)
+        if fit_row is not None and fit_row.get("fit_ok"):
+            s_max, b = fit_row["clench_s_max"], fit_row["clench_b"]
+            n_ext = np.linspace(1, steps[-1] * 3, 200)
+            ax.plot(n_ext, clench_curve(n_ext, s_max, b), color="#C44E52", lw=1.6, ls="--",
+                    label=f"Clench fit (S_max={s_max:.0f})")
+            ax.axhline(s_max, color="#C44E52", lw=0.8, ls=":")
+            pct = fit_row.get("pct_discovered_clench")
+            if pct is not None and pct == pct:
+                ax.annotate(f"{pct:.0f}% discovered", xy=(steps[-1], mean[-1]),
+                            fontsize=8, color="#C44E52", xytext=(4, 4),
+                            textcoords="offset points")
+        ax.set_title(gene, fontsize=11)
+        ax.set_xlabel("Haplotypes sampled (dashed = extrapolated)", fontsize=7.5)
+        ax.set_ylabel("Distinct novel alleles", fontsize=8)
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.legend(fontsize=6.5, frameon=False, loc="upper left")
+    fig.suptitle("Discovery-rate convergence: observed curve + Clench-fitted asymptote, "
+                  "novel alleles, classical genes (pooled)", y=1.05, fontsize=13)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_frequency_spectrum_counts(spectrum_df, genes, category, out_path, title_suffix):
+    """The 'how do the counts progress -- 1x vs 2x vs 3x ...' figure: a count-of-counts bar chart
+    per gene (pooled), i.e. the raw frequency-of-frequency spectrum Chao2/Clench are both summaries
+    of. Bars beyond 6 are pooled into a '7-10' / '11+' bucket to keep the axis readable."""
+    fig, axes = plt.subplots(2, 4, figsize=(20, 8))
+    sub_all = spectrum_df[(spectrum_df["category"] == category) &
+                           (spectrum_df["ancestry"] == "POOLED")]
+    for ax, gene in zip(axes.flat, genes):
+        sub = sub_all[sub_all["gene"] == gene]
+        if not len(sub):
+            ax.axis("off")
+            continue
+        buckets = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7-10": 0, "11+": 0}
+        for k, n in zip(sub["occurrence_k"], sub["n_alleles"]):
+            key = str(k) if k <= 6 else ("7-10" if k <= 10 else "11+")
+            buckets[key] += int(n)
+        labels = list(buckets.keys())
+        vals = [buckets[l] for l in labels]
+        ax.bar(labels, vals, color="#4C72B0")
+        ax.set_title(gene, fontsize=11)
+        ax.set_xlabel("Seen in exactly N haplotypes", fontsize=7.5)
+        ax.set_ylabel("N distinct alleles", fontsize=8)
+        ax.spines[["top", "right"]].set_visible(False)
+        for i, v in enumerate(vals):
+            if v > 0:
+                ax.annotate(str(v), (i, v), ha="center", va="bottom", fontsize=7)
+    fig.suptitle(f"Frequency-of-frequency spectrum -- {title_suffix}", y=1.03, fontsize=13)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+
+
 # ---------------------------------------------------------------------------
 # I/O
 # ---------------------------------------------------------------------------
@@ -505,7 +698,8 @@ def load_ancestry(path):
     return dict(zip(df["person_id"], df["ancestry_pred"]))
 
 
-def write_report(md_path, richness_df, extrap_df, neutral_df, fig_paths, is_sample=False):
+def write_report(md_path, richness_df, extrap_df, neutral_df, discovery_fit_df, fig_paths,
+                  is_sample=False):
     md = []
     md.append("# Allele-space saturation analysis (`04_allele_saturation.py`)\n")
     md.append(
@@ -571,6 +765,41 @@ def write_report(md_path, richness_df, extrap_df, neutral_df, fig_paths, is_samp
             "holds up or doesn't against the data actually loaded.\n"
         )
 
+    md.append(
+        "\n## Ancestry discovery-rate, singleton-inclusive (novel alleles, classical genes)\n"
+        "`S_obs` already counts every distinct novel allele seen at least once, singleton or not -- "
+        "what changes under a singleton-inclusive reading (see 03_novel_alleles.py's "
+        "`confidence_tier`) is only which of those are called 'reportable'. `singleton_share` here "
+        "is a different, useful number: of everything a given ancestry HAS found, how much is still "
+        "only seen once (i.e. how provisional/still-emerging that ancestry's discovered set is) -- "
+        "and `good_turing_p_next_new` (`Q1/N`) is the probability the very next haplotype from that "
+        "ancestry reveals something never seen before, in that ancestry.\n"
+    )
+    novel_strat = richness_df[(richness_df["category"] == "novel") &
+                               (richness_df["gene"].isin(CLASSICAL_GENES)) &
+                               (richness_df["ancestry"] != "POOLED")].copy()
+    if len(novel_strat):
+        novel_strat["singleton_share"] = novel_strat["Q1_uniques"] / novel_strat["S_obs"]
+        novel_strat["good_turing_p_next_new"] = novel_strat["Q1_uniques"] / novel_strat[
+            "n_haplotypes"]
+        agg = novel_strat.groupby("ancestry").agg(
+            n_haplotypes=("n_haplotypes", "sum"), S_obs=("S_obs", "sum"),
+            Q1=("Q1_uniques", "sum")).reset_index()
+        agg["singleton_share"] = agg["Q1"] / agg["S_obs"]
+        agg["good_turing_p_next_new"] = agg["Q1"] / agg["n_haplotypes"]
+        agg = agg.sort_values("good_turing_p_next_new", ascending=False)
+        md.append("| ancestry | n_haplotypes (summed, 8 genes) | S_obs (summed) | singleton share |"
+                   " p(next haplotype = new) |")
+        md.append("|---|---|---|---|---|")
+        for _, r in agg.iterrows():
+            md.append(f"| {r['ancestry']} | {int(r['n_haplotypes'])} | {int(r['S_obs'])} | "
+                       f"{100*r['singleton_share']:.1f}% | {100*r['good_turing_p_next_new']:.1f}% |")
+        md.append(
+            "\nPer-gene breakdown (not summed) in `allele_richness.tsv` "
+            "(`singleton_share`/`good_turing_p_next_new` are derivable there as "
+            "`Q1_uniques/S_obs` and `Q1_uniques/n_haplotypes` respectively, per gene x ancestry).\n"
+        )
+
     md.append("\n## Extrapolation: projected additional novel alleles at 2x/5x/10x cohort size "
                "(pooled, classical genes)\n")
     ex = extrap_df[(extrap_df["category"] == "novel") & (extrap_df["gene"].isin(CLASSICAL_GENES)) &
@@ -599,6 +828,46 @@ def write_report(md_path, richness_df, extrap_df, neutral_df, fig_paths, is_samp
         for _, r in nd.iterrows():
             md.append(f"| {r['gene']} | {r['S_obs']} | {r['watterson_theta']} | "
                        f"{r['neutral_additional_at_2x']} | {r['chao2_estimated_total'] - r['S_obs']:.1f} |")
+
+    md.append(
+        "\n## Discovery-rate convergence: a second, curve-based richness estimate\n"
+        "Chao2 above uses only Q1/Q2 (the two lowest rarity classes) at the CURRENT sample size. "
+        "This section instead fits the Clench/Michaelis-Menten saturating curve "
+        "`S(N) = S_max * N / (b + N)` to the ENTIRE observed rarefaction trajectory (novel alleles, "
+        "classical genes) and reads off its asymptote `S_max` directly -- a genuinely different "
+        "estimator (uses the curve's shape, not just two rarity counts), reported alongside Chao2 "
+        "rather than in place of it, since the two can disagree and that disagreement is itself "
+        "informative. The Clench form is used specifically because its rate of discovery, "
+        "`dS/dN = S_max*b/(b+N)^2`, integrates in closed form: the number of alleles still "
+        "undiscovered at sample size N is EXACTLY the area under that rate curve from N to "
+        "infinity, `S_max - S(N)` -- i.e. 'integrating the discovery rate to get the total space "
+        "size' is not just an intuition here, it's the identity this fit is built on. "
+        "`clench_s_max_bracket_lo/hi` is a curve refit on the rarefaction curve's own 2.5/97.5 "
+        "percentile bands, NOT a calibrated resample-and-refit bootstrap -- read it as a "
+        "sensitivity range, not a formal CI.\n"
+    )
+    if len(discovery_fit_df):
+        pooled_fit = discovery_fit_df[discovery_fit_df["ancestry"] == "POOLED"].sort_values("gene")
+        md.append("| gene | N sampled | S_obs now | Clench S_max (bracket) | % discovered (Clench) |"
+                   " additional @ infinite sampling |")
+        md.append("|---|---|---|---|---|---|")
+        for _, r in pooled_fit.iterrows():
+            if not r["fit_ok"]:
+                md.append(f"| {r['gene']} | {r['n_haplotypes_observed']} | {r['S_obs_now']:.0f} | "
+                           f"fit did not converge | -- | -- |")
+                continue
+            md.append(f"| {r['gene']} | {r['n_haplotypes_observed']} | {r['S_obs_now']:.0f} | "
+                       f"{r['clench_s_max']:.0f} ({r['clench_s_max_bracket_lo']:.0f}-"
+                       f"{r['clench_s_max_bracket_hi']:.0f}) | {r['pct_discovered_clench']}% | "
+                       f"{r['additional_alleles_projected_infinite_sampling']:.0f} |")
+        md.append(
+            "\nCompare this table's `% discovered (Clench)` against the Chao2-based headline table "
+            "above -- material disagreement between the two estimators on the same gene is a "
+            "signal worth investigating (e.g. a gene where the rarefaction curve hasn't started "
+            "bending yet will push Clench's S_max toward implausibly large values; a gene with "
+            "Q2=0 will make Chao2 unstable instead). Full ancestry-stratified fits: "
+            "`discovery_rate_fits.tsv`.\n"
+        )
 
     if is_sample:
         md.append(
@@ -688,15 +957,19 @@ def main():
 
     print(f"Analyzing {len(genes)} genes x {len(CATEGORIES)} categories x "
           f"{len(ANCESTRY_ORDER) + 1} ancestry groups ...", file=sys.stderr)
-    richness_df, extrap_df, curves, neutral_df = analyze(
+    richness_df, extrap_df, curves, neutral_df, spectrum_df, discovery_fit_df = analyze(
         table1_ident, ancestry_by_person, genes, args.n_bootstrap, args.n_permutations)
 
     richness_path = os.path.join(out_dir, f"allele_richness{suffix}.tsv")
     extrap_path = os.path.join(out_dir, f"allele_extrapolation{suffix}.tsv")
     neutral_path = os.path.join(out_dir, f"neutral_model_comparison{suffix}.tsv")
+    spectrum_path = os.path.join(out_dir, f"frequency_spectrum{suffix}.tsv")
+    discovery_fit_path = os.path.join(out_dir, f"discovery_rate_fits{suffix}.tsv")
     richness_df.to_csv(richness_path, sep="\t", index=False)
     extrap_df.to_csv(extrap_path, sep="\t", index=False)
     neutral_df.to_csv(neutral_path, sep="\t", index=False)
+    spectrum_df.to_csv(spectrum_path, sep="\t", index=False)
+    discovery_fit_df.to_csv(discovery_fit_path, sep="\t", index=False)
 
     fig_paths = []
     for category in ["novel", "all"]:
@@ -705,12 +978,26 @@ def main():
                                f"{category} alleles, classical genes")
         fig_paths.append(fig_path)
 
+    rate_fig_path = os.path.join(out_dir, f"discovery_rate_convergence{suffix}.png")
+    plot_discovery_rate_convergence(curves, discovery_fit_df, CLASSICAL_GENES, rate_fig_path)
+    fig_paths.append(rate_fig_path)
+
+    for category in ["novel", "known", "all"]:
+        spec_fig_path = os.path.join(out_dir, f"frequency_spectrum_{category}{suffix}.png")
+        plot_frequency_spectrum_counts(spectrum_df, CLASSICAL_GENES, category, spec_fig_path,
+                                        f"{category} alleles, classical genes")
+        fig_paths.append(spec_fig_path)
+
     md_path = os.path.join(out_dir, f"04_allele_saturation_report{suffix}.md")
-    write_report(md_path, richness_df, extrap_df, neutral_df, fig_paths, is_sample=args.sample)
+    write_report(md_path, richness_df, extrap_df, neutral_df, discovery_fit_df, fig_paths,
+                 is_sample=args.sample)
 
     print(f"\nWrote {len(richness_df)} richness rows to {richness_path!r}", file=sys.stderr)
     print(f"Wrote {len(extrap_df)} extrapolation rows to {extrap_path!r}", file=sys.stderr)
     print(f"Wrote {len(neutral_df)} neutral-comparison rows to {neutral_path!r}", file=sys.stderr)
+    print(f"Wrote {len(spectrum_df)} frequency-spectrum rows to {spectrum_path!r}", file=sys.stderr)
+    print(f"Wrote {len(discovery_fit_df)} discovery-rate-fit rows to {discovery_fit_path!r}",
+          file=sys.stderr)
     print(f"Wrote {len(fig_paths)} figures + report to {out_dir!r}", file=sys.stderr)
 
 

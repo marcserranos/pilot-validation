@@ -364,7 +364,39 @@ def build_table3(matched_rows, ancestry_by_person, disqualifying_warnings=DEFAUL
                 ancestry_counts[anc] += 1
 
         n_persons = len(persons)
+        # both_haps_one_person: at least one carrier has this exact novel_id on BOTH their haps --
+        # a same-person hap1/hap2 co-occurrence (apparent homozygosity). Per NOVEL_LIT.md follow-up
+        # research (2026-09 discovery-certainty review): this is a real but WEAK secondary signal --
+        # it argues against a single-read/single-haplotype error, but does not rule out a systematic
+        # assembly/reference-context artifact private to that one person's contig, so it is a
+        # tiebreaker, never an independent promotion criterion on its own.
+        haps_by_person = defaultdict(set)
+        for pid, hap in haps:
+            haps_by_person[pid].add(hap)
+        both_haps_one_person = any(len(hs) >= 2 for hs in haps_by_person.values())
+
         passes_qc = (n_persons >= 2) and (not any_disqualifying_warning) and (not is_homopolymer)
+
+        # confidence_tier: the singleton-inclusion decision the 2026-09 discovery-certainty review
+        # (scripts/hla_popgen/research/NOVEL_LIT.md addendum) landed on. Recurrence remains the
+        # dominant signal (>=2 unrelated people is still "high" confidence, not merely "passing");
+        # a homopolymer-indel-only or disqualifying-template_warning candidate is capped at
+        # 'flagged_artifact' REGARDLESS of recurrence, since that artifact class is reproducible
+        # across samples for TECHNICAL reasons and recurrence does not rule it out. A clean
+        # (non-artifact, non-disqualified) singleton is 'singleton_clean', not excluded outright --
+        # HiFi/ONT phased-consensus long reads are high-fidelity enough (per-base QV30-50) that a
+        # clean singleton is treated as a real but UNCONFIRMED discovery, not noise by default.
+        # passes_qc (above) is kept unchanged for backward compatibility with 04's existing
+        # 'novel' identity-space wiring; confidence_tier is the finer, singleton-aware read.
+        if any_disqualifying_warning or is_homopolymer:
+            confidence_tier = "flagged_artifact"
+        elif n_persons >= 3:
+            confidence_tier = "high"
+        elif n_persons == 2:
+            confidence_tier = "recurrent"
+        else:
+            confidence_tier = "singleton_clean"
+        passes_qc_singleton_ok = confidence_tier in ("high", "recurrent", "singleton_clean")
 
         out_rows.append({
             "novel_id": novel_id,
@@ -381,7 +413,10 @@ def build_table3(matched_rows, ancestry_by_person, disqualifying_warnings=DEFAUL
             "n_ancestries": len(ancestry_counts),
             "ancestry_counts": json.dumps(dict(sorted(ancestry_counts.items()))),
             "is_homopolymer_indel_only": is_homopolymer,
+            "both_haps_one_person": both_haps_one_person,
+            "confidence_tier": confidence_tier,
             "passes_qc": passes_qc,
+            "passes_qc_singleton_ok": passes_qc_singleton_ok,
         })
 
     return pd.DataFrame(out_rows)
@@ -390,7 +425,8 @@ def build_table3(matched_rows, ancestry_by_person, disqualifying_warnings=DEFAUL
 TABLE3_COLUMNS = [
     "novel_id", "gene", "gene_class", "nearest_allele", "cds_distance", "n_aa_changes",
     "novelty_class", "cds_seq_sha1", "cds_len", "n_haplotypes", "n_persons", "n_ancestries",
-    "ancestry_counts", "is_homopolymer_indel_only", "passes_qc",
+    "ancestry_counts", "is_homopolymer_indel_only", "both_haps_one_person", "confidence_tier",
+    "passes_qc", "passes_qc_singleton_ok",
 ]
 
 
@@ -537,6 +573,40 @@ def write_report(md_path, table3, match_stats, rate_df, out_paths, matched_rows,
         f"than folded into either total.\n"
     )
     md.append(f"\n(Total clusters across both categories: {total_clusters}.)\n")
+
+    md.append(
+        "\n## Confidence tiers (singleton-inclusive read, 2026-09 discovery-certainty review)\n"
+        "The `passes_qc` gate above requires recurrence in >=2 unrelated people, on the "
+        "conservative assumption that a singleton could be an unreproducible assembly artifact. "
+        "Per the literature review in NOVEL_LIT.md's addendum (HiFi/ONT phased-consensus long "
+        "reads are high-fidelity -- QV30-50 -- and the dominant real artifact class, homopolymer "
+        "indels, is independently flagged already), a clean singleton is better read as a real but "
+        "*unconfirmed* discovery, not noise by default. `confidence_tier` keeps the artifact flags "
+        "as a hard cap regardless of recurrence, but no longer excludes clean singletons outright:\n"
+    )
+    if total_clusters:
+        tier_counts = table3["confidence_tier"].value_counts()
+        md.append("| confidence_tier | n clusters | meaning |")
+        md.append("|---|---|---|")
+        tier_meaning = {
+            "high": "recurrent in >=3 unrelated people, clean",
+            "recurrent": "recurrent in exactly 2 unrelated people, clean",
+            "singleton_clean": "seen in exactly 1 person, but not homopolymer/disqualified -- real, unconfirmed",
+            "flagged_artifact": "homopolymer-indel-only OR disqualifying template_warning, REGARDLESS of recurrence",
+        }
+        for tier in ["high", "recurrent", "singleton_clean", "flagged_artifact"]:
+            n = int(tier_counts.get(tier, 0))
+            md.append(f"| {tier} | {n} | {tier_meaning[tier]} |")
+        n_singleton_ok = int((table3["confidence_tier"] == "singleton_clean").sum())
+        n_inclusive_pass = int(table3["passes_qc_singleton_ok"].sum())
+        md.append(
+            f"\n**Singleton-inclusive novel-allele count (`passes_qc_singleton_ok`): "
+            f"{n_inclusive_pass}** (vs. {n_pass} under the strict recurrence-only gate) -- adds "
+            f"{n_singleton_ok} clean singletons back in as real-but-unconfirmed discoveries. "
+            f"`both_haps_one_person` (same-person hap1+hap2 co-occurrence) is recorded per cluster "
+            f"as a weak secondary consistency signal only -- it is NOT used to promote a tier on "
+            f"its own, since it cannot rule out a systematic per-person assembly artifact.\n"
+        )
 
     if n_resolved:
         md.append("\n## Synonymous vs non-synonymous breakdown (`novelty_class`, resolved only)\n")
