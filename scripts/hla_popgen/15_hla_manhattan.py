@@ -495,16 +495,25 @@ def plot_manhattan(gene, canonical, pi, coverage, cds_mask, exons, out_path, n_h
             f"mean $\\pi$: CDS {mean_cds:.4f}  vs  non-CDS {mean_non:.4f}  ({ratio:.2f}×)",
             transform=ax.transAxes, ha="center", va="bottom", fontsize=10, color="#444444")
 
-    # Gene model ribbon.
+    # Gene model ribbon. Groove exons are always labelled even when too narrow to hold text --
+    # they are the point of the figure, and on DRB1 exon 2 is ~270bp inside a ~14kb gene, so the
+    # width-based rule alone silently drops the one label that matters.
     axg.axhline(0.5, color="#9A9A9A", lw=1.0, zorder=1)
     for idx, (a, b) in enumerate(exons, start=1):
         is_groove = idx in groove_exons
         axg.add_patch(plt.Rectangle(
             (a - 1, 0.12), max(b - a + 1, 1), 0.76,
             facecolor=(C_CDS if is_groove else "#5A5A5A"), edgecolor="none", zorder=2))
+        mid = (a - 1 + b) / 2
         if (b - a) > n * 0.02:
-            axg.text((a - 1 + b) / 2, 0.5, str(idx), ha="center", va="center",
+            axg.text(mid, 0.5, str(idx), ha="center", va="center",
                      fontsize=7.5, color="white", zorder=3)
+        elif is_groove:
+            axg.annotate(f"exon {idx}", xy=(mid, 0.88), xytext=(mid, 2.05),
+                          ha="center", va="bottom", fontsize=8.5, color=C_CDS, zorder=4,
+                          annotation_clip=False,
+                          arrowprops=dict(arrowstyle="-", color=C_CDS, lw=0.9,
+                                          shrinkA=0, shrinkB=0))
     axg.set_ylim(0, 1)
     axg.set_yticks([])
     axg.set_xlabel(f"Position along {canonical}  (bp)", fontsize=11)
@@ -528,7 +537,30 @@ def main():
     ap.add_argument("--threads", type=int, default=1)
     ap.add_argument("--window", type=int, default=151, help="Sliding-window width for the overlay.")
     ap.add_argument("--plot", action="store_true")
+    ap.add_argument("--replot", action="store_true",
+                     help="Skip extraction entirely: rebuild figures from the {GENE}.json files "
+                          "already in --out-dir. Extraction over the full cohort takes ~35 min, so "
+                          "no figure restyling should ever require re-reading the PAFs.")
     args = ap.parse_args()
+
+    if args.replot:
+        out_dir_rp = args.out_dir or os.path.expanduser("~/results/15_hla_manhattan")
+        for gene in args.genes:
+            stem = gene.replace("HLA-", "")
+            jp = os.path.join(out_dir_rp, f"{stem}.json")
+            if not os.path.exists(jp):
+                print(f"  {gene}: no {jp}; skipping", file=sys.stderr)
+                continue
+            with open(jp) as f:
+                d = json.load(f)
+            cds_mask = in_ranges_mask(d["canonical_length"], [tuple(r) for r in d["cds_ranges"]])
+            png = os.path.join(out_dir_rp, f"{stem}_manhattan.png")
+            plot_manhattan(gene, d["canonical"], d["pi"], d["coverage"], cds_mask,
+                            [tuple(e) for e in d["exons"]], png, d["n_haps"],
+                            window=args.window, groove_exons=GROOVE_EXONS.get(gene, ()))
+            print(f"  {gene}: replotted -> {png}  (n_haps={d['n_haps']}, "
+                  f"pi ratio={d.get('pi_ratio_cds_over_noncds')})", file=sys.stderr)
+        return
 
     out_dir = args.out_dir or os.path.expanduser("~/results/15_hla_manhattan")
     os.makedirs(out_dir, exist_ok=True)
