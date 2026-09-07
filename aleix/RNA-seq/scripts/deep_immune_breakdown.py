@@ -132,11 +132,30 @@ TUMOR_SOLID = [
 # immune component; Long Covid is post-viral immune dysregulation -- so a TCR/BCR repertoire
 # link isn't absurd for any of them, just far less direct than e.g. T1D or ankylosing
 # spondylitis.
+#
+# Extended 2026-09-07 (this week's planning doc, item 22 -- "five new disease/phenotype
+# counts: Parkinson's, RLS, long COVID, Alzheimer's, allergies"): adds RLS and allergic/
+# atopic conditions. Kept everything above unchanged, including atherosclerosis/CAD (not on
+# this week's 5-item list, but already coded and cheap to keep -- no reason to drop it).
+#   - RLS (restless legs syndrome): ICD block G25 is "other extrapyramidal and movement
+#     disorders" -- shared with tremor, dystonia, myoclonus, tics -- NOT exclusive, so
+#     name-substring only. "Willis-Ekbom disease" is RLS's alternate clinical name, included
+#     as a synonym.
+#   - Allergies: deliberately narrower than the family-level screen's "Allergy &
+#     hypersensitivity" row (2,297 cases, see disease_study_writeup.md S4) -- that number is
+#     known to be inflated by trivial drug-hypersensitivity codes. These two are clean,
+#     specific phenotypes instead: allergic rhinitis (name-substring, to dodge J30.0
+#     vasomotor rhinitis, which is NOT allergic and sits in the same J30 block) and atopic
+#     dermatitis/eczema (L20 -- a genuinely exclusive block, every L20.x subtype is atopic
+#     dermatitis, nothing else lives there).
 OTHER_CONDITIONS_OF_INTEREST = [
     ("Alzheimer disease",                       ["G30"], ["alzheimer"]),
     ("Parkinson disease",                       ["G20"], ["parkinson"]),
     ("Atherosclerosis / coronary artery disease",["I70","I25"], ["atherosclero", "coronary artery disease"]),
     ("Long COVID (post COVID-19 condition)",    ["U09"], ["post covid", "post-covid", "long covid"]),
+    ("Restless legs syndrome",                  [], ["restless legs", "restless leg syndrome", "willis-ekbom"]),
+    ("Allergic rhinitis",                       [], ["allergic rhinitis"]),  # J30 dropped: J30.0 vasomotor rhinitis is non-allergic, shares the block
+    ("Atopic dermatitis / eczema",              ["L20"], ["atopic dermatitis", "atopic eczema"]),
 ]
 
 SECTIONS = [
@@ -160,12 +179,13 @@ SECTIONS = [
     ("TUMORS -- solid (general immune-surveillance context)", TUMOR_SOLID,
      "Common solid cancers. Included for scale/context, not because repertoire data "
      "is expected to be as directly diagnostic as for the lymphoid tumors above."),
-    ("OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27)", OTHER_CONDITIONS_OF_INTEREST,
-     "Alzheimer's, Parkinson's, atherosclerosis/CAD, and Long COVID. A feasibility check "
-     "(do we have enough cases at all), not an established HLA/repertoire mechanism claim "
-     "the way the sections above are. NOTE on Long COVID: U09 is a young code (introduced "
-     "Oct 2021 in ICD-10-CM) -- anyone diagnosed with post-COVID sequelae before their EHR "
-     "records started using it will be undercounted here."),
+    ("OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)", OTHER_CONDITIONS_OF_INTEREST,
+     "Alzheimer's, Parkinson's, atherosclerosis/CAD, Long COVID, restless legs syndrome, "
+     "allergic rhinitis, atopic dermatitis. A feasibility check (do we have enough cases at "
+     "all), not an established HLA/repertoire mechanism claim the way the sections above "
+     "are. NOTE on Long COVID: U09 is a young code (introduced Oct 2021 in ICD-10-CM) -- "
+     "anyone diagnosed with post-COVID sequelae before their EHR records started using it "
+     "will be undercounted here."),
 ]
 
 
