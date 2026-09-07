@@ -162,7 +162,15 @@ def same_vs_diff_vgene_contrast(embs, v_genes):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cohort", help="cohort.tsv with a research_id column (build_rnaseq_cohort.py output)")
+    ap.add_argument("cohort", nargs="?", default=None,
+                    help="cohort.tsv with a research_id column (build_rnaseq_cohort.py output). "
+                         "Omit if using --from-pool-tsv instead.")
+    ap.add_argument("--from-pool-tsv", default=None,
+                    help="skip TRUST4 loading entirely and embed a pre-built pool TSV instead "
+                         "(columns: research_id, chain, v_gene, cdr3aa, score) -- e.g. from "
+                         "prep_vdjdb_pool.py, for testing the same two models against an open "
+                         "dataset while the AoU mount is unreachable. Same downstream code "
+                         "either way, only the input source differs.")
     ap.add_argument("--pheno-dir", default="~/pipeline_outputs/rnaseq",
                     help="dir containing <research_id>/ TRUST4 output subdirs")
     ap.add_argument("--min-score", type=float, default=0.02,
@@ -182,29 +190,42 @@ def main():
                          "query_overlap_phenotypes.py's pheno cache")
     args = ap.parse_args()
 
-    cohort = pd.read_csv(os.path.expanduser(args.cohort), sep="\t", dtype=str)
-    if "research_id" not in cohort.columns:
-        die(f"{args.cohort} has no research_id column -- expected build_rnaseq_cohort.py output")
+    if args.from_pool_tsv:
+        pool = pd.read_csv(os.path.expanduser(args.from_pool_tsv), sep="\t")
+        need = {"research_id", "chain", "v_gene", "cdr3aa"}
+        missing = need - set(pool.columns)
+        if missing:
+            die(f"{args.from_pool_tsv} is missing column(s) {missing} -- expected the same "
+                f"schema this script itself writes (see prep_vdjdb_pool.py for an example "
+                f"adapter)")
+        print(f"Using pre-built pool from {args.from_pool_tsv} (public/open dataset mode -- "
+              f"no TRUST4 output needed).", file=sys.stderr)
+    else:
+        if not args.cohort:
+            die("need either a cohort.tsv (TRUST4 mode) or --from-pool-tsv (open-dataset mode)")
+        cohort = pd.read_csv(os.path.expanduser(args.cohort), sep="\t", dtype=str)
+        if "research_id" not in cohort.columns:
+            die(f"{args.cohort} has no research_id column -- expected build_rnaseq_cohort.py output")
 
-    all_rows = []
-    for rid in cohort["research_id"]:
-        df = load_person_cdr3s(args.pheno_dir, rid, args.min_score, args.keep_imputed)
-        if df is None:
-            print(f"  [{rid}] !! no TRUST4 output found, skipping (run the repertoire batch first)",
+        all_rows = []
+        for rid in cohort["research_id"]:
+            df = load_person_cdr3s(args.pheno_dir, rid, args.min_score, args.keep_imputed)
+            if df is None:
+                print(f"  [{rid}] !! no TRUST4 output found, skipping (run the repertoire batch first)",
+                      file=sys.stderr)
+                continue
+            if len(df) == 0:
+                print(f"  [{rid}] 0 CDR3s survived the quality filter", file=sys.stderr)
+                continue
+            all_rows.append(df.head(args.max_per_person))
+            print(f"  [{rid}] {len(df)} CDR3s pass filter (using up to {args.max_per_person})",
                   file=sys.stderr)
-            continue
-        if len(df) == 0:
-            print(f"  [{rid}] 0 CDR3s survived the quality filter", file=sys.stderr)
-            continue
-        all_rows.append(df.head(args.max_per_person))
-        print(f"  [{rid}] {len(df)} CDR3s pass filter (using up to {args.max_per_person})",
-              file=sys.stderr)
 
-    if not all_rows:
-        die("no usable CDR3s across the whole cohort -- run repertoire calling first "
-            "(build_rnaseq_cohort.py + run_rnaseq_batch.sh)")
+        if not all_rows:
+            die("no usable CDR3s across the whole cohort -- run repertoire calling first "
+                "(build_rnaseq_cohort.py + run_rnaseq_batch.sh)")
 
-    pool = pd.concat(all_rows, ignore_index=True)
+        pool = pd.concat(all_rows, ignore_index=True)
     seqs = pool["cdr3aa"].tolist()
     v_genes = pool["v_gene"].tolist()
     print(f"\n=== {len(seqs)} CDR3s pooled across {pool['research_id'].nunique()} people, "
