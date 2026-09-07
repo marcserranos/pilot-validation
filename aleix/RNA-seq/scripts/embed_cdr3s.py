@@ -29,15 +29,15 @@ comparison specifically): drops CDR3_score 0.00 (partial/incomplete) and, by def
 amino-acid sequence containing '_' (stop codon) or '?' (ambiguous base), per
 TRUST4_DEEP_DIVE.md's flagged cleanup item. Pass --keep-imputed to relax the CDR3_score cut.
 
-CATELMO NOTE: not wired in here. Its repo (github.com/Lee-CBG/catELMo) needs a
-Python 3.6.13 / TensorFlow 2.6.0 / Keras 2.6.0 conda env and its pretrained-embedding
-loading path isn't documented at the README level (buried in an `embedders/` folder,
-unclear from a quick pass whether weights are bundled or need training). That is a real risk
-to attempt cold inside a short compute window. SCEPTR is substituted as the "tailored"
-comparator: also TCR-specific, but pip-installable and CPU-fast, already vetted in this
-project's own reference docs. If catELMo is still wanted, budget separate time for it as a
-third arm -- this script's embed_scores()/COMPARISON block is written so a third model slots
-in the same way.
+CATELMO NOTE: run separately, as embed_catelmo.py, inside its own `catELMo` conda env
+(python 3.6 / allennlp 0.9.0 / torch 1.9.1 -- verified live against catELMo's own
+embedders/README.md, 2026-09-07; an earlier pass wrongly assumed a TF2.6/Keras stack, which
+is actually for catELMo's separate downstream binding-affinity trainer, not embedding).
+That dependency set can't coexist with ESMC's modern transformers/torch in one interpreter,
+so it isn't imported here -- run this script first (it writes the shared CDR3 pool TSV
+below), then `conda run -n catELMo python3 embed_catelmo.py <pool.tsv>`, then
+compare_embeddings.py to fold all three into one table. See
+setup_repertoire_and_embedding_envs.sh for the one-shot environment setup.
 
 Usage:
   pixi run python3 embed_cdr3s.py <cohort.tsv> [--pheno-dir ~/pipeline_outputs/rnaseq]
