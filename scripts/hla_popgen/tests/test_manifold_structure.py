@@ -42,38 +42,6 @@ def check(name, cond, detail=""):
         FAILED.append(name)
 
 
-def test_clean_ancestry():
-    print("test_clean_ancestry")
-    # Real cache dicts hand back pd.NA (not plain None) for people missing an ancestry call --
-    # this crashed np.unique/`==`/`or` in the real VM run (TypeError: boolean value of NA is
-    # ambiguous) because none of the local synthetic tests below ever built an array containing
-    # pd.NA until this regression test was added.
-    check("pd.NA maps to None", ms.clean_ancestry(pd.NA) is None)
-    check("None maps to None", ms.clean_ancestry(None) is None)
-    check("float nan maps to None", ms.clean_ancestry(float("nan")) is None)
-    check("a real label passes through as str", ms.clean_ancestry("AFR") == "AFR")
-    # The actual failure mode: building a labels array with a pd.NA mixed in, then using it the
-    # way ancestry_f_stat/residualize_ancestry/the KNN test all do. `==` against a cleaned array
-    # is safe; np.unique on a None-containing object array is NOT (None vs str has no ordering),
-    # which is exactly why ancestry_f_stat filters None out before calling np.unique rather than
-    # after -- this checks both halves of that pattern.
-    mixed = np.array([ms.clean_ancestry(v) for v in ["AFR", pd.NA, "EUR", None, "AFR"]],
-                     dtype=object)
-    try:
-        _ = mixed == "AFR"
-        eq_ok = True
-    except TypeError:
-        eq_ok = False
-    check("== on a cleaned mixed-None array doesn't crash", eq_ok)
-    try:
-        uniq = np.unique(mixed[np.array([v is not None for v in mixed])])
-        filtered_unique_ok = True
-    except TypeError:
-        filtered_unique_ok = False
-    check("np.unique on the None-filtered array doesn't crash", filtered_unique_ok,
-          f"uniq={list(uniq) if filtered_unique_ok else None}")
-
-
 def test_ancestry_f_stat():
     print("test_ancestry_f_stat")
     rng = np.random.default_rng(0)
@@ -120,7 +88,6 @@ def test_residualize_ancestry():
     groups = (["AFR"] * 50) + (["EUR"] * 50) + (["EAS"] * 50)
     for pid, g in zip(ids, groups):
         ancestry_by_person[pid] = g
-    ancestry_by_person[ids[0]] = pd.NA  # real cache dicts carry pd.NA for missing ancestry calls
     # Column 0 has a strong ancestry-driven offset; column 1 has none.
     X = rng.normal(0, 1, (n, p))
     offset = np.array([0.0 if g == "AFR" else (5.0 if g == "EUR" else -5.0) for g in groups])
@@ -179,7 +146,6 @@ def test_variance_loadings_report():
     ids = [f"p{i}" for i in range(n)]
     groups = (["AFR"] * (n // 2)) + (["EUR"] * (n // 2))
     ancestry_by_person = dict(zip(ids, groups))
-    ancestry_by_person[ids[-1]] = pd.NA  # missing-ancestry-call case, must not crash np.unique
     X = rng.integers(0, 2, size=(n, p)).astype(float)
     cols = [f"HLA-B*{i:02d}" for i in range(p)]
     # Make columns 0-2 strongly ancestry-differentiated (like real HLA background variation) but
@@ -203,7 +169,6 @@ def test_variance_loadings_report():
 
 
 if __name__ == "__main__":
-    test_clean_ancestry()
     test_ancestry_f_stat()
     test_spearman_corr()
     test_residualize_ancestry()

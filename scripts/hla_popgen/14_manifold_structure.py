@@ -53,14 +53,6 @@ def _load_module(filename, modname):
     return mod
 
 
-def clean_ancestry(v):
-    """`ancestry_by_person.get(pid)` can come back `pd.NA` (not plain `None`) for people missing
-    an ancestry call -- `pd.NA`'s `__bool__` raises, which breaks `np.unique`, `==` comparisons,
-    and `or` fallbacks alike (same failure mode as 08_embedding_compare.py's ancestry-mask crash).
-    Coerce to a plain str-or-None up front so every downstream comparison is safe."""
-    return None if pd.isna(v) else str(v)
-
-
 # ---------------------------------------------------------------------------
 # 1. Variance / loadings audit
 # ---------------------------------------------------------------------------
@@ -69,11 +61,7 @@ def ancestry_f_stat(col_values, ancestry_labels):
     Higher = more ancestry-differentiated. Groups with <2 members are dropped (can't estimate
     within-group variance from 1 point); returns 0.0 if fewer than 2 usable groups remain."""
     labels = np.asarray(ancestry_labels)
-    # Filter None out BEFORE np.unique -- np.unique sorts its input, and comparing None to a str
-    # raises TypeError, so filtering after the fact (only checking `g is not None` on the unique
-    # result) is already too late.
-    non_null = np.unique(labels[np.array([lbl is not None for lbl in labels])])
-    uniq = [g for g in non_null if (labels == g).sum() >= 2]
+    uniq = [g for g in np.unique(labels) if g is not None and (labels == g).sum() >= 2]
     if len(uniq) < 2:
         return 0.0
     grand_mean = col_values.mean()
@@ -94,8 +82,7 @@ def variance_loadings_report(mat_full, ancestry_by_person, disease_columns_by_la
     ancestry_f_stat, is_disease_proxy) plus the Spearman-free rank correlation (via numpy, no
     scipy) between |PC1 loading| and ancestry_f_stat across all columns."""
     X = mat_full.values.astype(float)
-    ancestry = np.array([clean_ancestry(ancestry_by_person.get(pid)) for pid in mat_full.index],
-                        dtype=object)
+    ancestry = np.array([ancestry_by_person.get(pid) for pid in mat_full.index], dtype=object)
 
     raw_var = X.var(axis=0)
     raw_var_frac = raw_var / max(raw_var.sum(), 1e-12)
@@ -150,8 +137,7 @@ def residualize_ancestry(mat_full, ancestry_by_person):
     un-residualized (subtract the grand mean instead) rather than dropped, so the cohort stays the
     same size as `mat_full` for every downstream comparison."""
     X = mat_full.values.astype(float)
-    ancestry = np.array([clean_ancestry(ancestry_by_person.get(pid)) for pid in mat_full.index],
-                        dtype=object)
+    ancestry = np.array([ancestry_by_person.get(pid) for pid in mat_full.index], dtype=object)
     grand_mean = X.mean(axis=0)
     resid = X - grand_mean
     for g in pd.unique(ancestry):
@@ -372,8 +358,8 @@ def main():
 
     # --- 4. KNN-label-enrichment permutation test ---
     print("4/4: KNN-label-enrichment permutation tests ...", file=sys.stderr)
-    ancestry_labels = np.array([clean_ancestry(ancestry_by_person.get(pid)) or "unknown" for pid
-                                 in mat_full.index])
+    ancestry_labels = np.array([ancestry_by_person.get(pid) or "unknown" for pid in
+                                 mat_full.index])
     embeddings_for_test = {"locked_raw": locked_raw_coords, "ancestry_residualized":
                             resid_raw_coords, "supervised": supervised_coords}
     label_sets = {"ancestry (positive control)": ancestry_labels,
