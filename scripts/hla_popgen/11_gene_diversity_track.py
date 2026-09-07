@@ -524,6 +524,13 @@ def main():
             "dominant_template": result["dominant_template"], "dominant_n": result["dominant_n"],
             "elapsed_seconds": elapsed,
         }
+        # Always compute+save the template-stratified Manhattan data (cheap -- just regrouping
+        # already-collected per-haplotype records), regardless of --plot, so a plot can be rebuilt
+        # from the JSON later without a full re-run.
+        _pc, _cds_ranges, _qlen = build_manhattan_track(result["dominant_records"])
+        out["dominant_manhattan"] = {
+            "position_counts": dict(sorted(_pc.items())), "cds_ranges": _cds_ranges, "qlen": _qlen,
+        }
         out_path = os.path.join(out_dir, f"{gene.replace('HLA-', '')}.json")
         with open(out_path, "w") as f:
             json.dump(out, f, indent=1)
@@ -549,9 +556,8 @@ def main():
         print(f"  wrote {out_path}", file=sys.stderr)
 
         if args.plot:
-            position_counts, cds_ranges, qlen = build_manhattan_track(result["dominant_records"])
             plot_path = os.path.join(out_dir, f"{gene.replace('HLA-', '')}_manhattan.png")
-            plot_manhattan(gene, position_counts, cds_ranges, qlen, result["dominant_n"],
+            plot_manhattan(gene, _pc, _cds_ranges, _qlen, result["dominant_n"],
                             result["dominant_template"], plot_path)
             print(f"  wrote {plot_path}", file=sys.stderr)
 
