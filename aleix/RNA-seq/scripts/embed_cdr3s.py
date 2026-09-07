@@ -44,7 +44,11 @@ Usage:
       [--min-score 0.02] [--keep-imputed] [--outdir ../results]
       [--local-outdir ~/pipeline_outputs/rnaseq/embeddings] [--max-per-person 500]
 
-Needs (on top of the pixi env's pandas/scipy):  pip install sceptr transformers torch
+Needs (on top of the pixi env's pandas/scipy):  pip install sceptr esm torch
+(NOT `transformers` for ESMC -- its HF repo ships no tokenizer files; the `esm` package's
+own EsmcForMaskedLM/EsmcTokenizer classes build the model from config.json + a raw .pth
+weights file directly. transformers may still get pulled in as sceptr's own dependency,
+that's fine, just isn't what ESMC itself needs.)
 """
 import argparse
 import os
@@ -158,28 +162,31 @@ def embed_sceptr(seqs):
 
 def embed_esmc(seqs, batch_size=32):
     """ESMC-300M -- general protein LM. Returns (embeddings ndarray, wall_seconds).
-    Mean-pools per-residue hidden states over the sequence (excluding special tokens)."""
+    Mean-pools per-residue hidden states over the sequence (excluding special tokens).
+
+    NOTE (corrected 2026-09-08, second attempt): plain transformers.AutoTokenizer/
+    AutoModelForMaskedLM does NOT work against biohub/esmc-300m-2024-12 -- that HF repo
+    genuinely ships no tokenizer files at all (verified live via the HF API's file
+    listing: just config.json + a raw .pth weights file). trust_remote_code doesn't help
+    because there's no remote tokenizer code there either. The real, documented loading
+    path (github.com/evolutionaryscale/esm README, fetched raw -- not a paraphrase) is the
+    `esm` package's own classes, which build the architecture from config.json and load
+    the .pth state dict directly, with a fixed, self-contained protein tokenizer that
+    needs no repo files of its own."""
     import torch
-    from transformers import AutoModelForMaskedLM, AutoTokenizer
+    from esm.models.esmc import EsmcForMaskedLM, EsmcTokenizer
 
     model_id = "biohub/esmc-300m-2024-12"
-    # trust_remote_code needed on BOTH loads -- ESMC ships a custom tokenizer
-    # implementation, not just a custom model class. Missing it on the tokenizer call
-    # produced "Couldn't instantiate the backend tokenizer" even with sentencepiece
-    # installed (verified live 2026-09-08 -- installing sentencepiece did not fix it,
-    # confirming the error wasn't actually a missing-conversion-library issue).
-    tok = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-    model = AutoModelForMaskedLM.from_pretrained(
-        model_id, trust_remote_code=True, output_hidden_states=True)
-    model.eval()
+    model = EsmcForMaskedLM.from_pretrained(model_id, device="cpu").eval()
+    tok = EsmcTokenizer()
 
     out = []
     t0 = time.time()
-    with torch.no_grad():
+    with torch.inference_mode():
         for i in range(0, len(seqs), batch_size):
             batch = seqs[i:i + batch_size]
-            enc = tok(batch, return_tensors="pt", padding=True, truncation=True)
-            res = model(**enc)
+            enc = tok(batch, return_tensors="pt", padding=True)
+            res = model(**enc, output_hidden_states=True)
             hidden = res.hidden_states[-1]  # (B, L, D)
             mask = enc["attention_mask"].unsqueeze(-1).float()
             pooled = (hidden * mask).sum(1) / mask.sum(1).clamp(min=1)
@@ -302,8 +309,9 @@ def main():
         results.append(("ESMC-300M", esmc_embs.shape[1], esmc_s, same, diff))
     except Exception as e:
         print(f"  !! ESMC failed: {e}\n  "
-              f"(pip install transformers torch; may need `huggingface-cli login` if the "
-              f"biohub/esmc-300m-2024-12 checkpoint is gated)", file=sys.stderr)
+              f"(pip install esm -- the EvolutionaryScale package, NOT plain "
+              f"transformers/huggingface_hub; that repo ships no tokenizer files at all)",
+              file=sys.stderr)
 
     if results:
         summary = pd.DataFrame(results, columns=[
