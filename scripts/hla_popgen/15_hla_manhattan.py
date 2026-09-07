@@ -393,9 +393,20 @@ def pick_canonical(persons, outroot, gene, probe=12):
     if want and counts.get(want, 0) == n:
         return want, {"probed": n, "present_in": counts[want], "qlen": qlens.get(want),
                        "auto_selected": False}
-    best = max(counts.items(), key=lambda kv: (kv[1], qlens.get(kv[0], 0)))[0] if counts else None
+
+    # Among alleles present in at least `min_frac` of probed haplotypes, take the LONGEST.
+    # Demanding strict universality is wrong: it once picked HLA-C*16:85 (3,369bp) over the
+    # full-length C*07:02:01:01 (~4.3kb) purely because the latter missed 1 of 12 probes, i.e. it
+    # traded ~20% of the gene away to avoid a <10% haplotype dropout. Length wins; the dropout is
+    # reported and shows up as `n_missing_canonical`.
+    min_frac = 0.85
+    eligible = {q: c for q, c in counts.items() if c >= min_frac * n}
+    if not eligible:
+        eligible = counts
+    best = max(eligible.items(), key=lambda kv: (qlens.get(kv[0], 0), kv[1]))[0] if eligible else None
     return best, {"probed": n, "present_in": counts.get(best, 0), "qlen": qlens.get(best),
-                   "auto_selected": True,
+                   "auto_selected": True, "min_frac": min_frac,
+                   "n_eligible_at_min_frac": len(eligible),
                    "preferred_present_in": counts.get(want, 0) if want else None,
                    "preferred": want}
 
