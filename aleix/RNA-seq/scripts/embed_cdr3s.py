@@ -56,6 +56,36 @@ import pandas as pd
 
 AA_VALID = set("ACDEFGHIKLMNPQRSTVWY")
 
+# Standard genetic code. TRUST4's own convention (README + report.tsv docs): stop codon ->
+# "_", any codon touching an ambiguous base (N, or anything non-ACGT) -> "?". Matched here
+# exactly so translating cdr3.out's CDR3 *nucleotide* field ourselves (see below -- cdr3.out
+# has NO amino-acid column at all, verified live against TRUST4's real output 2026-09-07,
+# correcting an earlier wrong assumption that it did) produces the same convention TRUST4
+# itself uses in report.tsv's CDR3aa column.
+_CODON_TABLE = {
+    'TTT':'F','TTC':'F','TTA':'L','TTG':'L','CTT':'L','CTC':'L','CTA':'L','CTG':'L',
+    'ATT':'I','ATC':'I','ATA':'I','ATG':'M','GTT':'V','GTC':'V','GTA':'V','GTG':'V',
+    'TCT':'S','TCC':'S','TCA':'S','TCG':'S','CCT':'P','CCC':'P','CCA':'P','CCG':'P',
+    'ACT':'T','ACC':'T','ACA':'T','ACG':'T','GCT':'A','GCC':'A','GCA':'A','GCG':'A',
+    'TAT':'Y','TAC':'Y','TAA':'_','TAG':'_','CAT':'H','CAC':'H','CAA':'Q','CAG':'Q',
+    'AAT':'N','AAC':'N','AAA':'K','AAG':'K','GAT':'D','GAC':'D','GAA':'E','GAG':'E',
+    'TGT':'C','TGC':'C','TGA':'_','TGG':'W','CGT':'R','CGC':'R','CGA':'R','CGG':'R',
+    'AGT':'S','AGC':'S','AGA':'R','AGG':'R','GGT':'G','GGC':'G','GGA':'G','GGG':'G',
+}
+
+
+def translate_cdr3_dna(dna):
+    """DNA -> amino acid, TRUST4's own convention: '_' for stop, '?' for any codon with a
+    non-ACGT base or a length not divisible by 3 (frameshift/truncated -- can't translate)."""
+    dna = str(dna).upper()
+    if len(dna) % 3 != 0:
+        return "?"
+    aa = []
+    for i in range(0, len(dna), 3):
+        codon = dna[i:i+3]
+        aa.append(_CODON_TABLE.get(codon, "?"))
+    return "".join(aa)
+
 
 def die(msg):
     print(f"FATAL: {msg}", file=sys.stderr)
@@ -71,27 +101,27 @@ def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed):
     threshold = 0.01 if keep_imputed else min_score
 
     if os.path.exists(cdr3_out):
-        # cdr3.out is whitespace/tab-delimited, no header in some TRUST4 versions -- try
-        # header-first, fall back to TRUST4's documented column order if that fails.
-        try:
-            df = pd.read_csv(cdr3_out, sep="\t")
-            if "CDR3_score" not in df.columns:
-                raise ValueError("no header")
-        except Exception:
-            cols = ["contig_id", "V", "D", "J", "C", "CDR1", "CDR2", "CDR3_dna",
-                    "CDR3_amino_acids", "CDR3_score", "read_fragment_count",
-                    "CDR3_germline_similarity", "complete_vdj_assembly"]
-            df = pd.read_csv(cdr3_out, sep="\t", header=None, names=cols,
-                              usecols=range(len(cols)))
-        df = df.rename(columns={"CDR3_amino_acids": "cdr3aa", "CDR3_score": "score",
-                                 "V": "v_gene"})
-        df = df[pd.to_numeric(df["score"], errors="coerce") > threshold]
+        # cdr3.out is ALWAYS headerless (verified against TRUST4's own bundled example
+        # output, 2026-09-07) -- the real 13-field schema, straight from TRUST4's README:
+        #   consensus_id  index_within_consensus  V  D  J  C  CDR1  CDR2  CDR3(dna)
+        #   CDR3_score  read_fragment_count  CDR3_germline_similarity  complete_vdj_assembly
+        # NOTE: that CDR3 field is nucleotide, not amino acid -- cdr3.out has no AA column at
+        # all. We translate it ourselves below so both input paths end up with real cdr3aa.
+        cols = ["consensus_id", "V", "D", "J", "C", "CDR1", "CDR2", "CDR3_dna",
+                "CDR3_score", "read_fragment_count", "CDR3_germline_similarity",
+                "complete_vdj_assembly"]
+        df = pd.read_csv(cdr3_out, sep="\t", header=None, names=cols)
+        df = df.rename(columns={"CDR3_score": "score", "V": "v_gene"})
+        df["cdr3aa"] = df["CDR3_dna"].apply(translate_cdr3_dna)
+        df = df[pd.to_numeric(df["score"], errors="coerce") >= threshold]
     elif os.path.exists(report):
         print(f"  [{research_id}] no cdr3.out, falling back to report.tsv (no CDR3_score "
               f"available -- quality filter skipped, only stop-codon/ambiguous drop applies)",
               file=sys.stderr)
         df = pd.read_csv(report, sep="\t")
-        df = df.rename(columns={"CDR3_amino_acids": "cdr3aa", "V": "v_gene"})
+        # Real header (verified live): #count, frequency, CDR3nt, CDR3aa, V, D, J, C, cid,
+        # cid_full_length -- "CDR3aa", not "CDR3_amino_acids" (an earlier wrong assumption).
+        df = df.rename(columns={"CDR3aa": "cdr3aa", "V": "v_gene"})
         df["score"] = np.nan
     else:
         return None
@@ -100,6 +130,13 @@ def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed):
         print(f"  [{research_id}] !! unexpected columns, skipping: {list(df.columns)}",
               file=sys.stderr)
         return None
+
+    # TRUST4 lists up to 3 ranked V-gene candidates comma-separated (e.g.
+    # "IGHV3-11*04,IGHV3-21*01,IGHV3-48*01" -- verified live in the real example output).
+    # Keep only the top-ranked candidate -- otherwise the same-V-gene-vs-diff-V-gene
+    # comparison silently breaks (two CDR3s sharing the top candidate but differing in
+    # ranked-2nd/3rd wouldn't match as "same V gene" on a raw string-equality basis).
+    df["v_gene"] = df["v_gene"].astype(str).str.split(",").str[0]
 
     df = df[["v_gene", "cdr3aa", "score"]].dropna(subset=["cdr3aa"])
     df = df[df["cdr3aa"].astype(str).apply(
