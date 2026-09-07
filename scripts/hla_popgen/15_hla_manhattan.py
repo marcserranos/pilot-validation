@@ -90,6 +90,14 @@ PREFERRED_CANONICAL = {
     "HLA-DRB1": "HLA-DRB1*15:01:01:01",
 }
 
+# Exons encoding the peptide-binding groove -- the whole point of the figure. Class I (A/B/C):
+# exons 2 and 3 encode the alpha1/alpha2 domains that form the groove. Class II (DRB1): exon 2
+# encodes the beta1 domain. 1-based exon numbers, indexing into the annotation's `exons` list.
+GROOVE_EXONS = {
+    "HLA-A": [2, 3], "HLA-B": [2, 3], "HLA-C": [2, 3],
+    "HLA-DRB1": [2],
+}
+
 CS_TOKEN_RE = re.compile(r":\d+|\*[a-z]{2}|[+-][a-z]+", re.IGNORECASE)
 REFDATA_ALLELES = os.path.expanduser("~/tools/Immuannot_refdata/alleles.csv.gz")
 
@@ -200,32 +208,38 @@ def get_tag(fields, tag):
     return None
 
 
-def canonical_row(paf_path, canonical):
-    """Best (longest query-span) PAF row whose qname == canonical. Returns None if absent."""
-    best = None
-    best_span = -1
+def canonical_rows(paf_path, canonicals):
+    """One pass over a PAF, returning the best (longest query-span) row for EACH canonical allele.
+
+    Reading the file once for all genes rather than once per gene is the difference between a
+    ~2 hour and a ~30 minute full-cohort run: each PAF is ~32k rows / 1.2MB gzipped, and the scan,
+    not the cs parsing, dominates.
+    """
+    best = {}
+    best_span = {}
     opener = gzip.open if paf_path.endswith(".gz") else open
     with opener(paf_path, "rt") as f:
         for line in f:
-            if not line.startswith(canonical):
+            # Cheap prefilter before the (relatively costly) split: the qname is the line prefix.
+            hit = None
+            for c in canonicals:
+                if line.startswith(c) and line[len(c)] == "\t":
+                    hit = c
+                    break
+            if hit is None:
                 continue
             fields = line.rstrip("\n").split("\t")
-            if len(fields) < 12 or fields[0] != canonical:
+            if len(fields) < 12:
                 continue
             span = int(fields[3]) - int(fields[2])
-            if span > best_span:
-                best_span, best = span, fields
+            if span > best_span.get(hit, -1):
+                best_span[hit] = span
+                best[hit] = fields
     return best
 
 
-def process_haplotype(person_dir, hap, canonical):
-    """-> None, or dict with the canonical-frame observations for this haplotype."""
-    paf = os.path.join(person_dir, hap, "mm2.ipd.gen.paf.gz")
-    if not os.path.exists(paf):
-        return None
-    row = canonical_row(paf, canonical)
-    if row is None:
-        return None
+def observations_from_row(row):
+    """PAF row -> canonical-frame observation dict, or None."""
     qlen, qstart, qend, strand = int(row[1]), int(row[2]), int(row[3]), row[4]
     cs = get_tag(row, "cs")
     if cs is None:
@@ -239,20 +253,30 @@ def process_haplotype(person_dir, hap, canonical):
     }
 
 
+def process_haplotype_multi(person_dir, hap, canonicals):
+    """-> {canonical: observation dict}; missing canonicals simply absent from the result."""
+    paf = os.path.join(person_dir, hap, "mm2.ipd.gen.paf.gz")
+    if not os.path.exists(paf):
+        return {}
+    rows = canonical_rows(paf, canonicals)
+    out = {}
+    for c, row in rows.items():
+        obs = observations_from_row(row)
+        if obs is not None:
+            out[c] = obs
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Aggregation across haplotypes -> per-site allele counts
 # ---------------------------------------------------------------------------
-def aggregate(persons, outroot, canonical, threads=1, progress_every=400):
-    """Per-site allele-label counts in canonical coordinates, plus coverage and QC."""
-    qlen_seen = Counter()
-    n_haps = n_missing = 0
-    nm_values = []
-    strand_counts = Counter()
-    # coverage[pos] and diffs[pos] are dense over the canonical length; allocate lazily once qlen known.
-    coverage = None
-    alt_counts = None   # list of Counter, only for positions that ever differ (sparse dict)
-    insertion_counts = Counter()
-
+def aggregate_multi(persons, outroot, canonicals, threads=1, progress_every=400):
+    """Per-site allele-label counts in canonical coordinates for ALL genes in one pass over the
+    per-haplotype PAFs. Returns {canonical: accumulator dict}."""
+    acc = {c: {"n_haps": 0, "n_missing": 0, "nm_values": [], "strand_counts": Counter(),
+                "coverage": None, "alt_counts": defaultdict(Counter),
+                "insertion_counts": Counter(), "qlen_seen": Counter()}
+           for c in canonicals}
     t0 = time.time()
 
     def tasks():
@@ -263,46 +287,43 @@ def aggregate(persons, outroot, canonical, threads=1, progress_every=400):
 
     if threads > 1:
         pool = concurrent.futures.ThreadPoolExecutor(max_workers=threads)
-        results = pool.map(lambda ph: process_haplotype(ph[0], ph[1], canonical), tasks())
+        results = pool.map(lambda ph: process_haplotype_multi(ph[0], ph[1], canonicals), tasks())
     else:
         pool = None
-        results = (process_haplotype(pd, hap, canonical) for pd, hap in tasks())
+        results = (process_haplotype_multi(pd, hap, canonicals) for pd, hap in tasks())
 
     n_units = len(persons) * 2
-    for i, res in enumerate(results, 1):
+    for i, per_gene in enumerate(results, 1):
         if progress_every and i % progress_every == 0:
             el = time.time() - t0
-            print(f"    [{canonical}] {i}/{n_units} units, {el:.0f}s ({i/el:.1f}/s), "
-                  f"{n_haps} haps with the canonical row", file=sys.stderr)
-        if res is None:
-            n_missing += 1
-            continue
-        n_haps += 1
-        qlen_seen[res["qlen"]] += 1
-        nm_values.append(res["nm"])
-        strand_counts[res["strand"]] += 1
-        if coverage is None:
-            coverage = [0] * res["qlen"]
-            alt_counts = defaultdict(Counter)
-        lo, hi = res["qstart"], res["qend"]
-        for p in range(lo, min(hi, len(coverage))):
-            coverage[p] += 1
-        for pos, label in res["observed"].items():
-            if 0 <= pos < len(coverage):
-                alt_counts[pos][label] += 1
-        for pos in res["insertions"]:
-            if 0 <= pos < len(coverage):
-                insertion_counts[pos] += 1
+            done = {c[:12]: acc[c]["n_haps"] for c in canonicals}
+            print(f"    {i}/{n_units} units, {el:.0f}s ({i/el:.1f}/s), haps so far: {done}",
+                  file=sys.stderr)
+        for c in canonicals:
+            a = acc[c]
+            res = per_gene.get(c)
+            if res is None:
+                a["n_missing"] += 1
+                continue
+            a["n_haps"] += 1
+            a["qlen_seen"][res["qlen"]] += 1
+            a["nm_values"].append(res["nm"])
+            a["strand_counts"][res["strand"]] += 1
+            if a["coverage"] is None:
+                a["coverage"] = [0] * res["qlen"]
+            cov = a["coverage"]
+            for p in range(res["qstart"], min(res["qend"], len(cov))):
+                cov[p] += 1
+            for pos, label in res["observed"].items():
+                if 0 <= pos < len(cov):
+                    a["alt_counts"][pos][label] += 1
+            for pos in res["insertions"]:
+                if 0 <= pos < len(cov):
+                    a["insertion_counts"][pos] += 1
 
     if pool is not None:
         pool.shutdown()
-
-    return {
-        "n_haps": n_haps, "n_missing_canonical": n_missing,
-        "qlen_seen": qlen_seen, "nm_values": nm_values, "strand_counts": strand_counts,
-        "coverage": coverage or [], "alt_counts": alt_counts or {},
-        "insertion_counts": insertion_counts,
-    }
+    return acc
 
 
 def per_site_pi(coverage, alt_counts):
@@ -399,7 +420,9 @@ def sliding_mean(values, window):
 
 
 def plot_manhattan(gene, canonical, pi, coverage, cds_mask, exons, out_path, n_haps,
-                    window=151):
+                    window=151, groove_exons=()):
+    """Per-site pi Manhattan with a sliding-window overlay, an exon gene model, and the
+    peptide-binding-groove exons called out -- the latter being the actual scientific claim."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -409,48 +432,76 @@ def plot_manhattan(gene, canonical, pi, coverage, cds_mask, exons, out_path, n_h
     x = np.arange(n)
     pi_arr = np.asarray(pi)
     smooth = np.asarray(sliding_mean(pi, window))
-    cds = np.asarray(cds_mask)
+    cds = np.asarray(cds_mask, dtype=bool)
+
+    C_NONCDS = "#C9C6D6"   # muted lilac-grey: background sites
+    C_CDS = "#C0392B"      # strong red: coding sites
+    C_SMOOTH = "#16324F"   # deep navy: the smoothed trend
+    C_GROOVE = "#F2C14E"   # amber: peptide-binding groove band
 
     fig, (ax, axg) = plt.subplots(
-        2, 1, figsize=(13, 5.0), sharex=True,
-        gridspec_kw={"height_ratios": [11, 1], "hspace": 0.08})
+        2, 1, figsize=(14, 5.6), sharex=True, dpi=180,
+        gridspec_kw={"height_ratios": [12, 1.1], "hspace": 0.06})
+    fig.patch.set_facecolor("white")
 
-    # Per-site pi, colored by CDS membership so the contrast is readable without a legend hunt.
-    ax.vlines(x[~cds], 0, pi_arr[~cds], color="#B9B4D6", lw=0.6, alpha=0.85,
-              label="non-CDS site (intron/UTR)")
-    ax.vlines(x[cds], 0, pi_arr[cds], color="#C44E52", lw=0.6, alpha=0.95,
-              label="CDS site")
-    ax.plot(x, smooth, color="#1F3B73", lw=1.6, alpha=0.95,
+    groove_spans = [exons[i - 1] for i in groove_exons if 0 < i <= len(exons)]
+    for a, b in groove_spans:
+        ax.axvspan(a - 1, b, color=C_GROOVE, alpha=0.20, lw=0, zorder=0)
+
+    ax.grid(axis="y", color="#E6E6E6", lw=0.8, zorder=0)
+    ax.set_axisbelow(True)
+
+    ax.vlines(x[~cds], 0, pi_arr[~cds], color=C_NONCDS, lw=0.7, zorder=2,
+              label="non-CDS site (intron / UTR)")
+    ax.vlines(x[cds], 0, pi_arr[cds], color=C_CDS, lw=0.75, zorder=3, label="CDS site")
+    ax.plot(x, smooth, color=C_SMOOTH, lw=2.0, zorder=4, solid_capstyle="round",
             label=f"{window} bp sliding mean")
 
-    ax.set_ylabel("Nucleotide diversity  $\\pi$  per site")
-    ax.set_xlim(0, n)
-    ax.set_ylim(bottom=0)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.legend(frameon=False, loc="upper right", fontsize=8.5, ncol=3)
     mean_cds = float(pi_arr[cds].mean()) if cds.any() else float("nan")
     mean_non = float(pi_arr[~cds].mean()) if (~cds).any() else float("nan")
     ratio = (mean_cds / mean_non) if mean_non else float("nan")
-    ax.set_title(
-        f"HLA-{gene.replace('HLA-', '')}: per-site nucleotide diversity along the gene "
-        f"({n_haps:,} haplotypes, all projected onto {canonical})\n"
-        f"mean $\\pi$ in CDS = {mean_cds:.4f}   vs   outside CDS = {mean_non:.4f}   "
-        f"(ratio {ratio:.2f}x)", fontsize=11)
 
-    # Gene model ribbon: exon boxes on a thin axis beneath the track.
-    axg.axhline(0.5, color="#888888", lw=1.0, zorder=1)
-    for a, b in exons:
-        axg.add_patch(plt.Rectangle((a - 1, 0.15), max(b - a + 1, 1), 0.7,
-                                     facecolor="#4C4C4C", edgecolor="none", zorder=2))
+    ax.set_ylabel("Nucleotide diversity  $\\pi$  per site", fontsize=11)
+    ax.set_xlim(0, n)
+    ax.set_ylim(0, max(float(pi_arr.max()) * 1.28, 1e-6))
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.tick_params(labelsize=10)
+
+    handles, labels = ax.get_legend_handles_labels()
+    if groove_spans:
+        handles.append(plt.Rectangle((0, 0), 1, 1, facecolor=C_GROOVE, alpha=0.35, edgecolor="none"))
+        labels.append("peptide-binding groove exons")
+    ax.legend(handles, labels, frameon=False, fontsize=9.5, ncol=4,
+              loc="lower left", bbox_to_anchor=(0.0, 1.005))
+
+    short = gene.replace("HLA-", "")
+    fig.suptitle(
+        f"HLA-{short} — per-site nucleotide diversity along the full gene",
+        x=0.5, y=1.045, fontsize=15, fontweight="semibold")
+    ax.text(0.5, 1.115,
+            f"{n_haps:,} haplotypes, every one projected onto a single canonical reference "
+            f"({canonical})    •    "
+            f"mean $\\pi$: CDS {mean_cds:.4f}  vs  non-CDS {mean_non:.4f}  ({ratio:.2f}×)",
+            transform=ax.transAxes, ha="center", va="bottom", fontsize=10, color="#444444")
+
+    # Gene model ribbon.
+    axg.axhline(0.5, color="#9A9A9A", lw=1.0, zorder=1)
+    for idx, (a, b) in enumerate(exons, start=1):
+        is_groove = idx in groove_exons
+        axg.add_patch(plt.Rectangle(
+            (a - 1, 0.12), max(b - a + 1, 1), 0.76,
+            facecolor=(C_CDS if is_groove else "#5A5A5A"), edgecolor="none", zorder=2))
+        if (b - a) > n * 0.02:
+            axg.text((a - 1 + b) / 2, 0.5, str(idx), ha="center", va="center",
+                     fontsize=7.5, color="white", zorder=3)
     axg.set_ylim(0, 1)
     axg.set_yticks([])
-    axg.set_xlabel(f"Position along {canonical} (bp)")
+    axg.set_xlabel(f"Position along {canonical}  (bp)", fontsize=11)
+    axg.tick_params(labelsize=10)
     for side in ["top", "right", "left"]:
         axg.spines[side].set_visible(False)
-    axg.text(0.002, 0.5, "exons", transform=axg.transAxes, fontsize=8,
-             va="center", ha="left", color="#4C4C4C")
 
-    fig.savefig(out_path, dpi=170, bbox_inches="tight")
+    fig.savefig(out_path, dpi=180, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 
@@ -468,7 +519,7 @@ def main():
     ap.add_argument("--plot", action="store_true")
     args = ap.parse_args()
 
-    out_dir = args.out_dir or os.path.expanduser("~/results/12_hla_manhattan")
+    out_dir = args.out_dir or os.path.expanduser("~/results/15_hla_manhattan")
     os.makedirs(out_dir, exist_ok=True)
 
     persons = sorted(d for d in os.listdir(args.outroot)
@@ -477,8 +528,10 @@ def main():
         persons = persons[:args.limit]
     print(f"{len(persons)} people, genes={args.genes}, threads={args.threads}", file=sys.stderr)
 
+    # Resolve every gene's canonical allele up front so all genes can be extracted in ONE pass
+    # over each haplotype's PAF (see canonical_rows: the scan dominates, so this is ~Nx faster).
+    canon_of = {}
     for gene in args.genes:
-        print(f"=== {gene} ===", file=sys.stderr)
         if args.canonical and len(args.genes) == 1:
             canonical, sel = args.canonical, {"forced": True}
         else:
@@ -486,17 +539,28 @@ def main():
         if not canonical:
             print(f"  no canonical allele found for {gene}; skipping", file=sys.stderr)
             continue
-        print(f"  canonical={canonical}  selection={sel}", file=sys.stderr)
+        canon_of[gene] = (canonical, sel)
+        print(f"  {gene}: canonical={canonical}  selection={sel}", file=sys.stderr)
+    if not canon_of:
+        sys.exit("no canonical alleles resolved for any requested gene")
 
+    t_all = time.time()
+    acc_by_canon = aggregate_multi(persons, args.outroot,
+                                    [c for c, _ in canon_of.values()], threads=args.threads)
+    print(f"single-pass extraction over {len(persons)*2} haplotype units took "
+          f"{time.time()-t_all:.0f}s for {len(canon_of)} gene(s)", file=sys.stderr)
+
+    for gene, (canonical, sel) in canon_of.items():
+        print(f"=== {gene} ===", file=sys.stderr)
         ann = load_allele_annotation(canonical)
         if ann is None:
             print(f"  WARNING: no refdata annotation for {canonical}; CDS mask unavailable",
                   file=sys.stderr)
             ann = {"cds": [], "exons": [], "utr": [], "gene_range": []}
 
-        t0 = time.time()
-        agg = aggregate(persons, args.outroot, canonical, threads=args.threads)
-        elapsed = time.time() - t0
+        agg = acc_by_canon[canonical]
+        agg["n_missing_canonical"] = agg["n_missing"]
+        elapsed = time.time() - t_all
         if not agg["coverage"]:
             print("  no haplotypes carried the canonical row; skipping", file=sys.stderr)
             continue
@@ -543,7 +607,8 @@ def main():
         if args.plot:
             png = os.path.join(out_dir, f"{stem}_manhattan.png")
             plot_manhattan(gene, canonical, pi, agg["coverage"], cds_mask, ann["exons"], png,
-                            agg["n_haps"], window=args.window)
+                            agg["n_haps"], window=args.window,
+                            groove_exons=GROOVE_EXONS.get(gene, ()))
             print(f"  wrote {png}", file=sys.stderr)
 
 
