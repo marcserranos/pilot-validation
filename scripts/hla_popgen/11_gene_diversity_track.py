@@ -40,13 +40,39 @@ estimates are collected per-haplotype and reduced to a per-gene consensus (media
 reported as a QC diagnostic -- large spread would flag alignment-quality-dependent boundary
 instability worth investigating before trusting the CDS shading.
 
+## Surveyed-surface normalization (2026-09-07 follow-up)
+
+The density denominator originally used the PAF's nominal `qlen` (the reference gene's full
+length), implicitly assuming every haplotype's alignment covers the whole gene. That's an
+overstatement whenever an alignment is partial (soft-clipped at either end) -- positions outside
+the aligned span couldn't have been OBSERVED as variant or non-variant at all, so counting them in
+the denominator as if they were surveyed silently deflates the density estimate. Fix: also compute
+density using the PAF's own `qstart`/`qend` (the ACTUAL aligned span in reference-gene coordinates)
+as the denominator instead of the nominal `qlen`, and report both side by side
+(`cds_vs_flanking_density_naive` vs. `_surveyed`) so a real difference between them is visible
+rather than assumed away.
+
+## Manhattan/needle plot (2026-09-07 follow-up): fixing the coordinate-frame problem properly
+
+The raw per-position `variant_counts` track is NOT safely plottable across haplotypes that matched
+different-length template alleles (confirmed live: HLA-DRB1 haplotypes spanned 10,850-16,110bp).
+Rather than smear that track across templates, this script identifies the SINGLE most common
+`template_allele` per gene and builds the Manhattan track ONLY from haplotypes that matched that
+exact template -- every haplotype in that subset shares one coordinate system by construction, so
+no cross-template translation error is possible. This trades completeness (haplotypes on other
+templates are excluded from the plot, though still counted in the density comparison above) for
+correctness. `--plot` triggers this; the subset size (`n_dominant_template_haps`) is reported so
+the trade-off is visible, not hidden.
+
 Usage (prototype, small sample):
     python3 scripts/hla_popgen/11_gene_diversity_track.py --outroot ~/pipeline_outputs/people \\
         --limit 50 --out-dir /tmp/diversity_track_prototype
 
-Real run (VM, full cohort): python3 scripts/hla_popgen/11_gene_diversity_track.py
+Real run (VM, larger cohort, threaded I/O, with plots):
+    python3 scripts/hla_popgen/11_gene_diversity_track.py --limit 2000 --threads 6 --plot
 """
 import argparse
+import concurrent.futures
 import gzip
 import json
 import os
@@ -54,7 +80,7 @@ import re
 import sys
 import time
 from bisect import bisect_right
-from collections import Counter, defaultdict
+from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from importlib import import_module  # noqa: E402
@@ -64,7 +90,8 @@ GENES = ["HLA-A", "HLA-B", "HLA-C", "HLA-DRB1"]  # first-pass set: single-copy, 
 # strongest expected diversifying-selection signal at the groove (NEEDLE_VIEW_BRIEF.md).
 
 CS_TOKEN_RE = re.compile(r":\d+|\*[a-z]{2}|[+-][a-z]+", re.IGNORECASE)
-PAF_QNAME_COL, PAF_TSTART_COL, PAF_TEND_COL, PAF_TNAME_COL = 0, 7, 8, 5
+PAF_QNAME_COL, PAF_QSTART_COL, PAF_QEND_COL = 0, 2, 3
+PAF_TSTART_COL, PAF_TEND_COL, PAF_TNAME_COL = 7, 8, 5
 
 
 # ---------------------------------------------------------------------------
@@ -199,14 +226,30 @@ def target_to_query(breakpoints, t_target):
     # approximation anchored to the nearest run, which is the best a breakpoint map can do.
 
 
+def clip_ranges(ranges, lo, hi):
+    """Clip a list of (start, end) 0-based half-open-ish ranges to [lo, hi], dropping/truncating
+    as needed. Used to restrict nominal CDS ranges to a haplotype's actually-aligned span."""
+    out = []
+    for a, b in ranges:
+        a2, b2 = max(a, lo), min(b, hi)
+        if a2 < b2:
+            out.append((a2, b2))
+    return out
+
+
+def range_bp(ranges):
+    return sum(b - a for a, b in ranges)
+
+
 # ---------------------------------------------------------------------------
 # Per-person, per-gene, per-hap processing
 # ---------------------------------------------------------------------------
 def process_person_gene_hap(person_dir, hap, gene):
-    """Returns None (no data / no accepted row) or a dict: variant_counter (Counter of query-space
-    0-based positions touched by a variant in THIS haplotype -- caller sums across haplotypes),
-    q_span (0, qlen) covered by this haplotype's alignment, cds_query_ranges (this haplotype's own
-    CDS boundaries translated into query space), nm (alignment edit distance, for QC)."""
+    """Returns None (no data / no accepted row) or a dict carrying everything the aggregation step
+    needs: the variant list (query-space), the nominal reference length (qlen), the ACTUAL aligned
+    span (qstart, qend -- see module docstring "Surveyed-surface normalization"), this haplotype's
+    own CDS ranges in query space (both nominal and clipped to the aligned span), the matched
+    template_allele (for Manhattan-plot stratification), and NM (alignment edit distance, QC)."""
     gtf_path = os.path.join(person_dir, f"{hap}.gtf.gz")
     paf_path = os.path.join(person_dir, hap, "mm2.ipd.gen.paf.gz")
     if not (os.path.exists(gtf_path) and os.path.exists(paf_path)):
@@ -219,6 +262,7 @@ def process_person_gene_hap(person_dir, hap, gene):
     if row is None:
         return None
     qlen = int(row[1])
+    qstart, qend = int(row[PAF_QSTART_COL]), int(row[PAF_QEND_COL])
     cs = get_tag(row, "cs")
     nm = get_tag(row, "NM")
     if cs is None:
@@ -227,25 +271,23 @@ def process_person_gene_hap(person_dir, hap, gene):
     tstart = int(row[PAF_TSTART_COL])
     cds_query_ranges = []
     for c_start, c_end in gtf_info["cds_ranges"]:
-        # GTF 1-based inclusive contig coords -> 0-based offset from this alignment's tstart.
         t0, t1 = (c_start - 1) - tstart, c_end - tstart
         if t1 < 0 or t0 > (int(row[PAF_TEND_COL]) - tstart):
-            continue  # CDS segment outside this alignment's covered target range
+            continue
         q0, q1 = target_to_query(breakpoints, max(t0, 0)), target_to_query(breakpoints, t1)
         cds_query_ranges.append((q0, q1))
-    # cds_bp is the EXACT GTF-derived CDS length (c_end - c_start + 1, summed) -- not derived from
-    # the target->query translation, so it carries none of that lookup's boundary imprecision. This
-    # is what makes the CDS-vs-flanking DENSITY comparison (see aggregate_gene / main) robust even
-    # though the raw query-offset positional track is not directly comparable across haplotypes
-    # that matched different-length template alleles (see module docstring "Hypothesis" section --
-    # confirmed live, 2026-09-07: HLA-DRB1 haplotypes in a 50-person prototype matched templates
-    # ranging 10,850-16,110bp, a >5kb spread, entirely from intron-length polymorphism between
-    # reference alleles). Density only needs per-haplotype (count, bp) pairs, never a shared axis.
-    cds_bp = sum(c_end - c_start + 1 for c_start, c_end in gtf_info["cds_ranges"])
+    # Naive CDS bp: exact GTF-derived length, no translation involved (see original module note).
+    cds_bp_naive = sum(c_end - c_start + 1 for c_start, c_end in gtf_info["cds_ranges"])
+    # Surveyed CDS bp: the same CDS query-ranges, clipped to [qstart, qend] -- what actually could
+    # have been observed as variant/non-variant by THIS alignment.
+    cds_ranges_surveyed = clip_ranges(cds_query_ranges, qstart, qend)
+    cds_bp_surveyed = range_bp(cds_ranges_surveyed)
     n_in_cds = sum(1 for v in set(variants) if in_any_range(v, cds_query_ranges))
     return {
-        "variants": variants, "qlen": qlen, "cds_query_ranges": cds_query_ranges,
-        "nm": int(nm) if nm is not None else None, "cds_bp": cds_bp,
+        "variants": variants, "qlen": qlen, "qstart": qstart, "qend": qend,
+        "cds_query_ranges": cds_query_ranges, "template_allele": gtf_info["template_allele"],
+        "nm": int(nm) if nm is not None else None,
+        "cds_bp_naive": cds_bp_naive, "cds_bp_surveyed": cds_bp_surveyed,
         "n_variants_in_cds": n_in_cds, "n_variants_total": len(set(variants)),
     }
 
@@ -254,73 +296,99 @@ def in_any_range(pos, ranges):
     return any(lo <= pos <= hi for lo, hi in ranges)
 
 
-def aggregate_gene(persons, outroot, gene, progress_every=200):
-    """Streams all persons for one gene; returns {position: {"n_obs": int, "n_haps": int}} plus
-    diagnostics: n_haps_used, qlen (reference gene length, should be ~constant across haps since
-    they align to the same/similar reference alleles), cds_query_ranges (list of per-hap boundary
-    estimates, for the consensus + spread QC)."""
+def aggregate_gene(persons, outroot, gene, progress_every=200, threads=1):
+    """Streams all persons for one gene (optionally via a thread pool -- I/O-bound work, matching
+    01_extract_rich.py's ThreadPoolExecutor precedent/reasoning). Returns aggregate totals for the
+    naive and surveyed density comparisons, plus the raw materials needed for the
+    template-stratified Manhattan plot (dominant_template + its haplotypes' variants/cds_ranges)."""
     variant_counts = Counter()
     n_haps = 0
     qlens = Counter()
     all_cds_ranges = []
     nm_values = []
-    total_cds_bp = total_qlen_bp = total_variants_in_cds = total_variants_all = 0
+    total_cds_bp_naive = total_qlen_bp = 0
+    total_cds_bp_surveyed = total_surveyed_bp = 0
+    total_variants_in_cds = total_variants_all = 0
+    template_counts = Counter()
+    per_hap_records = []  # (template_allele, variants, cds_query_ranges) -- for Manhattan plot
     t0 = time.time()
-    for i, person_id in enumerate(persons, 1):
-        person_dir = os.path.join(outroot, person_id, "immuannot_output")
-        for hap in ("hap1", "hap2"):
-            result = process_person_gene_hap(person_dir, hap, gene)
-            if result is None:
-                continue
-            n_haps += 1
-            qlens[result["qlen"]] += 1
-            nm_values.append(result["nm"])
-            for pos in set(result["variants"]):  # dedupe within-haplotype double-hits at one pos
-                variant_counts[pos] += 1
-            if result["cds_query_ranges"]:
-                all_cds_ranges.append(result["cds_query_ranges"])
-            # Density accounting (robust to the cross-haplotype coordinate-frame problem -- see
-            # process_person_gene_hap's comment -- because it never compares raw positions across
-            # haplotypes, only sums per-haplotype (count, bp) pairs).
-            total_cds_bp += result["cds_bp"]
-            total_qlen_bp += result["qlen"]
-            total_variants_in_cds += result["n_variants_in_cds"]
-            total_variants_all += result["n_variants_total"]
+
+    def _tasks():
+        for person_id in persons:
+            person_dir = os.path.join(outroot, person_id, "immuannot_output")
+            for hap in ("hap1", "hap2"):
+                yield person_dir, hap
+
+    if threads > 1:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as pool:
+            results_iter = pool.map(lambda pd_hap: process_person_gene_hap(pd_hap[0], pd_hap[1], gene),
+                                     _tasks())
+            results = enumerate(results_iter, 1)
+    else:
+        results = enumerate((process_person_gene_hap(pd, hap, gene) for pd, hap in _tasks()), 1)
+
+    n_units = len(persons) * 2
+    for i, result in results:
+        if result is None:
+            if progress_every and i % progress_every == 0:
+                elapsed = time.time() - t0
+                print(f"    [{gene}] {i}/{n_units} units, {elapsed:.0f}s elapsed "
+                      f"({i/elapsed:.1f} units/sec), {n_haps} haps with data so far", file=sys.stderr)
+            continue
+        n_haps += 1
+        qlens[result["qlen"]] += 1
+        nm_values.append(result["nm"])
+        for pos in set(result["variants"]):
+            variant_counts[pos] += 1
+        if result["cds_query_ranges"]:
+            all_cds_ranges.append(result["cds_query_ranges"])
+        total_cds_bp_naive += result["cds_bp_naive"]
+        total_qlen_bp += result["qlen"]
+        total_cds_bp_surveyed += result["cds_bp_surveyed"]
+        total_surveyed_bp += (result["qend"] - result["qstart"])
+        total_variants_in_cds += result["n_variants_in_cds"]
+        total_variants_all += result["n_variants_total"]
+        template_counts[result["template_allele"]] += 1
+        per_hap_records.append((result["template_allele"], set(result["variants"]),
+                                 result["cds_query_ranges"], result["qlen"]))
         if progress_every and i % progress_every == 0:
             elapsed = time.time() - t0
-            print(f"    [{gene}] {i}/{len(persons)} people, {elapsed:.0f}s elapsed "
-                  f"({i/elapsed:.1f} people/sec), {n_haps} haps with data so far", file=sys.stderr)
+            print(f"    [{gene}] {i}/{n_units} units, {elapsed:.0f}s elapsed "
+                  f"({i/elapsed:.1f} units/sec), {n_haps} haps with data so far", file=sys.stderr)
+
+    dominant_template, dominant_n = (template_counts.most_common(1)[0]
+                                      if template_counts else (None, 0))
+    dominant_records = [(v, c, q) for t, v, c, q in per_hap_records if t == dominant_template]
+
     return {
         "variant_counts": variant_counts, "n_haps": n_haps, "qlens": qlens,
         "all_cds_ranges": all_cds_ranges, "nm_values": nm_values,
-        "total_cds_bp": total_cds_bp, "total_qlen_bp": total_qlen_bp,
+        "total_cds_bp_naive": total_cds_bp_naive, "total_qlen_bp": total_qlen_bp,
+        "total_cds_bp_surveyed": total_cds_bp_surveyed, "total_surveyed_bp": total_surveyed_bp,
         "total_variants_in_cds": total_variants_in_cds, "total_variants_all": total_variants_all,
+        "dominant_template": dominant_template, "dominant_n": dominant_n,
+        "dominant_records": dominant_records,
     }
 
 
-def cds_vs_flanking_density(total_cds_bp, total_qlen_bp, total_variants_in_cds, total_variants_all):
-    """The primary, coordinate-frame-robust result: variant density (per kb) inside vs. outside the
-    CDS, plus an exact binomial test of whether variants are distributed disproportionately to CDS
-    vs. its share of total gene length (the null: variants land uniformly at random along the gene
-    regardless of CDS membership -- expected P(in CDS) = total_cds_bp / total_qlen_bp). This tests
-    diversity CONCENTRATION, not raw magnitude, and needs no cross-haplotype position alignment."""
-    total_noncds_bp = total_qlen_bp - total_cds_bp
+def cds_vs_flanking_density(total_cds_bp, total_bp, total_variants_in_cds, total_variants_all):
+    """Variant density (per kb) inside vs. outside the CDS, plus an exact binomial test of whether
+    variants are distributed disproportionately to CDS vs. its share of the surveyed length (null:
+    uniform along the gene, expected P(in CDS) = total_cds_bp / total_bp). Works identically for
+    the naive (nominal qlen) and surveyed (actual aligned span) denominators -- caller picks which
+    totals to pass in. Needs no cross-haplotype position alignment (see module docstring)."""
+    total_noncds_bp = total_bp - total_cds_bp
     n_out = total_variants_all - total_variants_in_cds
     density_in = 1000.0 * total_variants_in_cds / total_cds_bp if total_cds_bp else None
     density_out = 1000.0 * n_out / total_noncds_bp if total_noncds_bp else None
-    p_cds = total_cds_bp / total_qlen_bp if total_qlen_bp else None
-    # Exact two-sided binomial test via scipy (which works in log-space internally) rather than a
-    # hand-rolled sum of math.comb(n, i) * p**i * (1-p)**(n-i) terms -- that direct approach
-    # OverflowErrors (int too large to convert to float) once n reaches the low thousands, which
-    # HLA-DRB1's variant count does at cohort scale (confirmed live, 2026-09-07: crashed a 500-
-    # person run). scipy.stats.binomtest is exact and doesn't have this failure mode.
+    p_cds = total_cds_bp / total_bp if total_bp else None
     p_value = None
     if p_cds is not None and total_variants_all > 0:
         from scipy.stats import binomtest
         p_value = float(binomtest(total_variants_in_cds, total_variants_all, p_cds,
                                    alternative="two-sided").pvalue)
     return {
-        "total_cds_bp": total_cds_bp, "total_noncds_bp": total_noncds_bp,
+        "total_bp": total_bp, "total_cds_bp": total_cds_bp, "total_noncds_bp": total_noncds_bp,
         "n_variants_in_cds": total_variants_in_cds, "n_variants_outside_cds": n_out,
         "density_per_kb_in_cds": density_in, "density_per_kb_outside_cds": density_out,
         "density_ratio_in_over_out": (density_in / density_out)
@@ -346,6 +414,54 @@ def consensus_cds_ranges(all_cds_ranges):
     return consensus, spreads
 
 
+# ---------------------------------------------------------------------------
+# Manhattan/needle plot: template-stratified, so every haplotype plotted shares one axis
+# ---------------------------------------------------------------------------
+def build_manhattan_track(dominant_records):
+    """dominant_records: list of (variants_set, cds_query_ranges, qlen), all from haplotypes that
+    matched the SAME template_allele (so raw positions are directly comparable, no translation
+    error possible). Returns (position_counts: Counter, cds_ranges: the shared CDS ranges, qlen)."""
+    if not dominant_records:
+        return Counter(), [], None
+    position_counts = Counter()
+    for variants, _cds, _qlen in dominant_records:
+        for pos in variants:
+            position_counts[pos] += 1
+    # CDS ranges and qlen are IDENTICAL across this group by construction (same template ->
+    # same gene_start/gene_end/CDS rows in every one of these people's own GTF, since they all
+    # matched the same reference template with the same alignment target region shape); take the
+    # first record's as representative rather than re-deriving a consensus.
+    cds_ranges = dominant_records[0][1]
+    qlen = dominant_records[0][2]
+    return position_counts, cds_ranges, qlen
+
+
+def plot_manhattan(gene, position_counts, cds_ranges, qlen, n_haps_in_group, dominant_template,
+                    out_path):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(11, 4.2))
+    for lo, hi in cds_ranges:
+        ax.axvspan(lo, hi, color="#C44E52", alpha=0.15, lw=0)
+    if position_counts:
+        positions = sorted(position_counts)
+        heights = [position_counts[p] for p in positions]
+        ax.vlines(positions, 0, heights, color="#4C72B0", lw=1.1, alpha=0.85)
+    ax.set_xlim(0, qlen or max(position_counts, default=1))
+    ax.set_xlabel(f"Position along reference gene (bp) -- template {dominant_template}")
+    ax.set_ylabel("N haplotypes\nwith a variant here")
+    ax.set_title(f"HLA-{gene}: needle/Manhattan track, template-stratified "
+                 f"(n={n_haps_in_group} haplotypes on the dominant template)\n"
+                 f"Red shading = CDS (per this template's own GTF, no cross-template smearing)",
+                 fontsize=10.5)
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -356,6 +472,12 @@ def main():
                           "existing 50-person recon set) instead of the first --limit by sort order.")
     ap.add_argument("--genes", nargs="+", default=GENES)
     ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--threads", type=int, default=1,
+                     help="ThreadPoolExecutor workers for the per-person read+parse loop "
+                          "(I/O-bound; matches 01_extract_rich.py's reasoning). Keep modest on a "
+                          "shared VM -- default 1 (no threading) is always safe.")
+    ap.add_argument("--plot", action="store_true",
+                     help="Also write a template-stratified Manhattan/needle PNG per gene.")
     args = ap.parse_args()
 
     out_dir = args.out_dir or os.path.expanduser("~/results/11_gene_diversity_track")
@@ -371,14 +493,23 @@ def main():
         )
     if args.limit:
         persons = persons[:args.limit]
-    print(f"{len(persons)} people to process, genes={args.genes}", file=sys.stderr)
+    print(f"{len(persons)} people to process, genes={args.genes}, threads={args.threads}",
+          file=sys.stderr)
 
     for gene in args.genes:
         print(f"=== {gene} ===", file=sys.stderr)
-        result = aggregate_gene(persons, args.outroot, gene)
+        t0 = time.time()
+        result = aggregate_gene(persons, args.outroot, gene, threads=args.threads)
+        elapsed = time.time() - t0
         consensus, spreads = consensus_cds_ranges(result["all_cds_ranges"])
         qlen_summary = result["qlens"].most_common()
         nm = result["nm_values"]
+        density_naive = cds_vs_flanking_density(
+            result["total_cds_bp_naive"], result["total_qlen_bp"],
+            result["total_variants_in_cds"], result["total_variants_all"])
+        density_surveyed = cds_vs_flanking_density(
+            result["total_cds_bp_surveyed"], result["total_surveyed_bp"],
+            result["total_variants_in_cds"], result["total_variants_all"])
         out = {
             "gene": gene, "n_people": len(persons), "n_haps_with_data": result["n_haps"],
             "qlen_distribution": qlen_summary,
@@ -388,25 +519,41 @@ def main():
             "nm_min": min(nm) if nm else None, "nm_max": max(nm) if nm else None,
             "nm_mean": (sum(nm) / len(nm)) if nm else None,
             "variant_counts": dict(sorted(result["variant_counts"].items())),
-            "cds_vs_flanking_density": cds_vs_flanking_density(
-                result["total_cds_bp"], result["total_qlen_bp"],
-                result["total_variants_in_cds"], result["total_variants_all"]),
+            "cds_vs_flanking_density_naive": density_naive,
+            "cds_vs_flanking_density_surveyed": density_surveyed,
+            "dominant_template": result["dominant_template"], "dominant_n": result["dominant_n"],
+            "elapsed_seconds": elapsed,
         }
         out_path = os.path.join(out_dir, f"{gene.replace('HLA-', '')}.json")
         with open(out_path, "w") as f:
             json.dump(out, f, indent=1)
-        d = out["cds_vs_flanking_density"]
-        print(f"  n_haps_with_data={result['n_haps']}  qlen_top={qlen_summary[:3]}  "
-              f"n_variant_positions={len(result['variant_counts'])}  "
-              f"cds_consensus={consensus}  cds_spread={spreads}  "
+        dn, ds = density_naive, density_surveyed
+        print(f"  n_haps_with_data={result['n_haps']}  elapsed={elapsed:.0f}s  "
+              f"qlen_top={qlen_summary[:3]}  n_variant_positions={len(result['variant_counts'])}  "
               f"NM min/mean/max={out['nm_min']}/{out['nm_mean']}/{out['nm_max']}", file=sys.stderr)
-        print(f"  CDS-vs-flanking density (per kb): in_cds={d['density_per_kb_in_cds']}  "
-              f"outside_cds={d['density_per_kb_outside_cds']}  "
-              f"ratio_in_over_out={d['density_ratio_in_over_out']}  "
-              f"n_in/n_out={d['n_variants_in_cds']}/{d['n_variants_outside_cds']}  "
-              f"expected_p_in_cds_if_uniform={d['expected_p_in_cds_if_uniform']}  "
-              f"binomial_p={d['binomial_p_value']}", file=sys.stderr)
+        print(f"  NAIVE   density (per kb): in_cds={dn['density_per_kb_in_cds']:.4f}  "
+              f"outside={dn['density_per_kb_outside_cds']:.4f}  "
+              f"ratio={dn['density_ratio_in_over_out']:.3f}  "
+              f"n_in/n_out={dn['n_variants_in_cds']}/{dn['n_variants_outside_cds']}  "
+              f"p={dn['binomial_p_value']:.3g}", file=sys.stderr)
+        print(f"  SURVEYED density (per kb): in_cds={ds['density_per_kb_in_cds']:.4f}  "
+              f"outside={ds['density_per_kb_outside_cds']:.4f}  "
+              f"ratio={ds['density_ratio_in_over_out']:.3f}  "
+              f"n_in/n_out={ds['n_variants_in_cds']}/{ds['n_variants_outside_cds']}  "
+              f"p={ds['binomial_p_value']:.3g}  "
+              f"(surveyed_bp={result['total_surveyed_bp']} vs nominal_bp={result['total_qlen_bp']}, "
+              f"{100.0*result['total_surveyed_bp']/result['total_qlen_bp']:.1f}% covered)",
+              file=sys.stderr)
+        print(f"  dominant_template={result['dominant_template']!r} "
+              f"({result['dominant_n']}/{result['n_haps']} haplotypes)", file=sys.stderr)
         print(f"  wrote {out_path}", file=sys.stderr)
+
+        if args.plot:
+            position_counts, cds_ranges, qlen = build_manhattan_track(result["dominant_records"])
+            plot_path = os.path.join(out_dir, f"{gene.replace('HLA-', '')}_manhattan.png")
+            plot_manhattan(gene, position_counts, cds_ranges, qlen, result["dominant_n"],
+                            result["dominant_template"], plot_path)
+            print(f"  wrote {plot_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":

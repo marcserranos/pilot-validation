@@ -8,6 +8,7 @@ Run: python3 scripts/hla_popgen/tests/test_gene_diversity_track.py
 import importlib.util
 import os
 import sys
+from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HLA_POPGEN_DIR = os.path.dirname(HERE)
@@ -92,6 +93,38 @@ def test_target_to_query_across_deletion():
           m.target_to_query(bp, 10) == 10, detail=str(bp))
 
 
+def test_clip_ranges_and_range_bp():
+    ranges = [(0, 100), (200, 300)]
+    clipped = m.clip_ranges(ranges, 50, 250)
+    check("clip drops/truncates ranges outside [lo, hi]",
+          clipped == [(50, 100), (200, 250)], detail=str(clipped))
+    check("range_bp sums correctly", m.range_bp(clipped) == 100, detail=str(m.range_bp(clipped)))
+    check("clip that excludes everything returns empty",
+          m.clip_ranges(ranges, 500, 600) == [])
+
+
+def test_build_manhattan_track_stratifies_correctly():
+    # Two haplotypes on the SAME template (directly comparable positions), one on a DIFFERENT
+    # template (must be excluded from this call -- caller is responsible for pre-filtering to the
+    # dominant template only; this test locks in that build_manhattan_track itself just aggregates
+    # whatever records it's given, treating them as already-comparable).
+    records = [
+        ({10, 20}, [(5, 15)], 100),
+        ({20, 30}, [(5, 15)], 100),
+    ]
+    counts, cds_ranges, qlen = m.build_manhattan_track(records)
+    check("position 20 seen in both haplotypes", counts[20] == 2, detail=str(counts))
+    check("position 10 seen in one haplotype", counts[10] == 1, detail=str(counts))
+    check("cds_ranges taken from first record", cds_ranges == [(5, 15)])
+    check("qlen taken from first record", qlen == 100)
+
+
+def test_build_manhattan_track_empty():
+    counts, cds_ranges, qlen = m.build_manhattan_track([])
+    check("empty input -> empty counts, no crash", counts == Counter() and cds_ranges == []
+          and qlen is None)
+
+
 def test_consensus_cds_ranges_basic():
     ranges = [[(100, 200), (300, 400)], [(101, 199), (299, 401)], [(99, 201), (301, 399)]]
     consensus, spreads = m.consensus_cds_ranges(ranges)
@@ -117,6 +150,9 @@ def main():
     test_walk_cs_combined_matches_manual_trace()
     test_target_to_query_within_match_run()
     test_target_to_query_across_deletion()
+    test_clip_ranges_and_range_bp()
+    test_build_manhattan_track_stratifies_correctly()
+    test_build_manhattan_track_empty()
     test_consensus_cds_ranges_basic()
     test_consensus_cds_ranges_empty()
     if FAILURES:
