@@ -163,7 +163,12 @@ def embed_esmc(seqs, batch_size=32):
     from transformers import AutoModelForMaskedLM, AutoTokenizer
 
     model_id = "biohub/esmc-300m-2024-12"
-    tok = AutoTokenizer.from_pretrained(model_id)
+    # trust_remote_code needed on BOTH loads -- ESMC ships a custom tokenizer
+    # implementation, not just a custom model class. Missing it on the tokenizer call
+    # produced "Couldn't instantiate the backend tokenizer" even with sentencepiece
+    # installed (verified live 2026-09-08 -- installing sentencepiece did not fix it,
+    # confirming the error wasn't actually a missing-conversion-library issue).
+    tok = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     model = AutoModelForMaskedLM.from_pretrained(
         model_id, trust_remote_code=True, output_hidden_states=True)
     model.eval()
