@@ -80,6 +80,23 @@ from collections import Counter, defaultdict
 
 GENES = ["HLA-A", "HLA-B", "HLA-C", "HLA-DRB1"]
 
+# The wider panel. Adding genes is nearly free: the per-haplotype PAF scan is shared across all of
+# them (see canonical_rows), so cost is dominated by the number of haplotypes, not the gene count.
+#
+# The conserved genes are not filler -- they are the control arm. HLA-DRA is famously
+# near-monomorphic and the non-classical class I genes (E/F/G) are highly conserved, so a method
+# that is actually measuring balancing selection at the peptide-binding groove must show markedly
+# LOWER pi and little-to-no groove enrichment for them. If everything came back hyperdiverse, the
+# classical result would be an artifact rather than a finding.
+PANEL_GENES = [
+    # classical class I -- peptide presentation, strong balancing selection expected
+    "HLA-A", "HLA-B", "HLA-C",
+    # classical class II -- likewise; DQ/DP are the major disease-association loci
+    "HLA-DRB1", "HLA-DQA1", "HLA-DQB1", "HLA-DPA1", "HLA-DPB1",
+    # conserved controls: near-monomorphic class II alpha, and non-classical class I
+    "HLA-DRA", "HLA-E", "HLA-F", "HLA-G",
+]
+
 # Well-known full-genomic reference alleles. Used if present for a given gene; otherwise the script
 # auto-selects (see pick_canonical) because candidate-set membership is NOT universal for every
 # gene -- confirmed live: 4,810 universal HLA-A alleles but only 1 universal HLA-C allele.
@@ -88,14 +105,29 @@ PREFERRED_CANONICAL = {
     "HLA-B": "HLA-B*07:02:01:01",
     "HLA-C": "HLA-C*07:02:01:01",
     "HLA-DRB1": "HLA-DRB1*15:01:01:01",
+    "HLA-DQA1": "HLA-DQA1*01:01:01:01",
+    "HLA-DQB1": "HLA-DQB1*05:01:01:01",
+    "HLA-DPA1": "HLA-DPA1*01:03:01:01",
+    "HLA-DPB1": "HLA-DPB1*04:01:01:01",
+    "HLA-DRA": "HLA-DRA*01:01:01:01",
+    "HLA-E": "HLA-E*01:01:01:01",
+    "HLA-F": "HLA-F*01:01:01:01",
+    "HLA-G": "HLA-G*01:01:01:01",
 }
+# Any gene absent here (or whose preferred allele is not present for >=85% of probed haplotypes)
+# falls through to pick_canonical's length-first auto-selection.
 
 # Exons encoding the peptide-binding groove -- the whole point of the figure. Class I (A/B/C):
 # exons 2 and 3 encode the alpha1/alpha2 domains that form the groove. Class II (DRB1): exon 2
 # encodes the beta1 domain. 1-based exon numbers, indexing into the annotation's `exons` list.
 GROOVE_EXONS = {
+    # Class I (classical and non-classical alike): exons 2 and 3 encode alpha1/alpha2.
     "HLA-A": [2, 3], "HLA-B": [2, 3], "HLA-C": [2, 3],
-    "HLA-DRB1": [2],
+    "HLA-E": [2, 3], "HLA-F": [2, 3], "HLA-G": [2, 3],
+    # Class II: exon 2 encodes the groove-forming domain on both the alpha and beta chains
+    # (alpha1 for DRA/DQA1/DPA1, beta1 for DRB1/DQB1/DPB1).
+    "HLA-DRB1": [2], "HLA-DQB1": [2], "HLA-DPB1": [2],
+    "HLA-DRA": [2], "HLA-DQA1": [2], "HLA-DPA1": [2],
 }
 
 CS_TOKEN_RE = re.compile(r":\d+|\*[a-z]{2}|[+-][a-z]+", re.IGNORECASE)
@@ -217,16 +249,18 @@ def canonical_rows(paf_path, canonicals):
     """
     best = {}
     best_span = {}
+    canon_set = set(canonicals)
     opener = gzip.open if paf_path.endswith(".gz") else open
     with opener(paf_path, "rt") as f:
         for line in f:
-            # Cheap prefilter before the (relatively costly) split: the qname is the line prefix.
-            hit = None
-            for c in canonicals:
-                if line.startswith(c) and line[len(c)] == "\t":
-                    hit = c
-                    break
-            if hit is None:
+            # Prefilter on the qname (everything before the first tab) via a single hash lookup.
+            # A per-canonical startswith() loop is fine for 4 genes but costs a comparison per gene
+            # per line -- ~32k lines x 12 genes x 24k haplotypes is real time for no reason.
+            tab = line.find("\t")
+            if tab < 0:
+                continue
+            hit = line[:tab]
+            if hit not in canon_set:
                 continue
             fields = line.rstrip("\n").split("\t")
             if len(fields) < 12:
@@ -531,6 +565,10 @@ def main():
     ap.add_argument("--outroot", default=os.path.expanduser("~/pipeline_outputs/people"))
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--genes", nargs="+", default=GENES)
+    ap.add_argument("--panel", action="store_true",
+                     help="Use PANEL_GENES (classical class I + II plus the conserved DRA/E/F/G "
+                          "controls) instead of --genes. Costs little extra: the per-haplotype PAF "
+                          "scan is shared across genes.")
     ap.add_argument("--canonical", default=None,
                      help="Force one canonical allele (only valid with a single --genes entry).")
     ap.add_argument("--out-dir", default=None)
@@ -542,6 +580,8 @@ def main():
                           "already in --out-dir. Extraction over the full cohort takes ~35 min, so "
                           "no figure restyling should ever require re-reading the PAFs.")
     args = ap.parse_args()
+    if args.panel:
+        args.genes = list(PANEL_GENES)
 
     if args.replot:
         out_dir_rp = args.out_dir or os.path.expanduser("~/results/15_hla_manhattan")
