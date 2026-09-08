@@ -162,8 +162,67 @@ dropout is reported explicitly as `n_missing_canonical` (**1.5–3.7%** of haplo
 | HLA-C | `C*17:01:01:30` | 4,325 | 23,823 | 2,326 | 0.0411 | 0.0233 | **1.77×** |
 | HLA-DRB1 | `DRB1*13:02:01:01` | 13,941 | 23,622 | 4,534 | 0.0288 | 0.0151 | **1.91×** |
 
-*(The wider 12-gene panel — adding DQA1/DQB1/DPA1/DPB1 plus the conserved controls DRA/E/F/G — is
-reported in `panel_summary.md` alongside.)*
+### The full 12-gene panel
+
+Machine-readable version: `panel_summary.tsv`. Sorted by coding diversity:
+
+| gene | class | canonical | length | haplotypes | variant sites | π CDS | π non-CDS | ratio |
+|---|---|---|---|---|---|---|---|---|
+| HLA-C | classical I | `C*17:01:01:30` | 4,325 | 23,823 | 2,326 | 0.0411 | 0.0233 | 1.77 |
+| HLA-A | classical I | `A*01:01:01:01` | 3,503 | 24,167 | 1,733 | 0.0397 | 0.0266 | 1.49 |
+| HLA-B | classical I | `B*07:02:01:01` | 4,081 | 23,813 | 2,317 | 0.0372 | 0.0202 | 1.84 |
+| HLA-DRB1 | classical II β | `DRB1*13:02:01:01` | 13,941 | 23,622 | 4,534 | 0.0288 | 0.0151 | 1.91 |
+| HLA-DPB1 | classical II β | `DPB1*04:01:01:01` | 11,526 | 23,966 | 5,744 | 0.0161 | 0.0103 | 1.56 |
+| HLA-DQA1 | classical II α | `DQA1*01:01:01:01` | 6,492 | 24,177 | 2,252 | 0.0138 | 0.0195 | **0.71** |
+| HLA-DQB1 | classical II β | `DQB1*02:01:40` | 7,480 | 24,105 | 2,722 | 0.0130 | 0.0183 | **0.71** |
+| HLA-DPA1 | classical II α | `DPA1*01:03:01:01` | 9,775 | 23,994 | 4,076 | 0.0118 | 0.0187 | **0.63** |
+| HLA-G | non-classical I | `G*01:01:01:01` | 3,138 | 23,864 | 1,634 | 0.0045 | 0.0087 | 0.52 |
+| HLA-DRA | class II α (conserved) | `DRA*01:01:01:01` | 5,711 | 23,830 | 2,977 | 0.0017 | 0.0066 | 0.26 |
+| HLA-E | non-classical I | `E*01:01:01:01` | 3,822 | 23,673 | 2,016 | 0.0011 | 0.0003 | 3.69 ⚠ |
+| HLA-F | non-classical I | `F*01:01:01:19` | 3,552 | 23,768 | 2,089 | 0.0008 | 0.0087 | 0.09 |
+
+### What the control arm establishes
+
+The conserved genes were included as a falsification test: a method that reports everything as
+hyperdiverse is measuring noise, not selection. It passes clearly.
+
+- Coding diversity spans **55×**, from HLA-C (0.0411) to HLA-F (0.00075).
+- The ordering is the known biology, and the method was never tuned on it: classical class I
+  highest → DRB1 → DPB1 → DQ/DP → G → DRA → E/F.
+- **HLA-DRA lands at 0.0017**, second-lowest — it is the textbook near-monomorphic HLA gene.
+- **HLA-G (0.0045) sits above E and F**, which is correct: G is known to carry more variation than
+  the other non-classical class I genes while remaining far below classical.
+
+### The CDS-enrichment ratio does not behave uniformly — and that is the more informative result
+
+The initial expectation was that CDS > non-CDS everywhere. That is **wrong**, and the way it is
+wrong is meaningful. The ratio exceeds 1 only for the strongly balancing-selected genes and
+inverts for the conserved ones (DRA 0.26, HLA-F 0.09).
+
+This is the correct expectation on reflection. For an ordinary gene, purifying selection removes
+coding variation and pushes π_CDS *below* the roughly-neutral intronic background — **ratio < 1 is
+the default**. Ratio > 1 is the anomaly, and it is the signature of balancing selection actively
+maintaining coding variation. So the statistic discriminates between selective regimes rather than
+merely confirming a prior:
+
+- **ratio > 1** (balancing selection at the groove): A, B, C, DRB1, DPB1
+- **ratio < 1** (ordinary purifying selection): DQA1, DQB1, DPA1, G, DRA, F
+
+The class II α chains (DQA1, DPA1) and DQB1 falling below 1 is notable and not something to wave
+through — the DQ/DP heterodimers do contribute to peptide binding. Whether this reflects genuinely
+weaker balancing selection on those chains, or an artifact of their longer canonical references, is
+**not resolved here** (see limitations).
+
+### Two results explicitly NOT claimed
+
+1. **HLA-E's ratio of 3.69 is not trusted.** It rests on tiny absolute values (π_CDS 0.0011), and
+   its non-CDS π (0.00031) is ~30× lower than that of F and G (both 0.0087). There is no obvious
+   reason E's introns should be that much more conserved than its close paralogs'. This looks like
+   a canonical-reference or coverage artifact and needs a reference-sensitivity check.
+2. **HLA-DPB1's 1.56 needs verification.** Its `NM max` is **1,608**, a wild outlier against every
+   other gene (51–412), meaning some haplotypes align very poorly to the chosen DPB1 canonical.
+   Poorly-aligned haplotypes can inject spurious differences, and the effect need not be uniform
+   between exons and introns.
 
 ### Reading the figures
 
