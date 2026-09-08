@@ -1,0 +1,7 @@
+embedding	label_set	observed_same_label_frac	null_mean	null_std	p_value
+locked_raw	ancestry (positive control)	0.5291	0.2049	0.0015	0.001996007984031936
+locked_raw	any_HLA_linked_diagnosis	0.8339	0.8342	0.001	0.6427145708582834
+ancestry_residualized	ancestry (positive control)	0.4946	0.2047	0.0016	0.001996007984031936
+ancestry_residualized	any_HLA_linked_diagnosis	0.8337	0.8342	0.0009	0.7385229540918163
+supervised	ancestry (positive control)	0.5159	0.2049	0.0014	0.001996007984031936
+supervised	any_HLA_linked_diagnosis	0.9703	0.8343	0.0009	0.001996007984031936
