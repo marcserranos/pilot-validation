@@ -49,6 +49,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _viz_common as vc  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +162,58 @@ def auroc_permutation_pvalue(scores, labels, n_perm=2000, seed=0):
 
 
 # ---------------------------------------------------------------------------
+# Plotting -- where do held-out people actually land in a mapping they never trained on?
+# ---------------------------------------------------------------------------
+LABEL_COLORS = {0: "#9a9a9a", 1: "#1b9e77"}  # neutral gray (undiagnosed) / teal (diagnosed)
+
+
+def plot_train_test_panel(ax, train_coords, y_train, test_coords, y_test, title):
+    """Faint small dots = train people (the fit never optimizes anything about the held-out
+    people). Larger black-edged triangles = test people, `.transform()`-projected into that same
+    frozen mapping using ONLY their allele dosage -- their color (true diagnosis) was never seen
+    by the fit or the transform. If diagnosed test triangles land inside the diagnosed train
+    region rather than scattered randomly, that is the visual version of the held-out AUROC."""
+    for lbl in (0, 1):
+        m = y_train == lbl
+        ax.scatter(train_coords[m, 0], train_coords[m, 1], s=6, alpha=0.25,
+                   color=LABEL_COLORS[lbl], linewidths=0)
+    for lbl in (0, 1):
+        m = y_test == lbl
+        ax.scatter(test_coords[m, 0], test_coords[m, 1], s=26, alpha=0.95,
+                   color=LABEL_COLORS[lbl], edgecolors="black", linewidths=0.5, marker="^")
+    ax.set_title(title, fontsize=10)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+
+def build_train_test_figure(panels, out_dir):
+    """panels: {name: (train_coords, y_train, test_coords, y_test)}."""
+    if not panels:
+        return None
+    fig, axes = plt.subplots(1, len(panels), figsize=(5.5 * len(panels), 5))
+    if len(panels) == 1:
+        axes = [axes]
+    for ax, (name, (tr_c, tr_y, te_c, te_y)) in zip(axes, panels.items()):
+        plot_train_test_panel(ax, tr_c, tr_y, te_c, te_y,
+                              f"{name}\n(small = train, triangle = held-out test)")
+    handles = [
+        plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=LABEL_COLORS[0],
+                  markersize=6, alpha=0.5, label="train, undiagnosed"),
+        plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=LABEL_COLORS[1],
+                  markersize=6, alpha=0.5, label="train, diagnosed"),
+        plt.Line2D([0], [0], marker="^", color="none", markerfacecolor=LABEL_COLORS[0],
+                  markeredgecolor="black", markersize=8, label="held-out test, undiagnosed"),
+        plt.Line2D([0], [0], marker="^", color="none", markerfacecolor=LABEL_COLORS[1],
+                  markeredgecolor="black", markersize=8, label="held-out test, diagnosed"),
+    ]
+    fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=8, frameon=False,
+              bbox_to_anchor=(0.5, -0.02))
+    path = os.path.join(out_dir, "holdout_train_test_embedding.png")
+    vc.savefig(fig, path)
+    return path
+
+
+# ---------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -223,6 +276,7 @@ def main():
     X_test_std = (X_test - mu) / sd_safe  # train-only stats applied to test -- no leakage
 
     results = {}
+    panels = {}
     for name, y_fit in [("supervised", y_train), ("unsupervised", None)]:
         print(f"Fitting {name} UMAP on train split only ...", file=sys.stderr)
         reducer, train_coords = fit_umap_train(X_train_std, y_fit, args.seed, args.umap_neighbors,
@@ -231,6 +285,7 @@ def main():
             report.append(f"\n## {name}\numap-learn not installed -- skipped.\n")
             continue
         test_coords = reducer.transform(X_test_std)
+        panels[name] = (train_coords, y_train, test_coords, y_test)
         scores = knn_predict_score(train_coords, y_train, test_coords, k=args.knn_k)
         point, ci_lo, ci_hi = bootstrap_auc_ci(scores, y_test, n_boot=args.n_boot, seed=args.seed)
         obs, null_mean, null_std, p = auroc_permutation_pvalue(scores, y_test,
@@ -242,6 +297,14 @@ def main():
             f"{args.n_boot} resamples).\n"
             f"Label-permutation null (test labels shuffled, scores fixed, {args.n_perm} perms): "
             f"null mean {null_mean:.3f} +/- {null_std:.3f}, **p={p:.4g}**.\n")
+
+    fig_path = build_train_test_figure(panels, out_dir)
+    if fig_path:
+        report.append(f"\n## Where held-out people land\nSmall dots are train people (colored by "
+                      f"true diagnosis, used to fit/supervise the mapping); triangles are held-out "
+                      f"test people `.transform()`-projected into that frozen mapping from their "
+                      f"allele dosage alone -- their color was never seen by the fit or the "
+                      f"transform. Figure: `{fig_path}`\n")
 
     if "supervised" in results and "unsupervised" in results:
         s, u = results["supervised"], results["unsupervised"]
