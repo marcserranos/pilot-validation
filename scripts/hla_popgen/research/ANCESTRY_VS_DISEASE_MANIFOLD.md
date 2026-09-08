@@ -69,6 +69,76 @@ found the signal.
    `HLA_LINKED` diagnoses matched, 0-11) as an additional coloring/label option, trading
    disease-specificity for sample size before concluding "no structure" disease-by-disease.
 
-## Result (fill in after the VM run)
+## Result (real run, 9,355 people x 5,453 allele-identity columns, 853 [9.1%] with >=1 HLA-linked
+diagnosis)
 
-See `reports/hla_popgen/14_manifold_structure/manifold_structure_report.md` once run.
+Full numbers: `reports/hla_popgen/14_manifold_structure/manifold_structure_report.md`,
+`variance_loadings.tsv`, `knn_label_enrichment.tsv`. Figure:
+`reports/hla_popgen/14_manifold_structure/manifold_structure_embeddings.png`.
+
+**The mechanism is confirmed, and the open question has a clean answer.** KNN-label-enrichment
+(k=15, 500 permutations, one-sided p):
+
+| embedding | ancestry (positive control) | any HLA-linked diagnosis |
+|---|---|---|
+| locked_raw (unsupervised) | obs=0.529 vs null=0.205, **p=0.002** | obs=0.834 vs null=0.834, p=0.64 (n.s.) |
+| ancestry_residualized | obs=0.495 vs null=0.205, **p=0.002** | obs=0.834 vs null=0.834, p=0.74 (n.s.) |
+| supervised (y=any_diag) | obs=0.516 vs null=0.205, **p=0.002** | obs=0.970 vs null=0.834, **p=0.002** |
+
+1. **Unsupervised embeddings never find disease structure, residualized or not** -- confirms the
+   mechanism write-up above directly: ancestry is a matrix-wide covariance signal UMAP/PCA are built
+   to find; disease status isn't in the matrix at all, so there's no reason for it to emerge on its
+   own, at any resolution we tried.
+2. **The information is there -- supervised UMAP finds it cleanly** (obs=0.97 vs a 0.83 null,
+   visually two separated clusters in the figure's third panel, sized about right for a 9.1%-prevalence
+   split). This resolves the original question: the allele-dosage space is not *blind* to disease
+   status, unsupervised methods are just the wrong instrument for a signal this sparse relative to
+   the dominant ancestry axis -- exactly the GWAS-PCA analogy in the mechanism section above, now with
+   a positive result to back it up rather than just an absence of a negative one.
+3. **Caveat, stated plainly:** `umap.UMAP(..., y=labels)` is explicitly optimized to pull same-label
+   points together, so a high same-label KNN score on the *training* fit is expected almost by
+   construction and is not by itself proof the signal generalizes -- it demonstrates the information
+   is extractable, not that it is strong out-of-sample. See "New hypothesis" #1 below for the direct
+   fix (held-out validation).
+4. **Unplanned finding: mean-only ancestry residualization barely moves the ancestry KNN score**
+   (0.529 raw -> 0.495 residualized, both far above the 0.205 null). Subtracting each column's
+   per-ancestry-group mean removes *additive* ancestry signal but evidently leaves most of the
+   ancestry-driven structure intact. The likely explanation: ancestry differentiates HLA allele
+   *co-occurrence* (linkage disequilibrium), not just individual allele frequencies -- classical HLA
+   genes sit in strong, population-differentiated LD, so the *correlation structure* between columns
+   differs by ancestry group even after each column's own mean is matched. A first-order (mean)
+   residualization can't remove a second-order (covariance) effect. Not something the original
+   checklist anticipated; worth its own line of investigation (see below).
+5. **Variance/loadings audit is consistent but non-obvious in its own right:** rank correlation
+   between |PC1 loading| and per-column ancestry F-stat is 0.395 (positive, moderate, across all
+   5,453 columns) -- loadings do track ancestry differentiation, supporting the mechanism. Disease-proxy
+   columns (145 of them) actually have a *higher* mean ancestry F-stat (10.01) than the rest of the
+   matrix (6.25), i.e. well-known disease alleles (B\*27, DQB1\*03:02, DRB1\*15:01, ...) are
+   themselves fairly ancestry-differentiated -- unsurprising given HLA population genetics, but a
+   reminder that "disease-associated" and "ancestry-neutral" are not the same axis, and that the
+   B\*27/AS association in `13_disease_allele_association.py` needed ancestry-adjustment (CMH) for
+   exactly this reason.
+
+## New hypotheses / lines of investigation opened by this result
+
+1. **Held-out validation of the supervised-UMAP signal (highest priority, direct fix for caveat
+   #3).** Split the cohort, fit `umap.UMAP(y=...)` + a downstream classifier (or just KNN-in-embedding)
+   on a train split, and measure label-prediction accuracy on a held-out test split never seen during
+   the supervised fit. Converts "UMAP can be told to separate these labels" into "this generalizes to
+   unseen people" -- the rigorous version of finding #2. Not yet implemented.
+2. **Test the LD-not-just-frequency explanation for finding #4 directly.** Residualize each column
+   against ancestry using a *covariance-aware* method (e.g. per-ancestry-group full standardization,
+   not just mean-centering; or fit ancestry-specific PCA and compare loadings) rather than a mean
+   shift, and see whether the ancestry KNN score finally drops toward null. If it does, that
+   confirms LD-structure-by-ancestry as the driver, not lingering mean effects; if it still doesn't
+   drop, there is a real open question about what unsupervised PCA/UMAP is actually tracking here
+   that residualization can't reach. Not yet implemented.
+3. **Haplotype-block features (checklist item 5, unchanged from before).** Still the most direct test
+   of whether disease risk travels with ancestry along shared extended haplotypes (e.g. the 8.1 AH) --
+   now more motivated by finding #4 (ancestry-driven LD structure) than it was originally. Real
+   engineering lift (cis-phasing), not yet started.
+4. **Per-disease supervised UMAP instead of the pooled `any_diag` burden flag.** The current
+   supervised result pools all 11 HLA-linked diagnoses into one binary target; worth checking whether
+   the separation is driven by a few common diagnoses (T1D n=204, psoriasis n=223, RA n=253) or holds
+   up per-disease even at low n (e.g. does B\*27/ankylosing-spondylitis alone, n=28, show any
+   supervised separation, matching its very strong Fisher/CMH result from `13_disease_allele_association.py`?). Not yet implemented.
