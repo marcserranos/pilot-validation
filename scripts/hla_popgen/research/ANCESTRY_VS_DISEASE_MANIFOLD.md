@@ -121,11 +121,40 @@ Full numbers: `reports/hla_popgen/14_manifold_structure/manifold_structure_repor
 
 ## New hypotheses / lines of investigation opened by this result
 
-1. **Held-out validation of the supervised-UMAP signal (highest priority, direct fix for caveat
-   #3).** Split the cohort, fit `umap.UMAP(y=...)` + a downstream classifier (or just KNN-in-embedding)
-   on a train split, and measure label-prediction accuracy on a held-out test split never seen during
-   the supervised fit. Converts "UMAP can be told to separate these labels" into "this generalizes to
-   unseen people" -- the rigorous version of finding #2. Not yet implemented.
+1. **[DONE, RESOLVED NEGATIVE -- 2026-09-08] Held-out validation of the supervised-UMAP signal.**
+   `15_manifold_holdout_validation.py`: stratified 70/30 train/test split (6,548/2,807, prevalence
+   preserved), UMAP fit (supervised AND an unsupervised baseline) on train only using train-only
+   standardization stats, test split `.transform()`-projected out-of-sample, k-NN-in-embedding
+   scoring against TRAIN neighbors only, evaluated with AUROC + bootstrap CI + a label-permutation
+   p-value on the held-out test set. Full results:
+   `reports/hla_popgen/15_manifold_holdout_validation/holdout_validation_report.md`, figure
+   `holdout_train_test_embedding.png`.
+
+   **Verdict: the caveat was right -- the original supervised-UMAP finding does NOT generalize.**
+   Held-out AUROC: supervised **0.482** (bootstrap 95% CI 0.460-0.508, permutation p=0.93 -- not
+   significant, indistinguishable from chance); unsupervised baseline **0.528** (CI 0.494-0.563,
+   p=0.061 -- also not significant, though a touch closer to the edge). Supervised does not clear
+   0.5 and does not beat the unsupervised baseline -- both conditions in the pre-registered verdict
+   logic for "this is real" fail.
+
+   The figure makes *why* visually obvious: supervised UMAP carved out a small, tight, isolated
+   pocket containing almost exclusively TRAIN diagnosed people (bottom-right of the left panel) --
+   but held-out diagnosed people (teal triangles) essentially never land in that pocket; they're
+   scattered through the main blob indistinguishably from held-out undiagnosed people. This is
+   textbook `umap.UMAP(y=...)` overfitting: given a label, it can trivially wall off the exact
+   training points that carry it into their own bubble without learning any transferable direction
+   in allele-dosage space -- a classic manifold-learning failure mode, not a data problem.
+
+   **Updated conclusion for the whole doc:** `14_manifold_structure.py`'s "supervised UMAP finds
+   real separation" result (step 3 above) is retracted as evidence of disease-relevant structure.
+   The honest state of the evidence is back to "no disease structure found in the raw allele-dosage
+   embedding space by any method tried here, supervised or not" -- `13_disease_allele_association.py`'s
+   direct Fisher/CMH test on individual alleles remains the only instrument in this whole project
+   that has found real, validated disease signal (B\*27/ankylosing spondylitis). That is not a
+   failure of this investigation -- ruling out an overfit positive result via honest held-out
+   testing is exactly what this line of work was for, and the mechanism argument at the top of this
+   doc (why unsupervised embeddings can't find sparse single-locus effects) is untouched by this
+   result.
 2. **Test the LD-not-just-frequency explanation for finding #4 directly.** Residualize each column
    against ancestry using a *covariance-aware* method (e.g. per-ancestry-group full standardization,
    not just mean-centering; or fit ancestry-specific PCA and compare loadings) rather than a mean
