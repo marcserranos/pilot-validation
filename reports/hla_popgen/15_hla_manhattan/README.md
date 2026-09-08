@@ -232,6 +232,23 @@ Each `*_manhattan.png` shows:
 - **amber band** — the peptide-binding-groove exons
 - **ribbon beneath the axis** — the gene model (exon boxes, groove exons in red)
 
+`panel_overview.png` (from `scripts/hla_popgen/16_panel_overview.py`) is the cross-gene view — the
+one that carries the actual argument, since the per-gene Manhattans only show *where* diversity sits
+within a single gene:
+- **top** — absolute mean π inside vs outside the CDS, log scale, genes ordered by π_CDS. This is
+  the control result of §"What the control arm establishes": coding diversity spans 54× and orders
+  itself as known biology, on a method that was never tuned to produce that gradient.
+- **bottom** — the π_CDS / π_non-CDS ratio about 1.0. Ratio **< 1 is the default** for an ordinary
+  gene (purifying selection strips coding variation below the near-neutral intronic background), so
+  the claim is not "the CDS is diverse" but "the CDS is diverse *only* in the genes where balancing
+  selection is expected".
+- bars are coloured by gene class in both panels; the two genes carrying a data-quality caveat
+  (HLA-E, HLA-DPB1 — see §"Two results explicitly NOT claimed") are hatched so they cannot be read
+  as clean support.
+
+Regenerate it from the TSV alone, without re-running the cohort:
+`python3 scripts/hla_popgen/16_panel_overview.py`
+
 ---
 
 ## 7. Honest limitations
