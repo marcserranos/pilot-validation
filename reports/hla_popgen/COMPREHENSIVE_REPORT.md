@@ -538,6 +538,88 @@ distinguished from full-sibling pairs — pair classification is by empirical sh
 referenced in the report text for the 29 "mixed" ambiguous-relationship pairs; person-level anonymity
 is preserved by labeling these "Example A/B" rather than real IDs.)*
 
+### 11c. Raw-sequence divergence — bypassing nomenclature entirely
+
+**Script:** `17_raw_sequence_divergence.py` → `17_raw_sequence_divergence/raw_sequence_divergence_report.md`,
+`raw_sequence_divergence_detail.tsv`. Added directly after §11b, motivated by a critique of §11b's
+own headline number.
+
+**The problem this closes.** §11b's 4.9%/5.6% "error rate" is measured on the *named* 2-field
+allele — and Immuannot's naming step collapses several equally-good reference candidates down to
+one representative name whenever there's a tie. A real 1–2 nucleotide difference between two
+people's otherwise near-identical sequences can flip which named allele they each get collapsed to,
+making a trivial technical difference look like a full categorical mismatch. The reverse failure
+also happens: a real single-base difference should register as its own distinct identity, but can
+get silently absorbed into "the same named allele." **A worked real-data example showed both
+directions at once:** HLA-DPB1 was called a mismatch by name but the raw sequences were
+byte-identical (pure naming-collapse artifact); HLA-B, W, DQB2, H, T, and TAP2 remained genuinely
+different at the raw sequence level despite looking name-adjacent. This script makes that check
+systematic across the whole cohort instead of resting on one example pair.
+
+**Method.** For each gene, per person, collect the set of distinct observed sequences across both
+haplotypes (Immuannot's own `cds.fa.gz`). Two people are `raw_shared` at a gene if any of person A's
+sequences exactly equals any of person B's — byte for byte, no allele name involved anywhere in the
+comparison. When no exact match exists, the closest pairing is found via approximate alignment
+(`difflib.SequenceMatcher`, standard-library, dependency-free) and scored for `n_diff_bases` (how
+many bases actually differ in the best-aligned pairing) and `n_diff_blocks` (whether those
+differences cluster into one contiguous stretch or scatter across several — one block is consistent
+with a single real variant or base-calling slip; several scattered blocks looks more like comparing
+two genuinely different alleles).
+
+**Headline result, same 545 high-sharing pairs as §11b, every gene both people have a sequence for
+(19,700 gene-comparisons):**
+
+| | count | % |
+|---|---|---|
+| Exact byte-for-byte match (`raw_shared`) | 18,680 | **94.82%** |
+| No exact match | 1,020 | 5.18% (95% CI 4.88–5.50%) |
+
+Among the 1,020 non-matching comparisons, the median difference is just **3 bases** (25th pctile 1,
+75th pctile 12, 90th pctile 29, max 458) — most of what counts as "divergence" is a handful of
+point differences, not two unrelated sequences. 502/1,020 (49.2%) are the same length (pure
+substitution-style, no indel). By shape: 418/1,020 (41%) fall in a single contiguous block
+(consistent with one real variant or slip); the rest scatter across 2 or more separate regions
+(roughly 12% two regions, ~47% three or more) — a genuinely different signature, more consistent
+with comparing two real, distinct alleles than a single clean transmission event.
+
+**By gene class:**
+
+| gene_class | n_compared | n_diverged | divergence_rate_% |
+|---|---|---|---|
+| other (mostly HLA-HFE) | 51 | 9 | 17.647 |
+| mic_tap | 2,170 | 184 | 8.479 |
+| classical_I | 1,631 | 98 | 6.009 |
+| pseudogene_I | 6,049 | 354 | 5.852 |
+| classical_II | 2,723 | 130 | 4.774 |
+| class_II_paralog | 2,720 | 127 | 4.669 |
+| nonclassical_I | 1,632 | 71 | 4.350 |
+| class_II_accessory | 2,724 | 47 | 1.725 |
+
+**Does bypassing nomenclature change the picture? Mostly not in aggregate — but the agreement hides
+real, opposite-direction disagreements by gene class.** Pooled, the two measurements land close
+together (5.65% named-mismatch, classical genes, vs. 5.18% raw-divergence, all genes) — a
+reassuring aggregate cross-check. But comparing the same eight gene-class buckets directly: for
+classical_I, classical_II, and pseudogene_I, raw-sequence divergence is slightly *lower* than named
+mismatch, consistent with the DPB1 example (naming inflates apparent error). For **mic_tap,
+class_II_paralog, nonclassical_I, class_II_accessory, and "other,"** raw-sequence divergence is
+*higher* than named mismatch — the opposite direction, meaning named-allele comparison was
+*under*-counting real sequence differences in these classes, plausibly because genuinely distinct
+sequences were being folded into the same representative name. **Neither direction is the whole
+story on its own** — exactly why this needed to be a systematic, cohort-wide check rather than one
+worked example.
+
+**Figures:**
+![diff_bases_histogram](17_raw_sequence_divergence/diff_bases_histogram.png)
+![diff_blocks_histogram](17_raw_sequence_divergence/diff_blocks_histogram.png)
+![shared_rate_by_class](17_raw_sequence_divergence/shared_rate_by_class.png)
+
+**Read for slides:** the 94.82% exact-match headline is arguably the single strongest, most
+literally-worded validation of phasing quality in the entire report set — "19 times out of 20, real
+relatives' HLA sequences are byte-for-byte identical" needs no statistics background to land. The
+gene-class disagreement-direction finding is the more sophisticated follow-up, worth including only
+if the audience will track the nuance that allele-naming both over- and under-states real divergence
+depending on which genes are being compared.
+
 ---
 
 ## 12. HLA allele × disease association — does carrying a risk allele actually predict real diagnosis
