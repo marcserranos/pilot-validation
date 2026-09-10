@@ -33,8 +33,11 @@
 #   jobs_csv   : comma-separated --jobs levels to sweep, e.g. "2,4,8" (default "2,4,8").
 set -uo pipefail
 
-COHORT="${1:?need the reference cohort tsv (research_id, ancestry, bam_rel_path) -- reuse Experiment A's}"
-ARM="${2:?need fuse or local -- whichever arm Experiment A's summary crowned the winner}"
+# NOTE: keep these :? messages apostrophe-free. A lone ' inside ${x:?word} makes bash's
+# parser treat it as a quote, swallow the closing } and the next line, and leave the next
+# variable unassigned -- which is exactly how this script failed the first time it ran.
+COHORT="${1:?need the reference cohort tsv (research_id, ancestry, bam_rel_path) -- reuse the Experiment A cohort}"
+ARM="${2:?need fuse or local -- whichever arm the Experiment A summary crowned the winner}"
 JOBS_CSV="${3:-2,4,8}"
 
 [[ "$ARM" == "fuse" || "$ARM" == "local" ]] || { echo "arm must be 'fuse' or 'local', got: $ARM"; exit 1; }
