@@ -1,0 +1,2464 @@
+condition_name,n_people,prevalence_pct,mean_codes_per_affected
+Essential hypertension,2810,36.4,35.0
+Hyperlipidemia,2436,31.5,18.9
+Chest pain,2130,27.6,8.8
+Cough,2047,26.5,6.3
+Abdominal pain,1956,25.3,6.4
+Low back pain,1897,24.6,11.0
+Chronic pain,1858,24.0,10.3
+Dyspnea,1748,22.6,9.0
+Gastroesophageal reflux disease without esophagitis,1740,22.5,9.5
+Obesity,1658,21.5,11.4
+Headache,1628,21.1,5.7
+Vitamin D deficiency,1491,19.3,11.1
+Backache,1482,19.2,6.3
+Anemia,1476,19.1,8.8
+Shoulder joint pain,1458,18.9,10.0
+Anxiety disorder,1443,18.7,9.6
+Dizziness and giddiness,1442,18.7,6.5
+Acute upper respiratory infection,1425,18.4,3.6
+Neck pain,1323,17.1,9.5
+Type 2 diabetes mellitus without complication,1307,16.9,34.6
+Pure hypercholesterolemia,1221,15.8,15.8
+Pain in limb,1207,15.6,5.2
+Joint pain,1195,15.5,6.2
+Depressive disorder,1188,15.4,11.5
+Constipation,1170,15.1,5.8
+Acute pharyngitis,1151,14.9,3.5
+Urinary tract infectious disease,1138,14.7,6.8
+Eruption,1133,14.7,3.9
+Diarrhea,1109,14.4,5.4
+Inflammatory dermatosis,1101,14.3,5.2
+"Major depression, single episode",1086,14.1,8.2
+Allergic rhinitis,1066,13.8,10.0
+Pain of right knee joint,1008,13.0,7.1
+Obstructive sleep apnea syndrome,999,12.9,18.2
+Mixed hyperlipidemia,995,12.9,11.8
+Dysuria,966,12.5,4.4
+Hip pain,951,12.3,9.0
+Gastroesophageal reflux disease,948,12.3,9.8
+Palpitations,937,12.1,6.9
+Pain of left knee region,934,12.1,6.7
+Epigastric pain,899,11.6,4.6
+Insomnia,885,11.5,7.6
+Nicotine dependence,885,11.5,9.2
+Hemorrhoids,869,11.2,4.9
+Osteoarthritis,866,11.2,7.8
+Osteoarthritis of knee,866,11.2,11.0
+Pain,863,11.2,4.7
+Disorder of skin and/or subcutaneous tissue,856,11.1,3.2
+Disorder of bone,854,11.1,8.2
+Nausea,848,11.0,4.0
+Nausea and vomiting,846,11.0,6.0
+Atherosclerosis of coronary artery without angina pectoris,839,10.9,18.1
+Fever,839,10.9,4.4
+COVID-19,812,10.5,3.3
+Disorder of soft tissue,811,10.5,3.6
+Arthralgia of the ankle and/or foot,806,10.4,5.9
+Tear film insufficiency,793,10.3,7.3
+Iron deficiency anemia,788,10.2,11.4
+Hypothyroidism,783,10.1,18.5
+Viral disease,781,10.1,2.7
+Uncomplicated asthma,762,9.9,8.9
+Muscle pain,759,9.8,4.7
+Nuclear senile cataract,754,9.8,7.9
+Abnormal breathing,741,9.6,4.2
+Prediabetes,732,9.5,8.8
+Acquired absence of organ,727,9.4,6.0
+Tachycardia,723,9.4,4.2
+Anxiety state,692,9.0,8.3
+Cardiac arrhythmia,680,8.8,7.5
+Senile hyperkeratosis,678,8.8,5.7
+Morbid obesity,670,8.7,15.6
+Visual disturbance,664,8.6,3.1
+Disorder of intestine,646,8.4,4.2
+Asthma,639,8.3,11.7
+Type 2 diabetes mellitus,638,8.3,24.7
+Disorder of body system,633,8.2,4.1
+Disorder of nasal cavity,633,8.2,3.2
+Lumbar spondylosis,626,8.1,6.3
+Disorder of muscle,621,8.0,6.7
+Noninflammatory disorder of the vagina,620,8.0,3.5
+Impacted cerumen,619,8.0,4.5
+Migraine,617,8.0,11.6
+Pain in left foot,617,8.0,4.4
+Pain in right foot,616,8.0,4.3
+Acute kidney injury,611,7.9,8.4
+Paresthesia,607,7.9,3.3
+Diverticulosis of large intestine without diverticulitis,604,7.8,2.7
+Localized edema,604,7.8,3.8
+Acquired hypothyroidism,600,7.8,15.6
+Presbyopia,598,7.7,5.3
+Chronic sinusitis,594,7.7,5.4
+Pain in left lower limb,593,7.7,3.7
+Osteoporosis,587,7.6,20.1
+Hypokalemia,586,7.6,4.8
+Edema,584,7.6,4.6
+Dysphagia,583,7.5,6.9
+Pain in right lower limb,578,7.5,4.0
+Wrist joint pain,576,7.5,5.0
+Generalized anxiety disorder,574,7.4,20.9
+Finding related to pregnancy,568,7.4,16.3
+Spasm,567,7.3,5.3
+Hematuria syndrome,566,7.3,4.5
+Melanocytic nevus,560,7.2,4.2
+Myopia,554,7.2,6.3
+Generalized abdominal pain,548,7.1,4.2
+Steatosis of liver,543,7.0,8.0
+Acute bronchitis,540,7.0,2.8
+Neoplasm of uncertain behavior of skin,537,7.0,4.1
+Benign neoplasm of skin,537,7.0,3.6
+Altered sensation of skin,536,6.9,3.4
+Sensorineural hearing loss of bilateral ears,535,6.9,7.3
+Lumbar radiculopathy,534,6.9,10.7
+Benign neoplasm of colon,522,6.8,6.4
+Polyneuropathy,521,6.7,6.8
+Benign prostatic hyperplasia,520,6.7,8.4
+Hyperglycemia,515,6.7,3.7
+Hyperglycemia due to type 2 diabetes mellitus,509,6.6,13.0
+Acute sinusitis,507,6.6,2.9
+Lumbago with sciatica,507,6.6,9.0
+Dehydration,507,6.6,3.6
+Diaphragmatic hernia,503,6.5,6.1
+Onychomycosis due to dermatophyte,503,6.5,5.7
+Tobacco dependence syndrome,498,6.4,6.4
+Benign essential hypertension,496,6.4,10.0
+Cataract,495,6.4,8.8
+Hearing loss,492,6.4,4.4
+Polyp of colon,492,6.4,2.9
+Right upper quadrant pain,489,6.3,4.1
+Nasal congestion,488,6.3,2.5
+Syncope and collapse,485,6.3,6.4
+Kidney stone,483,6.3,16.5
+Traumatic or non-traumatic injury,482,6.2,2.4
+Vitamin B deficiency,480,6.2,14.8
+Sciatica,475,6.1,5.1
+Cervical spondylosis without myelopathy,474,6.1,6.0
+Right lower quadrant pain,474,6.1,3.3
+Sleep apnea,470,6.1,7.6
+Leukocytosis,469,6.1,3.6
+Atelectasis,466,6.0,3.2
+Degeneration of lumbar intervertebral disc,465,6.0,5.8
+Carpal tunnel syndrome,464,6.0,10.2
+Bronchitis,461,6.0,3.8
+Pruritic rash,461,6.0,3.6
+Atrial fibrillation,456,5.9,25.0
+Hemorrhage of rectum and anus,454,5.9,4.0
+Sleep disorder,454,5.9,4.5
+Disorder of bone and articular cartilage,454,5.9,6.6
+Chronic kidney disease,453,5.9,11.6
+Spinal stenosis of lumbar region,449,5.8,10.9
+Benign prostatic hyperplasia with outflow obstruction,449,5.8,11.1
+Disorder of lower leg,449,5.8,5.5
+Solitary nodule of lung,448,5.8,7.0
+Breast lump,445,5.8,5.3
+Pain of knee region,444,5.7,4.1
+Pain in pelvis,444,5.7,4.4
+Inflammatory disorder of digestive tract,443,5.7,4.4
+Pneumonia,442,5.7,6.2
+Disorder of musculoskeletal system,442,5.7,4.0
+Astigmatism,441,5.7,3.9
+Left lower quadrant pain,439,5.7,3.4
+Injury of head,437,5.7,2.4
+Disorder of kidney and/or ureter,435,5.6,7.7
+Low blood pressure,431,5.6,3.1
+Hypo-osmolality and or hyponatremia,431,5.6,5.1
+Snoring,428,5.5,3.1
+Chronic rhinitis,426,5.5,5.1
+Vomiting,426,5.5,2.6
+Pain in thoracic spine,424,5.5,5.1
+Chronic obstructive pulmonary disease,411,5.3,16.6
+Pain of breast,411,5.3,4.7
+Musculoskeletal finding,411,5.3,5.6
+Discoloration of skin,411,5.3,2.7
+"Abdominal distension, gaseous",407,5.3,3.9
+Urogenital finding,406,5.3,4.2
+Bradycardia,406,5.3,3.8
+Gastritis,404,5.2,3.3
+Complication occurring during pregnancy,402,5.2,5.3
+Disease of liver,402,5.2,5.9
+Lower abdominal pain,400,5.2,2.6
+Lumbosacral spondylosis without myelopathy,399,5.2,5.0
+Vitreous degeneration,399,5.2,7.1
+Genitourinary tract hemorrhage,398,5.2,4.7
+Erectile dysfunction,392,5.1,6.7
+Pain of ear,390,5.0,2.4
+"Localized, primary osteoarthritis of the shoulder region",389,5.0,5.5
+Disorder of digestive system,389,5.0,3.7
+Third trimester pregnancy,388,5.0,15.1
+Acne,388,5.0,6.7
+Knee joint effusion,387,5.0,3.5
+Plantar fascial fibromatosis,387,5.0,6.8
+Cardiomegaly,386,5.0,3.7
+Hair follicle disorder,383,5.0,3.4
+Disorder of teeth AND/OR supporting structures,379,4.9,3.1
+Acquired renal cystic disease,379,4.9,3.8
+Persistent pain following procedure,379,4.9,2.8
+Cervical radiculopathy,379,4.9,7.2
+Osteoarthritis of hip,378,4.9,7.3
+Hyperpigmentation of skin,378,4.9,4.0
+Nocturia,377,4.9,5.8
+Hand pain,375,4.9,3.5
+Elbow joint pain,375,4.9,4.2
+Gastro-esophageal reflux disease with esophagitis,371,4.8,5.7
+Chronic kidney disease stage 3,371,4.8,19.9
+Retention of urine,369,4.8,6.2
+Complication due to diabetes mellitus,364,4.7,10.7
+Urgent desire to urinate,364,4.7,4.3
+Seasonal allergic rhinitis,364,4.7,4.4
+Alcohol abuse,363,4.7,7.2
+Non-toxic uninodular goiter,362,4.7,11.0
+Actinic keratosis,362,4.7,9.3
+Amnesia,360,4.7,6.8
+Hyperkalemia,360,4.7,6.0
+Disorder of upper gastrointestinal tract,359,4.6,2.9
+Otitis media,358,4.6,3.0
+Seborrheic dermatitis,357,4.6,5.1
+Pain in right hand,355,4.6,3.6
+Disorder of skin,354,4.6,2.0
+Acidosis,352,4.6,3.7
+Bacterial infectious disease,352,4.6,2.5
+Chronic kidney disease due to hypertension,350,4.5,6.8
+Deviated nasal septum,349,4.5,4.9
+Abnormal finding on evaluation procedure,347,4.5,2.9
+Glaucoma suspect,343,4.4,8.5
+Urinary incontinence,343,4.4,5.3
+Impaired fasting glycemia,342,4.4,7.3
+Disorder of lung,342,4.4,4.5
+Vitreous opacities,342,4.4,6.6
+Pleural effusion,341,4.4,7.8
+Arthropathy,339,4.4,11.4
+Congestive heart failure,338,4.4,24.4
+Coronary arteriosclerosis,338,4.4,13.6
+Swelling of limb,336,4.3,2.6
+Cyst of ovary,335,4.3,4.7
+Heart failure,333,4.3,11.3
+Coronary atherosclerosis,331,4.3,15.3
+Sepsis,329,4.3,4.9
+Acute posthemorrhagic anemia,328,4.2,2.9
+Disorder of breast,327,4.2,3.8
+Dental caries,327,4.2,5.0
+Wheezing,327,4.2,3.5
+Mild intermittent asthma,327,4.2,6.0
+Hemangioma of skin and subcutaneous tissue,326,4.2,4.0
+Uterine leiomyoma,325,4.2,5.8
+Vaginitis,324,4.2,3.0
+Degeneration of cervical intervertebral disc,322,4.2,5.4
+Upper respiratory tract infection caused by Influenza virus,322,4.2,2.4
+Inflamed seborrheic keratosis,320,4.1,4.2
+Localized enlarged lymph nodes,318,4.1,3.7
+Posttraumatic stress disorder,317,4.1,34.9
+Sensorineural hearing loss,317,4.1,5.1
+Muscle weakness,316,4.1,6.4
+Acute cystitis,314,4.1,2.9
+Acute vaginitis,314,4.1,3.8
+Disorder of sacrum,313,4.1,7.1
+Dysthymia,312,4.0,13.8
+Verruca vulgaris,309,4.0,4.5
+Thrombocytopenic disorder,307,4.0,9.0
+Second trimester pregnancy,306,4.0,10.1
+Sprain of ankle,306,4.0,3.6
+Angina pectoris,306,4.0,8.4
+First trimester pregnancy,306,4.0,7.7
+Disorder of shoulder,304,3.9,4.2
+"Localized, primary osteoarthritis of the ankle and/or foot",302,3.9,5.0
+Disorder of brain,301,3.9,3.6
+Peripheral vascular disease,300,3.9,11.4
+Degeneration of intervertebral disc,299,3.9,4.3
+Injury of free lower limb,299,3.9,3.4
+Bipolar disorder,297,3.8,14.8
+Spinal stenosis in cervical region,297,3.8,7.2
+Hypertrophic condition of skin,296,3.8,2.4
+Melena,296,3.8,3.4
+Heartburn,294,3.8,3.6
+Peripheral neuritis,292,3.8,7.1
+Moderate recurrent major depression,292,3.8,26.3
+Muscle strain,292,3.8,2.7
+Injury of upper extremity,291,3.8,3.6
+Migraine without aura,291,3.8,12.1
+Scar conditions and fibrosis of skin,290,3.8,3.7
+Non-scarring alopecia,289,3.7,4.2
+Gallstone,289,3.7,4.1
+Foot pain,288,3.7,2.9
+Complication of procedure,287,3.7,2.6
+Paroxysmal atrial fibrillation,285,3.7,22.1
+Joint pain of pelvic region,284,3.7,4.5
+Diabetes mellitus,283,3.7,8.8
+Localized infection of skin AND/OR subcutaneous tissue,283,3.7,2.6
+Allergic rhinitis caused by pollen,281,3.6,11.3
+Residual hemorrhoidal skin tags,281,3.6,2.4
+Combined form of senile cataract,280,3.6,4.9
+Hypoxemia,279,3.6,4.0
+Irritable bowel syndrome,279,3.6,9.1
+Pain in finger,279,3.6,3.6
+Proteinuria,278,3.6,9.7
+Peripheral venous insufficiency,278,3.6,7.4
+Asteatosis cutis,277,3.6,2.8
+Blepharitis,275,3.6,3.6
+Disorder of thyroid gland,274,3.5,8.8
+Lymphadenopathy,274,3.5,3.9
+Pleuritic pain,273,3.5,2.7
+"Localized, primary osteoarthritis of the hand",272,3.5,4.8
+Enthesopathy,270,3.5,2.7
+Hypertensive heart failure,270,3.5,6.0
+Generalized aches and pains,270,3.5,3.0
+Diabetes mellitus without complication,269,3.5,9.0
+Non-neoplastic nevus,267,3.5,3.0
+Hypersomnia,267,3.5,4.6
+Pain in toe,266,3.4,4.4
+Tinea pedis,266,3.4,3.8
+Non-toxic multinodular goiter,265,3.4,12.6
+Chronic gastritis,265,3.4,2.6
+Microscopic hematuria,265,3.4,5.7
+Mood disorder,263,3.4,6.9
+Acute stress disorder,261,3.4,4.3
+Benign neoplasm of transverse colon,261,3.4,2.1
+Diverticular disease of colon,261,3.4,5.1
+Old myocardial infarction,260,3.4,9.1
+Secondary erectile dysfunction,260,3.4,5.4
+Acute asthma,260,3.4,4.8
+Hypermetropia,260,3.4,4.0
+Lung field abnormal,260,3.4,3.9
+Pain in lower limb,260,3.4,2.9
+Prolapsed lumbar intervertebral disc,257,3.3,3.6
+Atherosclerosis of aorta,255,3.3,5.1
+Pruritic disorder,254,3.3,2.9
+Anorectal disorder,254,3.3,3.3
+Inflammatory disorder,254,3.3,3.9
+Finding of head and neck region,253,3.3,3.6
+Nontraumatic rotator cuff tear,253,3.3,6.7
+Urticaria,252,3.3,4.2
+Posterior rhinorrhea,251,3.2,3.0
+Benign neoplasm of ascending colon,251,3.2,2.2
+Recurrent major depression,251,3.2,18.5
+Chronic kidney disease due to type 2 diabetes mellitus,251,3.2,15.4
+Gout,251,3.2,13.5
+Adjustment disorder with depressed mood,250,3.2,4.3
+Bilateral hearing loss,248,3.2,3.1
+Chronic fatigue syndrome,248,3.2,5.9
+Benign paroxysmal positional vertigo,247,3.2,6.9
+Infective pneumonia,247,3.2,5.1
+Candida infection of genital region,247,3.2,2.7
+Cellulitis,247,3.2,2.8
+Pain in left arm,246,3.2,2.3
+Callosity,244,3.2,5.2
+Disorder of nervous system due to type 2 diabetes mellitus,242,3.1,9.5
+Acute maxillary sinusitis,242,3.1,2.8
+Candidiasis,241,3.1,3.0
+Seizure,240,3.1,11.9
+Conjunctivitis,239,3.1,2.2
+Pure hyperglyceridemia,239,3.1,7.9
+Benign prostatic hyperplasia without outflow obstruction,238,3.1,7.2
+Atopic dermatitis,238,3.1,6.2
+Acne vulgaris,238,3.1,6.1
+Glaucoma,237,3.1,12.4
+Adjustment disorder,235,3.0,5.5
+Epidermoid cyst,235,3.0,2.9
+Arthropathy of knee joint,234,3.0,4.8
+Chronic pain syndrome,234,3.0,12.4
+Suicidal thoughts,234,3.0,5.3
+Bleeding from nose,233,3.0,3.8
+Swelling,232,3.0,2.5
+Tremor,230,3.0,4.3
+Disorder of pigmentation,230,3.0,3.0
+Senile cataract,229,3.0,5.4
+Acute hypoxemic respiratory failure,228,3.0,3.9
+Dysphonia,228,3.0,6.8
+Precordial pain,228,3.0,2.9
+Heart disease,227,2.9,10.7
+Iron deficiency,227,2.9,6.2
+Disorder of function of stomach,227,2.9,2.9
+Benign neoplasm of skin of trunk,226,2.9,3.4
+Ventricular premature complex,226,2.9,5.5
+Disorder of lipid metabolism,224,2.9,2.9
+Disorder of menstruation,223,2.9,2.8
+Streptococcal sore throat,223,2.9,2.0
+Chronic nonalcoholic liver disease,222,2.9,8.1
+Gastrointestinal hemorrhage,221,2.9,5.0
+Atrophic vaginitis,221,2.9,6.1
+Hypovolemia,220,2.8,1.9
+Hypomagnesemia,220,2.8,4.5
+Herpes zoster without complication,220,2.8,5.3
+Frank hematuria,220,2.8,5.8
+Menopausal syndrome,220,2.8,3.8
+Internal hemorrhoids,219,2.8,2.1
+Regular astigmatism,218,2.8,3.0
+Skin sensation disturbance,217,2.8,3.0
+Cerebral infarction,217,2.8,12.8
+Disorder of nail,216,2.8,3.8
+Acquired trigger finger,216,2.8,7.9
+Skin changes due to chronic exposure to non-ionizing radiation,215,2.8,4.3
+Iron deficiency anemia due to blood loss,214,2.8,12.2
+Esophagitis,213,2.8,5.5
+Migraine with aura,213,2.8,8.1
+Central sleep apnea syndrome,212,2.7,7.5
+Breathing painful,211,2.7,2.1
+Polyneuropathy due to type 2 diabetes mellitus,211,2.7,10.4
+Hypertrophy of nasal turbinates,209,2.7,4.5
+Lateral epicondylitis,209,2.7,4.9
+Retinal disorder,208,2.7,7.5
+Disorder of respiratory system,207,2.7,2.5
+Eustachian tube disorder,207,2.7,2.8
+Mononeuritis,206,2.7,3.7
+Tension-type headache,206,2.7,3.0
+Alopecia,205,2.7,3.9
+"Gestation period, 37 weeks",205,2.7,2.7
+"Flatulence, eructation and gas pain",205,2.7,3.1
+Varicose veins of lower extremity,205,2.7,6.5
+Urge incontinence of urine,204,2.6,7.2
+Diverticular disease,204,2.6,5.0
+Disorder of bursa of shoulder region,203,2.6,4.2
+Large liver,203,2.6,2.9
+Attention deficit hyperactivity disorder,202,2.6,13.2
+Fibrocystic disease of breast,201,2.6,4.8
+Pain in right arm,201,2.6,3.4
+Hypertensive disorder,201,2.6,4.1
+Cannabis-induced organic mental disorder,201,2.6,3.2
+Adjustment disorder with mixed anxiety and depressed mood,200,2.6,12.3
+Generalized hyperhidrosis,200,2.6,3.5
+Inguinal hernia,199,2.6,6.8
+Alcohol dependence,198,2.6,33.9
+"Gestation period, 8 weeks",198,2.6,3.3
+Pelvic and perineal pain,197,2.5,4.3
+Hand joint pain,197,2.5,4.8
+"Gestation period, 39 weeks",196,2.5,2.5
+Left upper quadrant pain,196,2.5,2.9
+Mammographic calcification of breast,196,2.5,3.7
+Hypercalcemia,196,2.5,7.5
+Disorder of sebaceous gland,195,2.5,1.7
+Orthostatic hypotension,194,2.5,5.4
+Scoliosis deformity of spine,194,2.5,5.8
+Hydronephrosis,192,2.5,5.4
+Lumbosacral radiculopathy,192,2.5,5.2
+Blindness AND/OR vision impairment level,192,2.5,3.3
+Ingrowing nail,191,2.5,4.3
+Lumbar spondylosis with myelopathy,190,2.5,3.1
+Brachial radiculitis,189,2.4,4.9
+Illness,189,2.4,5.4
+Intervertebral disc disorder of lumbar region with myelopathy,189,2.4,3.9
+Dysmenorrhea,188,2.4,4.3
+Pain in throat,188,2.4,2.7
+Angina co-occurrent and due to coronary arteriosclerosis,188,2.4,8.2
+Urinary tract obstruction,188,2.4,6.1
+Chronic cough,188,2.4,3.9
+Female stress incontinence,187,2.4,4.9
+Epiretinal membrane,187,2.4,10.2
+Primary malignant neoplasm of prostate,187,2.4,52.7
+Cardiomyopathy,187,2.4,12.1
+"Gestation period, 38 weeks",187,2.4,2.1
+"Gestation period, 36 weeks",187,2.4,2.6
+Primary malignant neoplasm of female breast,186,2.4,63.3
+Localized osteoarthrosis uncertain if primary OR secondary,186,2.4,4.0
+Blood coagulation disorder,186,2.4,6.8
+Meibomian gland dysfunction,185,2.4,3.9
+Psoriasis,184,2.4,17.5
+Disorder of eye region,184,2.4,2.6
+Neck swelling,184,2.4,3.7
+Greater trochanteric pain syndrome,184,2.4,6.1
+Meibomian gland dysfunction of right eye,183,2.4,4.3
+Osteophyte of bone,182,2.4,1.9
+Complication of surgical procedure,182,2.4,2.2
+Erythema of skin,181,2.3,2.3
+Carotid artery obstruction,180,2.3,8.0
+Umbilical hernia,180,2.3,3.6
+Mitral valve disorder,180,2.3,6.5
+Melanocytic nevus of trunk,180,2.3,3.9
+Helicobacter-associated disease,180,2.3,3.5
+Panic disorder without agoraphobia,179,2.3,7.3
+Contact dermatitis,179,2.3,3.3
+Restless legs,179,2.3,9.4
+Intramural leiomyoma of uterus,178,2.3,2.6
+Episodic mood disorder,178,2.3,5.1
+Sebaceous cyst of skin,177,2.3,2.6
+Chronic kidney disease stage 2,176,2.3,9.4
+Rosacea,176,2.3,6.2
+Acquired hallux valgus,175,2.3,5.9
+Disorder of female genital organs,175,2.3,2.5
+Degeneration of lumbosacral intervertebral disc,175,2.3,3.8
+Rectal polyp,175,2.3,2.0
+Lesion of ulnar nerve,175,2.3,6.1
+"Localized, primary osteoarthritis",174,2.3,5.3
+Benign neoplasm of sigmoid colon,174,2.3,1.9
+Disorder of refraction,174,2.3,2.8
+Talipes planus,174,2.3,3.9
+Supraventricular tachycardia,173,2.2,9.2
+Lumbar spondylolisthesis,173,2.2,4.1
+Hematochezia,173,2.2,2.4
+Renal disorder due to type 2 diabetes mellitus,173,2.2,12.3
+Ocular hypertension,173,2.2,9.0
+Right bundle branch block,173,2.2,3.9
+Periapical abscess,172,2.2,2.5
+Disorder of ear,172,2.2,2.2
+Displacement of lumbar intervertebral disc without myelopathy,172,2.2,4.2
+Cannabis abuse,171,2.2,4.8
+Infective otitis externa,171,2.2,2.7
+Disorder of male genital organ,170,2.2,4.5
+Acute atopic conjunctivitis,170,2.2,3.0
+Epilepsy,170,2.2,13.3
+Disorder of eyelid,169,2.2,2.9
+Disorder of refraction AND/OR accommodation,169,2.2,3.6
+Acute disease,169,2.2,2.2
+Ascites,169,2.2,6.9
+Neuralgia,169,2.2,5.0
+Anemia in chronic kidney disease,168,2.2,11.6
+Disorder of phosphorus metabolism,168,2.2,3.2
+Disorder of esophagus,167,2.2,2.6
+Transient cerebral ischemia,166,2.1,9.2
+Chronic diastolic heart failure,165,2.1,13.9
+Rheumatoid arthritis,164,2.1,24.0
+Disorder of pregnancy,164,2.1,7.6
+Digestive system finding,164,2.1,2.7
+Cholelithiasis without obstruction,164,2.1,4.4
+"Gestation period, 35 weeks",163,2.1,2.3
+Overactive urinary bladder,163,2.1,7.5
+Immunodeficiency disorder,163,2.1,14.3
+Non-rheumatic mitral valve stenosis with regurgitation,163,2.1,6.8
+Chronic kidney disease stage 3A,163,2.1,7.3
+Pulmonary emphysema,162,2.1,9.1
+Pain in eye,162,2.1,2.1
+Disorder of thigh,162,2.1,3.4
+Disorder of the peripheral nervous system,161,2.1,4.2
+Solitary cyst of breast,161,2.1,6.6
+Severe recurrent major depression without psychotic features,161,2.1,25.0
+Benign neoplasm of cecum,160,2.1,2.1
+Chronic systolic heart failure,160,2.1,16.7
+Chronic ischemic heart disease,160,2.1,10.7
+Swelling of trunk,159,2.1,4.9
+Idiopathic osteoarthritis,157,2.0,5.2
+Fibromyalgia,157,2.0,18.3
+Uncomplicated moderate persistent asthma,156,2.0,9.4
+"Gestation period, 12 weeks",156,2.0,1.8
+Synovitis and tenosynovitis,156,2.0,3.2
+Chronic maxillary sinusitis,155,2.0,5.0
+Primary insomnia,154,2.0,5.5
+Psychoactive substance abuse,154,2.0,4.7
+Disorder of cardiovascular system,153,2.0,3.5
+Late effect of medical and surgical care complication,153,2.0,2.6
+Hypervolemia,153,2.0,4.4
+First degree atrioventricular block,153,2.0,2.9
+Calcaneal spur,152,2.0,2.3
+Peripheral circulatory disorder due to type 2 diabetes mellitus,152,2.0,8.1
+Hypertensive heart and renal disease with (congestive) heart failure,151,2.0,6.8
+Disorder of immune function,151,2.0,8.6
+Chorea,151,2.0,4.4
+Hypoglycemia,150,1.9,5.0
+Hypocalcemia,150,1.9,3.5
+Osteoarthrosis of the carpometacarpal joint of the thumb,150,1.9,5.9
+"Injury of muscle and tendon of abdomen, lower back and pelvis",149,1.9,2.6
+Aortic valve disorder,149,1.9,10.1
+Disorder of urinary bladder,149,1.9,2.5
+Sprain of upper extremity,149,1.9,2.7
+Disorder of optic nerve,148,1.9,8.2
+Skin finding,148,1.9,2.0
+Localized swelling of head,147,1.9,2.7
+Mixed urinary incontinence,147,1.9,6.1
+Anxiety,146,1.9,4.6
+Eye / vision finding,146,1.9,2.1
+Primary open angle glaucoma,145,1.9,20.9
+Leukopenia,144,1.9,4.6
+Tear of meniscus of knee,144,1.9,3.6
+Hematuria co-occurrent and due to acute cystitis,143,1.9,2.2
+Disorder due to type 2 diabetes mellitus,143,1.9,9.9
+Abscess of skin and/or subcutaneous tissue,143,1.9,2.2
+Abdominal mass,143,1.9,3.1
+Flushing,143,1.9,3.5
+Breast signs and symptoms,143,1.9,3.6
+Upper abdominal pain,143,1.9,2.9
+Hyperparathyroidism,142,1.8,14.5
+Secondary cataract,142,1.8,6.3
+Pelvic mass,142,1.8,3.1
+Impingement syndrome of shoulder region,142,1.8,4.9
+Hammer toe,141,1.8,7.8
+Spondylosis without myelopathy,141,1.8,3.1
+Pulmonary hypertension,141,1.8,7.5
+Bleeding,141,1.8,2.6
+Acute conjunctivitis,140,1.8,1.8
+Mass of trunk,140,1.8,3.5
+Preinfarction syndrome,140,1.8,4.1
+Dizziness,139,1.8,2.6
+Suspected fetal abnormality affecting management of mother,139,1.8,5.3
+Systolic heart failure,139,1.8,12.2
+Injury of shoulder and upper arm,138,1.8,2.2
+Neoplastic disease,138,1.8,3.1
+Benign neoplasm of descending colon,138,1.8,2.0
+Benign neoplasm of soft tissue,138,1.8,3.8
+Cellulitis of right lower limb,137,1.8,3.7
+Bunion,136,1.8,5.5
+Injury of lower leg,136,1.8,2.3
+"Complication of pregnancy, childbirth and/or puerperium",136,1.8,3.0
+Derangement of knee,136,1.8,3.7
+Disorder of back,135,1.7,2.5
+"Tricuspid incompetence, non-rheumatic",135,1.7,2.3
+Mass of left breast,135,1.7,2.8
+Benign neoplastic disease,135,1.7,5.4
+Dystrophia unguium,135,1.7,4.0
+Acute pain,135,1.7,2.2
+Spasm of back muscles,135,1.7,3.1
+"Gestation period, 32 weeks",135,1.7,2.2
+Neck sprain,135,1.7,2.1
+"Primary gonarthrosis, bilateral",135,1.7,6.5
+Enthesopathy of hip region,134,1.7,4.4
+Abnormal body temperature,134,1.7,2.3
+Embolism from thrombosis of vein of lower extremity,134,1.7,10.8
+Neurological symptom,134,1.7,4.5
+Opioid dependence,134,1.7,19.8
+Oropharyngeal dysphagia,133,1.7,4.8
+Lumbar sprain,133,1.7,2.6
+"Gestation period, 34 weeks",133,1.7,2.2
+Mild recurrent major depression,133,1.7,10.5
+Ectasia of thoracic aorta,133,1.7,8.7
+Disorder of joint of ankle and/or foot,132,1.7,2.7
+Atrial flutter,132,1.7,10.7
+Disorder of carotid artery,132,1.7,7.7
+Ureteric stone,132,1.7,8.3
+Blepharitis of left eyelid,132,1.7,3.2
+"Gestation period, 11 weeks",131,1.7,1.8
+Female infertility,131,1.7,22.6
+Anemia of chronic disease,131,1.7,4.4
+Peripheral nerve disease,131,1.7,6.0
+Bacterial enteritis of intestine,131,1.7,4.1
+"Maternal obesity complicating pregnancy, childbirth and the puerperium, antepartum",131,1.7,9.4
+Chronic phototoxic dermatitis,130,1.7,2.7
+Diastolic heart failure,130,1.7,10.3
+Cystitis,130,1.7,2.4
+Diplopia,130,1.7,5.5
+Autoimmune thyroiditis,129,1.7,15.1
+Shoulder pain,129,1.7,5.3
+Thoracic spondylosis without myelopathy,129,1.7,2.7
+External hemorrhoids,129,1.7,2.5
+Type 1 diabetes mellitus without complication,129,1.7,16.4
+Infectious disease,129,1.7,3.0
+Multiple joint pain,129,1.7,3.0
+Acute exacerbation of chronic obstructive pulmonary disease,128,1.7,7.7
+"Gestation period, 20 weeks",128,1.7,2.0
+Spinal stenosis,128,1.7,4.9
+Neurogenic claudication,128,1.7,10.8
+Postoperative hypothyroidism,128,1.7,20.5
+Open wound of finger,127,1.6,2.1
+Cerebrovascular disease,127,1.6,6.1
+Hernia of anterior abdominal wall,127,1.6,4.9
+Chronic congestive heart failure,127,1.6,16.4
+Testicular hypofunction,126,1.6,18.0
+Viral hepatitis C,126,1.6,10.7
+Cortical senile cataract,126,1.6,4.4
+Chronic gingivitis,126,1.6,4.7
+Impaired glucose tolerance,126,1.6,6.3
+Otitis externa,126,1.6,2.9
+Recurrent major depression in partial remission,126,1.6,20.7
+"Gestation period, 18 weeks",126,1.6,1.6
+Disorder of artery,125,1.6,7.1
+Cocaine abuse,125,1.6,6.2
+Nerve root disorder,125,1.6,4.1
+Early stage of pregnancy,125,1.6,2.3
+Thigh pain,125,1.6,4.6
+Lesion of oral mucosa,125,1.6,2.9
+Digestive symptom,125,1.6,3.0
+Neoplasm of uncertain behavior of soft tissues,124,1.6,2.9
+Disorder of pancreas,124,1.6,8.5
+Thyrotoxicosis,124,1.6,8.0
+Disorder of gallbladder,124,1.6,2.4
+Acute gastritis,123,1.6,3.9
+"Moderate major depression, single episode",123,1.6,8.9
+Open angle glaucoma suspect,123,1.6,6.5
+Tietze's disease,123,1.6,2.2
+Chondromalacia of patella,123,1.6,3.2
+Hypertrophy of breast,123,1.6,6.4
+Dysfunction of eustachian tube,122,1.6,2.0
+Generalized enlarged lymph nodes,122,1.6,3.6
+Chronic pulmonary edema,122,1.6,3.0
+Tubulointerstitial nephritis,122,1.6,3.6
+Tear of medial meniscus of knee,121,1.6,5.3
+Chronic kidney disease stage 4,121,1.6,21.8
+Conjunctival hemorrhage,121,1.6,2.0
+Chronic allergic conjunctivitis,121,1.6,3.5
+Acute pancreatitis,121,1.6,9.3
+Ptosis of eyelid,120,1.6,5.3
+Venous varices,120,1.6,3.6
+Simple goiter,119,1.5,3.8
+Soft tissue injury,119,1.5,2.4
+Spinal stenosis of lumbosacral region,119,1.5,2.5
+Uterine scar from previous surgery affecting pregnancy,119,1.5,6.4
+Post-term pregnancy,119,1.5,2.5
+Intestinal obstruction,118,1.5,10.0
+Psychotic disorder,118,1.5,10.9
+"Gestation period, 19 weeks",118,1.5,1.6
+Neoplastic disease of uncertain behavior,118,1.5,3.2
+Polycystic ovary syndrome,118,1.5,11.3
+Polyp of corpus uteri,117,1.5,4.1
+Epidermoid cyst of skin,117,1.5,2.6
+Spondylolisthesis,117,1.5,3.9
+Bacteremia,117,1.5,6.5
+Cellulitis of left lower limb,117,1.5,3.5
+Disorder of plasma protein metabolism,117,1.5,2.5
+Cellulitis of finger,117,1.5,2.4
+Uncomplicated mild persistent asthma,116,1.5,4.8
+Disorder of lumbar spine,116,1.5,3.9
+Ventricular tachycardia,116,1.5,11.8
+Tinea corporis,115,1.5,2.8
+Acute non-ST segment elevation myocardial infarction,115,1.5,9.1
+Drusen stage macular degeneration,115,1.5,6.3
+Pulmonary embolism,115,1.5,18.1
+Intertrigo,114,1.5,3.4
+Opioid-induced organic mental disorder,114,1.5,6.1
+Cramp in limb,114,1.5,2.3
+Cirrhosis of liver,114,1.5,16.7
+Cellulitis and abscess of lower leg,114,1.5,2.6
+Herpes simplex without complication,114,1.5,6.6
+"Recurrent major depressive episodes, moderate",114,1.5,16.6
+Temporomandibular joint disorder,114,1.5,4.1
+"Attention deficit hyperactivity disorder, predominantly inattentive type",114,1.5,18.1
+Cerebral infarction due to thrombosis of cerebral arteries,113,1.5,15.2
+Mass of right breast,113,1.5,3.5
+Disorder of biliary tract,113,1.5,3.5
+Minimal cognitive impairment,112,1.4,6.2
+Nonvenomous insect bite without infection,112,1.4,1.8
+Common cold,112,1.4,2.2
+Poisoning by drug AND/OR medicinal substance,112,1.4,2.4
+"Gestation period, 33 weeks",112,1.4,2.3
+Disorder associated with menstruation AND/OR menopause,112,1.4,2.8
+Contusion of chest,112,1.4,2.1
+Disorder of vein,112,1.4,2.7
+End-stage renal disease,111,1.4,36.5
+Gastric polyp,111,1.4,2.7
+Radial styloid tenosynovitis,111,1.4,4.9
+Post-inflammatory hyperpigmentation,111,1.4,2.6
+Disorder of hematopoietic structure,111,1.4,5.3
+Alcohol intoxication,111,1.4,6.6
+Noninflammatory disorder of the female genital organs,111,1.4,3.3
+Benign neoplasm of skin of upper limb,111,1.4,3.1
+Disorder of nervous system due to diabetes mellitus,110,1.4,10.1
+Contusion of knee,110,1.4,2.8
+Incontinence of feces,110,1.4,5.7
+Adjustment disorder with anxious mood,110,1.4,5.8
+Hyperparathyroidism due to renal insufficiency,110,1.4,11.7
+Organic mental disorder,109,1.4,6.9
+Injury of foot,109,1.4,2.0
+Intestinal infectious disease,109,1.4,1.7
+Injury of musculoskeletal system,109,1.4,2.3
+Achilles tendinitis,109,1.4,7.0
+"Gestation period, 40 weeks",109,1.4,2.4
+Chronic hepatitis C,108,1.4,11.3
+Chronic kidney disease stage 3B,108,1.4,9.3
+Radiculopathy due to cervical spondylosis,108,1.4,2.9
+Metabolic syndrome X,108,1.4,7.2
+Atrophic gastritis,108,1.4,2.3
+Benign lipomatous tumor,107,1.4,2.9
+Lymphedema,107,1.4,13.8
+Hemorrhagic complication of pregnancy,107,1.4,2.4
+Pain due to varicose veins of lower extremity,107,1.4,5.0
+Dermatophytosis,107,1.4,3.1
+Ankle joint effusion,107,1.4,2.6
+Secondary diabetes mellitus,106,1.4,7.7
+Mitral valve regurgitation,106,1.4,5.9
+Inflammation of sacroiliac joint,106,1.4,6.9
+Acute postoperative pain,106,1.4,2.3
+Benign neoplasm of skin of lower limb,106,1.4,3.4
+Benign neoplasm of skin of face,105,1.4,2.6
+Disorder of endocrine system,105,1.4,7.7
+Accidental poisoning,105,1.4,2.8
+Hypertensive heart disease without congestive heart failure,105,1.4,4.1
+Sprain of wrist,105,1.4,2.3
+Senile osteoporosis,104,1.3,7.6
+Psychophysiologic insomnia,104,1.3,5.5
+Hemangioma,104,1.3,2.6
+Infection caused by Escherichia coli,104,1.3,1.8
+Vulval and/or perineal noninflammatory disorders,104,1.3,3.1
+Disorder of fluid AND/OR electrolyte,104,1.3,3.2
+Disorder of lip,103,1.3,4.4
+Non-rheumatic heart valve disorder,103,1.3,4.2
+Acute tonsillitis,103,1.3,2.1
+Pericardial effusion - noninflammatory,102,1.3,5.1
+Peritoneal adhesion,102,1.3,2.4
+Uncertain viability of pregnancy,102,1.3,3.4
+Threatened miscarriage,102,1.3,2.1
+Cerebral ischemia,102,1.3,2.7
+Dysplasia of cervix,102,1.3,3.9
+Nonulcer dyspepsia,102,1.3,3.7
+Headache disorder,102,1.3,3.6
+"Localized, primary osteoarthritis of the wrist",101,1.3,3.1
+Genital herpes simplex,101,1.3,3.7
+Slow transit constipation,101,1.3,5.1
+Acute deep vein thrombosis of lower limb,101,1.3,11.3
+Hemoptysis,101,1.3,5.2
+Opioid abuse,101,1.3,5.1
+Fetal condition affecting obstetrical care of mother,101,1.3,3.7
+Dyspareunia,100,1.3,5.1
+Jaw pain,100,1.3,2.4
+Disorder of joint of shoulder region,100,1.3,3.5
+"Gestation period, 21 weeks",100,1.3,1.4
+Atrial premature complex,100,1.3,2.8
+Herpesvirus infection,100,1.3,5.8
+Incipient senile cataract,99,1.3,4.5
+Inflammatory polyarthropathy,99,1.3,7.6
+Injury of muscle and tendon at neck level,99,1.3,2.1
+Dermatochalasis of right upper eyelid,99,1.3,3.4
+Anal fissure,99,1.3,7.6
+Mental disorder,98,1.3,3.5
+Neuropathy,98,1.3,4.5
+Irritable bowel syndrome with diarrhea,98,1.3,4.0
+Schizophrenia,97,1.3,18.0
+Duodenitis,97,1.3,2.4
+Sprain of hip,97,1.3,3.5
+Hypoglycemia due to type 2 diabetes mellitus,97,1.3,3.8
+Closed fracture,97,1.3,2.6
+Candidiasis of mouth,97,1.3,3.0
+Miscarriage without complication,96,1.2,3.8
+Chronic atrial fibrillation,96,1.2,15.7
+Abnormal auditory perception,96,1.2,5.7
+Periumbilical pain,96,1.2,2.7
+Displacement of cervical intervertebral disc,95,1.2,4.1
+Hypertensive urgency,95,1.2,4.1
+Disorder of patellofemoral joint,95,1.2,4.4
+Dermatochalasis of left upper eyelid,95,1.2,3.2
+Malignant neoplastic disease,94,1.2,27.0
+Severe protein-calorie malnutrition (Gomez: less than 60 percent of standard weight),94,1.2,3.4
+Goiter,94,1.2,3.5
+Gastrointestinal infection,94,1.2,2.5
+Sprain of shoulder,94,1.2,1.7
+Allergic contact dermatitis,93,1.2,3.3
+Late effect of injury,93,1.2,2.3
+Disorder of kidney due to diabetes mellitus,93,1.2,8.6
+Injury of finger,93,1.2,1.9
+Bronchiectasis,93,1.2,11.6
+Inflammatory disease of liver,93,1.2,4.6
+Acute myocardial infarction,92,1.2,12.8
+Condyloma acuminatum of the anogenital region,92,1.2,5.8
+Arthralgia of temporomandibular joint,92,1.2,5.1
+Degenerative joint disease of pelvis,92,1.2,4.1
+Primary malignant neoplasm,92,1.2,6.1
+Degenerative joint disease of shoulder region,92,1.2,3.1
+Lipoma,92,1.2,3.4
+Basal cell carcinoma of skin,92,1.2,10.3
+Enthesopathy of ankle AND/OR tarsus,92,1.2,2.9
+Tibialis tendinitis,91,1.2,5.4
+Intestinal malabsorption,91,1.2,5.7
+Conductive hearing loss,91,1.2,4.2
+Disorder of penis,91,1.2,2.9
+Acute frontal sinusitis,91,1.2,2.5
+Acute on chronic systolic heart failure,91,1.2,7.5
+Internal hemorrhoids grade I,91,1.2,1.7
+Subserous leiomyoma of uterus,91,1.2,2.3
+Shoulder stiff,91,1.2,10.9
+Disorder in remission,90,1.2,5.5
+Spinal cord disease,90,1.2,5.0
+Diffuse spasm of esophagus,90,1.2,10.3
+Acute laryngitis,90,1.2,2.4
+"Gestation period, 13 weeks",90,1.2,1.7
+Thyrotoxicosis without goiter or other cause,90,1.2,5.2
+Malposition of uterus,90,1.2,1.6
+Respiratory failure,90,1.2,2.8
+Disorder caused by psychoactive substance,90,1.2,2.4
+Localized swelling of left lower limb,89,1.2,2.4
+"Gestation period, 31 weeks",89,1.2,1.8
+Persistent atrial fibrillation,89,1.2,11.3
+Glaucomatous atrophy of optic disc,89,1.2,6.4
+Raynaud's disease,89,1.2,8.0
+Chronic periodontitis,89,1.2,4.0
+Follicular cysts of skin and subcutaneous tissue,89,1.2,2.1
+Disturbance in speech,89,1.2,3.4
+Lobar pneumonia,89,1.2,2.8
+Hyperplasia of prostate,88,1.1,5.3
+Contusion,88,1.1,1.8
+Adhesive capsulitis of shoulder,88,1.1,4.8
+Human immunodeficiency virus infection,88,1.1,96.6
+Asymmetrical sensorineural hearing loss,88,1.1,3.2
+Biceps tendinitis,88,1.1,4.1
+Left bundle branch block,88,1.1,7.0
+Non-rheumatic mitral valve disease,88,1.1,5.0
+Bodily distress disorder,88,1.1,3.4
+Synovial cyst of knee,87,1.1,3.1
+Finding of length of gestation,87,1.1,1.8
+Cyst of kidney,87,1.1,5.9
+Open wound without complication,87,1.1,1.4
+Disorders of initiating and maintaining sleep,87,1.1,7.9
+Accretion on teeth,87,1.1,7.5
+Nonexudative age-related macular degeneration,87,1.1,11.3
+Renal failure syndrome,87,1.1,2.9
+Closed fracture of distal end of radius,87,1.1,12.9
+Thoracic aortic aneurysm without rupture,87,1.1,8.0
+"Severe major depression, single episode, without psychotic features",87,1.1,7.0
+Disorder of eye due to diabetes mellitus,87,1.1,13.6
+Antepartum hemorrhage,87,1.1,2.3
+"Gestation period, 22 weeks",86,1.1,1.6
+Generalized ischemic myocardial dysfunction,86,1.1,14.1
+Status migrainosus,86,1.1,6.6
+Nutritional anemia,86,1.1,3.4
+Abnormal cytological finding in specimen from female genital organ,86,1.1,3.9
+Acute on chronic diastolic heart failure,86,1.1,8.0
+Injury of ankle,85,1.1,1.9
+Hearing loss of left ear,85,1.1,2.3
+Laceration of head,85,1.1,2.0
+"Gestation period, 28 weeks",85,1.1,2.1
+Cellulitis of toe,85,1.1,3.5
+Degenerative joint disease involving multiple joints,84,1.1,4.0
+Premature beats,84,1.1,3.4
+Anemia of pregnancy,84,1.1,4.9
+"Aortic incompetence, non-rheumatic",84,1.1,6.0
+Visual field defect,84,1.1,4.3
+Gastric ulcer without hemorrhage AND without perforation,84,1.1,2.5
+Childhood emotional disorder,84,1.1,8.3
+"Gestation period, 30 weeks",84,1.1,2.0
+Recurrent major depression in full remission,84,1.1,13.9
+Neurosis,84,1.1,5.5
+Systemic lupus erythematosus,84,1.1,47.2
+Jaundice,84,1.1,3.6
+Allergic reaction to drug,84,1.1,1.7
+Congenital anomaly of skin,84,1.1,2.1
+Injury of conjunctiva,84,1.1,2.8
+Noninflammatory disorder of uterus,83,1.1,1.6
+Benign hypertensive renal disease with renal failure,83,1.1,4.0
+Angioedema,83,1.1,4.1
+Missed miscarriage,83,1.1,3.9
+Nonalcoholic steatohepatitis,83,1.1,8.0
+Chronic angle-closure glaucoma,83,1.1,12.2
+Strain of rotator cuff of shoulder,83,1.1,3.4
+Chronic ulcer of foot,83,1.1,13.1
+Disorder of adrenal gland,82,1.1,8.6
+Contusion of head,82,1.1,1.8
+Genuine stress incontinence,82,1.1,4.2
+Closed fracture of lower leg,82,1.1,5.8
+Ganglion cyst,82,1.1,4.3
+Primary cardiomyopathy,82,1.1,7.3
+Monoclonal gammopathy (clinical),82,1.1,28.7
+Complication associated with device,82,1.1,3.1
+Disorder of eye due to type 2 diabetes mellitus,81,1.0,7.6
+Contusion of head and/or neck,81,1.0,1.6
+"Mild major depression, single episode",81,1.0,11.2
+Disorder of head,81,1.0,2.4
+Pleurisy,81,1.0,2.6
+"Gestation period, 23 weeks",81,1.0,1.8
+Lichen simplex chronicus,81,1.0,3.1
+Primary gout,81,1.0,9.0
+Lichen,81,1.0,2.8
+Primary ovarian failure,81,1.0,3.8
+Chronic ulcer of skin,81,1.0,3.2
+Stimulant abuse,81,1.0,6.8
+Fibrosis of lung,81,1.0,9.3
+"Mental disorders during pregnancy, childbirth and the puerperium",81,1.0,5.1
+Pityriasis versicolor,80,1.0,2.9
+Diverticulitis of large intestine,80,1.0,4.7
+Pulmonary congestion and hypostasis,80,1.0,2.1
+Atherosclerosis of artery of lower limb,80,1.0,5.4
+Polyuria,80,1.0,2.4
+Visual discomfort,80,1.0,2.1
+Disorder of eye,80,1.0,1.8
+Disorder of vocal cord,80,1.0,6.5
+Eczema,80,1.0,3.3
+Cataract due to diabetes mellitus type 2,79,1.0,4.4
+Polyneuropathy due to diabetes mellitus,79,1.0,6.7
+Varicella,79,1.0,28.0
+Mixed conductive AND sensorineural hearing loss,79,1.0,3.5
+Abnormal chest sounds,79,1.0,1.8
+Sore throat,79,1.0,2.1
+Gestation less than 9 weeks,79,1.0,1.7
+Disorder of oral soft tissues,79,1.0,2.2
+Sjögren's syndrome,79,1.0,17.2
+Retinal lattice degeneration,79,1.0,6.3
+"Primary coxarthrosis, bilateral",78,1.0,3.3
+Moderate protein-calorie malnutrition (weight for age 60-74 percent of standard),78,1.0,3.5
+Sprain of shoulder rotator cuff,78,1.0,5.9
+Delay when starting to pass urine,78,1.0,3.1
+Tinea cruris,78,1.0,2.1
+Disorder of integument,78,1.0,2.2
+Strain of muscle and/or tendon of lower leg,78,1.0,4.4
+Aortic valve regurgitation,78,1.0,7.1
+Arthropathy of joint of hand,78,1.0,2.7
+Barrett's esophagus,78,1.0,9.2
+Splenomegaly,77,1.0,4.5
+Anemia due to chronic blood loss,77,1.0,5.5
+Enthesopathy of lower limb,77,1.0,3.5
+Irritant contact dermatitis,77,1.0,2.7
+"Bipolar affective disorder, current episode depression",77,1.0,11.5
+External hordeolum,77,1.0,2.0
+Somatic dysfunction of lumbar region,77,1.0,17.7
+Weakness of face muscles,77,1.0,2.4
+Xerostomia,77,1.0,2.9
+Bilateral earache,77,1.0,2.1
+Hydronephrosis due to calculus of kidney and ureter,76,1.0,2.7
+Diverticulitis of colon,76,1.0,15.2
+Polycystic ovary,76,1.0,8.3
+"Gestation period, 27 weeks",76,1.0,2.1
+Iliotibial band friction syndrome,76,1.0,3.5
+"Peptic ulcer without hemorrhage, without perforation AND without obstruction",76,1.0,3.4
+Septic shock,76,1.0,2.8
+Obstruction of esophagus,76,1.0,5.1
+Interstitial lung disease,76,1.0,27.1
+Cervicitis and endocervicitis,76,1.0,1.5
+Secondary hypertension,76,1.0,7.7
+Joint stiffness,75,1.0,5.4
+Iridocyclitis,75,1.0,11.1
+Megaloblastic anemia due to vitamin B-12 deficiency,75,1.0,10.0
+Hypertensive renal failure,75,1.0,8.1
+Chronic alcoholism in remission,75,1.0,23.7
+Endometriosis (clinical),75,1.0,10.8
+Cyst of pancreas,75,1.0,7.7
+Arthritis of spine,75,1.0,2.5
+IgE-mediated allergic asthma,75,1.0,7.3
+Peptic ulcer,74,1.0,5.4
+Hearing loss of right ear,74,1.0,2.5
+Complication associated with orthopedic device,74,1.0,3.5
+Conduction disorder of the heart,74,1.0,3.3
+Acquired keratoderma,74,1.0,1.8
+Rheumatic tricuspid valve regurgitation,74,1.0,3.3
+Vitamin deficiency,74,1.0,7.6
+Premature labor,74,1.0,2.2
+Acute bronchospasm,73,0.9,2.3
+Disorder of the urinary system,73,0.9,3.4
+Bilateral cataracts,73,0.9,3.4
+Sprain of foot,73,0.9,2.6
+Subjective visual disturbance,73,0.9,2.2
+Arthritis of shoulder region joint,73,0.9,3.6
+Metatarsalgia,73,0.9,4.4
+Cervical disc disorder with radiculopathy,73,0.9,3.0
+Hematemesis,73,0.9,2.3
+Candidal vulvovaginitis,73,0.9,2.2
+Corneal abrasion,73,0.9,2.9
+Kidney disease,73,0.9,4.8
+Incoordination,73,0.9,4.3
+Vomiting of pregnancy,73,0.9,3.1
+Arteriosclerosis of coronary artery bypass graft,72,0.9,7.9
+Periodontal disease,72,0.9,4.1
+Stricture of artery,72,0.9,3.5
+Secondary thrombocytopenia,72,0.9,2.1
+Aphasia,72,0.9,6.1
+Viral hepatitis B without hepatic coma,72,0.9,11.9
+Human papilloma virus infection,72,0.9,5.8
+Sick sinus syndrome,72,0.9,11.3
+"Gestation period, 10 weeks",72,0.9,2.2
+Asymptomatic human immunodeficiency virus infection,72,0.9,21.7
+Sensory disorder of smell and/or taste,72,0.9,2.3
+Dementia,72,0.9,5.7
+Toxic encephalopathy,72,0.9,1.9
+Exacerbation of intermittent asthma,72,0.9,2.4
+Non-suppurative otitis media,72,0.9,2.6
+"Gestation period, 29 weeks",72,0.9,1.8
+Osteomyelitis,72,0.9,10.2
+Primary malignant neoplasm of respiratory tract,72,0.9,47.6
+Localized swelling of left upper limb,72,0.9,2.8
+Degenerative joint disease of ankle AND/OR foot,72,0.9,2.4
+Non-rheumatic aortic sclerosis,71,0.9,17.8
+False labor,71,0.9,2.2
+Vesicular eczema,71,0.9,3.0
+Concussion with no loss of consciousness,71,0.9,3.5
+Gastroparesis syndrome,71,0.9,17.0
+Hand joint stiff,71,0.9,6.5
+Hyperosmolality and or hypernatremia,71,0.9,2.3
+Hashimoto thyroiditis,71,0.9,10.0
+Closed fracture of one rib,70,0.9,2.3
+Loss of all teeth,70,0.9,9.7
+Immune defect,70,0.9,8.0
+Chronic post-traumatic stress disorder,70,0.9,33.3
+Spontaneous ecchymosis,70,0.9,2.2
+Intervertebral disc disorder with myelopathy,70,0.9,2.0
+Male pattern alopecia,70,0.9,4.3
+Bacteriuria,70,0.9,2.2
+Organic mental disorder caused by cocaine,70,0.9,3.9
+Gestation less than 24 weeks,70,0.9,1.9
+Incisional hernia,70,0.9,9.3
+Disease,70,0.9,5.7
+"Gestation period, 26 weeks",70,0.9,2.1
+Optic disc disorder,70,0.9,4.7
+Poor fetal growth affecting management,70,0.9,5.4
+Chlamydial infection,69,0.9,3.6
+Pneumothorax,69,0.9,8.0
+Acquired absence of cervix and uterus,69,0.9,2.8
+Drug abuse,69,0.9,7.9
+Chalazion,69,0.9,3.4
+Dislocations/sprains/strains,69,0.9,1.5
+Eating disorder,69,0.9,7.8
+Acute tubular necrosis,69,0.9,3.6
+Degenerative disorder of macula,69,0.9,8.0
+Single episode of major depression in full remission,69,0.9,5.7
+Disorder of pericardium,69,0.9,6.0
+Mild nonproliferative retinopathy due to type 2 diabetes mellitus,69,0.9,12.1
+Metabolic encephalopathy,69,0.9,1.9
+Disorder of pituitary gland,68,0.9,7.8
+Cholecystitis,68,0.9,4.3
+Chronic ethmoidal sinusitis,68,0.9,4.9
+Degeneration of thoracic intervertebral disc,68,0.9,2.6
+Tricuspid valve disorder,68,0.9,1.6
+Calculus of bile duct,68,0.9,3.4
+Somatic dysfunction of thoracic region,68,0.9,15.7
+Disorder of cervical spine,68,0.9,6.7
+Degenerative joint disease of hand,68,0.9,3.2
+Injury of neck,68,0.9,1.7
+Hallucinations,68,0.9,3.5
+Open angle with borderline intraocular pressure,68,0.9,3.4
+Recurrent major depression in remission,68,0.9,8.5
+Malignant essential hypertension,68,0.9,2.2
+Hypercholesterolemia,68,0.9,8.1
+Torticollis,67,0.9,2.7
+Hirsutism,67,0.9,4.4
+Panic disorder,67,0.9,5.3
+Dehiscence of external surgical incision wound,67,0.9,2.4
+Unstable angina co-occurrent and due to coronary arteriosclerosis,67,0.9,3.3
+Gestational diabetes mellitus,67,0.9,16.1
+Acquired deformity of toe,67,0.9,4.6
+Contusion of lower leg,67,0.9,1.9
+Injury of face and neck,67,0.9,1.6
+Disturbance of salivary secretion,67,0.9,2.6
+Localized swelling of right lower limb,67,0.9,2.6
+Exacerbation of moderate persistent asthma,67,0.9,3.8
+Acute pyelonephritis,66,0.9,3.1
+Acute non-suppurative serous otitis media,66,0.9,2.5
+Contusion of foot,66,0.9,1.7
+Bell's palsy,66,0.9,9.0
+Cellulitis and abscess of trunk,66,0.9,3.1
+Contusion of hand,66,0.9,1.8
+Chronic low back pain,66,0.9,4.3
+Cholesterolosis of gallbladder,66,0.9,7.2
+Primary malignant neoplasm of upper outer quadrant of female breast,66,0.9,36.0
+Varicose vein of lower limb with phlebitis,66,0.9,4.9
+Ulcerative colitis,66,0.9,21.1
+Somnolence syndrome,66,0.9,2.7
+Dysarthria,66,0.9,5.1
+Melanocytic nevus of upper limb,66,0.9,4.0
+Photodermatitis,66,0.9,2.1
+Refractory migraine without aura,66,0.9,7.0
+Acute appendicitis,65,0.8,6.0
+Drug-induced immunodeficiency,65,0.8,7.5
+Joint derangement,65,0.8,3.3
+Acute suppurative otitis media without spontaneous rupture of ear drum,65,0.8,2.4
+Abnormal posture,65,0.8,6.8
+"Gestation period, 16 weeks",65,0.8,2.0
+Acute ischemic heart disease,65,0.8,2.3
+Essential tremor,65,0.8,6.8
+Disorder of the larynx,65,0.8,3.7
+Inflammatory disorder of breast,65,0.8,4.3
+Verruca plantaris,65,0.8,4.6
+Complication of medical care,64,0.8,3.2
+Seborrheic keratosis,64,0.8,5.6
+Pneumonitis caused by inhaled substance,64,0.8,4.2
+Shock,64,0.8,2.7
+Neoplasm of digestive system,64,0.8,3.8
+Retinal hemorrhage,64,0.8,6.7
+Intervertebral disc prolapse,64,0.8,2.3
+Sequelae of injuries of lower limb,64,0.8,2.6
+Type 1 diabetes mellitus,64,0.8,29.7
+Paroxysmal ventricular tachycardia,64,0.8,13.3
+Herpes simplex,64,0.8,4.4
+Chronic ulcer of skin of lower leg,64,0.8,6.1
+Anorexia nervosa,64,0.8,2.5
+Medial epicondylitis,64,0.8,4.7
+Cellulitis and abscess of face,64,0.8,2.0
+Pain in upper limb,64,0.8,1.8
+Acute cholecystitis,64,0.8,3.0
+Burn,64,0.8,4.5
+Primary localized osteoarthrosis of pelvic region,63,0.8,4.0
+Arthropathy of pelvis,63,0.8,2.0
+Changes in skin texture,63,0.8,2.9
+Chronic kidney disease stage 1,63,0.8,7.0
+Methicillin resistant Staphylococcus aureus infection,63,0.8,1.9
+Apnea,63,0.8,2.3
+Laceration of finger,63,0.8,2.4
+Closed fracture of phalanx of foot,63,0.8,2.8
+Benign mammary dysplasia,63,0.8,10.3
+Drug-induced constipation,63,0.8,2.9
+Partial edentulism,63,0.8,5.6
+Hyperuricemia without signs of inflammatory arthritis and tophaceous disease,63,0.8,10.3
+Mononeuropathy of lower limb,63,0.8,5.0
+Centriacinar emphysema,63,0.8,9.2
+"Abnormal glucose tolerance in mother complicating pregnancy, childbirth AND/OR puerperium",63,0.8,5.8
+Personality disorder,62,0.8,10.5
+Benign neoplasm of rectum,62,0.8,1.7
+Herpesviral vesicular dermatitis,62,0.8,2.7
+Calculus of gallbladder with cholecystitis,62,0.8,1.9
+Low compliance urinary bladder,62,0.8,6.8
+Cervico-occipital neuralgia,62,0.8,11.0
+Spondylosis,62,0.8,2.5
+Obstruction of bile duct,62,0.8,9.6
+Renal colic,62,0.8,2.5
+Parkinson's disease,62,0.8,31.1
+Chronic cor pulmonale,62,0.8,8.1
+Submucous leiomyoma of uterus,62,0.8,2.8
+Enthesopathy of foot region,62,0.8,2.5
+Disorder of pharynx,62,0.8,2.5
+Disorder of magnesium metabolism,62,0.8,5.9
+Chronic intractable migraine without aura,62,0.8,14.0
+Melanocytic nevus of lower limb,62,0.8,4.1
+Respiratory finding,62,0.8,4.0
+Acute systolic heart failure,62,0.8,4.6
+Borderline personality disorder,62,0.8,28.5
+Delirium,62,0.8,1.8
+Essential thrombocythemia,62,0.8,17.9
+Atherosclerosis of artery,62,0.8,3.3
+Child-Pugh score class A,61,0.8,14.9
+Adult failure to thrive syndrome,61,0.8,3.6
+Otalgia of right ear,61,0.8,2.9
+Sprain of spinal ligament,61,0.8,1.8
+Arthritis,61,0.8,3.2
+Cartilage disorder,61,0.8,4.8
+Open wound of lower leg,61,0.8,3.1
+Pruritus of genital organs,61,0.8,1.8
+Chest injury,61,0.8,1.7
+Metabolic disease,61,0.8,2.8
+Crohn's disease,61,0.8,53.8
+Post-inflammatory pulmonary fibrosis,61,0.8,9.5
+Upper respiratory infection,61,0.8,1.4
+Adhesive capsulitis of left shoulder,61,0.8,7.3
+Hypertensive retinopathy,61,0.8,6.3
+Spondylolisthesis L5/S1 level,61,0.8,2.1
+Microcalcifications of the breast,60,0.8,3.0
+Basal cell carcinoma of face,60,0.8,3.8
+Prostatitis,60,0.8,6.5
+Hypertensive heart and chronic kidney disease,60,0.8,3.8
+Connective tissue and disc stenosis of intervertebral foramina,60,0.8,1.9
+Chronic pancreatitis,60,0.8,16.7
+Cervical disc disorder,60,0.8,5.7
+Injury of trunk,60,0.8,1.5
+Sprain of knee,60,0.8,2.1
+Cystoid macular retinal degeneration,60,0.8,11.0
+Contusion of scalp,60,0.8,1.8
+Chronic bronchitis,60,0.8,4.2
+Bacterial pneumonia,60,0.8,5.2
+Benign tumor of breast,60,0.8,3.8
+Acquired hallux malleus,59,0.8,3.8
+"Muscle, ligament and fascia disorders",59,0.8,2.0
+Chronic obstructive pulmonary disease with acute lower respiratory infection,59,0.8,1.9
+Dilated cardiomyopathy,59,0.8,12.1
+Multiple benign melanocytic nevi,59,0.8,3.0
+Deficiency of macronutrients,59,0.8,4.0
+Chest pain on breathing,59,0.8,2.1
+Postconcussion syndrome,59,0.8,5.1
+Dyspnea on exertion,59,0.8,4.4
+Abrasion of skin of knee,59,0.8,1.8
+Postoperative infection,59,0.8,2.1
+Aneurysm,59,0.8,10.9
+Strain of muscle and/or tendon of thigh,59,0.8,4.0
+Closed fracture of multiple ribs,59,0.8,3.3
+Cervical somatic dysfunction,59,0.8,20.5
+Lipoma of skin and subcutaneous tissue (excluding face),59,0.8,2.9
+Lumbosacral spondylosis with radiculopathy,59,0.8,2.6
+"Gestation period, 17 weeks",59,0.8,2.1
+Bipolar I disorder,59,0.8,16.8
+Skin lesion,59,0.8,1.5
+Excessive fetal growth affecting management of mother,59,0.8,2.4
+Unstable knee,59,0.8,3.6
+Herniation of rectum into vagina,58,0.8,4.4
+Periodic limb movement disorder,58,0.8,5.7
+Alcohol withdrawal,58,0.8,6.5
+Hyperosmolarity,58,0.8,6.5
+Pruritus ani,58,0.8,4.4
+Scalp laceration,58,0.8,2.5
+Secondary polycythemia,58,0.8,7.6
+Foreign body in ear,58,0.8,1.9
+Sciatic nerve lesion,58,0.8,3.5
+Acquired hallux rigidus,58,0.8,2.9
+Polyp of nasal cavity and/or nasal sinus,58,0.8,11.3
+Hidradenitis suppurativa,58,0.8,10.7
+Intestinal obstruction co-occurrent and due to decreased peristalsis,58,0.8,2.3
+Viral conjunctivitis,58,0.8,2.0
+Disorder of limb,57,0.7,1.9
+Pancytopenia,57,0.7,4.9
+Primary malignant neoplasm of skin,57,0.7,5.7
+"Infection AND/OR inflammatory reaction due to internal prosthetic device, implant AND/OR graft",57,0.7,7.5
+Hypertrophy of tonsils,57,0.7,2.7
+Acute non-infective otitis externa,57,0.7,2.3
+Non-infectious systemic inflammatory response syndrome without acute organ failure,57,0.7,1.7
+Atherosclerosis of arteries of the extremities,57,0.7,7.8
+Lipoma of skin and subcutaneous tissue of trunk,57,0.7,4.9
+Mycosis,57,0.7,2.4
+Myelopathy due to cervical spondylosis,57,0.7,7.0
+Cervical spine sprain,57,0.7,2.4
+Pain in forearm,57,0.7,2.6
+Rheumatic disease of heart valve,56,0.7,1.5
+Obstruction of neck of urinary bladder,56,0.7,5.2
+Organic anxiety disorder caused by psychoactive substance,56,0.7,4.1
+Exercise induced bronchospasm,56,0.7,6.9
+Thromboembolism of vein,56,0.7,5.8
+Pain due to neoplastic disease,56,0.7,10.1
+Abrasion and/or friction burn of skin,56,0.7,1.6
+Muscle atrophy,56,0.7,5.6
+Sexually transmitted infectious disease,56,0.7,12.8
+Full thickness rotator cuff tear,56,0.7,4.3
+Gallbladder calculus with acute cholecystitis and no obstruction,56,0.7,2.3
+Noninflammatory cervical disorder,56,0.7,1.4
+Cellulitis and abscess of forearm,56,0.7,4.0
+Refractory migraine,56,0.7,4.6
+Disorders of both mitral and tricuspid valves,56,0.7,1.5
+Bipolar II disorder,56,0.7,20.6
+Peripheral vertigo,56,0.7,2.6
+Disorder of prostate,56,0.7,2.2
+Benign neoplasm of left breast,56,0.7,3.4
+Otalgia of left ear,56,0.7,2.6
+Varicocele,56,0.7,2.5
+Acute ST segment elevation myocardial infarction,55,0.7,8.4
+Primary malignant neoplasm of kidney,55,0.7,36.3
+Generalized edema,55,0.7,2.8
+Endometriosis of uterus,55,0.7,4.0
+Portal hypertension,55,0.7,7.3
+Perimenopausal disorder,55,0.7,5.0
+Gingival disease,55,0.7,3.7
+Tooth eruption disorder,55,0.7,2.0
+Urinary tract infection in pregnancy,55,0.7,3.5
+Intervertebral disc disorder,55,0.7,4.6
+Keratoconjunctivitis sicca (excluding Sjögren syndrome),55,0.7,3.8
+Acquired deformity of foot,55,0.7,3.8
+Chronic kidney disease stage 5,55,0.7,12.2
+Disorder of spinal region,55,0.7,2.6
+Chronic idiopathic constipation,55,0.7,2.9
+Hemangioma of intra-abdominal structure,55,0.7,6.1
+Acquired spondylolisthesis,54,0.7,2.1
+Cannabis dependence,54,0.7,22.1
+Delusional disorder,54,0.7,9.5
+Mitral valve prolapse,54,0.7,7.8
+Superficial injury of cornea,54,0.7,1.7
+Multiple sclerosis,54,0.7,103.5
+False labor before 37 completed weeks of gestation,54,0.7,2.7
+Secondary pulmonary hypertension,54,0.7,4.0
+Schizoaffective disorder,54,0.7,25.7
+Difficulty talking,54,0.7,4.3
+Postpartum finding,54,0.7,2.6
+Blepharitis of right eyelid,54,0.7,3.2
+Injury of muscle and tendon at hip and thigh level,54,0.7,3.0
+Obsessive-compulsive disorder,54,0.7,25.8
+Dental caries extending into dentin,54,0.7,5.7
+Retinal vascular disorder,53,0.7,6.9
+Acquired absence of breast,53,0.7,8.8
+Cystocele,53,0.7,3.1
+Abrasion and/or friction burn of multiple sites,53,0.7,1.3
+Recurrent aphthous stomatitis,53,0.7,2.9
+Benign neoplasm of pituitary gland,53,0.7,23.4
+Hepatic failure,53,0.7,6.9
+"Benign tumor of soft tissue of head, face and neck",53,0.7,2.1
+Injury of muscle and tendon at thorax level,53,0.7,2.1
+Closed fracture of nasal bones,53,0.7,3.2
+Arteriosclerotic vascular disease,53,0.7,5.7
+Congenital heart disease,53,0.7,7.8
+Pain associated with internal prosthetic device,53,0.7,3.6
+Paroxysmal supraventricular tachycardia,53,0.7,6.8
+Localized swelling of right upper limb,53,0.7,2.2
+Posterior subcapsular polar senile cataract,53,0.7,3.3
+Lump in upper outer quadrant of left breast,53,0.7,2.8
+Perforation of tympanic membrane,53,0.7,6.0
+Chronic tension-type headache,53,0.7,4.0
+Rhabdomyolysis,53,0.7,3.8
+Abnormality of organs AND/OR soft tissues of pelvis affecting pregnancy,53,0.7,2.1
+Osteopenia,53,0.7,4.7
+Pyelonephritis,53,0.7,3.5
+Drug abuse in remission,53,0.7,3.7
+Primary malignant neoplasm of colon,53,0.7,23.7
+Closed fracture of ankle,53,0.7,8.4
+Lyme disease,53,0.7,6.0
+Cobalamin deficiency,52,0.7,7.1
+Pain in testicle,52,0.7,2.4
+Contusion of hip,52,0.7,1.9
+Paralytic syndrome on one side of the body as late effect of cerebrovascular accident,52,0.7,5.6
+Achilles bursitis,52,0.7,4.3
+Midline cystocele,52,0.7,4.7
+Dyslipidemia,52,0.7,4.2
+Contusion of shoulder region,52,0.7,1.8
+Disorder of uterus,52,0.7,2.0
+Pneumonia caused by SARS-CoV-2,52,0.7,2.5
+"Gestation period, 25 weeks",52,0.7,2.4
+Irritable bowel syndrome characterized by constipation,52,0.7,5.5
+"Drug abuse, continuous",52,0.7,2.1
+Mammographic microcalcification of breast,52,0.7,3.3
+Impetigo,52,0.7,3.8
+Disorder of bilirubin metabolism,52,0.7,3.7
+Primary malignant neoplasm of thyroid gland,52,0.7,55.6
+Post-laminectomy syndrome,51,0.7,18.7
+Seborrheic blepharitis,51,0.7,5.4
+Paralytic ectropion,51,0.7,2.1
+Lower back injury,51,0.7,2.7
+Injury of face,51,0.7,1.8
+Chronic total occlusion of coronary artery,51,0.7,2.3
+Tear of lateral meniscus of knee,51,0.7,3.7
+Myocardial infarction due to demand ischemia,51,0.7,3.0
+Foot-drop,51,0.7,8.1
+Infection by methicillin sensitive Staphylococcus aureus,50,0.6,3.1
+"Recurrent major depressive episodes, mild",50,0.6,10.1
+Sialoadenitis,50,0.6,3.5
+Disorder of the genitourinary system,50,0.6,2.9
+Mild neurocognitive disorder,50,0.6,4.1
+Benign neoplasm of choroid,50,0.6,15.5
+Movement disorder,50,0.6,3.8
+Vitiligo,50,0.6,26.9
+Meralgia paresthetica,50,0.6,4.1
+Inactive tuberculosis,50,0.6,6.0
+Polyarthropathy,50,0.6,2.8
+Snapping thumb syndrome,50,0.6,4.5
+Adrenal cortical hypofunction,50,0.6,16.9
+Functional diarrhea,50,0.6,3.8
+Chronic disease of tonsils AND/OR adenoids,50,0.6,2.7
+Acute pulmonary edema,50,0.6,2.8
+Bursitis of right shoulder,50,0.6,2.6
+Nonproliferative retinopathy due to diabetes mellitus,50,0.6,5.2
+Hydrocele of testis,50,0.6,3.8
+Dilatation of aorta,50,0.6,3.5
+Valvular endocarditis,50,0.6,3.5
+Disorder of nervous system,50,0.6,5.9
+Ataxia,50,0.6,3.9
+Drug resistance,50,0.6,2.6
+Disorder of connective tissue,50,0.6,6.2
+Closed fracture of fibula,50,0.6,3.7
+Senile angioma,50,0.6,2.6
+Contusion of anterior abdominal wall,50,0.6,2.5
+Complete atrioventricular block,49,0.6,14.6
+Displacement of cervical intervertebral disc without myelopathy,49,0.6,4.8
+Primary hyperparathyroidism,49,0.6,10.8
+Toxic diffuse goiter,49,0.6,28.0
+Bilateral age-related nuclear cataracts,49,0.6,3.6
+Cirrhosis - non-alcoholic,49,0.6,20.5
+Acquired deformity of ankle AND/OR foot,49,0.6,3.1
+Recurrent acute sinusitis,49,0.6,3.0
+Superficial punctate keratitis,49,0.6,3.2
+Tinea of perianal region,49,0.6,2.3
+Anal and rectal polyp,49,0.6,2.0
+Gastrointestinal complication,49,0.6,5.0
+Pyogenic infection of skin and subcutaneous tissues caused by bacterium,49,0.6,1.8
+Bilateral myopia of eyes,49,0.6,5.1
+Olecranon bursitis,49,0.6,2.9
+Pinguecula,49,0.6,3.1
+Bicipital tenosynovitis,49,0.6,2.4
+Acute lower respiratory tract infection,49,0.6,1.6
+Late effects of cerebrovascular disease,49,0.6,8.6
+"Endocrine, nutritional and metabolic disease complicating pregnancy, childbirth and puerperium",49,0.6,7.0
+Injury undetermined whether accidentally or purposely inflicted,48,0.6,2.2
+Disorder of knee,48,0.6,2.8
+Asymptomatic microscopic hematuria,48,0.6,2.4
+Sprain of medial collateral ligament of knee,48,0.6,2.5
+Scoliosis of lumbar spine,48,0.6,2.3
+Superficial mycosis,48,0.6,2.8
+"Recurrent major depressive episodes, severe, with psychosis",48,0.6,15.3
+"Attention deficit hyperactivity disorder, combined type",48,0.6,14.5
+Patellar tendonitis,48,0.6,5.2
+Hyperglycemia due to type 1 diabetes mellitus,48,0.6,23.1
+Benign neoplasm of rectum and anal canal,48,0.6,1.8
+Telogen effluvium,48,0.6,3.5
+Influenza caused by seasonal influenza virus,48,0.6,1.9
+Non-Hodgkin's lymphoma (clinical),48,0.6,7.1
+Acquired deformity of lower leg,48,0.6,2.8
+Viral upper respiratory tract infection,48,0.6,1.4
+Osteoarthritis of right knee joint,48,0.6,3.4
+Long QT syndrome,48,0.6,2.8
+Disorder of tendon of shoulder region,48,0.6,1.8
+Hypersomnia with sleep apnea,48,0.6,3.8
+Chronic combined systolic and diastolic heart failure,48,0.6,10.0
+Nonunion of fracture,47,0.6,8.4
+Chronic pansinusitis,47,0.6,5.5
+Bacterial infection caused by Klebsiella pneumoniae,47,0.6,1.8
+Impaired cognition,47,0.6,4.2
+Streptococcus agalactiae infection,47,0.6,1.8
+Idiopathic peripheral neuropathy,47,0.6,3.6
+Female pelvic peritoneal adhesions,47,0.6,1.7
+Overlapping malignant neoplasm of female breast,47,0.6,14.2
+Sprain of hand,47,0.6,2.0
+Mechanical complication of intrauterine contraceptive device,47,0.6,3.9
+Sinus node dysfunction,47,0.6,7.8
+Squamous cell carcinoma of skin,47,0.6,3.9
+Pain provoked by trauma,47,0.6,1.9
+Muscle and tendon injury,47,0.6,9.0
+Acute respiratory failure,47,0.6,2.9
+Derangement of medial meniscus,47,0.6,2.8
+Cellulitis of left upper limb,47,0.6,2.6
+Cellulitis of right upper limb,47,0.6,2.8
+Melanocytic nevus of region of face,47,0.6,2.4
+Uterovaginal prolapse,47,0.6,6.1
+Effusion of joint,47,0.6,2.4
+Non-thrombocytopenic purpura,47,0.6,3.6
+Staphylococcal infectious disease,47,0.6,7.4
+Laceration of hand,47,0.6,8.0
+Sequela of disorder,47,0.6,3.1
+Foot ulcer due to type 2 diabetes mellitus,47,0.6,10.5
+Closed fracture of shaft of fibula,47,0.6,4.8
+Labyrinthine disorder,47,0.6,2.7
+Concussion with loss of consciousness,47,0.6,2.3
+Disorder caused by alcohol,46,0.6,5.7
+Atrophic condition of skin,46,0.6,2.9
+Acute on chronic hypoxemic respiratory failure,46,0.6,4.9
+Cervicovaginal cytology: Low grade squamous intraepithelial lesion,46,0.6,3.4
+Abrasion of head,46,0.6,1.8
+Hydrocele of tunica vaginalis,46,0.6,2.8
+Urethritis,46,0.6,3.8
+Dental caries on smooth surface penetrating into dentin,46,0.6,4.8
+Injury of hand,46,0.6,5.2
+Dyssomnia,46,0.6,1.8
+Insomnia disorder related to another mental disorder,46,0.6,8.1
+Gastrointestinal complication of procedure,46,0.6,3.3
+Chronic viral hepatitis B without delta-agent,46,0.6,41.3
+Acute subendocardial infarction,46,0.6,7.2
+Peroneal tendinitis,46,0.6,5.8
+Acute pansinusitis,46,0.6,2.0
+Lentiginosis,46,0.6,2.8
+Open-angle glaucoma,46,0.6,5.6
+Pulmonary embolism with pulmonary infarction,46,0.6,25.8
+Bursitis of left shoulder,45,0.6,3.5
+Pre-eclampsia,45,0.6,4.2
+Adhesive capsulitis of right shoulder,45,0.6,5.2
+Onychogryposis,45,0.6,3.0
+White blood cell disorder,45,0.6,3.8
+Genitourinary tract infection in pregnancy,45,0.6,2.4
+Nutritional deficiency disorder,45,0.6,4.9
+Calculus of kidney and ureter,45,0.6,2.7
+Primary malignant neoplasm of urinary bladder,45,0.6,36.4
+Hypertrophy of uterus,45,0.6,2.5
+Acute on chronic combined systolic and diastolic heart failure,45,0.6,8.7
+Bilateral inguinal hernia,45,0.6,3.3
+Open wound of face without complication,45,0.6,1.5
+Delayed union of fracture,45,0.6,4.3
+Disorder of bronchus,45,0.6,2.4
+Intracranial injury with loss of consciousness,45,0.6,3.7
+Pterygium,45,0.6,6.6
+Benign neoplasm of right breast,45,0.6,4.4
+Pruritus of vulva,45,0.6,3.1
+Pulmonary arterial hypertension,45,0.6,6.7
+Seropositive rheumatoid arthritis,45,0.6,39.6
+Crohn's disease of large bowel,45,0.6,13.5
+Disorder of autonomic nervous system,45,0.6,12.4
+Carcinoma in situ of breast,45,0.6,18.3
+Congenital anomaly of spine,44,0.6,2.3
+Infection by Trichomonas,44,0.6,2.3
+Hereditary thrombophilia,44,0.6,6.1
+Cholelithiasis AND cholecystitis without obstruction,44,0.6,2.4
+Clostridium difficile colitis,44,0.6,5.8
+Group B streptococcus carrier complicating pregnancy,44,0.6,2.2
+Hernia of abdominal cavity,44,0.6,3.2
+Chronic cholecystitis,44,0.6,1.8
+Disorder of cornea,44,0.6,4.9
+Sign,44,0.6,3.3
+Joint effusion of ankle AND/OR foot,44,0.6,2.2
+Cervical spondylosis,44,0.6,2.1
+Drug-induced hypotension,44,0.6,3.1
+Post-acute COVID-19,44,0.6,3.1
+Aphthous ulcer of mouth,44,0.6,2.2
+Retinal drusen,44,0.6,4.9
+Female pelvic inflammatory disease,44,0.6,2.7
+Excess skin of eyelid,44,0.6,3.6
+Gastroduodenal disorder,44,0.6,1.6
+Autoimmune disease,44,0.6,4.7
+Benign neoplasm of meninges,44,0.6,22.1
+Paronychia of finger,43,0.6,2.1
+Closed fracture of upper end of humerus,43,0.6,10.2
+Thrombophlebitis,43,0.6,3.3
+Psoriatic arthritis,43,0.6,25.7
+Injury of lower limb,43,0.6,1.7
+Contusion of finger,43,0.6,2.1
+Stomatitis,43,0.6,2.0
+"Pulmonary incompetence, non-rheumatic",43,0.6,1.5
+Late effect of accidental fall,43,0.6,3.2
+Inflammatory disease of female genital structure,43,0.6,1.7
+Postpartum hemorrhage,43,0.6,1.9
+Rheumatic disease of mitral AND aortic valves,43,0.6,3.7
+"Superficial injury of lower limb, excluding foot",43,0.6,1.2
+Closed fracture of lateral malleolus,43,0.6,5.5
+Alopecia areata,43,0.6,7.4
+Osteoarthritis of left knee joint,43,0.6,5.5
+Autonomic neuropathy due to type 2 diabetes mellitus,43,0.6,7.9
+Osteoarthrosis involving multiple sites but not designated as generalized,43,0.6,5.8
+Hypertensive emergency,43,0.6,4.4
+Concussion injury of brain,43,0.6,4.7
+Benign neoplasm of cerebral meninges,43,0.6,38.2
+Ganglion of wrist,43,0.6,3.3
+Elbow joint effusion,43,0.6,2.6
+Anemia in neoplastic disease,43,0.6,5.5
+Aortic aneurysm,43,0.6,9.0
+Mucous polyp of cervix,43,0.6,2.3
+Closed fracture of carpal bone,42,0.5,9.0
+"Disease of the respiratory system complicating pregnancy, childbirth and/or the puerperium",42,0.5,2.3
+Plantar nerve lesion,42,0.5,5.1
+Mononeuropathy,42,0.5,4.0
+Intracerebral vascular finding,42,0.5,11.5
+Arteritis,42,0.5,5.7
+Myositis,42,0.5,5.7
+Closed fracture of medial malleolus,42,0.5,2.8
+Complication associated with genitourinary device,42,0.5,2.0
+Cerebral atherosclerosis,42,0.5,2.9
+Dermatographic urticaria,42,0.5,3.3
+Venous thrombosis,42,0.5,8.1
+Benign neoplasm of stomach,42,0.5,3.7
+Prolapse of female genital organs,42,0.5,6.2
+Polyp of cervix,42,0.5,2.3
+Elderly primigravida,42,0.5,7.7
+Ménière's disease,42,0.5,10.2
+Premature rupture of membranes,42,0.5,2.0
+Idiopathic peripheral autonomic neuropathy,42,0.5,2.3
+Age related macular degeneration,42,0.5,7.5
+Optic atrophy,42,0.5,8.7
+Retinal edema,41,0.5,8.4
+"Disease of the digestive system complicating pregnancy, childbirth and/or the puerperium",41,0.5,4.4
+Deficiency anemias,41,0.5,3.8
+Pharyngeal dysphagia,41,0.5,3.5
+Disorder of capillaries,41,0.5,2.0
+Disorder of rotator cuff,41,0.5,2.8
+Inflammatory disorder of male genital organ,41,0.5,2.8
+Cerebral edema,41,0.5,8.6
+Ulcer of esophagus,41,0.5,11.3
+Disorder of tongue,41,0.5,4.2
+Trigeminal neuralgia,41,0.5,8.8
+Post-surgical malabsorption,41,0.5,18.3
+Disorder of bursa,41,0.5,2.3
+Pre-existing hypertension in obstetric context,41,0.5,6.5
+"Superficial injury to head, excluding eye",41,0.5,1.6
+Generalized epilepsy,41,0.5,5.3
+"Open wound of hand, excluding finger(s)",41,0.5,1.7
+Tachypnea,41,0.5,1.5
+Internal hemorrhoids grade II,41,0.5,2.9
+Maternal hypertension,41,0.5,3.1
+Alkalosis,41,0.5,1.8
+Bursitis,41,0.5,3.4
+Lipoma of skin and subcutaneous tissue of limb,41,0.5,2.9
+Candidiasis of the esophagus,41,0.5,3.4
+Allergic urticaria,41,0.5,1.9
+Mechanical complication of device,41,0.5,3.4
+Pregnancy-induced hypertension,41,0.5,4.2
+Bursitis of knee,41,0.5,3.1
+Ulceration of intestine,41,0.5,3.0
+Mild hyperemesis gravidarum,41,0.5,4.7
+Abdominal wind pain,40,0.5,2.6
+Irregular astigmatism,40,0.5,6.4
+Postoperative complication,40,0.5,2.1
+Lesion of median nerve,40,0.5,2.1
+Intestinal disaccharidase deficiency,40,0.5,5.0
+Vascular complication of medical care,40,0.5,2.6
+Raynaud's phenomenon,40,0.5,5.1
+Knee stiff,40,0.5,10.4
+Acquired absence of genital organ,40,0.5,4.0
+Derangement of posterior horn of medial meniscus,40,0.5,1.6
+Psychoactive substance dependence,40,0.5,12.8
+Infection caused by Enterococcus,40,0.5,2.0
+Acute diastolic heart failure,40,0.5,4.4
+Atrophy of kidney,40,0.5,3.0
+Iatrogenic hypotension,40,0.5,1.6
+Normal eye position,40,0.5,5.3
+Malignant neoplasm of upper lobe of lung,40,0.5,24.6
+Localized adiposity,40,0.5,4.5
+Toxic diffuse goiter with no crisis,40,0.5,16.1
+Appendicitis,40,0.5,7.2
+Abdominal aortic aneurysm without rupture,40,0.5,7.4
+Closed fracture of metatarsal bone,40,0.5,11.3
+Orthopnea,40,0.5,2.2
+Allergic rhinitis caused by animal dander,40,0.5,13.4
+Acanthosis nigricans,40,0.5,2.0
+Anaphylaxis,40,0.5,3.8
+Cardiogenic shock,40,0.5,6.4
+Normal ocular motility,40,0.5,5.4
+Post traumatic osteoarthritis,40,0.5,4.4
+Sinusitis,40,0.5,1.9
+Disorder of hip joint,40,0.5,3.2
+Hepatic fibrosis,40,0.5,6.0
+Bursitis of hip,39,0.5,3.2
+Streptococcal infectious disease,39,0.5,1.8
+Fracture of tooth,39,0.5,2.3
+Macular edema due to diabetes mellitus,39,0.5,18.7
+Chondromalacia,39,0.5,3.3
+Lichen planus,39,0.5,15.1
+Adjustment disorder with mixed disturbance of emotions AND conduct,39,0.5,5.0
+Cocaine dependence,39,0.5,21.0
+Impacted tooth,39,0.5,3.6
+Arthropathy of left knee joint,39,0.5,2.5
+Disorder of body wall,39,0.5,10.1
+Slowing of urinary stream,39,0.5,2.8
+Diabetic ketoacidosis without coma,39,0.5,10.6
+Hypercoagulability state,39,0.5,13.7
+Left heart failure,39,0.5,4.4
+Chalazion of upper eyelid,39,0.5,2.4
+Nuclear cataract,39,0.5,5.1
+Sickle cell trait,39,0.5,10.0
+Crohn's disease of small intestine,39,0.5,24.6
+Disorder of placenta,39,0.5,1.7
+Contusion of eye,39,0.5,3.1
+Injury of superior glenoid labrum of shoulder joint,39,0.5,2.8
+Auditory hallucinations,39,0.5,2.6
+Closed fracture of neck of femur,38,0.5,6.3
+Subacute disease,38,0.5,2.3
+Chronic gout without tophus,38,0.5,6.4
+Acquired deformity of nose,38,0.5,4.1
+Keratitis,38,0.5,3.9
+Ganglion of hand,38,0.5,3.4
+Syncope,38,0.5,1.8
+Spontaneous cerebral hemorrhage,38,0.5,4.6
+Neoplasm of uncertain behavior of brain,38,0.5,5.6
+Hordeolum externum of upper eyelid,38,0.5,1.9
+Homicidal thoughts,38,0.5,1.7
+Slurred speech,38,0.5,1.6
+Disease of non-coronary systemic artery,38,0.5,2.7
+Polyneuropathy caused by drug,38,0.5,10.3
+Toxic effect of venom,38,0.5,2.8
+Atrial septal defect,38,0.5,9.4
+Uncomplicated severe persistent asthma,38,0.5,22.1
+Irritable bowel syndrome characterized by alternating bowel habit,38,0.5,4.4
+Lymphadenitis,38,0.5,2.1
+Tobacco dependence in remission,38,0.5,2.7
+Curvature of spine,38,0.5,3.6
+Hemoglobinopathy,38,0.5,3.7
+Chronic tonsillitis,38,0.5,4.8
+Rheumatic disease of mitral valve,38,0.5,13.1
+Horseshoe retinal tear without detachment,38,0.5,7.0
+Chloasma,38,0.5,3.9
+Disorder of carbohydrate absorption,38,0.5,6.2
+Abscess of lower limb,38,0.5,2.6
+Functional disorder of intestine,38,0.5,4.1
+Ulcerative stomatitis,38,0.5,2.5
+Laceration of index finger,38,0.5,2.1
+Laceration of skin of eyelid AND periocular area,38,0.5,1.7
+Dementia associated with another disease,38,0.5,9.3
+Bilateral localized swelling of lower limbs,38,0.5,1.4
+Blurring of visual image,37,0.5,2.1
+Viral pneumonia,37,0.5,2.9
+Hemiplegia of nondominant side,37,0.5,1.9
+Spinal stenosis of thoracic region,37,0.5,2.0
+Abnormal uterine bleeding,37,0.5,5.2
+Cardiac arrest,37,0.5,9.2
+"Infectious disease in mother complicating pregnancy, childbirth AND/OR puerperium",37,0.5,2.4
+Open wound of lower limb,37,0.5,2.0
+Idiopathic sleep related non-obstructive alveolar hypoventilation,37,0.5,2.4
+Otorrhea,37,0.5,3.5
+Disorder of calcium metabolism,37,0.5,5.4
+Basal cell carcinoma of truncal skin,37,0.5,3.1
+Ankle pain,37,0.5,2.6
+Chronic frontal sinusitis,37,0.5,2.7
+Vertigo,37,0.5,1.8
+Disorder of stomach,37,0.5,5.1
+Vasomotor rhinitis,37,0.5,2.6
+Derangement of shoulder,37,0.5,2.1
+Malabsorption syndrome due to intolerance to lactose,37,0.5,6.2
+Epididymitis,37,0.5,2.4
+Cyst and pseudocyst of pancreas,37,0.5,7.8
+Swelling of lower limb,37,0.5,4.7
+"Gestation period, 14 weeks",37,0.5,2.1
+Mild protein-calorie malnutrition (weight for age 75-89 percent of standard),37,0.5,3.1
+Acute low back pain,37,0.5,2.6
+Disorder of diaphragm,37,0.5,6.2
+Residual foreign body in soft tissue,37,0.5,2.0
+Inflammation of cervix,37,0.5,1.9
+Localization-related idiopathic epilepsy,37,0.5,15.6
+Dribbling of urine,37,0.5,3.0
+Bilateral sensory hearing loss,37,0.5,1.7
+Late effect of fracture of lower extremities,37,0.5,4.3
+Nummular eczema,37,0.5,4.0
+Contusion of thigh,37,0.5,3.2
+"Combined disorders of mitral, aortic and tricuspid valves",37,0.5,1.6
+Respiratory finding of chest,37,0.5,8.3
+Atrophy of thyroid - acquired,37,0.5,15.8
+Osteoporotic fracture,37,0.5,4.6
+Closed fracture of metacarpal bone,36,0.5,4.5
+Pathological fracture,36,0.5,2.5
+Functional neurological disorder,36,0.5,5.1
+"Mixed conductive and sensorineural hearing loss, bilateral",36,0.5,4.7
+Cracked tooth,36,0.5,2.1
+Contusion of elbow,36,0.5,2.1
+Degenerative progressive high myopia,36,0.5,6.2
+Acute otitis externa,36,0.5,1.5
+Insomnia disorder related to known organic factor,36,0.5,4.4
+Gangrenous disorder,36,0.5,4.6
+"Viral disease in mother complicating pregnancy, childbirth AND/OR puerperium",36,0.5,4.2
+Pregnancy test finding,36,0.5,1.6
+Low tension glaucoma,36,0.5,26.5
+Psychosexual dysfunction,36,0.5,2.1
+Disorder of external ear,36,0.5,1.8
+Social phobia,36,0.5,10.4
+Left anterior fascicular block,36,0.5,3.1
+Aortic valve stenosis,36,0.5,11.5
+Lump in upper outer quadrant of right breast,36,0.5,2.1
+Acute hypercapnic respiratory failure,36,0.5,2.2
+Amblyopia,36,0.5,5.4
+Increased blood pressure,36,0.5,3.7
+Primary focal hyperhidrosis,36,0.5,3.8
+Pain in wrist,36,0.5,3.6
+Acute deep venous thrombosis of femoral vein,36,0.5,9.8
+Male infertility,36,0.5,4.3
+Influenza,36,0.5,1.6
+Chalazion of lower eyelid,36,0.5,2.9
+Claustrophobia,36,0.5,2.1
+Intentional self poisoning,36,0.5,2.9
+Hordeolum externum of lower eyelid,36,0.5,2.3
+Acute cerebrovascular insufficiency,36,0.5,3.9
+Exostosis,35,0.5,1.8
+Abscess of peritoneum,35,0.5,8.2
+Urolithiasis,35,0.5,3.1
+Hypogammaglobulinemia,35,0.5,20.8
+Osteonecrosis,35,0.5,9.1
+Myoclonus,35,0.5,7.5
+Furuncle,35,0.5,2.5
+"Anemia in mother complicating pregnancy, childbirth AND/OR puerperium",35,0.5,3.5
+Bifascicular block,35,0.5,4.6
+Seronegative rheumatoid arthritis,35,0.5,18.8
+Primary central sleep apnea,35,0.5,9.7
+Bacterial infection caused by Pseudomonas,35,0.5,2.4
+Nondependent cocaine abuse in remission,35,0.5,7.0
+Refractory migraine with aura,35,0.5,7.5
+Esophageal varices without bleeding,35,0.5,6.2
+Closed fracture of head of radius,35,0.5,5.2
+Lipoprotein deficiency disorder,35,0.5,7.1
+Cervical intraepithelial neoplasia grade 1,35,0.5,3.5
+Fracture of bone,35,0.5,2.5
+Sector and/or arcuate visual field defect,35,0.5,3.7
+Cardiomyopathy associated with another disorder,35,0.5,12.5
+Pain disorder with psychological factor,35,0.5,4.4
+Discharge from nipple,35,0.5,3.9
+Ovarian failure,35,0.5,2.3
+Non-organic sleep disorder,35,0.5,4.1
+Multiple injuries,35,0.5,1.3
+Stimulant dependence,35,0.5,18.6
+Contusion of wrist,35,0.5,2.2
+Suppurative arthritis,35,0.5,7.3
+Acute prostatitis,34,0.4,2.5
+Clostridioides difficile infection,34,0.4,5.9
+Sensation of foreign body in throat,34,0.4,2.1
+Varicose veins of bilateral lower limbs,34,0.4,4.0
+Malposition of eyelashes,34,0.4,4.0
+Intermittent claudication,34,0.4,3.8
+Ulcer of duodenum,34,0.4,3.4
+Intestinal metaplasia of gastric mucosa,34,0.4,3.4
+Brachial plexus disorder,34,0.4,6.0
+Benign neoplasm of adrenal gland,34,0.4,4.1
+New daily persistent headache,34,0.4,2.5
+Vocal cord paralysis,34,0.4,14.0
+Atrophy of skeletal muscle of pelvis,34,0.4,3.6
+Disorder of salivary gland,34,0.4,5.2
+Closed fracture of shaft of tibia,34,0.4,9.8
+Disorder of coccyx,34,0.4,2.7
+Opioid withdrawal,34,0.4,4.2
+Mixed anxiety and depressive disorder,34,0.4,3.8
+Contusion of forearm,34,0.4,1.8
+Pain in scrotum,34,0.4,2.9
+False labor at or after 37 completed weeks of gestation,34,0.4,1.8
+Peripheral vascular disorder due to diabetes mellitus,34,0.4,4.9
+Malignant melanoma of skin,34,0.4,8.6
+Segmental and somatic dysfunction,34,0.4,21.6
+Hypertension secondary to endocrine disorder,34,0.4,7.9
+Optic neuritis,34,0.4,10.4
+Disorder of pulmonary circulation,34,0.4,2.5
+Cyst of bursa,34,0.4,3.4
+"Localized, primary osteoarthritis of elbow",34,0.4,2.6
+Cachexia,34,0.4,3.0
+Bone cyst,34,0.4,2.8
+Lymphocytosis,34,0.4,9.5
+Vitreous hemorrhage,34,0.4,8.8
+Contusion of upper arm,34,0.4,3.5
+Balanitis,34,0.4,2.6
+Complication of internal device,34,0.4,1.8
+Disorder of uterine cervix,34,0.4,2.7
+Surgical site infection,33,0.4,3.5
+Complication due to Crohn's disease,33,0.4,14.9
+Acute exacerbation of chronic obstructive bronchitis,33,0.4,2.8
+Rhinitis,33,0.4,1.3
+Closed fracture of one or more phalanges of hand,33,0.4,1.9
+Compression of vein,33,0.4,4.9
+Epiphora,33,0.4,3.3
+Dupuytren's disease of palm,33,0.4,6.6
+Thrombosed external hemorrhoids,33,0.4,2.4
+Diastasis of muscle,33,0.4,2.0
+Exophthalmos,33,0.4,3.3
+Non-organic psychosis,33,0.4,6.5
+Phobic disorder,33,0.4,5.3
+Chronic prostatitis,33,0.4,3.2
+Spondylolysis,33,0.4,4.3
+Cellulitis of face,33,0.4,2.6
+Keratoconjunctivitis sicca,33,0.4,4.0
+Atrioventricular block,33,0.4,4.9
+Benign neoplasm of rectosigmoid junction,33,0.4,1.8
+Chronic kidney disease stage 5 due to hypertension,33,0.4,4.5
+Alcoholic cirrhosis,33,0.4,17.7
+Dermatosis of eyelid,33,0.4,5.0
+Benign neoplasm of left choroid,33,0.4,8.4
+Idiopathic urticaria,33,0.4,10.7
+Closed fracture of phalanx of finger,33,0.4,4.0
+Disorder due to and following drug poisoning,33,0.4,4.5
+Chronic hypoxemic respiratory failure,33,0.4,14.9
+Drug resistance to anti-seizure medication,33,0.4,6.9
+Disorder of hip,33,0.4,2.2
+Disorder of lower limb,33,0.4,2.5
+Symptomatic periapical periodontitis,33,0.4,1.6
+Exudative age-related macular degeneration,33,0.4,24.6
+Burn any degree involving less than 10 percent of body surface,33,0.4,2.5
+Abscess of foot,33,0.4,2.2
+Rectal hemorrhage,33,0.4,2.8
+Trichomonal vulvovaginitis,33,0.4,2.0
+Cellulitis of foot,33,0.4,3.4
+Disorder of forearm,33,0.4,1.8
+Sepsis caused by Gram negative bacteria,33,0.4,1.9
+Abdominal tenderness,33,0.4,2.0
+Pain of left testicle,33,0.4,3.1
+Effusion of joint of hand,32,0.4,2.2
+Finding of trunk structure,32,0.4,1.9
+Displacement of intervertebral disc without myelopathy,32,0.4,2.7
+Benign neoplasm of pituitary gland and craniopharyngeal duct,32,0.4,11.3
+Infestation by Sarcoptes scabiei var hominis,32,0.4,2.2
+Injury of abdomen,32,0.4,2.0
+Psoriasis vulgaris,32,0.4,15.8
+Injury of elbow,32,0.4,2.3
+Sprain of anterior cruciate ligament of knee,32,0.4,9.1
+Neoplasm of digestive tract,32,0.4,4.4
+Psychosexual dysfunction associated with inhibited sexual excitement,32,0.4,2.4
+Episodic tension-type headache,32,0.4,4.4
+Female infertility associated with anovulation,32,0.4,3.0
+Aneurysm of thoracic aorta,32,0.4,5.2
+Hypopituitarism,32,0.4,11.8
+Thoracic back sprain,32,0.4,1.8
+Undernutrition,32,0.4,4.4
+"Gestation period, 15 weeks",32,0.4,2.1
+Visual hallucinations,32,0.4,2.5
+Thrombocytosis,32,0.4,5.4
+Pulmonary tuberculosis,32,0.4,4.3
+Closed fracture of foot,32,0.4,5.2
+Abscess,32,0.4,2.0
+Wound finding,32,0.4,1.8
+Pain of right testicle,32,0.4,2.6
+Motion sickness,32,0.4,2.2
+Kyphosis of thoracic spine,32,0.4,2.5
+Crohn's disease of small and large intestines,32,0.4,29.7
+Asymptomatic periapical periodontitis,32,0.4,2.7
+Diverticulosis of large intestine,32,0.4,1.5
+"Keratoconjunctivitis sicca, in Sjögren's syndrome",32,0.4,4.3
+Fetal heart finding,32,0.4,1.9
+Placental finding,32,0.4,1.3
+Abrasion of skin of lower leg,32,0.4,2.0
+Acquired unequal limb length,32,0.4,2.8
+Intrinsic asthma,32,0.4,3.3
+Sudden hearing loss,32,0.4,8.4
+Malignant lymphoma,32,0.4,34.8
+Disorder of upper respiratory system,31,0.4,2.1
+Disorder of iron metabolism,31,0.4,5.5
+Chondrocalcinosis of knee joint,31,0.4,2.8
+Disorder of transplanted kidney,31,0.4,48.0
+Postoperative hematoma formation,31,0.4,1.8
+Corneal opacity,31,0.4,2.8
+Strabismus,31,0.4,4.7
+Tenosynovitis,31,0.4,2.8
+Acute deep venous thrombosis of popliteal vein,31,0.4,3.6
+Ulcer of lower extremity,31,0.4,4.5
+Rectal prolapse,31,0.4,10.7
+Hypertrophic cardiomyopathy,31,0.4,30.1
+Degenerative disorder,31,0.4,2.4
+Paronychia,31,0.4,1.4
+Serous retinal detachment,31,0.4,5.9
+Gouty arthropathy,31,0.4,7.6
+Immune thrombocytopenia,31,0.4,15.5
+Longstanding persistent atrial fibrillation,31,0.4,7.5
+Hemiplegia,31,0.4,2.6
+Laceration of thumb,31,0.4,11.9
+Open wound of forehead without complication,31,0.4,1.5
+Intervertebral disc disorder of cervical region with myelopathy,31,0.4,3.3
+Pounding heart,31,0.4,5.5
+Familial hypercholesterolemia,31,0.4,15.6
+Acute gingivitis,31,0.4,2.0
+Abscess of limb,31,0.4,4.0
+Injury of eye region,31,0.4,2.2
+Chest discomfort,31,0.4,3.1
+Dermopathy due to type 2 diabetes mellitus,31,0.4,3.4
+Demyelinating disease of central nervous system,31,0.4,54.1
+Urethral stricture,31,0.4,5.5
+Primary malignant neoplasm of ovary,30,0.4,65.4
+Strain of supraspinatus muscle AND/OR tendon,30,0.4,1.7
+Facial nerve disorder,30,0.4,4.2
+Disorder of basal ganglia,30,0.4,2.9
+Anemia due to and following chemotherapy,30,0.4,7.1
+Syphilis,30,0.4,7.7
+Disorder of spleen,30,0.4,3.4
+Disorder of mineral metabolism,30,0.4,5.3
+Impulse control disorder,30,0.4,3.6
+Acute bronchiolitis,30,0.4,2.3
+Substance dependence,30,0.4,5.7
+Dermatitis caused by substance taken via oral route,30,0.4,1.4
+Endemic goiter,30,0.4,3.6
+Mechanical complication of vascular device,30,0.4,3.2
+Edentulous alveolar ridge,30,0.4,2.1
+Pain in elbow,30,0.4,4.2
+Syndrome of inappropriate vasopressin secretion,30,0.4,2.3
+Ductal carcinoma in situ of right breast,30,0.4,18.2
+Herpes zoster,30,0.4,2.5
+Ankle instability,30,0.4,6.5
+Polyclonal hypergammaglobulinemia,30,0.4,2.3
+Abnormal results function studies of central nervous system,30,0.4,2.0
+"Major depression single episode, in partial remission",30,0.4,8.8
+Multiple myeloma,30,0.4,124.9
+Typical atrial flutter,30,0.4,10.0
+Sprain of cruciate ligament of knee,30,0.4,6.6
+Gastroduodenitis,30,0.4,1.9
+Second degree atrioventricular block,30,0.4,6.5
+Onychomycosis,30,0.4,2.6
+Chronic laryngitis,30,0.4,2.4
+Congenital anomaly of intestinal tract,30,0.4,3.2
+Cerebral infarction due to embolism of cerebral arteries,30,0.4,4.7
+Pyonephrosis,30,0.4,2.8
+Abdominal bloating,30,0.4,2.8
+Solar degeneration,30,0.4,1.8
+Placenta previa without hemorrhage,30,0.4,4.2
+Estrogen receptor positive tumor,30,0.4,25.5
+Hiccoughs,30,0.4,1.8
+Celiac disease,30,0.4,15.9
+Erythema,30,0.4,2.3
+Neutropenic disorder,30,0.4,9.1
+Impacted cerumen of bilateral ears,30,0.4,2.2
+Acute secretory otitis media,29,0.4,1.6
+Disorder of left lower extremity,29,0.4,3.6
+Disorder of hand,29,0.4,2.6
+Abnormality of systemic vein,29,0.4,6.0
+Infectious mononucleosis,29,0.4,3.0
+Postprocedural infection,29,0.4,2.5
+Neoplasm of uncertain behavior of urinary bladder,29,0.4,6.9
+Prurigo nodularis,29,0.4,4.8
+Compression of brain,29,0.4,5.9
+Renal osteodystrophy,29,0.4,4.4
+Posttraumatic headache,29,0.4,3.9
+Contusion of trunk,29,0.4,1.6
+Stricture of esophagus,29,0.4,3.7
+Pain in right hip joint,29,0.4,3.6
+Chronic pulmonary embolism,29,0.4,10.0
+Cyst of epididymis,29,0.4,2.5
+Cognitive communication disorder,29,0.4,12.8
+Anal fistula,29,0.4,15.8
+Mallet finger,29,0.4,4.8
+Sepsis caused by Escherichia coli,29,0.4,2.4
+Nodular prostate without urinary obstruction,29,0.4,5.3
+Paranoid schizophrenia,29,0.4,25.0
+Acute severe refractory exacerbation of asthma,29,0.4,2.4
+Gonorrhea,29,0.4,2.6
+Closed fracture of patella,29,0.4,10.7
+Arthropathy of right knee joint,29,0.4,2.9
+Disorder of amniotic cavity AND/OR membrane,29,0.4,3.0
+Galactorrhea not associated with childbirth,29,0.4,3.1
+Cytomegalovirus infection,29,0.4,10.6
+Wound dehiscence,29,0.4,2.1
+Chronic hepatitis,29,0.4,5.0
+Sarcoidosis,29,0.4,58.2
+"Infection and inflammatory reaction due to prosthetic device, implant and graft in urinary system",29,0.4,2.9
+Derangement of lateral meniscus,29,0.4,2.9
+Pilonidal cyst,29,0.4,3.4
+Cellulitis and abscess of finger and toe,29,0.4,2.3
+Disorder due to and following injury of muscle and tendon of upper limb,29,0.4,3.0
+Ear problem,29,0.4,1.2
+"Pre-existing hypertension complicating pregnancy, childbirth and puerperium",29,0.4,6.9
+Laceration of forearm,29,0.4,1.8
+Blind left eye,29,0.4,3.1
+Acute osteomyelitis of ankle and/or foot,29,0.4,11.1
+Corneal endothelial dystrophy,29,0.4,13.3
+Renal hypertension,29,0.4,15.8
+Generalized skin eruption caused by drug and medicament,29,0.4,2.5
+"Closed fracture lumbar vertebra, wedge",28,0.4,5.4
+Ganglion of joint,28,0.4,2.2
+Hyperpituitarism,28,0.4,9.6
+Localized visual field defect,28,0.4,3.6
+Glossodynia,28,0.4,2.2
+Thyroiditis,28,0.4,6.4
+Allergic reaction caused by Hevea brasiliensis latex protein,28,0.4,2.4
+Gluteal tendinitis,28,0.4,4.0
+Chronic otitis externa,28,0.4,3.0
+Abnormal heart beat,28,0.4,1.7
+Benign neoplasm of autonomic nerve,28,0.4,2.9
+Acute respiratory distress,28,0.4,1.6
+Primary malignant neoplasm of central portion of female breast,28,0.4,25.4
+Retained foreign body,28,0.4,1.7
+Retinal detachment,28,0.4,16.0
+Cardiovascular system complication of procedure,28,0.4,1.5
+Internal hordeolum,28,0.4,2.2
+Hyperprolactinemia,28,0.4,12.5
+Varicose ulcer of lower extremity,28,0.4,10.3
+Extreme obesity with alveolar hypoventilation,28,0.4,6.6
+Renovascular hypertension,28,0.4,6.6
+Disorder of endocrine ovary,28,0.4,3.2
+Transplanted liver present,28,0.4,192.0
+Constipation by outlet obstruction,28,0.4,7.6
+Dementia with behavioral disturbance,28,0.4,4.5
+Closed fracture of fifth metatarsal bone,28,0.4,4.0
+Premenstrual tension syndrome,28,0.4,3.2
+Cocaine dependence in remission,28,0.4,8.2
+Hypertrophic osteoarthropathy,28,0.4,2.5
+Glycosuria,28,0.4,2.3
+Transient visual loss,28,0.4,2.1
+Root caries,28,0.4,2.9
+Anatomical narrow angle glaucoma with borderline intraocular pressure,28,0.4,5.1
+Intermittent claudication of bilateral lower limbs co-occurrent and due to atherosclerosis,28,0.4,3.1
+Polymyalgia rheumatica,28,0.4,32.4
+Acute insomnia,27,0.3,2.5
+Hypoxemic respiratory failure,27,0.3,1.6
+Neutropenia due to and following chemotherapy,27,0.3,8.1
+Chronic serous otitis media,27,0.3,8.0
+Loss of teeth,27,0.3,6.1
+Complicated internal hemorrhoid,27,0.3,1.8
+Complication due to ulcerative colitis,27,0.3,11.0
+Corneal ulcer,27,0.3,15.7
+Contusion of toe,27,0.3,1.8
+Corpus luteum cyst,27,0.3,1.4
+Migraine variants,27,0.3,2.8
+Allergic condition,27,0.3,3.9
+Disorder of carbohydrate metabolism,27,0.3,2.3
+Cerebral cyst,27,0.3,5.6
+Disorder of jaw,27,0.3,2.3
+Non-infectious disorder of lymphatics,27,0.3,2.3
+Glasgow coma scale finding,27,0.3,1.4
+Alzheimer's disease,27,0.3,13.0
+"Closed fracture proximal phalanx, toe",27,0.3,2.2
+Exacerbation of mild persistent asthma,27,0.3,4.6
+Posterior vitreous detachment,27,0.3,2.9
+Heterozygous thalassemia,27,0.3,7.7
+Edema of lower extremity,27,0.3,3.2
+Cramp in lower leg associated with rest,27,0.3,3.2
+"Gastric ulcer without hemorrhage, without perforation AND without obstruction",27,0.3,2.6
+Localized osteoporosis - Lequesne,27,0.3,3.8
+Carious exposure of pulp,27,0.3,2.1
+Collapse of lumbar vertebra,27,0.3,2.1
+Acquired palmoplantar keratoderma,27,0.3,2.6
+Ductal carcinoma in situ of left breast,27,0.3,12.0
+Pain of right knee region,27,0.3,2.9
+Atherosclerosis of renal artery,27,0.3,11.2
+Candidiasis of urogenital site,27,0.3,1.8
+Dystonia,27,0.3,7.9
+Polyneuropathy associated with another disorder,27,0.3,5.2
+Disorder of peritoneum,27,0.3,1.8
+Diarrhea of presumed infectious origin,27,0.3,1.5
+Collapse of thoracic vertebra,27,0.3,2.4
+Effusion of joint of shoulder region,27,0.3,2.0
+Acute deep venous thrombosis of upper extremity,27,0.3,4.6
+Prolapsed thoracic intervertebral disc,27,0.3,3.7
+Exotropia,27,0.3,4.4
+Central serous chorioretinopathy,26,0.3,12.6
+Macular edema and retinopathy due to type 2 diabetes mellitus,26,0.3,21.0
+Edema of larynx,26,0.3,5.1
+Headache caused by drug,26,0.3,3.7
+Chronic pain of right upper limb,26,0.3,6.2
+Severe obesity,26,0.3,8.8
+Disorders of bilirubin excretion,26,0.3,4.2
+Labyrinthitis,26,0.3,1.9
+Mononeuropathy of upper limb,26,0.3,2.6
+Autism spectrum disorder,26,0.3,22.0
+Articular cartilage disorder,26,0.3,1.9
+Nephritic syndrome,26,0.3,9.2
+Phlebitis of superficial veins of lower extremity,26,0.3,4.1
+Renal disorder due to type 1 diabetes mellitus,26,0.3,13.5
+Recurrent inguinal hernia,26,0.3,6.7
+Acute effect of ultraviolet radiation on normal skin,26,0.3,3.7
+Disorder of lacrimal gland,26,0.3,2.2
+Necrosis of the pulp,26,0.3,2.9
+Hypertensive complication,26,0.3,2.8
+Cyst of nasal sinus,26,0.3,3.7
+Pain of intercostal space,26,0.3,2.5
+Somatoform autonomic dysfunction - gastrointestinal tract,26,0.3,1.5
+Muscle fasciculation,26,0.3,2.5
+Permanent atrial fibrillation,26,0.3,9.5
+Nuclear sclerosis,26,0.3,2.5
+Calcific tendinitis of right shoulder,26,0.3,3.2
+Musculoskeletal disorder of the neck,26,0.3,4.5
+Abscess of hand,26,0.3,2.6
+Proliferative retinopathy due to type 2 diabetes mellitus,26,0.3,20.1
+Disorder of tendon,26,0.3,1.6
+Manifest vertical squint,26,0.3,5.9
+Traumatic subdural hemorrhage,26,0.3,9.3
+Laceration of lower leg,26,0.3,2.6
+Seborrheic dermatitis of scalp,26,0.3,1.8
+Edema of eyelid,26,0.3,3.2
+Contusion of toe(s) with damage to nail,26,0.3,1.7
+Spontaneous subarachnoid hemorrhage,26,0.3,2.5
+Disorder of face,26,0.3,2.1
+Open wound of foot,26,0.3,3.0
+Open wound of scalp without complication,26,0.3,1.8
+Mixed acid-base balance disorder,25,0.3,1.4
+Itching of skin,25,0.3,2.0
+"Sleep-wake schedule disorder, delayed phase type",25,0.3,5.2
+Non-toxic nodular goiter,25,0.3,2.3
+Thrombophilia,25,0.3,2.8
+Acute abdomen,25,0.3,1.2
+Neoplasm of uncertain behavior of endocrine glands and nervous system,25,0.3,8.3
+Inflammatory and toxic neuropathy,25,0.3,2.8
+Ankylosing spondylitis,25,0.3,25.3
+Organic mood disorder caused by psychoactive substance,25,0.3,5.7
+Plantar fasciitis,25,0.3,6.2
+Allergic reaction,25,0.3,1.2
+Pain of right shoulder region,25,0.3,5.1
+Closed fracture of lower end of humerus,25,0.3,2.8
+Aneurysm of iliac artery,25,0.3,7.2
+Incomplete uterovaginal prolapse,25,0.3,5.0
+Chronic vaginitis,25,0.3,2.9
+Urinary bladder stone,25,0.3,17.0
+Hypertrophy of bone,25,0.3,3.2
+Ectopic pregnancy,25,0.3,3.6
+Polyhydramnios,25,0.3,6.7
+Squamous cell carcinoma of skin of face,25,0.3,3.4
+Lump in upper inner quadrant of left breast,25,0.3,3.1
+Bilateral regular astigmatism,25,0.3,2.9
+Glossitis,25,0.3,2.1
+Sprain of ligament of lumbosacral joint,25,0.3,2.3
+Perforation of intestine,25,0.3,5.0
+"Severe major depression, single episode, with psychotic features",25,0.3,3.6
+Recurrent depression,25,0.3,6.7
+Generalized chronic periodontitis,25,0.3,3.9
+Herpetic gingivostomatitis,25,0.3,2.5
+Retinal round hole,25,0.3,7.3
+Abscess of vulva,25,0.3,1.8
+Acute ethmoidal sinusitis,25,0.3,1.7
+Molluscum contagiosum infection,25,0.3,2.8
+Basal cell carcinoma of nose,25,0.3,2.9
+Closed fracture of femur,25,0.3,2.9
+Skin tag,25,0.3,1.4
+Bilateral eye astigmatism,25,0.3,3.7
+Presbycusis,25,0.3,3.2
+Peripheral retinal degeneration,25,0.3,6.1
+Infestation by Sarcoptes,25,0.3,1.5
+Carcinoma in situ of uterine cervix,24,0.3,7.4
+Supraventricular premature beats,24,0.3,2.2
+Absence of lung,24,0.3,4.9
+Ulcer of foot,24,0.3,5.0
+Chronic sphenoidal sinusitis,24,0.3,4.0
+Absence of toe,24,0.3,7.3
+Malocclusion of teeth,24,0.3,7.9
+Acute pericarditis,24,0.3,4.1
+Closed fracture lumbar vertebra,24,0.3,3.0
+"Closed fracture proximal tibia, bicondylar",24,0.3,8.0
+Primary chronic gout without tophus,24,0.3,4.8
+Internal hemorrhoids grade III,24,0.3,3.3
+Persistent proteinuria,24,0.3,5.3
+Influenza-like illness,24,0.3,2.2
+Acne keloidalis,24,0.3,4.1
+Disorder of nervous system due to type 1 diabetes mellitus,24,0.3,10.8
+Congenital insufficiency of aortic valve,24,0.3,15.5
+Acute thrombosis of superficial vein of upper extremity,24,0.3,3.4
+Metatarsal bone fracture,24,0.3,8.2
+Esophageal reflux finding,24,0.3,2.0
+Superficial keratitis,24,0.3,2.9
+Closed bimalleolar fracture,24,0.3,7.7
+Abscess of buttock,24,0.3,2.9
+Cellulitis of abdominal wall,24,0.3,2.0
+Rheumatoid arthritis of multiple joints,24,0.3,16.7
+Open wound of foot except toes without complication,24,0.3,1.9
+Diverticulum of urinary bladder,24,0.3,6.9
+Disorder of neck,24,0.3,9.8
+Pneumonitis caused by inhalation of regurgitated food,24,0.3,3.0
+Stricture of ureter,24,0.3,7.1
+Proliferative retinopathy due to diabetes mellitus,24,0.3,7.6
+Spinal cord compression,24,0.3,3.0
+Flexural eczema,24,0.3,2.9
+Accidental poisoning with ethyl alcohol,24,0.3,1.5
+Moderate nonproliferative retinopathy due to type 2 diabetes mellitus,24,0.3,12.3
+Post-traumatic wound infection,24,0.3,2.2
+Osteomyelitis of ankle AND/OR foot,24,0.3,6.8
+Incomplete inevitable miscarriage without complication,24,0.3,2.2
+Disorder of ureter,24,0.3,3.2
+Hydrocephalus,24,0.3,4.7
+Memory impairment,24,0.3,3.0
+REM sleep behavior disorder,24,0.3,6.5
+Cellulitis and abscess of toe,24,0.3,1.6
+Allergic reaction to food,24,0.3,1.7
+Paralytic ileus,24,0.3,1.5
+Serous detachment of retinal pigment epithelium,23,0.3,13.0
+Calcific tendinitis of shoulder,23,0.3,8.9
+Opioid dependence in remission,23,0.3,25.3
+Disorder of vein of lower extremity,23,0.3,3.7
+Lumbar post-laminectomy syndrome,23,0.3,5.4
+Amyloidosis,23,0.3,17.6
+Cyst of Bartholin's gland duct,23,0.3,2.3
+Perioral dermatitis,23,0.3,3.7
+"Bipolar affective disorder, current episode manic",23,0.3,30.1
+"Thyroid dysfunction during pregnancy, childbirth and the puerperium",23,0.3,4.6
+Primary malignant neoplasm of upper inner quadrant of female breast,23,0.3,36.2
+Foreign body in skin of foot,23,0.3,1.9
+Late effect of superficial injury,23,0.3,2.4
+Tumor of body of uterus affecting pregnancy,23,0.3,2.7
+Arteriosclerosis of autologous vein coronary artery bypass graft,23,0.3,8.3
+Laceration of lip,23,0.3,2.2
+"Conductive hearing loss, bilateral",23,0.3,4.0
+Lipoma of head and neck,23,0.3,3.6
+Contusion of ocular adnexa and periocular tissues,23,0.3,1.7
+Melanocytic nevus of skin,23,0.3,1.3
+Closed dislocation of thoracic and lumbar spine,23,0.3,2.4
+Foreign body on external eye,23,0.3,1.5
+Disorder of the nose,23,0.3,2.0
+Fracture of multiple ribs,23,0.3,3.3
+Postprocedural fever,23,0.3,3.0
+Idiopathic progressive polyneuropathy,23,0.3,5.9
+"Attention deficit hyperactivity disorder, predominantly hyperactive impulsive type",23,0.3,3.8
+Disorder due to and following injury of upper limb,23,0.3,3.3
+"Schizoaffective disorder, bipolar type",23,0.3,19.7
+Foreign body in skin,23,0.3,1.3
+Nystagmus,23,0.3,7.9
+Hyponatremia,23,0.3,3.6
+Superficial incisional surgical site infection,23,0.3,2.1
+Synovitis/tenosynovitis - shoulder,23,0.3,1.5
+Phimosis,23,0.3,4.0
+Lupus erythematosus,23,0.3,7.4
+Dry eyes,23,0.3,2.8
+"Tricuspid valve disorder, non-rheumatic",23,0.3,1.7
+Disorder of lactation,23,0.3,1.4
+Fecal impaction,23,0.3,1.5
+Focal epilepsy,23,0.3,8.1
+Pain in both feet,23,0.3,3.3
+Acute on chronic hypercapnic respiratory failure,23,0.3,2.4
+Pityriasis rosea,23,0.3,2.0
+Wrist stiff,23,0.3,6.6
+Antiphospholipid syndrome,23,0.3,27.1
+Disease caused by Coronaviridae,23,0.3,2.2
+Closed fracture of upper end of tibia,23,0.3,6.2
+Cellulitis and abscess of hand,23,0.3,2.4
+Pleural plaque,23,0.3,3.1
+Displacement of thoracic intervertebral disc without myelopathy,23,0.3,2.3
+Cyclical vomiting syndrome,23,0.3,3.8
+Pain of right wrist,23,0.3,2.2
+Disorder of skeletal muscle,23,0.3,7.2
+Contact dermatitis caused by plants,23,0.3,2.0
+Articular cartilage disorder of shoulder region,23,0.3,2.0
+Chest wall pain,23,0.3,1.6
+After-cataract with vision obscured following extraction of cataract,23,0.3,3.3
+"Diabetes mellitus in mother complicating pregnancy, childbirth AND/OR puerperium",22,0.3,5.1
+Dream anxiety disorder,22,0.3,3.9
+"Closed fracture proximal humerus, greater tuberosity",22,0.3,5.2
+Balanoposthitis,22,0.3,4.9
+Fibrosclerosis of breast,22,0.3,1.5
+Mechanical complication of internal orthopedic device,22,0.3,2.3
+Abscess of face,22,0.3,2.4
+Myocardial infarction,22,0.3,3.7
+Metastatic malignant neoplasm to unknown site,22,0.3,3.6
+Pernicious anemia,22,0.3,9.5
+Infectious diarrheal disease,22,0.3,1.5
+Tracheobronchial disorder,22,0.3,1.9
+Laceration of wrist,22,0.3,1.7
+Abscess of upper limb,22,0.3,2.0
+Diverticulosis of small intestine,22,0.3,1.6
+Anisometropia,22,0.3,4.4
+Chronic ulcerative proctitis,22,0.3,9.7
+Congenital pes planus,22,0.3,4.0
+Acute pyelonephritis without medullary necrosis,22,0.3,2.5
+Closed fracture of surgical neck of humerus,22,0.3,4.0
+Conduct disorder,22,0.3,4.4
+Major depressive disorder,22,0.3,4.4
+Late effect of accident due to natural and environmental factors,22,0.3,1.7
+Chronic ulcerative pancolitis,22,0.3,32.5
+Intestinal adhesions with obstruction,22,0.3,1.7
+Closed fracture of clavicle,22,0.3,6.5
+Disorder of nasal sinus,22,0.3,2.1
+Hypertrophic obstructive cardiomyopathy,22,0.3,22.6
+Diffuse otitis externa,22,0.3,3.4
+Dislocation of shoulder joint,22,0.3,4.0
+Disorder of hair,22,0.3,1.8
+Nontraumatic hematoma of soft tissue,22,0.3,2.9
+Pain of left wrist,22,0.3,2.9
+Thoracic back pain,22,0.3,2.0
+Traumatic brain injury,22,0.3,11.9
+Benign neoplasm of left adrenal gland,22,0.3,3.6
+Paroxysmal tachycardia,22,0.3,1.7
+Thyroid nodule,22,0.3,5.6
+Continuous opioid dependence,22,0.3,11.0
+Synovitis and tenosynovitis of joint of hand,22,0.3,2.5
+Onycholysis,22,0.3,2.8
+Laryngeal spasm,22,0.3,6.4
+Idiopathic scoliosis,22,0.3,4.6
+Secondary hyperparathyroidism,22,0.3,3.8
+Postpartum depression,22,0.3,2.0
+Severe visual impairment,22,0.3,5.2
+Kidney lesion,22,0.3,5.4
+Uterine inertia,22,0.3,1.4
+Somatic dysfunction of head region,22,0.3,13.9
+Acute posttraumatic headache,22,0.3,2.5
+Fat necrosis of breast,22,0.3,1.6
+Disorder of urethra,22,0.3,4.2
+Benign neoplasm of ovary,22,0.3,2.8
+Esotropia,22,0.3,7.3
+Parasitic disease,21,0.3,1.9
+Closed fracture of rib,21,0.3,2.4
+Cramp,21,0.3,2.3
+Mood disorder caused by drug,21,0.3,10.5
+Lymphocytopenia,21,0.3,4.6
+Cellulitis and abscess of buttock,21,0.3,2.3
+Pressure injury of sacral region of back,21,0.3,2.4
+Glaucoma associated with ocular disorder,21,0.3,17.5
+Acute disease of cardiovascular system,21,0.3,3.8
+Cervicovaginal cytology specimen unsatisfactory,21,0.3,2.5
+Inflammatory disorder of musculoskeletal system,21,0.3,2.1
+Primary malignant neoplasm of uterus,21,0.3,13.6
+Enthesopathy of knee,21,0.3,3.5
+Elderly primigravida with antenatal problem,21,0.3,5.7
+Gouty tophus,21,0.3,12.4
+Hypervitaminosis D,21,0.3,4.2
+Adjustment disorder with mixed emotional features,21,0.3,5.2
+Benign localized hyperplasia of prostate,21,0.3,2.6
+Disorder affecting transplanted structure,21,0.3,16.3
+Cyst,21,0.3,2.4
+Anorectal abscess,21,0.3,3.5
+Cellulitis of periorbital region,21,0.3,3.1
+Primary malignant neoplasm of pancreas,21,0.3,33.5
+Corneal edema,21,0.3,6.0
+"Hypertension complicating pregnancy, childbirth and the puerperium",21,0.3,2.1
+Disorder of lens,21,0.3,2.9
+Endometrial hyperplasia,21,0.3,2.8
+CLABSI - central line associated bloodstream infection,21,0.3,10.0
+Mood disorder caused by ethanol,21,0.3,11.5
+Peritonsillar abscess,21,0.3,2.7
+Vitreomacular adhesion of bilateral eyes,21,0.3,3.4
+Disorder of wrist joint,21,0.3,5.0
+Sepsis caused by methicillin resistant Staphylococcus aureus,21,0.3,3.5
+Disorder of both middle ear and mastoid,21,0.3,2.4
+Renal impairment,21,0.3,2.8
+Contusion of lower limb,21,0.3,1.5
+Bronchopneumonia,21,0.3,2.2
+Granulomatous disorder of the skin and subcutaneous tissue,21,0.3,3.0
+Flank pain,21,0.3,1.7
+Mucopurulent conjunctivitis,21,0.3,1.4
+Dental caries on pit and fissure surface limited to enamel,21,0.3,1.8
+Sequela of intracranial injury,21,0.3,4.6
+Benign neoplasm of thyroid gland,21,0.3,2.6
+Abrasion of skin of elbow,21,0.3,1.8
+Narcolepsy without cataplexy,21,0.3,10.6
+Hypercortisolism,21,0.3,12.4
+Sequelae of infectious disease,21,0.3,1.7
+Displacement of bone,21,0.3,7.9
+Acquired unequal leg length,21,0.3,2.8
+Herpes zoster ophthalmicus,21,0.3,7.0
+Polycythemia vera (clinical),21,0.3,14.0
+Metastatic malignant neoplasm,21,0.3,8.5
+Tenderness of epigastrium,21,0.3,1.6
+"Closed fracture thoracic vertebra, wedge",21,0.3,3.6
+Tinnitus of vascular origin,20,0.3,2.8
+Hemorrhagic disorder due to circulating anticoagulants,20,0.3,2.0
+Closed fracture of distal phalanx of finger,20,0.3,2.2
+Disorder of bilateral eyes,20,0.3,5.6
+Thoracic radiculopathy,20,0.3,5.4
+Post-herpetic neuritis,20,0.3,10.5
+Acute dermatitis,20,0.3,2.8
+Acute eczematoid otitis externa,20,0.3,1.9
+Rib pain,20,0.3,1.6
+Discoid lupus erythematosus,20,0.3,7.4
+Severe pre-eclampsia,20,0.3,2.2
+Drug-induced diabetes mellitus,20,0.3,8.0
+Head and neck injury,20,0.3,1.2
+Panic disorder with agoraphobia,20,0.3,11.3
+Tenderness of right lower quadrant of abdomen,20,0.3,1.2
+Dermatitis caused by ingested food,20,0.3,2.2
+Preterm labor without delivery,20,0.3,1.7
+Cellulitis and abscess of finger,20,0.3,2.0
+Kyphosis deformity of spine,20,0.3,2.0
+Closed traumatic dislocation of joint of shoulder region,20,0.3,6.6
+Nephrotic syndrome,20,0.3,8.0
+Pneumothorax due to and following procedure,20,0.3,2.4
+Labyrinthine dysfunction,20,0.3,8.8
+Acute hepatitis C,20,0.3,9.0
+"Duodenal ulcer without hemorrhage, without perforation AND without obstruction",20,0.3,6.8
+Macular retinal cyst,20,0.3,9.6
+Abscess of axilla,20,0.3,2.0
+Cerebral arterial aneurysm,20,0.3,8.8
+Disorder of parathyroid gland,20,0.3,2.2
+Hemiplegia of dominant side,20,0.3,2.7
+Primary malignant neoplasm of skin head and neck,20,0.3,4.0
+Retinal dystrophy,20,0.3,4.4
+Multiple actinic keratoses,20,0.3,2.5
+Wedge fracture of lumbar vertebra,20,0.3,5.5
+Pharyngitis,20,0.3,1.4
+Resistance to activated protein C due to factor V Leiden mutation,20,0.3,14.0
+Allergic contact dermatitis caused by plant material,20,0.3,2.0
+Primary malignant neoplasm of skin of face,20,0.3,3.6
+Closed fracture of facial bone,20,0.3,2.4
+Low lying placenta,20,0.3,5.0
+Intestinal volvulus,20,0.3,2.5
+Idiopathic generalized epilepsy,20,0.3,13.7
+Diverticula of intestine,20,0.3,1.4
+Bipolar disorder in remission,20,0.3,9.6
+Respiratory syncytial virus infection,20,0.3,1.4
+Foot problem,20,0.3,2.1
+Diffuse cerebrovascular disease,20,0.3,1.4
+Thrombosis,20,0.3,2.6
+Chondrocalcinosis,20,0.3,5.0
+Mild nonproliferative retinopathy due to diabetes mellitus,20,0.3,2.9
+Abnormal findings on antenatal screening of mother,20,0.3,3.7
+Abscess of groin,20,0.3,1.4
+Osteonecrosis of hip,20,0.3,15.6
+Ischemic heart disease,20,0.3,1.8
+Hematuria co-occurrent and due to cystitis,20,0.3,1.4
+Abrasion and/or friction burn of upper limb without infection,20,0.3,1.4
+Focal onset impaired awareness epileptic seizure,20,0.3,22.8
+Fracture of first lumbar vertebra,20,0.3,7.2
+Loose body in knee,20,0.3,2.7
+Fracture of phalanx of foot,20,0.3,2.9
+Injury of muscle and tendon at ankle and foot level,20,0.3,3.1
+Benign intracranial hypertension,20,0.3,14.2
+Derangement of meniscus,20,0.3,4.0
+Poisoning due to sting of bee,20,0.3,1.8
+Contracture of palmar fascia,20,0.3,8.2

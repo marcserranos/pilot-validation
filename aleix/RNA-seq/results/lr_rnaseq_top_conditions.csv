@@ -1,0 +1,51 @@
+condition_name,n_people,prevalence_pct,mean_codes_per_affected
+Essential hypertension,2810,36.4,35.0
+Hyperlipidemia,2436,31.5,18.9
+Chest pain,2130,27.6,8.8
+Cough,2047,26.5,6.3
+Abdominal pain,1956,25.3,6.4
+Low back pain,1897,24.6,11.0
+Chronic pain,1858,24.0,10.3
+Dyspnea,1748,22.6,9.0
+Gastroesophageal reflux disease without esophagitis,1740,22.5,9.5
+Obesity,1658,21.5,11.4
+Headache,1628,21.1,5.7
+Vitamin D deficiency,1491,19.3,11.1
+Backache,1482,19.2,6.3
+Anemia,1476,19.1,8.8
+Shoulder joint pain,1458,18.9,10.0
+Anxiety disorder,1443,18.7,9.6
+Dizziness and giddiness,1442,18.7,6.5
+Acute upper respiratory infection,1425,18.4,3.6
+Neck pain,1323,17.1,9.5
+Type 2 diabetes mellitus without complication,1307,16.9,34.6
+Pure hypercholesterolemia,1221,15.8,15.8
+Pain in limb,1207,15.6,5.2
+Joint pain,1195,15.5,6.2
+Depressive disorder,1188,15.4,11.5
+Constipation,1170,15.1,5.8
+Acute pharyngitis,1151,14.9,3.5
+Urinary tract infectious disease,1138,14.7,6.8
+Eruption,1133,14.7,3.9
+Diarrhea,1109,14.4,5.4
+Inflammatory dermatosis,1101,14.3,5.2
+"Major depression, single episode",1086,14.1,8.2
+Allergic rhinitis,1066,13.8,10.0
+Pain of right knee joint,1008,13.0,7.1
+Obstructive sleep apnea syndrome,999,12.9,18.2
+Mixed hyperlipidemia,995,12.9,11.8
+Dysuria,966,12.5,4.4
+Hip pain,951,12.3,9.0
+Gastroesophageal reflux disease,948,12.3,9.8
+Palpitations,937,12.1,6.9
+Pain of left knee region,934,12.1,6.7
+Epigastric pain,899,11.6,4.6
+Insomnia,885,11.5,7.6
+Nicotine dependence,885,11.5,9.2
+Hemorrhoids,869,11.2,4.9
+Osteoarthritis,866,11.2,7.8
+Osteoarthritis of knee,866,11.2,11.0
+Pain,863,11.2,4.7
+Disorder of skin and/or subcutaneous tissue,856,11.1,3.2
+Disorder of bone,854,11.1,8.2
+Nausea,848,11.0,4.0

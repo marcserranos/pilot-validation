@@ -1,0 +1,8 @@
+ancestry,n_people,median_distinct_conditions,median_ehr_years,median_conditions_per_ehr_year
+AFR,1176,20.0,11.69,1.68
+AMR,1606,27.0,10.52,2.18
+EAS,1111,17.0,8.54,1.57
+EUR,2363,41.0,12.63,3.11
+MID,407,26.0,9.59,2.37
+SAS,1062,16.0,8.28,1.78
+unlabeled,<20,,,

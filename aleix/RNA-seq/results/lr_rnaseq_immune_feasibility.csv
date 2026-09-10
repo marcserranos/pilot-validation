@@ -1,0 +1,11 @@
+immune_family,n_cases,pct_of_cohort,n_distinct_concepts,verdict
+Allergy & hypersensitivity,2297,29.7,92.0,enough for a real case/control model
+Acute / recurrent infection,1724,22.3,96.0,enough for a real case/control model
+Chronic infection,562,7.3,46.0,enough for a real case/control model
+Autoimmune -- rheumatologic,444,5.7,43.0,enough for a real case/control model
+Immunodeficiency & immunosuppression,344,4.5,42.0,enough for a real case/control model
+Autoimmune -- endocrine,327,4.2,33.0,enough for a real case/control model
+Autoimmune -- dermatologic,314,4.1,23.0,enough for a real case/control model
+Autoimmune -- gastrointestinal,183,2.4,41.0,descriptive only -- underpowered
+Lymphoid & haematologic malignancy,151,2.0,74.0,descriptive only -- underpowered
+Autoimmune -- neurologic,76,1.0,11.0,descriptive only -- underpowered

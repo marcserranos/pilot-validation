@@ -33,7 +33,7 @@ AUTOIMMUNE -- specific diseases,Graves disease,<20,
 AUTOIMMUNE -- specific diseases,Pemphigus,<20,
 AUTOIMMUNE -- specific diseases,Addison disease,<20,
 IMMUNODEFICIENCY -- specific subtypes,Other immunodeficiency (D84),280,3.62
-IMMUNODEFICIENCY -- specific subtypes,"Immune-mechanism disorder, other (D89)",170,2.20
+IMMUNODEFICIENCY -- specific subtypes,"Immune-mechanism disorder, other (D89)",170,2.2
 IMMUNODEFICIENCY -- specific subtypes,HIV,98,1.27
 IMMUNODEFICIENCY -- specific subtypes,Selective IgA / antibody deficiency,52,0.67
 IMMUNODEFICIENCY -- specific subtypes,Neutropenia,43,0.56
@@ -50,9 +50,16 @@ TUMORS -- lymphoid / hematologic (repertoire-relevant),Myeloid leukemia,<20,
 TUMORS -- lymphoid / hematologic (repertoire-relevant),Hodgkin lymphoma,<20,
 TUMORS -- lymphoid / hematologic (repertoire-relevant),Mycosis fungoides / cutaneous T-cell lymphoma,<20,
 TUMORS -- solid (general immune-surveillance context),Prostate cancer,187,2.42
-TUMORS -- solid (general immune-surveillance context),Breast cancer,162,2.10
-TUMORS -- solid (general immune-surveillance context),Lung cancer,116,1.50
+TUMORS -- solid (general immune-surveillance context),Breast cancer,162,2.1
+TUMORS -- solid (general immune-surveillance context),Lung cancer,116,1.5
 TUMORS -- solid (general immune-surveillance context),Colorectal cancer,65,0.84
 TUMORS -- solid (general immune-surveillance context),Melanoma,61,0.79
 TUMORS -- solid (general immune-surveillance context),Kidney cancer,50,0.65
 TUMORS -- solid (general immune-surveillance context),Bladder cancer,36,0.47
+"OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)",Allergic rhinitis,1316,17.03
+"OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)",Atherosclerosis / coronary artery disease,1118,14.47
+"OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)",Atopic dermatitis / eczema,248,3.21
+"OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)",Restless legs syndrome,179,2.32
+"OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)",Parkinson disease,66,0.85
+"OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)",Long COVID (post COVID-19 condition),38,0.49
+"OTHER CONDITIONS OF INTEREST (req. Cole Shanks, 2026-08-27 + 2026-09-07)",Alzheimer disease,31,0.4
