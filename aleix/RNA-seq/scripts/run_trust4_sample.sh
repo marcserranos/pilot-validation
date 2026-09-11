@@ -32,7 +32,15 @@ REPO=~/repos/pilot-validation
 REF_DIR="$REPO/aleix/RNA-seq/reference"
 MANIFEST="$REPO/aleix/RNA-seq/pixi.toml"
 OUT=~/pipeline_outputs/rnaseq/$SAMPLE
-THREADS=$(nproc)
+# TRUST4_THREADS lets a batch runner cap -t per job so N parallel jobs don't oversubscribe
+# (N jobs * nproc threads on nproc cores). Defaults to nproc for a lone run. Threads only
+# help the k-mer screen / BGZF decompress, not the sequential BAM read (TRUST4_DEEP_DIVE.md).
+THREADS="${TRUST4_THREADS:-$(nproc)}"
+# TRUST4_CLEAN=1 -> run-trust4 --clean 1: drop the large intermediate FASTQs / _raw.out,
+# keep report.tsv / airr.tsv / cdr3.out / annot.fa. Unset/0 = keep everything, and the
+# --clean flag is omitted entirely so the proven default invocation is byte-identical.
+CLEAN_ARGS=()
+[[ "${TRUST4_CLEAN:-0}" != "0" ]] && CLEAN_ARGS=(--clean "${TRUST4_CLEAN}")
 
 BCRTCR_FA="$REF_DIR/hg38_bcrtcr.fa"
 IMGT_FA="$REF_DIR/human_IMGT+C.fa"
@@ -48,7 +56,7 @@ done
 
 pixi run --manifest-path "$MANIFEST" -- \
   run-trust4 -b "$BAM" -f "$BCRTCR_FA" --ref "$IMGT_FA" \
-  --abnormalUnmapFlag \
+  --abnormalUnmapFlag ${CLEAN_ARGS[@]+"${CLEAN_ARGS[@]}"} \
   -t "$THREADS" -o "$SAMPLE" --od "$OUT" \
   > "$OUT/${SAMPLE}.trust4.log" 2>&1
 
