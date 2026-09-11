@@ -14,15 +14,29 @@ so re-running yields the exact same cohort. Verifies each candidate's BAM actual
 on the mount before including it -- lazily, only for the candidates being considered, not
 the whole ~9k-row manifest, so this stays fast.
 
+RESTRICTED TO THE LR x RNA-SEQ OVERLAP BY DEFAULT (2026-09-11 policy change): every cohort
+built from now on only draws from people who ALSO have long-read WGS (the
+lr_rnaseq_overlap_cohort.tsv from check_lr_rnaseq_overlap.py, 8,327 people), so every batch
+run stays joinable to HLA/disease labels later without having to re-derive a compatible
+cohort. Pass --no-restrict to draw from the full RNA-seq manifest (8,980) instead.
+
 PRIVACY: output contains real research_ids. Same rule as build_experiment_d_cohort.py --
 this file is VM-local only (default under ~/pipeline_outputs), never committed to git.
 
 Usage:
-  python3 build_rnaseq_cohort.py [--total 100] [--per-group N] [--out PATH] [--force] [--mount ~/mnt/aou-controlled]
+  python3 build_rnaseq_cohort.py [--total 100] [--per-group N] [--out PATH] [--force]
+      [--mount ~/mnt/aou-controlled] [--no-restrict] [--max-bam-gb N]
 
 --per-group, if given, overrides --total and applies uniformly (N per group, 6N total) --
 same semantics as build_experiment_d_cohort.py. Otherwise --total is split as evenly as
 possible across the 6 groups (remainder distributed to the first few, alphabetically).
+
+--max-bam-gb, if given, skips any candidate whose BAM exceeds N GB -- for keeping a batch's
+wall-clock predictable. The 2026-09-10 timing run found BAM sizes ~4.8-6.4 GB typical, one
+outlier at 20 GB whose TRUST4 stage alone took 59 min (CPU-bound, not just I/O -- local-disk
+copy did not fix it). ~12 GB is a reasonable cut: comfortably above normal variation,
+comfortably below that kind of outlier. Size is read via a cheap gcsfuse stat() (no data
+transfer) on each candidate already being existence-checked, so this costs nothing extra.
 """
 import argparse
 import os
@@ -81,6 +95,17 @@ def main():
                          "--skip 17 to skip past a prior 100-person pick (17/17/17/17/16/16). "
                          "Uses the same value for every group regardless of how many that "
                          "group actually took, so it's always safe to over-skip slightly.")
+    ap.add_argument("--restrict-to", default=os.path.expanduser(
+                        "~/pipeline_outputs/rnaseq/lr_rnaseq_overlap_cohort.tsv"),
+                    help="TSV with a research_id column -- the eligible pool is intersected "
+                         "with this set before ancestry selection. Default: the LR x RNA-seq "
+                         "overlap cohort (run check_lr_rnaseq_overlap.py first if missing).")
+    ap.add_argument("--no-restrict", action="store_true",
+                    help="Ignore --restrict-to and draw from the full RNA-seq manifest "
+                         "(8,980 people) instead of the LR overlap (8,327).")
+    ap.add_argument("--max-bam-gb", type=float, default=None,
+                    help="Skip any candidate whose BAM exceeds this size in GB (see module "
+                         "docstring). Default: no limit.")
     args = ap.parse_args()
 
     if os.path.exists(args.out) and not args.force:
@@ -116,6 +141,20 @@ def main():
     merged = rna.merge(anc[["research_id", "ancestry"]], on="research_id", how="inner")
     print(f"\nEligible (RNA-seq BAM + ancestry label): {len(merged)} people", file=sys.stderr)
 
+    if not args.no_restrict:
+        restrict_path = os.path.expanduser(args.restrict_to)
+        if not os.path.exists(restrict_path):
+            die(f"--restrict-to file not found: {restrict_path}\n"
+                f"Run check_lr_rnaseq_overlap.py first (builds it), or pass --no-restrict "
+                f"if you deliberately want the full RNA-seq manifest, not the LR overlap.")
+        overlap = pd.read_csv(restrict_path, sep="\t", dtype=str)
+        require_cols(overlap, ["research_id"], restrict_path)
+        overlap_ids = set(overlap["research_id"].dropna())
+        before = len(merged)
+        merged = merged[merged["research_id"].isin(overlap_ids)]
+        print(f"Restricted to --restrict-to ({restrict_path}, {len(overlap_ids):,} people): "
+              f"{before:,} -> {len(merged):,} eligible", file=sys.stderr)
+
     picks = []
     print("\n=== Per-ancestry availability (target -> confirmed-existing picked) ===",
           file=sys.stderr)
@@ -124,19 +163,27 @@ def main():
         pool = merged[merged["ancestry"] == grp].sort_values("research_id")
         confirmed = []
         skipped = 0
+        n_too_big = 0
         for _, row in pool.iterrows():
             if len(confirmed) >= target:
                 break
             full_path = os.path.join(args.mount, row["bam_rel_path"])
             if os.path.exists(full_path):
+                if args.max_bam_gb is not None:
+                    # Cheap gcsfuse stat() -- metadata only, no data transfer.
+                    size_gb = os.path.getsize(full_path) / 1e9
+                    if size_gb > args.max_bam_gb:
+                        n_too_big += 1
+                        continue
                 if skipped < args.skip:
                     skipped += 1
                     continue
                 confirmed.append(row)
         flag = "  <-- SHORT" if len(confirmed) < target else ""
         skip_note = f", skipped {skipped}" if args.skip else ""
+        size_note = f", {n_too_big} over --max-bam-gb {args.max_bam_gb}" if args.max_bam_gb is not None else ""
         print(f"  {grp}: target {target}, {len(pool)} in manifest, "
-              f"{len(confirmed)} confirmed-existing picked{skip_note}{flag}", file=sys.stderr)
+              f"{len(confirmed)} confirmed-existing picked{skip_note}{size_note}{flag}", file=sys.stderr)
         if confirmed:
             picks.append(pd.DataFrame(confirmed))
 
@@ -150,10 +197,9 @@ def main():
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     cohort.to_csv(args.out, sep="\t", index=False)
     print(f"\n=== Wrote {len(cohort)} people to {args.out} ===", file=sys.stderr)
-    print(f"\nTest small first (recommended): head -4 {args.out} > {args.out}.test3.tsv",
-          file=sys.stderr)
-    print(f"Then compare:  bash run_rnaseq_batch.sh {args.out}.test3.tsv --jobs 1", file=sys.stderr)
-    print(f"           vs  bash run_rnaseq_batch.sh {args.out}.test3.tsv --jobs 3", file=sys.stderr)
+    print(f"\nRun:  bash run_rnaseq_batch_local.sh {args.out} --jobs 8", file=sys.stderr)
+    print("(copy-local -- ~60x faster than reading straight off gcsfuse, see "
+          "results/ + chat 2026-09-10/11 for why)", file=sys.stderr)
 
 
 if __name__ == "__main__":
