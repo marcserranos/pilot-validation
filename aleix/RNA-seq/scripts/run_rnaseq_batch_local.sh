@@ -87,16 +87,18 @@ run_one() {
   local t0 t1 t2
   t0=$(date +%s)
 
-  # Try BAM + .bai together; if the sibling .bai isn't there, fall back to BAM only
-  # (bam-extractor does a linear sweep and does not require the index).
-  if ! gcloud storage cp --billing-project "$BILLING" \
-        "$BUCKET/${bam_rel}" "$BUCKET/${bam_rel}.bai" "$lbam" "${lbam}.bai" 2>"$errf"; then
-    if ! gcloud storage cp --billing-project "$BILLING" "$BUCKET/${bam_rel}" "$lbam" 2>>"$errf"; then
-      echo "[$research_id] !! COPY FAILED -- $(tail -1 "$errf" 2>/dev/null)"
-      rm -f "$lbam" "${lbam}.bai" "$errf"
-      return 1
-    fi
+  # BAM is required. `gcloud storage cp SRC1 SRC2 DST1 DST2` is NOT "copy each source to
+  # its paired dest" -- with 2+ sources the LAST arg must be a single existing destination
+  # DIRECTORY, so that four-arg form always fails validation. Two separate single-file
+  # copies instead: BAM (required), then .bai (best-effort -- bam-extractor does a linear
+  # sweep and does not need the index, so a missing/failed .bai copy is not fatal).
+  if ! gcloud storage cp --billing-project "$BILLING" "$BUCKET/${bam_rel}" "$lbam" 2>"$errf"; then
+    echo "[$research_id] !! COPY FAILED -- $(tail -1 "$errf" 2>/dev/null)"
+    rm -f "$lbam" "${lbam}.bai" "$errf"
+    return 1
   fi
+  gcloud storage cp --billing-project "$BILLING" "$BUCKET/${bam_rel}.bai" "${lbam}.bai" \
+    >/dev/null 2>>"$errf" || true
   t1=$(date +%s)
 
   TRUST4_THREADS="$TPJ" TRUST4_CLEAN=1 \
