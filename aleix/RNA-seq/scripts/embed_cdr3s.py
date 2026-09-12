@@ -44,11 +44,13 @@ Usage:
       [--min-score 0.02] [--keep-imputed] [--outdir ../results]
       [--local-outdir ~/pipeline_outputs/rnaseq/embeddings] [--max-per-person 500]
 
-Needs (on top of the pixi env's pandas/scipy):  pip install sceptr esm torch
-(NOT `transformers` for ESMC -- its HF repo ships no tokenizer files; the `esm` package's
-own EsmcForMaskedLM/EsmcTokenizer classes build the model from config.json + a raw .pth
-weights file directly. transformers may still get pulled in as sceptr's own dependency,
-that's fine, just isn't what ESMC itself needs.)
+Needs (on top of the pixi env's pandas/scipy):
+  pip install sceptr torch accelerate
+  pip install git+https://github.com/Biohub/esm.git@v3.4.1
+(NOT `pip install esm` alone -- PyPI's `esm` is still 3.2.3 as of 2026-09-12 and its ESMC
+loading is broken upstream (biohub/esmc-300m-2024-12's HF config.json is empty, confirmed
+live). v3.4.1, not yet on PyPI, ships a different loading path that works -- see
+embed_esmc()'s docstring below for the full story.)
 """
 import argparse
 import os
@@ -160,38 +162,49 @@ def embed_sceptr(seqs):
     return np.asarray(vecs), time.time() - t0
 
 
-def embed_esmc(seqs, batch_size=32):
+def embed_esmc(seqs, model_name="esmc_300m"):
     """ESMC-300M -- general protein LM. Returns (embeddings ndarray, wall_seconds).
-    Mean-pools per-residue hidden states over the sequence (excluding special tokens).
+    Mean-pools per-residue hidden states over the sequence (excluding BOS/EOS).
 
-    NOTE (corrected 2026-09-08, second attempt): plain transformers.AutoTokenizer/
-    AutoModelForMaskedLM does NOT work against biohub/esmc-300m-2024-12 -- that HF repo
-    genuinely ships no tokenizer files at all (verified live via the HF API's file
-    listing: just config.json + a raw .pth weights file). trust_remote_code doesn't help
-    because there's no remote tokenizer code there either. The real, documented loading
-    path (github.com/evolutionaryscale/esm README, fetched raw -- not a paraphrase) is the
-    `esm` package's own classes, which build the architecture from config.json and load
-    the .pth state dict directly, with a fixed, self-contained protein tokenizer that
-    needs no repo files of its own."""
+    NOTE (corrected 2026-09-12, third attempt -- this one actually works end to end):
+    both the plain transformers.AutoModel path AND the esm package's own
+    EsmcForMaskedLM.from_pretrained("biohub/esmc-300m-2024-12") are broken -- that HF
+    repo's config.json is a live upstream bug, confirmed empty ({}) as recently as
+    2026-09-12. Not fixable locally.
+
+    The fix: `esm` v3.4.0/3.4.1 (2026-08-27/09-08, NOT yet on PyPI as of this writing --
+    PyPI's `esm` is still 3.2.3, install straight from GitHub instead:
+    `pip install git+https://github.com/Biohub/esm.git@v3.4.1`) shipped a genuinely
+    different loading path and API: `esm.models.esmc.ESMC.from_pretrained("esmc_300m")`
+    (the bare model name, NOT the HF repo id) plus an SDK-client-shaped interface
+    (`ESMProtein` -> `model.encode()` -> `model.logits(..., LogitsConfig(return_embeddings=True))`)
+    that does not depend on the broken repo's config.json at all. Verified live: real
+    960-dim embeddings, correct shape (len(seq)+2 for BOS/EOS).
+
+    Also needs `pip install accelerate` (a new dependency this esm version pulls in that
+    the old PyPI 3.2.3 didn't require -- easy to miss if esm is upgraded with --no-deps).
+
+    One ESMProtein per call (this is an SDK-client-shaped API, mirroring the hosted
+    Forge/Biohub Platform interface) -- no native batch-tensor call found, so this loops
+    per sequence. CDR3s are short (10-20 aa) so each call is fast, but per-call Python/SDK
+    overhead dominates at scale; time a small sample before committing to a large pool."""
     import torch
-    from esm.models.esmc import EsmcForMaskedLM, EsmcTokenizer
+    from esm.models.esmc import ESMC
+    from esm.sdk.api import ESMProtein, LogitsConfig
 
-    model_id = "biohub/esmc-300m-2024-12"
-    model = EsmcForMaskedLM.from_pretrained(model_id, device="cpu").eval()
-    tok = EsmcTokenizer()
+    model = ESMC.from_pretrained(model_name).eval()
+    cfg = LogitsConfig(sequence=True, return_embeddings=True)
 
     out = []
     t0 = time.time()
     with torch.inference_mode():
-        for i in range(0, len(seqs), batch_size):
-            batch = seqs[i:i + batch_size]
-            enc = tok(batch, return_tensors="pt", padding=True)
-            res = model(**enc, output_hidden_states=True)
-            hidden = res.hidden_states[-1]  # (B, L, D)
-            mask = enc["attention_mask"].unsqueeze(-1).float()
-            pooled = (hidden * mask).sum(1) / mask.sum(1).clamp(min=1)
+        for s in seqs:
+            encoded = model.encode(ESMProtein(sequence=s))
+            res = model.logits(encoded, cfg)
+            emb = res.embeddings[0]         # (L, D), L = len(s) + 2 (BOS/EOS)
+            pooled = emb[1:-1].mean(dim=0)  # drop BOS/EOS, mean over real residues
             out.append(pooled.cpu().numpy())
-    return np.concatenate(out, axis=0), time.time() - t0
+    return np.stack(out, axis=0), time.time() - t0
 
 
 def same_vs_diff_vgene_contrast(embs, v_genes):
@@ -309,8 +322,9 @@ def main():
         results.append(("ESMC-300M", esmc_embs.shape[1], esmc_s, same, diff))
     except Exception as e:
         print(f"  !! ESMC failed: {e}\n  "
-              f"(pip install esm -- the EvolutionaryScale package, NOT plain "
-              f"transformers/huggingface_hub; that repo ships no tokenizer files at all)",
+              f"(need: pip install accelerate && pip install "
+              f"git+https://github.com/Biohub/esm.git@v3.4.1 -- PyPI's esm 3.2.3 and the "
+              f"old EsmcForMaskedLM path are both broken upstream, see embed_esmc() docstring)",
               file=sys.stderr)
 
     if results:
