@@ -280,6 +280,7 @@ def main():
         if "research_id" not in cohort.columns:
             die(f"{args.cohort} has no research_id column -- expected build_rnaseq_cohort.py output")
 
+        n_no_chain = 0
         all_rows = []
         for rid in cohort["research_id"]:
             df = load_person_cdr3s(args.pheno_dir, rid, args.min_score, args.keep_imputed)
@@ -287,12 +288,27 @@ def main():
                 print(f"  [{rid}] !! no TRUST4 output found, skipping (run the repertoire batch first)",
                       file=sys.stderr)
                 continue
+            # Filter to --chain BEFORE the per-person cap, not after: capping first and
+            # filtering after means someone's cap gets spent on chains we're about to throw
+            # away, so people whose first N rows happen to have none of the target chain
+            # silently drop out of the comparison entirely. Filtering first means every
+            # person gets a fair shot at contributing up to --max-per-person of the chain
+            # we actually want. (Found live 2026-09-12: capping before filtering to TRB lost
+            # 83 of 500 people from the pool.)
+            if args.chain.lower() != "all":
+                df = df[df["chain"] == args.chain.upper()]
             if len(df) == 0:
-                print(f"  [{rid}] 0 CDR3s survived the quality filter", file=sys.stderr)
+                note = f" (chain={args.chain.upper()})" if args.chain.lower() != "all" else ""
+                print(f"  [{rid}] 0 CDR3s survived the quality filter{note}", file=sys.stderr)
+                if args.chain.lower() != "all":
+                    n_no_chain += 1
                 continue
             all_rows.append(df.head(args.max_per_person))
             print(f"  [{rid}] {len(df)} CDR3s pass filter (using up to {args.max_per_person})",
                   file=sys.stderr)
+        if args.chain.lower() != "all" and n_no_chain:
+            print(f"\n{n_no_chain} people had zero {args.chain.upper()} CDR3s and were dropped "
+                  f"entirely from the pool.", file=sys.stderr)
 
         if not all_rows:
             die("no usable CDR3s across the whole cohort -- run repertoire calling first "
