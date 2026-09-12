@@ -242,6 +242,17 @@ def main():
     ap.add_argument("--max-per-person", type=int, default=500,
                     help="cap CDR3s per person (highest read_count-weighted first would be "
                          "better -- for now, first N after filtering) to keep the comparison fast")
+    ap.add_argument("--chain", default="TRB",
+                    help="restrict the pool to one chain before embedding anything (default "
+                         "TRB). SCEPTR is beta-chain-specific -- feeding it TRA/TRG/TRD/IGH/"
+                         "IGK/IGL (which is ~80%% of recovered CDR3s per the Aug chain "
+                         "breakdown) is outside its documented scope and is exactly what "
+                         "triggers its own 'doesn't look like a standardised junction' "
+                         "warnings. It also confounds the diff-V-gene bucket for BOTH models "
+                         "with trivial cross-chain pairs (e.g. IGH vs TRB), which differ for "
+                         "reasons that have nothing to do with embedding quality. Pass 'all' "
+                         "to disable the filter and use every chain (not recommended for a "
+                         "model comparison).")
     ap.add_argument("--outdir", default=os.path.join(
                         os.path.dirname(os.path.abspath(__file__)), "..", "results"),
                     help="de-identified comparison summary only (aggregate stats, no "
@@ -288,6 +299,18 @@ def main():
                 "(build_rnaseq_cohort.py + run_rnaseq_batch.sh)")
 
         pool = pd.concat(all_rows, ignore_index=True)
+
+    if args.chain.lower() != "all":
+        if "chain" not in pool.columns:
+            die(f"--chain {args.chain} requested but the pool has no 'chain' column")
+        before = len(pool)
+        pool = pool[pool["chain"] == args.chain.upper()].reset_index(drop=True)
+        print(f"--chain {args.chain.upper()}: {before:,} -> {len(pool):,} CDR3s "
+              f"(dropped {before - len(pool):,} from other chains)", file=sys.stderr)
+        if len(pool) == 0:
+            die(f"no CDR3s left after restricting to chain={args.chain.upper()} -- check the "
+                f"'chain' values actually present, or pass --chain all")
+
     seqs = pool["cdr3aa"].tolist()
     v_genes = pool["v_gene"].tolist()
     print(f"\n=== {len(seqs)} CDR3s pooled across {pool['research_id'].nunique()} people, "
