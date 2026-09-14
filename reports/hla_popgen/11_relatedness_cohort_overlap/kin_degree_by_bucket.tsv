@@ -1,0 +1,6 @@
+bucket	kin_degree	n_pairs
+both_lr	duplicate_or_MZ_twin	5
+both_lr	first_degree_parentchild_or_sibling	569
+both_lr	second_degree	65
+lr_sr	first_degree_parentchild_or_sibling	13
+lr_sr	second_degree	12
