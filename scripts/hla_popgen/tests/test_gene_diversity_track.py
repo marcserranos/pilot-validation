@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for 11_gene_diversity_track.py's cs-string walker and target<->query boundary
+"""Unit tests for 20_gene_diversity_track.py's cs-string walker and target<->query boundary
 translation -- the two pieces of new logic this script introduces (PAF/GTF join was validated live
 against real VM data instead; see NEEDLE_VIEW_BRIEF.md's "Live VM validation" section).
 
@@ -23,7 +23,7 @@ def _load_module(filename, modname):
     return mod
 
 
-m = _load_module("11_gene_diversity_track.py", "gene_diversity_track")
+m = _load_module("20_gene_diversity_track.py", "gene_diversity_track")
 
 FAILURES = []
 

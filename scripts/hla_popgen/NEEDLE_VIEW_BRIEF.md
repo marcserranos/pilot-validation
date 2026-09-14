@@ -322,7 +322,7 @@ Steps 1-3 of that section are now DONE (this VM probe). Remaining before scaling
 
 ## Results (2026-09-07): the script is built, ran, and the CDS-vs-flanking result holds up
 
-`scripts/hla_popgen/11_gene_diversity_track.py` exists and is committed to this file's design.
+`scripts/hla_popgen/20_gene_diversity_track.py` exists and is committed to this file's design.
 Two real bugs surfaced during iteration on real VM data -- both fixed, documented in the script's
 own comments, and worth reading before touching this code again:
 

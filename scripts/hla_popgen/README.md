@@ -48,16 +48,57 @@ the distance distribution by ancestry is direct evidence of reference bias in IP
 
 ## Pipeline
 
+Scripts are numbered in the order the story builds, and the number is unique — never reuse one.
+`reports/hla_popgen/<NN>_<name>/` mirrors the script that wrote it. A gap in the numbers is fine;
+a duplicate is not (see COMPREHENSIVE_REPORT.md for the narrative these map onto).
+
+**Foundation — extraction and cohorts**
 ```
 00_recon_vm.py        → reports/hla_popgen/recon_report.{md,json}   [RUN THIS FIRST]
+00b_warning_census.py → template_warning census; sets 03's --disqualifying-warnings policy
 01_extract_rich.py    → hla_calls_rich.tsv (Table 1), hla_cis_pairs.tsv (Table 2)
 02_build_cohorts.py   → cohort_membership.tsv (Table 4)
-03_novel_alleles.py   → novel_alleles.tsv (Table 3), novel_alleles_seqs.fa [VM-only]
-04_allele_saturation.py → discovery curves, Chao2/ACE richness, "% of allele space found"
+```
+
+**Allele discovery and frequency**
+```
+03_novel_alleles.py       → novel_alleles.tsv (Table 3), novel_alleles_seqs.fa [VM-only]
+04_allele_saturation.py   → discovery curves, Chao2/ACE richness, "% of allele space found"
 05_figures_frequency.py   → allele frequency by ancestry, diversity indices
 06_figures_structure.py   → PCA/UMAP, Fst, continuous-admixture representations
 07_figures_crosscohort.py → SR-vs-LR bias, template_distance by ancestry, cis heterodimers,
                             non-classical gene diversity, resolution cascade
+08_embedding_compare.py   → allele-space embedding matrix, disease-coloured overlays
+09_mutation_topology.py   → where novel differences land along the protein sequence
+10_allele_ancestry_geometry.py → per-allele ancestry centroids (ternary / tetrahedron / PCA)
+```
+
+**Disease and manifold structure** (12 feeds 13; 14 feeds 15)
+```
+12_disease_phenotypes.py           → per-person diagnosis labels for the locked UMAP cohort
+13_disease_allele_association.py   → Fisher + ancestry-adjusted CMH per allele × disease
+14_manifold_structure.py           → variance/loadings audit, ancestry residualisation, supervised UMAP
+15_manifold_holdout_validation.py  → held-out test of 14's supervised-UMAP signal (it does not generalise)
+```
+
+**Relatedness and phasing validation** (11 → 16 → 17)
+```
+11_relatedness_cohort_overlap.py      → AoU kinship table × our cohorts, bucketed
+16_phasing_mendelian_validation.py    → switch errors across 545 real relative pairs
+17_raw_sequence_divergence.py         → raw cds.fa.gz comparison, bypassing allele nomenclature
+```
+
+**Saturation follow-ups** (read only aggregate tables 04 wrote — laptop-runnable)
+```
+18_discovery_rate.py        → dS/dN, expected new alleles per additional haplotype
+19_allele_space_coverage.py → richness vs copy coverage, with the full evidence base
+```
+
+**Capstone — per-site diversity along the gene** (20 → 21 → 22)
+```
+20_gene_diversity_track.py  → first-pass positional track (superseded by 21; kept for provenance)
+21_hla_manhattan.py         → per-gene Manhattan of per-site pi against one canonical reference
+22_panel_overview.py        → cross-gene CDS vs non-CDS comparison, from 21's panel_summary.tsv
 ```
 
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can

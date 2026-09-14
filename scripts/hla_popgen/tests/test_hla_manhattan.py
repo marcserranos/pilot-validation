@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Unit tests for 15_hla_manhattan.py.
+"""Unit tests for 21_hla_manhattan.py.
 
-Focus is the logic that 11_gene_diversity_track.py got wrong or never had:
+Focus is the logic that 20_gene_diversity_track.py got wrong or never had:
   1. STRAND handling in the canonical-coordinate cs walk. `11` ignored strand entirely; real PAF
      rows for one gene come back on both strands, so mishandling silently mirrors ~half the
      haplotypes. The reverse-strand test below is the one that would have caught it.
@@ -29,7 +29,7 @@ def _load_module(filename, modname):
     return mod
 
 
-m = _load_module("15_hla_manhattan.py", "hla_manhattan")
+m = _load_module("21_hla_manhattan.py", "hla_manhattan")
 
 FAILURES = []
 
@@ -76,7 +76,7 @@ def test_insertion_has_no_canonical_coordinate():
 
 
 # ---------------------------------------------------------------------------
-# cs walk, reverse strand -- the case 11_gene_diversity_track.py never handled
+# cs walk, reverse strand -- the case 20_gene_diversity_track.py never handled
 # ---------------------------------------------------------------------------
 def test_reverse_strand_mirrors_position():
     # Same cs string, reverse strand, full-length span [0, 16). The k-th consumed query base maps
@@ -90,7 +90,7 @@ def test_reverse_strand_differs_from_forward():
     fwd, _ = m.walk_cs_canonical(":10*ag:5", qstart=0, qend=16, strand="+")
     rev, _ = m.walk_cs_canonical(":10*ag:5", qstart=0, qend=16, strand="-")
     check("reverse and forward give different canonical positions (regression guard for the "
-          "strand bug in 11_gene_diversity_track.py)", set(fwd) != set(rev),
+          "strand bug in 20_gene_diversity_track.py)", set(fwd) != set(rev),
           f"fwd={fwd} rev={rev}")
 
 

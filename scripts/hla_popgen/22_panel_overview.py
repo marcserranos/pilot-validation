@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Panel-level overview of the per-gene diversity results from `15_hla_manhattan.py`.
+"""Panel-level overview of the per-gene diversity results from `21_hla_manhattan.py`.
 
 The per-gene Manhattan plots show *where* diversity sits along one gene. This shows the comparison
 ACROSS genes, which is where the actual argument lives:
@@ -23,9 +23,9 @@ hatched so they are not read as clean support:
   HLA-DPB1 -- NM max 1608 vs 51-412 elsewhere, i.e. some haplotypes align poorly to its canonical
 
 Usage:
-    python3 scripts/hla_popgen/16_panel_overview.py \\
-        --summary reports/hla_popgen/15_hla_manhattan/panel_summary.tsv \\
-        --out reports/hla_popgen/15_hla_manhattan/panel_overview.png
+    python3 scripts/hla_popgen/22_panel_overview.py \\
+        --summary reports/hla_popgen/21_hla_manhattan/panel_summary.tsv \\
+        --out reports/hla_popgen/21_hla_manhattan/panel_overview.png
 """
 import argparse
 import csv
@@ -158,9 +158,9 @@ def main():
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     ap.add_argument("--summary",
-                     default=os.path.join(here, "reports/hla_popgen/15_hla_manhattan/panel_summary.tsv"))
+                     default=os.path.join(here, "reports/hla_popgen/21_hla_manhattan/panel_summary.tsv"))
     ap.add_argument("--out",
-                     default=os.path.join(here, "reports/hla_popgen/15_hla_manhattan/panel_overview.png"))
+                     default=os.path.join(here, "reports/hla_popgen/21_hla_manhattan/panel_overview.png"))
     args = ap.parse_args()
     rows = load(args.summary)
     plot(rows, args.out)

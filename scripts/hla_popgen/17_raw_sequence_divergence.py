@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Bypass HLA nomenclature entirely and compare the ACTUAL assembled DNA sequence (Immuannot's own
 `cds.fa.gz` per person/hap) between the 545 high-sharing relative pairs from
-12_phasing_mendelian_validation.py, at every gene both people have a sequence for.
+16_phasing_mendelian_validation.py, at every gene both people have a sequence for.
 
 ## Why this script exists
 
-12_phasing_mendelian_validation.py's ~4.9%/5.6% "error rate" is measured on the *named* 2-field
+16_phasing_mendelian_validation.py's ~4.9%/5.6% "error rate" is measured on the *named* 2-field
 allele (Immuannot's `consensus` column) -- and Immuannot's naming step (`consensusCall()`) collapses
 several equally-good reference candidates down to one representative name when there's a tie. Marc's
 critique, 2026-09-08: a real difference of 1-2 nucleotides can flip which named allele two people's

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Per-site nucleotide diversity (pi) along an HLA gene, every haplotype projected onto ONE fixed
 canonical reference allele -- the proper Manhattan/diversity track that
-`11_gene_diversity_track.py`'s template-stratified plot failed to be.
+`20_gene_diversity_track.py`'s template-stratified plot failed to be.
 
 ## Why this script exists: what 11's Manhattan plot got wrong
 
-`11_gene_diversity_track.py` built its positional track by restricting to haplotypes whose
+`20_gene_diversity_track.py` built its positional track by restricting to haplotypes whose
 best-matching template allele was IDENTICAL, so that raw positions shared a coordinate system.
 That selection is self-defeating: a haplotype "matched template X" precisely because it is
 (near-)identical to X, so most of that subset has `template_distance = 0` -- ZERO variants by
@@ -34,7 +34,7 @@ almost everyone under template-matching), and variant positions in the thousands
 query = the canonical IPD allele; target = the person's contig. Walking the `cs` string gives
 offsets along the QUERY, i.e. canonical-reference coordinates -- shared by every haplotype.
 
-`11_gene_diversity_track.py` never handled strand. Real PAF rows for the same gene come back on
+`20_gene_diversity_track.py` never handled strand. Real PAF rows for the same gene come back on
 BOTH strands (confirmed live). For a `-` strand row minimap2 aligns the reverse-complemented query,
 so accumulated query offsets run backwards relative to the original query; the canonical position
 is `qend - 1 - offset`, not `qstart + offset`. Getting this wrong silently mirrors roughly half the
@@ -65,8 +65,8 @@ CDS/exon structure comes from Immuannot's own `alleles.csv.gz` (`CDS=`, `exon=`,
 the allele's own 1-based coordinates) -- authoritative, not re-derived.
 
 Usage:
-    python3 scripts/hla_popgen/12_hla_manhattan.py --limit 200 --threads 6 --plot
-    python3 scripts/hla_popgen/12_hla_manhattan.py --genes HLA-A --canonical HLA-A*01:01:01:01
+    python3 scripts/hla_popgen/21_hla_manhattan.py --limit 200 --threads 6 --plot
+    python3 scripts/hla_popgen/21_hla_manhattan.py --genes HLA-A --canonical HLA-A*01:01:01:01
 """
 import argparse
 import concurrent.futures
@@ -584,7 +584,7 @@ def main():
         args.genes = list(PANEL_GENES)
 
     if args.replot:
-        out_dir_rp = args.out_dir or os.path.expanduser("~/results/15_hla_manhattan")
+        out_dir_rp = args.out_dir or os.path.expanduser("~/results/21_hla_manhattan")
         for gene in args.genes:
             stem = gene.replace("HLA-", "")
             jp = os.path.join(out_dir_rp, f"{stem}.json")
@@ -602,7 +602,7 @@ def main():
                   f"pi ratio={d.get('pi_ratio_cds_over_noncds')})", file=sys.stderr)
         return
 
-    out_dir = args.out_dir or os.path.expanduser("~/results/15_hla_manhattan")
+    out_dir = args.out_dir or os.path.expanduser("~/results/21_hla_manhattan")
     os.makedirs(out_dir, exist_ok=True)
 
     persons = sorted(d for d in os.listdir(args.outroot)

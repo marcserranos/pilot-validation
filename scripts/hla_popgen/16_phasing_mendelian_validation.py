@@ -58,13 +58,13 @@ long-read cohort), the same "let real data settle it" principle already used thr
 project (SCHEMA.md, 00_recon_vm.py) rather than hardcoding remembered hg38 coordinates.
 
 Usage (fixtures):
-    python3 scripts/hla_popgen/12_phasing_mendelian_validation.py \\
+    python3 scripts/hla_popgen/16_phasing_mendelian_validation.py \\
         --table1 /tmp/hla_fixtures/hla_calls_rich.sample.tsv \\
         --pair-list /tmp/hla_fixtures/relatedness_lr_overlap_pairs.sample.tsv \\
-        --out-dir /tmp/hla_fixtures/reports/12_phasing
+        --out-dir /tmp/hla_fixtures/reports/16_phasing
 
 Real run (VM):
-    python3 scripts/hla_popgen/12_phasing_mendelian_validation.py
+    python3 scripts/hla_popgen/16_phasing_mendelian_validation.py
 """
 import argparse
 import os
@@ -446,7 +446,7 @@ def main():
     ap.add_argument("--table1", default=os.path.join(vc.DEFAULT_OUTROOT, "hla_calls_rich.tsv"))
     ap.add_argument("--pair-list", default=DEFAULT_PAIR_LIST)
     ap.add_argument("--out-dir", default=os.path.join(vc.DEFAULT_REPORT_ROOT,
-                                                       "12_phasing_mendelian_validation"),
+                                                       "16_phasing_mendelian_validation"),
                     help="Aggregate-only outputs (figures, headline report, per-gene counts -- no "
                          "person_ids). SCHEMA.md hard rule 5.")
     ap.add_argument("--outroot", default=vc.DEFAULT_OUTROOT,

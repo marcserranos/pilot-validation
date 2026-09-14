@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fixture tests for 12_phasing_mendelian_validation.py -- constructs a tiny synthetic cohort with
+"""Fixture tests for 16_phasing_mendelian_validation.py -- constructs a tiny synthetic cohort with
 KNOWN ground truth (a clean parent-child transmission, an injected single-gene mismatch, a
 simulated crossover, and an IBD0-style unrelated pair) and asserts the pipeline recovers exactly
 the expected sharing fractions, mismatch locations, and switch counts. This is the correctness gate
@@ -13,7 +13,7 @@ import sys
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-mod = importlib.import_module("12_phasing_mendelian_validation")
+mod = importlib.import_module("16_phasing_mendelian_validation")
 
 GENES = [f"G{i}" for i in range(1, 11)]
 GENE_CLASS = {**{f"G{i}": "classical_I" for i in range(1, 6)},

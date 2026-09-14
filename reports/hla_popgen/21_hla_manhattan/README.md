@@ -1,4 +1,4 @@
-# Per-site nucleotide diversity along HLA genes (`15_hla_manhattan.py`)
+# Per-site nucleotide diversity along HLA genes (`21_hla_manhattan.py`)
 
 **What this measures:** at every base position of an HLA gene, how genetically variable the
 population is at that exact position — and whether the variable positions cluster inside the
@@ -58,7 +58,7 @@ per-position statistics cannot simply be pooled.
 
 ### What does NOT work (and why — this was a real failed attempt)
 
-An earlier version of this analysis (`11_gene_diversity_track.py`) tried to get a shared coordinate
+An earlier version of this analysis (`20_gene_diversity_track.py`) tried to get a shared coordinate
 system by **restricting to haplotypes whose best-matching reference template was identical**. That
 is self-defeating: a haplotype "matched template X" *precisely because it is nearly identical to X*.
 Most such haplotypes have `template_distance = 0` — **zero variants by construction**. The result
@@ -232,7 +232,7 @@ Each `*_manhattan.png` shows:
 - **amber band** — the peptide-binding-groove exons
 - **ribbon beneath the axis** — the gene model (exon boxes, groove exons in red)
 
-`panel_overview.png` (from `scripts/hla_popgen/16_panel_overview.py`) is the cross-gene view — the
+`panel_overview.png` (from `scripts/hla_popgen/22_panel_overview.py`) is the cross-gene view — the
 one that carries the actual argument, since the per-gene Manhattans only show *where* diversity sits
 within a single gene:
 - **top** — absolute mean π inside vs outside the CDS, log scale, genes ordered by π_CDS. This is
@@ -247,7 +247,7 @@ within a single gene:
   as clean support.
 
 Regenerate it from the TSV alone, without re-running the cohort:
-`python3 scripts/hla_popgen/16_panel_overview.py`
+`python3 scripts/hla_popgen/22_panel_overview.py`
 
 ---
 
@@ -280,13 +280,13 @@ Regenerate it from the TSV alone, without re-running the cohort:
 
 ```bash
 # full cohort, 4 classical genes, with figures
-python3 scripts/hla_popgen/15_hla_manhattan.py --threads 6 --plot
+python3 scripts/hla_popgen/21_hla_manhattan.py --threads 6 --plot
 
 # the wider panel (classical class I + II, plus conserved DRA/E/F/G controls)
-python3 scripts/hla_popgen/15_hla_manhattan.py --panel --threads 6 --plot
+python3 scripts/hla_popgen/21_hla_manhattan.py --panel --threads 6 --plot
 
 # restyle figures from saved JSON without re-reading any PAF (~35 min saved)
-python3 scripts/hla_popgen/15_hla_manhattan.py --panel --replot --out-dir ~/results/15_hla_manhattan
+python3 scripts/hla_popgen/21_hla_manhattan.py --panel --replot --out-dir ~/results/21_hla_manhattan
 ```
 
 Runtime: **~37 minutes** for the full cohort. All genes share a single pass over each haplotype's

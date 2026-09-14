@@ -498,7 +498,7 @@ short-read population is currently flagged `in_sr`), not a true scarcity.
 
 ### 11b. Phasing validation via Mendelian consistency + switch scan (the actual test)
 
-**Script:** `12_phasing_mendelian_validation.py` → `per_gene_mismatch_counts.tsv`,
+**Script:** `16_phasing_mendelian_validation.py` → `per_gene_mismatch_counts.tsv`,
 `phasing_validation_report.md`.
 
 **Method:** using the 827-person relative pool, 574 pairs are classified by empirical per-gene
@@ -661,10 +661,10 @@ a given cohort size are different questions).
 
 ## 13. The capstone: per-site diversity along the gene, and the balancing-selection signature
 
-**Scripts:** `11_gene_diversity_track.py` (prototype/pilot, n=500) → superseded by
-`15_hla_manhattan.py` (full cohort, 4 genes, then a 12-gene panel with conserved controls) →
-`16_panel_overview.py` (cross-gene summary figure). Reports:
-`15_hla_manhattan/README.md`, `panel_summary.tsv`. This is the most recent, most carefully
+**Scripts:** `20_gene_diversity_track.py` (prototype/pilot, n=500) → superseded by
+`21_hla_manhattan.py` (full cohort, 4 genes, then a 12-gene panel with conserved controls) →
+`22_panel_overview.py` (cross-gene summary figure). Reports:
+`21_hla_manhattan/README.md`, `panel_summary.tsv`. This is the most recent, most carefully
 engineered, and most scientifically complete result in the whole set — worth walking through in
 full, including the two real methodological dead-ends it took to get here.
 
@@ -679,7 +679,7 @@ comparable to published values.
 
 ### 13b. Dead end #1: per-own-template positions don't work
 
-The first attempt (`11_gene_diversity_track.py`) measured each haplotype's variants relative to
+The first attempt (`20_gene_diversity_track.py`) measured each haplotype's variants relative to
 *its own* best-matching reference template. This is self-defeating: a haplotype matched template X
 *because* it's nearly identical to X — most such haplotypes have `template_distance=0` by
 construction, so this approach measures the emptiness of the least-diverse possible subset. Result:
@@ -783,19 +783,19 @@ that reports everything as hyperdiverse would be measuring noise, not selection.
   false positive being walked back; it's a case of genuine underpowering at small n.
 
 **Figures:**
-![panel_overview](15_hla_manhattan/panel_overview.png)
-![A_manhattan](15_hla_manhattan/A_manhattan.png)
-![B_manhattan](15_hla_manhattan/B_manhattan.png)
-![C_manhattan](15_hla_manhattan/C_manhattan.png)
-![DRB1_manhattan](15_hla_manhattan/DRB1_manhattan.png)
-![DQA1_manhattan](15_hla_manhattan/DQA1_manhattan.png)
-![DQB1_manhattan](15_hla_manhattan/DQB1_manhattan.png)
-![DPA1_manhattan](15_hla_manhattan/DPA1_manhattan.png)
-![DPB1_manhattan](15_hla_manhattan/DPB1_manhattan.png)
-![DRA_manhattan](15_hla_manhattan/DRA_manhattan.png)
-![E_manhattan](15_hla_manhattan/E_manhattan.png)
-![F_manhattan](15_hla_manhattan/F_manhattan.png)
-![G_manhattan](15_hla_manhattan/G_manhattan.png)
+![panel_overview](21_hla_manhattan/panel_overview.png)
+![A_manhattan](21_hla_manhattan/A_manhattan.png)
+![B_manhattan](21_hla_manhattan/B_manhattan.png)
+![C_manhattan](21_hla_manhattan/C_manhattan.png)
+![DRB1_manhattan](21_hla_manhattan/DRB1_manhattan.png)
+![DQA1_manhattan](21_hla_manhattan/DQA1_manhattan.png)
+![DQB1_manhattan](21_hla_manhattan/DQB1_manhattan.png)
+![DPA1_manhattan](21_hla_manhattan/DPA1_manhattan.png)
+![DPB1_manhattan](21_hla_manhattan/DPB1_manhattan.png)
+![DRA_manhattan](21_hla_manhattan/DRA_manhattan.png)
+![E_manhattan](21_hla_manhattan/E_manhattan.png)
+![F_manhattan](21_hla_manhattan/F_manhattan.png)
+![G_manhattan](21_hla_manhattan/G_manhattan.png)
 
 **Honest limitations, stated in the source report and worth carrying into slides if this result is
 featured prominently:** insertions relative to the canonical reference have no coordinate and are

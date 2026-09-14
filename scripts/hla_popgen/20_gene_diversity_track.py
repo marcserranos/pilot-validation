@@ -65,11 +65,11 @@ correctness. `--plot` triggers this; the subset size (`n_dominant_template_haps`
 the trade-off is visible, not hidden.
 
 Usage (prototype, small sample):
-    python3 scripts/hla_popgen/11_gene_diversity_track.py --outroot ~/pipeline_outputs/people \\
+    python3 scripts/hla_popgen/20_gene_diversity_track.py --outroot ~/pipeline_outputs/people \\
         --limit 50 --out-dir /tmp/diversity_track_prototype
 
 Real run (VM, larger cohort, threaded I/O, with plots):
-    python3 scripts/hla_popgen/11_gene_diversity_track.py --limit 2000 --threads 6 --plot
+    python3 scripts/hla_popgen/20_gene_diversity_track.py --limit 2000 --threads 6 --plot
 """
 import argparse
 import concurrent.futures
@@ -480,7 +480,7 @@ def main():
                      help="Also write a template-stratified Manhattan/needle PNG per gene.")
     args = ap.parse_args()
 
-    out_dir = args.out_dir or os.path.expanduser("~/results/11_gene_diversity_track")
+    out_dir = args.out_dir or os.path.expanduser("~/results/20_gene_diversity_track")
     os.makedirs(out_dir, exist_ok=True)
 
     if args.persons_file:
