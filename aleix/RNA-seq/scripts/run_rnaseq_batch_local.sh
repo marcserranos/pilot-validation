@@ -23,10 +23,17 @@
 #
 # Usage:
 #   bash run_rnaseq_batch_local.sh <cohort.tsv> [--jobs N] [--staging DIR] [--threads-per-job T]
+#                                   [--results-bucket gs://...]
 #     cohort.tsv        research_id, ancestry, bam_rel_path  (from build_rnaseq_cohort.py)
 #     --jobs N          concurrency AND max BAMs on disk at once   (default 8)
 #     --staging DIR     where BAMs are copied                       (default ~/pipeline_outputs/rnaseq/_staging)
 #     --threads-per-job T   -t passed to each run-trust4           (default: nproc / jobs, min 2)
+#     --results-bucket  gs:// prefix each finished person's output dir is synced to, right
+#                        after that person succeeds (default below). Safe across N sharded
+#                        VMs with zero coordination: research_id is globally unique, so
+#                        concurrent syncs from different machines never collide, and syncing
+#                        per-person (not just at the end) means a preempted/killed VM never
+#                        loses more than the one person it was mid-run on.
 set -uo pipefail
 
 COHORT="${1:?need a cohort tsv (research_id, ancestry, bam_rel_path) -- from build_rnaseq_cohort.py}"
@@ -35,11 +42,13 @@ shift || true
 JOBS=8
 STAGING="$HOME/pipeline_outputs/rnaseq/_staging"
 TPJ=""
+RESULTS_BUCKET="gs://aleix-disease-counts-wb-cordial-leechee-9743/rnaseq_results"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --jobs)            JOBS="${2:?--jobs needs a number}"; shift 2;;
     --staging)         STAGING="${2:?--staging needs a dir}"; shift 2;;
     --threads-per-job) TPJ="${2:?--threads-per-job needs a number}"; shift 2;;
+    --results-bucket)  RESULTS_BUCKET="${2:?--results-bucket needs a gs:// path}"; shift 2;;
     *) echo "unknown arg: $1"; exit 1;;
   esac
 done
@@ -51,8 +60,18 @@ OUT_BASE="$HOME/pipeline_outputs/rnaseq"
 LOG="$OUT_BASE/batch_local.log"
 BILLING="${GOOGLE_PROJECT:?GOOGLE_PROJECT not set -- needed for the requester-pays bucket}"
 
+# ---- preflight: fail loud and early on a fresh VM missing a tool, instead of 20 minutes
+# into a batch. TRUST4 reference files are the one thing a fresh disk never has -- rebuild
+# them automatically rather than erroring, since setup_trust4_refs.sh is idempotent and this
+# is exactly what it's for.
 command -v gcloud >/dev/null || { echo "FATAL: gcloud not on PATH"; exit 1; }
+command -v pixi   >/dev/null || { echo "FATAL: pixi not on PATH -- install it before running this"; exit 1; }
 [[ -s "$COHORT" ]] || { echo "FATAL: missing/empty cohort file: $COHORT"; exit 1; }
+REF_DIR="$REPO/aleix/RNA-seq/reference"
+if [[ ! -s "$REF_DIR/hg38_bcrtcr.fa" || ! -s "$REF_DIR/human_IMGT+C.fa" ]]; then
+  echo "TRUST4 reference files missing (fresh disk) -- running setup_trust4_refs.sh ..."
+  bash "$SCRIPT_DIR/setup_trust4_refs.sh" || { echo "FATAL: setup_trust4_refs.sh failed"; exit 1; }
+fi
 mkdir -p "$STAGING" "$OUT_BASE"
 
 NPROC=$(nproc)
@@ -71,7 +90,7 @@ if [[ -n "$FREE_GB" ]] && (( FREE_GB < NEED_GB )); then
 fi
 
 N_TOTAL=$(($(wc -l < "$COHORT") - 1))
-echo "==== RNA-seq COPY-LOCAL batch :: ${N_TOTAL} people :: jobs=${JOBS} :: -t ${TPJ}/job :: staging=${STAGING} :: $(date) ====" | tee -a "$LOG"
+echo "==== RNA-seq COPY-LOCAL batch :: ${N_TOTAL} people :: jobs=${JOBS} :: -t ${TPJ}/job :: staging=${STAGING} :: results->${RESULTS_BUCKET} :: $(date) ====" | tee -a "$LOG"
 
 run_one() {
   local research_id="$1" bam_rel="$2"
@@ -109,14 +128,20 @@ run_one() {
 
   if [[ -s "$report" ]]; then
     local n; n=$(($(wc -l < "$report") - 1))
-    echo "[$research_id] OK  copy $((t1-t0))s  trust4 $((t2-t1))s  total $((t2-t0))s  ${n} CDR3s"
+    if gcloud storage cp --billing-project "$BILLING" -r "$out" \
+        "${RESULTS_BUCKET}/" >/dev/null 2>"${out}.sync.err"; then
+      rm -f "${out}.sync.err"
+      echo "[$research_id] OK  copy $((t1-t0))s  trust4 $((t2-t1))s  total $((t2-t0))s  ${n} CDR3s  synced"
+    else
+      echo "[$research_id] OK (local only, BUCKET SYNC FAILED -- $(tail -1 "${out}.sync.err" 2>/dev/null))  ${n} CDR3s"
+    fi
   else
     echo "[$research_id] !! TRUST4 FAILED after $((t2-t0))s -- see ${out}.batch.log"
     return 1
   fi
 }
 export -f run_one
-export SCRIPT_DIR OUT_BASE BUCKET BILLING STAGING
+export SCRIPT_DIR OUT_BASE BUCKET BILLING STAGING RESULTS_BUCKET
 
 tail -n +2 "$COHORT" | cut -f1,3 | \
   xargs -P "$JOBS" -L1 bash -c 'run_one "$1" "$2"' _ \
@@ -126,4 +151,11 @@ DONE=$(tail -n +2 "$COHORT" | cut -f1 | while read -r r; do
          [[ -s "$OUT_BASE/$r/${r}_report.tsv" ]] && echo x; done | wc -l)
 echo "==== batch finished :: ${DONE}/${N_TOTAL} have a report.tsv :: $(date) ====" | tee -a "$LOG"
 echo "Left on disk (should be empty):"; ls -la "$STAGING" 2>/dev/null | tail -n +2
-echo "Aggregate with:  pixi run python3 $SCRIPT_DIR/aggregate_rnaseq_results.py $COHORT"
+SYNC_FAILS=$(ls "$OUT_BASE"/*.sync.err 2>/dev/null | wc -l)
+if (( SYNC_FAILS > 0 )); then
+  echo "!! ${SYNC_FAILS} people finished but failed to sync to ${RESULTS_BUCKET} -- see $OUT_BASE/*.sync.err"
+  echo "   Retry with:  for d in \$(ls $OUT_BASE/*.sync.err | sed 's/\\.sync\\.err\$//'); do gcloud storage cp --billing-project $BILLING -r \"\$d\" ${RESULTS_BUCKET}/ && rm \"\$d.sync.err\"; done"
+else
+  echo "All finished people synced to ${RESULTS_BUCKET}"
+fi
+echo "Aggregate (this shard only) with:  pixi run python3 $SCRIPT_DIR/aggregate_rnaseq_results.py $COHORT"
