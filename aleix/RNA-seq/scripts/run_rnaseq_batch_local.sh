@@ -42,7 +42,7 @@ shift || true
 JOBS=8
 STAGING="$HOME/pipeline_outputs/rnaseq/_staging"
 TPJ=""
-RESULTS_BUCKET="gs://aleix-disease-counts-wb-cordial-leechee-9743/rnaseq_results"
+RESULTS_BUCKET="gs://aleix-rnaseq-wb-cordial-leechee-9743/repertoire_results"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --jobs)            JOBS="${2:?--jobs needs a number}"; shift 2;;
