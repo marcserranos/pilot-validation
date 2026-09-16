@@ -40,3 +40,6 @@
 - 2026-09-17: usage limit interrupted the session; VM runs were unaffected. Script 25 full run
   finished: 15,112 distinct non-coding sequences behind 708 former clusters (max 287 in one),
   21.3% homopolymer-only. Script 27 implementer was killed mid-way and is being relaunched.
+- Script 27 (coverage) implemented, tested on the VM, run on the full cohort; results pulled and
+  committed. Off-by-one in 21_hla_manhattan confirmed but harmless (affects only an unused field);
+  patched with a regression test.

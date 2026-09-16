@@ -76,3 +76,53 @@ catalogue built from this sample would type X% of haplotypes in this population.
 
 ## Distilled (for SPRINT.md)
 (pending results)
+
+## Results — script 27, full cohort (2026-09-17)
+Unrelated people, clean alleles, strict ancestry (admixture proportion ≥0.9).
+
+**1. How much have we seen? Essentially all of it, at protein level.** Sample coverage per gene ×
+ancestry is **99.0–99.8%** for the eight classical genes (mean by ancestry: AFR 98.9%, MID 99.2%,
+SAS 99.2%, EAS 99.7%, AMR 99.7%, EUR 99.7%). CDS resolution is nearly identical. So a catalogue
+built from this cohort already types about 99 of every 100 haplotypes drawn from the same
+population — the classical HLA protein space is close to saturated at n≈12,000, and the older
+"only 5–20% discovered" figure was a richness estimate inflated by artifacts and by pooled
+non-coding clusters.
+
+**2. The reference is not the problem at protein level.** 99.6–100% of haplotypes in every
+ancestry already carry a protein present in IPD-IMGT/HLA. Reference bias in this data is a
+*genomic-sequence* gap (field 4), not a protein gap.
+
+**3. The real finding — catalogues do not transfer across ancestries.** Building a catalogue from
+an equal number of haplotypes (~570, the smallest strict group) from one ancestry and using it to
+type another, averaged over the 8 classical genes (protein resolution):
+
+| catalogue from ↓ / types → | AFR | AMR | EAS | EUR | MID | SAS |
+|---|---|---|---|---|---|---|
+| AFR | 98.7 | 90.3 | 80.6 | **97.3** | 92.6 | 88.3 |
+| AMR | 97.2 | 98.8 | 85.9 | 98.9 | 96.9 | 93.5 |
+| EAS | 71.8 | 85.2 | 99.1 | 92.7 | 85.1 | 95.3 |
+| EUR | **83.1** | 90.2 | 82.3 | 99.2 | 95.2 | 91.4 |
+| MID | 95.4 | 91.2 | 79.7 | 98.1 | 100.0 | 93.8 |
+| SAS | 77.1 | 87.1 | 91.0 | 95.7 | 92.1 | 99.2 |
+
+The matrix is strongly **asymmetric**: an African catalogue types 97.3% of European haplotypes,
+while a European catalogue of the same size types only 83.1% of African ones. African catalogues
+are the best all-rounders; East Asian catalogues transfer worst to Africa (71.8%). This is a
+direct, quantitative reference-panel design argument, and the cleanest answer to "how many people
+from which ancestry would we need".
+
+**4. Sampling designs at the full cohort size are uninformative** — every design (actual, equal,
+94% EUR, greedy) reaches ~100% global coverage at n≈22,000 haplotypes, because the classical
+protein space is saturated. The informative comparison is the equal-size matrix above; a budget
+curve (coverage vs catalogue size per design) is the natural next figure.
+
+**5. Where coverage is NOT saturated:** the non-classical genes — DPB2 90.3%, TAP2 99.0%,
+MICA 99.1%, HFE 99.3%, DRB5 99.3%, TAP1 99.3%. Same conclusion as WS1: the undiscovered MHC is
+outside the classical genes.
+
+### Distilled (for SPRINT.md)
+- Protein-level coverage of the classical genes is 99.0–99.8% per ancestry: near-saturation, not
+  "5–20% discovered".
+- 99.6–100% of haplotypes carry an IMGT-catalogued protein; the reference gap is genomic, not protein.
+- Equal-size catalogues transfer asymmetrically: AFR→EUR 97.3% vs EUR→AFR 83.1%; EAS→AFR 71.8%.
+- Non-classical genes (DPB2, TAP1/2, MIC, HFE, DRB5) are the unsaturated part.

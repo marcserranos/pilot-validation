@@ -123,6 +123,14 @@ So the honest headline is **hundreds of new HLA proteins, not thousands**; ~25k 
 are a naming artifact (their CDS is catalogued); and the bulk of "protein-altering" novelty is
 frameshift/stop calls dominated by homopolymer artifacts.
 
+**WS3 — coverage (script 27, full cohort):** protein-level sample coverage of the 8 classical
+genes is **99.0–99.8%** per ancestry (near-saturation; the old "5–20% discovered" was a
+richness estimate inflated by artifacts), and 99.6–100% of haplotypes already carry an
+IMGT-catalogued protein. The finding is the **asymmetric transfer matrix**: equal-size catalogues
+(~570 haplotypes) built from AFR type 97.3% of EUR haplotypes, while EUR-built catalogues type only
+83.1% of AFR (EAS→AFR 71.8%). Unsaturated genes are all non-classical (DPB2 90.3%, TAP2 99.0%,
+MICA 99.1%).
+
 **WS1 — where the novelty is:** of 347 clean novel proteins recurrent in ≥2 unrelated people,
 only **8 are in the 8 classical genes** (A/B/C: 2; DR/DQ/DP: 6). The rest are TAP1/TAP2 (147),
 MIC (36), class II accessory DM/DO/DQA2/DQB2 (67), DRB paralogs (49), E/F/G (32). Possible
