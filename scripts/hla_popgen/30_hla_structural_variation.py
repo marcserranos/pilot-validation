@@ -474,6 +474,10 @@ def write_readme(path, args, gene_rates, anc_rates, dup, drb_summ, c4_dist, c4_s
              "(script 16's `derive_canonical_order`), because `gene_start` is contig-relative, "
              "not hg38 (SCHEMA.md Table 1).\n")
     L.append("- Duplication candidates are not validated by depth.\n")
+    L.append("- **A gene at either end of the annotated region can never be bridged**, because "
+             "nothing flanks it on one side. Such a gene will always report a 0% deletion rate "
+             "here — that is 'not testable by this method', not 'never deleted'. Check a gene's "
+             "`n_bridged` before reading its rate.\n")
     with open(path, "w") as fh:
         fh.write("\n".join(L))
 
@@ -543,22 +547,22 @@ def run(args):
     c4_dist, c4_size = c4_copy_number(t1)
 
     # ---- write ----
-    gene_rates.to_csv(os.path.join(args.out_dir, "deletion_rates_by_gene.tsv"), sep="\t",
+    gene_rates.to_csv(os.path.join(args.out_dir, "deletion_rates_by_gene.tsv"), sep="\t", na_rep="NA",
                       index=False)
     if not anc_rates.empty:
         anc_rates.to_csv(os.path.join(args.out_dir, "deletion_rates_by_gene_ancestry.tsv"),
-                         sep="\t", index=False)
+                         sep="\t", index=False, na_rep="NA")
     dup_out = dup.copy()
     dup_out["n_multi_copy"] = dup_out["n_multi_copy"].map(suppress)
     dup_out["n_haplotype_contigs"] = dup_out["n_haplotype_contigs"].map(suppress)
-    dup_out.to_csv(os.path.join(args.out_dir, "duplication_candidates.tsv"), sep="\t", index=False)
+    dup_out.to_csv(os.path.join(args.out_dir, "duplication_candidates.tsv"), sep="\t", index=False, na_rep="NA")
     if not drb_summ.empty:
-        drb_summ.to_csv(os.path.join(args.out_dir, "drb_positive_control.tsv"), sep="\t",
+        drb_summ.to_csv(os.path.join(args.out_dir, "drb_positive_control.tsv"), sep="\t", na_rep="NA",
                         index=False)
     if not c4_dist.empty:
-        c4_dist.to_csv(os.path.join(args.out_dir, "c4_copy_number.tsv"), sep="\t", index=False)
+        c4_dist.to_csv(os.path.join(args.out_dir, "c4_copy_number.tsv"), sep="\t", index=False, na_rep="NA")
     if not c4_size.empty:
-        c4_size.to_csv(os.path.join(args.out_dir, "c4_long_short.tsv"), sep="\t", index=False)
+        c4_size.to_csv(os.path.join(args.out_dir, "c4_long_short.tsv"), sep="\t", index=False, na_rep="NA")
 
     fig_deletion_rates(gene_rates, os.path.join(args.out_dir, "fig_deletion_rates.png"),
                        gene_order)

@@ -293,18 +293,29 @@ def allele_fst(freq_by_anc, n_by_anc):
 # ---------------------------------------------------------------------------
 # ARS contacts (optional)
 # ---------------------------------------------------------------------------
-def load_ars_contacts(path):
-    """reference/ars_peptide_contacts.tsv -> {gene: DataFrame} or {} when absent.
+def load_ars_module(contacts_path):
+    """-> the `_ars_residues` module when the structural contact data is present, else None.
 
     Absence is normal and not an error: the structural derivation is a separate workstream, and
-    every headline number in this script is computed without it.
+    every headline number in this script is computed without it. What is NOT acceptable is a
+    silent partial load -- if the contacts file exists but the chain sequences that make the
+    residue numbers transferable do not, we say so, because contacts that cannot be mapped onto
+    our own protein numbering would otherwise be dropped without a word.
     """
-    if not path or not os.path.exists(path):
-        return {}
-    df = pd.read_csv(path, sep="\t")
-    if "gene" not in df.columns:
-        return {}
-    return {g: sub for g, sub in df.groupby("gene")}
+    if not contacts_path or not os.path.exists(contacts_path):
+        return None
+    try:
+        ars = mod("_ars_residues.py", "ars_residues")
+    except Exception as e:                                    # noqa: BLE001
+        print("[31] WARNING: ars contacts present but _ars_residues.py failed to import (%s); "
+              "continuing with the exon-level comparison only" % e, flush=True)
+        return None
+    if not hasattr(ars, "contact_indices_for"):
+        print("[31] WARNING: _ars_residues.py has no contact_indices_for(); the residue numbers "
+              "in the contacts file are in structure numbering and cannot be transferred onto "
+              "our reference proteins. Exon-level comparison only.", flush=True)
+        return None
+    return ars
 
 
 # ---------------------------------------------------------------------------
@@ -460,11 +471,10 @@ def run(args):
         print("[31] WARNING: %s absent; groove-exon comparison will be skipped" % alleles_csv,
               flush=True)
 
-    ars = load_ars_contacts(args.ars_contacts)
-    if ars:
-        print("[31] ARS peptide contacts loaded for: %s" % sorted(ars), flush=True)
-    else:
-        print("[31] no ARS contact file; groove-exon comparison only (this is fine)", flush=True)
+    ars = load_ars_module(args.ars_contacts)
+    print("[31] structural peptide-contact residues: %s"
+          % ("available" if ars else "not available (exon-level comparison only; this is fine)"),
+          flush=True)
 
     codon_rows, summary_rows, fst_rows = [], [], []
     coverage_rows = []
@@ -502,11 +512,15 @@ def run(args):
                 exon_of_codon = codon_to_exon(segs)
                 groove = m24.groove_exons_for(gene)
 
+        # Transfer structural contact residues onto OUR reference protein by alignment. Our
+        # proteins carry the signal peptide; the structures do not, so a fixed offset would be
+        # wrong by a gene-specific 24-29 residues. Alignment absorbs that.
         ars_idx = []
-        if gene in ars:
-            col = "ref_index0" if "ref_index0" in ars[gene].columns else None
-            if col:
-                ars_idx = [int(v) for v in ars[gene][col] if 0 <= int(v) < L]
+        if ars is not None:
+            try:
+                ars_idx = [i for i in ars.contact_indices_for(gene, ref_prot) if 0 <= i < L]
+            except Exception as e:                            # noqa: BLE001
+                print("[31] WARNING: contact transfer failed for %s (%s)" % (gene, e), flush=True)
 
         # per-codon table
         for i in range(L):
@@ -570,23 +584,23 @@ def run(args):
                                                             float(np.mean(pi_all))), flush=True)
 
     pd.DataFrame(codon_rows).to_csv(os.path.join(args.out_dir, "aa_diversity_per_residue.tsv"),
-                                    sep="\t", index=False)
+                                    sep="\t", index=False, na_rep="NA")
     pd.DataFrame(summary_rows).to_csv(os.path.join(args.out_dir, "groove_vs_rest_summary.tsv"),
-                                      sep="\t", index=False)
+                                      sep="\t", index=False, na_rep="NA")
     pd.DataFrame(fst_rows).to_csv(os.path.join(args.out_dir, "allele_differentiation.tsv"),
-                                  sep="\t", index=False)
+                                  sep="\t", index=False, na_rep="NA")
     pd.DataFrame(coverage_rows).to_csv(os.path.join(args.out_dir, "protein_reference_coverage.tsv"),
-                                       sep="\t", index=False)
+                                       sep="\t", index=False, na_rep="NA")
 
     fig_groove_ratio(summary_rows, os.path.join(args.out_dir, "fig_groove_enrichment.png"))
     fig_fst(fst_rows, os.path.join(args.out_dir, "fig_allele_differentiation.png"))
 
     write_readme(os.path.join(args.out_dir, "README.md"), args, summary_rows, fst_rows,
-                 coverage_rows, n_people, n_calls, unresolved, bool(ars))
+                 coverage_rows, n_people, n_calls, unresolved, ars is not None)
     with open(os.path.join(args.out_dir, "summary.json"), "w") as fh:
         json.dump({"n_people_unrelated": suppress(n_people),
                    "pct_calls_unresolved_protein": round(100.0 * unresolved / max(1, n_calls), 3),
-                   "ars_contacts_used": bool(ars),
+                   "ars_contacts_used": ars is not None,
                    "genes": [r["gene"] for r in summary_rows]}, fh, indent=2)
     print("[31] done -> %s" % args.out_dir, flush=True)
 

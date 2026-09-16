@@ -1,0 +1,17 @@
+{
+  "n_clusters_total": 1823,
+  "n_tier1_main_text": 38,
+  "n_tier2_submission": 309,
+  "tier1_genes": [
+    "HLA-DMA",
+    "HLA-DMB",
+    "HLA-DOA",
+    "HLA-DQA2",
+    "HLA-DQB2",
+    "HLA-F",
+    "HLA-G",
+    "MICB",
+    "TAP1",
+    "TAP2"
+  ]
+}

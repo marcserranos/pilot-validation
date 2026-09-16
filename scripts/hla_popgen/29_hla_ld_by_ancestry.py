@@ -663,7 +663,7 @@ def run(args):
         df = pd.DataFrame(rows)
         if cols:
             df = df[[c for c in cols if c in df.columns]]
-        df.to_csv(os.path.join(args.out_dir, name), sep="\t", index=False)
+        df.to_csv(os.path.join(args.out_dir, name), sep="\t", index=False, na_rep="NA")
         return df
 
     w(diag_rows, "phasing_yield.tsv")

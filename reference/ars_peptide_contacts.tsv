@@ -1,0 +1,207 @@
+gene	pdb_id	mhc_chain	peptide_chain	cutoff_angstrom	author_resnum	aa	source
+A	1HHK	A	C	4.5	5	M	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	7	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	9	F	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	45	M	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	59	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	63	E	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	66	K	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	67	V	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	70	H	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	73	T	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	76	V	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	77	D	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	80	T	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	81	L	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	84	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	97	R	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	99	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	114	H	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	116	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	123	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	143	T	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	146	K	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	147	W	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	152	V	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	155	Q	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	156	L	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	159	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	163	T	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	167	W	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+A	1HHK	A	C	4.5	171	Y	RCSB 1HHK (HLA-A*02:01 + HTLV-1 Tax peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	5	M	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	7	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	9	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	59	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	62	R	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	63	N	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	66	I	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	67	F	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	70	N	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	73	T	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	74	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	77	N	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	80	I	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	84	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	95	I	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	97	R	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	99	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	114	D	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	123	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	143	T	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	146	K	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	147	W	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	152	V	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	155	Q	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	156	L	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	159	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	167	W	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+B	1A1M	A	C	4.5	171	Y	RCSB 1A1M (HLA-B*53:01 + HIV-2 Gag peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	5	M	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	7	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	9	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	59	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	62	R	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	63	E	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	66	K	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	67	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	69	R	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	70	Q	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	73	T	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	76	V	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	77	S	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	80	N	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	81	L	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	84	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	95	L	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	97	R	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	99	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	116	F	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	123	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	143	T	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	146	K	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	147	W	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	152	T	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	155	Q	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	156	L	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	159	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	167	W	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+C	4NT6	A	C	4.5	171	Y	RCSB 4NT6 (HLA-C*08:01 + influenza M1 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	9	Q	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	11	E	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	22	F	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	24	F	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	31	I	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	32	F	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	43	W	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	51	F	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	52	A	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	53	S	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	54	F	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	55	E	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	58	G	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	59	A	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	62	N	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	65	V	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	66	D	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	68	A	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	69	N	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	72	I	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	73	M	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRA	1DLH	A	C	4.5	76	R	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	9	W	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	11	L	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	13	F	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	26	L	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	28	E	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	47	Y	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	56	P	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	57	D	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	60	Y	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	61	W	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	67	L	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	70	Q	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	71	R	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	74	A	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	77	T	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	78	Y	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	81	H	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	82	N	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	85	V	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	86	G	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DRB1	1DLH	B	C	4.5	89	F	RCSB 1DLH (HLA-DR1 DRA/DRB1*01:01 + influenza HA306-318 peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	9	Y	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	22	Y	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	24	H	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	43	W	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	52	R	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	53	R	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	54	F	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	58	F	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	62	N	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	65	V	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	66	L	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	68	H	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	69	N	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	72	I	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	73	V	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQA1	1JK8	A	C	4.5	76	R	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	11	F	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	13	G	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	14	M	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	15	C	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	26	L	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	28	T	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	30	Y	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	37	Y	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	47	Y	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	56	P	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	57	A	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	60	Y	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	61	W	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	67	V	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	74	E	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	77	T	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	78	V	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	79	C	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	81	H	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	82	N	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	85	L	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DQB1	1JK8	B	C	4.5	88	R	RCSB 1JK8 (HLA-DQ8 DQA1*03:01/DQB1*03:02 + insulin B peptide); this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	9	Y	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	22	F	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	31	M	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	32	F	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	43	W	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	52	F	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	53	S	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	54	F	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	55	E	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	58	G	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	62	N	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	65	I	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	66	L	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	69	N	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	72	T	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	73	L	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPA1	3LQZ	A	Z	4.5	76	R	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	9	F	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	11	G	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	13	Q	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	24	F	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	26	E	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	28	Y	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	45	F	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	54	P	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	55	D	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	58	Y	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	59	W	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	65	I	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	68	E	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	69	E	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	72	V	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	76	M	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	79	H	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	80	N	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	83	L	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
+DPB1	3LQZ	B	Z	4.5	84	G	RCSB 3LQZ (HLA-DP2 DPA1/DPB1); peptide covalently linked to beta chain (author resnum < 0), split by resnum during preprocessing; this project's own contact recomputation
