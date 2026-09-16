@@ -271,3 +271,17 @@ JSON, which nothing reads: per-site π, the Manhattan figures and `panel_summary
 from `observed`, whose substitution and deletion branches are correct. **The capstone
 CDS-vs-non-CDS diversity results do not need regenerating.** Patched anyway, with a regression test,
 before anything starts consuming `insertion_counts`.
+
+
+## Correction (2026-09-17, from a fresh-context review of the findings doc)
+Three errors in the first write-up of these results, now fixed everywhere:
+1. **"8 recurrent clean novel proteins in the classical genes" was wrong as stated.** 8 is the count
+   when synonymous-CDS clusters are included; the protein-only count is **6**. Totals: 231 recurrent
+   clean novel proteins, 347 including synonymous clusters.
+2. **The gene-family breakdown was labelled with the repo's `gene_class` buckets but described with
+   different gene names.** Correct per-gene-group counts (protein-only / including synonymous):
+   TAP1+TAP2 **104 / 147**; DM+DO+DQA2+DQB2 **68 / 110**; E+F+G **23 / 32**; MIC **22 / 36**;
+   DRB3/4/5 **1 / 3**. (`class_II_accessory` in the repo is DMA/DMB/DOA/DOB/DRA, and
+   `class_II_paralog` is DPB2/DQA2/DQB2/DRB3/4/5 — not what those labels suggest.)
+3. The qualitative conclusion is unchanged and if anything strengthened: recurrent novel proteins
+   are overwhelmingly outside the classical genes, and TAP1/TAP2 alone carry 104 of 231.

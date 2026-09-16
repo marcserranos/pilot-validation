@@ -680,9 +680,9 @@ calls, 375 s).** 280,695 novel calls: 172,272 non-coding-only (field 4), 30,795 
 3), 75,442 protein (field 2, 71% carrying an artifact flag). Of the 104,532 field-2/3 calls with a
 recovered CDS: 25,282 have a CDS already in IPD-IMGT (naming artifact, mostly MIC/TAP), 72,667 are
 frameshift/premature-stop, 5,288 are genuine novel-protein calls → **1,404 distinct novel proteins,
-1,026 fully clean, 347 recurrent in ≥2 unrelated people**. Of those 347, only **8 are in the 8
-classical genes**; the rest are TAP1/TAP2 (147), class II accessory (67), DRB paralogs (49), E/F/G
-(32), MIC (36). The earlier "90.8% of novel clusters are protein-altering" is retracted: 87% of
+1,026 fully clean, 231 recurrent in ≥2 unrelated people** (347 including synonymous-CDS clusters).
+Of the 231 novel proteins only **6 are in the 8 classical genes**; the rest are TAP1/TAP2 (104),
+DM/DO/DQA2/DQB2 (68), E/F/G (23), MIC (22), DRB3/4/5 (1). The earlier "90.8% of novel clusters are protein-altering" is retracted: 87% of
 those clusters are flagged artifacts (mostly homopolymer indels).
 
 **25 — non-coding novelty resolved to real sequences (classical genes, 32,207 depth-4 haplotypes,

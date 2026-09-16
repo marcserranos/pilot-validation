@@ -136,3 +136,12 @@ Direction and conclusion are unchanged — coverage is high either way and far a
 overwhelmingly singletons and singletons are what coverage is most sensitive to. **Report both
 numbers in the paper.** Files: `sensitivity_all_alleles_summary.json`,
 `sensitivity_all_alleles_coverage_by_gene_ancestry.tsv`.
+
+
+## Correction (2026-09-17): coverage range and catalogue size
+- Protein coverage across the 8 classical genes spans **97.07-99.84%**, not "99.0-99.8% in every
+  ancestry": MID falls below 99% for four of eight genes (HLA-B 97.07%, HLA-A 97.74%, DPB1 98.44%,
+  DQB1 98.79%). Every other ancestry's minimum is >= 99.03%. MID is also the thinnest group, so this
+  is partly sample size.
+- The cross-ancestry catalogue size is **566-585 haplotypes, set per gene by the smallest group**,
+  not a single 575. Describe it as "equal size per gene (~570)".

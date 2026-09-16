@@ -60,14 +60,22 @@ Source: `reports/hla_popgen/24_novelty_by_field/`.
 
 ### 2.3 The novelty is not where we assumed — and this may be the better paper
 
-Of the recurrent, clean novel proteins, **only 8 are in the eight classical HLA genes**. The rest
-are in genes nobody types at population scale: TAP1/TAP2 (147), the class II accessory genes
-DM/DO/DQA2/DQB2 (67), the DRB paralogs (49), MICA/MICB (36), and HLA-E/F/G (32).
+Of the 231 recurrent, clean novel **proteins**, **only 6 are in the eight classical HLA genes**
+(B, C, DPA1, DPB1, DQB1, DRB1 — one each). The rest are in genes nobody types at population scale:
+TAP1/TAP2 (104), the DM/DO/DQA2/DQB2 accessory genes (68), HLA-E/F/G (23), MICA/MICB (22), the DRB
+paralogs (1). Counting synonymous-CDS clusters as well, the totals are 347 overall and 8 in the
+classical genes (TAP1/TAP2 147, DM/DO/DQA2/DQB2 110, MIC 36, E/F/G 32, DRB3/4/5 3).
 
 So the defensible story is not "we found thousands of new HLA alleles". It is: **the classical HLA
 genes are close to exhausted at protein level in a cohort this size, and the remaining undiscovered
 MHC is the non-classical part that only long reads can type.** That is a cleaner claim, and it is
 one nobody has made at this scale.
+
+*Precision that must travel with that sentence:* "exhausted" means **coverage**, not **richness**.
+A catalogue from this cohort types ~99 of every 100 classical-gene haplotypes, but the same data
+estimate that a substantial number of distinct alleles remain unseen (HLA-B in African-ancestry
+samples: 105 observed, ~177 estimated). Rare alleles keep being discovered; they just rarely change
+how a random person types. Never state the first half without the second (§2.5).
 
 *Caveat I would check before leaning on it:* MIC/TAP novelty may partly reflect a thinner reference
 for those genes — 22,657 of the 25,282 "already catalogued under another name" calls are MIC/TAP.
@@ -114,13 +122,14 @@ in.
 
 The stable quantity is **coverage**: the chance that the next person's haplotype carries an allele
 we have already seen. For the eight classical genes, at protein level, coverage is
-**99.0–99.8% in every ancestry group**. In plain terms: a catalogue built from this cohort already
+**99.0–99.8% for AFR, AMR, EAS, EUR and SAS**. The Middle Eastern group is the exception and the
+thinnest (≈575 haplotypes): it drops as low as **97.1%** (HLA-B). In plain terms: a catalogue built from this cohort already
 types about 99 of every 100 haplotypes. Both statements are true at once — for HLA-B in
 African-ancestry samples we see 105 distinct proteins, estimate ~177 exist, and still cover 99.2%
 of haplotypes, because everything undiscovered is very rare.
 
 **And the part I think is genuinely novel:** catalogues do not transfer across ancestries, and the
-asymmetry is stark. Building catalogues of *equal size* (575 haplotypes) and using them to type
+asymmetry is stark. Building catalogues of *equal size* (≈570 haplotypes; 566–585, set per gene by the smallest group) and using them to type
 other groups, averaged over the classical genes:
 
 - African-ancestry catalogue → types 97% of European haplotypes
