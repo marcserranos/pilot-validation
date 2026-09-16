@@ -31,3 +31,6 @@
   Script 25's full run waits for the critic fixes.
 - First full run of 26 gave an impossible 78% relative discordance. Root cause: cds.fa.gz header
   ordinals are not copy indices (see WS2). Fixed, regression-tested, re-running.
+- Script 24 full run done (375 s): 1,404 distinct novel proteins, 1,026 clean, 231 recurrent in
+  unrelated people; 25,282 novel-flagged calls have a CDS already in IMGT (naming artifact);
+  72,667 frameshift/stop calls.

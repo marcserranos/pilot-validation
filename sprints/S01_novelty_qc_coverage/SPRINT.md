@@ -105,6 +105,30 @@ scripts 24/25/26 specs; script 25 written, tests pass on the VM; VM quirks #35�
 
 ## 5. Headline findings (distilled from briefs; newest first)
 
-- (none yet this sprint) Carried in from 2026-09-15: after removing flagged artifacts, 93–99.7% of
-  novel classical-gene haplotypes are non-coding-only; 7 recurrent CDS-changing novel alleles.
-  **Status: being re-derived in WS1 — treat as provisional.**
+**WS1 — what "novel" really is (script 24, full cohort: 12,233 people, 11,856 unrelated, 875,179
+haplotype-gene calls, 2026-09-16):**
+
+| step | count |
+|---|---|
+| calls the pipeline flagged novel (any field) | 280,695 |
+| …novel only outside the CDS (field 4) | 172,272 |
+| …novel synonymous CDS (field 3) | 30,795 |
+| …novel protein (field 2) | 75,442 (71% carry an artifact flag; 22,122 clean) |
+| of field-2/3 calls with a recovered sequence (104,532): CDS already in IPD-IMGT (naming artifact) | 25,282 |
+| …frameshift or premature stop | 72,667 |
+| …genuinely novel protein calls | 5,288 |
+| **distinct novel proteins** | **1,404** (1,026 entirely clean) |
+| **novel proteins recurrent in ≥2 unrelated people** | **231** |
+| distinct novel synonymous CDS | 419 |
+
+So the honest headline is **hundreds of new HLA proteins, not thousands**; ~25k novel-flagged calls
+are a naming artifact (their CDS is catalogued); and the bulk of "protein-altering" novelty is
+frameshift/stop calls dominated by homopolymer artifacts.
+
+**WS2 — QC:** the previous "0 switches / 95% concordance" pair is not usable as evidence (errors
+are excluded before switches are counted; no denominator; pairs selected on the statistic
+reported). Script 26 rebuilds it. A real-data bug (cds.fa.gz header ordinals read as copy indices)
+first produced an impossible 78% discordance — fixed, regression-tested, re-running.
+
+**Carried in from 2026-09-15 (still true, now better quantified):** non-coding novelty dominates,
+and the flagged-artifact rate is flat across ancestries (a built-in control).
