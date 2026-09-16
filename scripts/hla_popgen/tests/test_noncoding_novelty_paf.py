@@ -126,9 +126,9 @@ def make_alignment(allele, edits, strand, qstart=0, qend=None):
     return contig, cs_from_cols(cols), qstart, qend
 
 
-def paf_line(qname, qlen, qs, qe, strand, tname, tlen, ts, te, nm, cs):
+def paf_line(qname, qlen, qs, qe, strand, tname, tlen, ts, te, nm, cs, tp="P"):
     return "\t".join(map(str, [qname, qlen, qs, qe, strand, tname, tlen, ts, te, 100, 100, 60,
-                               f"NM:i:{nm}", "tp:A:P", f"cs:Z:{cs}"])) + "\n"
+                               f"NM:i:{nm}", f"tp:A:{tp}", f"cs:Z:{cs}"])) + "\n"
 
 
 # ---------------------------------------------------------------------------
@@ -570,3 +570,285 @@ def test_region_classification():
            "gene_range": [(1, 20)]}
     sig = m.build_signature("G", "X", ":2*ag:17", 0, 20, "+", ann=ann)
     assert sig["event_regions"] == "exon1" and sig["n_events_cds"] == 1
+
+
+# ---------------------------------------------------------------------------
+# 7. critic-review fixes: PAF selection, min-qcov, template confound, suppression,
+#    resume invalidation, corrupt cds.fa.gz
+# ---------------------------------------------------------------------------
+def _mini_cfg(outroot, min_qcov=None):
+    return {"outroot": str(outroot), "group_sizes": {}, "novel_matches": None,
+            "allele_seqs": {}, "annotations": {},
+            "min_run": m.HOMOPOLYMER_MIN_RUN, "min_qcov": m.MIN_QCOV if min_qcov is None
+            else min_qcov}
+
+
+def _mini_call(gene, template, gene_start, gene_end):
+    return {"gene": gene, "copy_index": 1, "consensus": f"{gene}*01:01:01:new",
+            "template_allele": template, "template_key": m.norm_allele(template),
+            "prefix_key": None, "gene_start": gene_start, "gene_end": gene_end}
+
+
+def test_secondary_row_longer_than_primary_is_ignored():
+    template = "HLA-A*01:01:01:01"
+    lines = [
+        paf_line(template, 100, 0, 100, "+", "ctg1", 5000, 1000, 1100, 5, ":100", tp="S"),
+        paf_line(template, 100, 0, 60, "+", "ctg1", 5000, 1000, 1060, 1, ":60", tp="P"),
+    ]
+    paf_gz = "/tmp_paf_test_secondary.paf.gz"
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".paf.gz", delete=False) as tf:
+        path = tf.name
+    with gzip.open(path, "wt") as fh:
+        fh.writelines(lines)
+    try:
+        rows, n_secondary = m.read_paf_candidates(path, {"A*01:01:01:01"}, set(), {"ctg1"})
+    finally:
+        os.unlink(path)
+    assert n_secondary == 1
+    assert len(rows) == 1 and rows[0]["tp"] == "P" and rows[0]["qend"] == 60
+    group, path_ = m.select_paf_group(rows, "ctg1", 1001, 1100, "A*01:01:01:01", None)
+    assert path_ == "template" and len(group) == 1 and group[0]["qend"] == 60
+
+
+def test_row_grouping_chaining_and_split():
+    # collinear, non-overlapping in query and target -> chained into one group
+    r1 = _row("HLA-A*01:01:01:01", 0, 30, "ctg1", 1000, 1030, 0)
+    r2 = _row("HLA-A*01:01:01:01", 30, 60, "ctg1", 1030, 1060, 0)
+    assert m.check_collinear([r1, r2]) is True
+    group, path = m.select_paf_group([r1, r2], "ctg1", 1001, 1060, "A*01:01:01:01", None)
+    assert path == "template" and len(group) == 2
+
+    # overlapping in query -> conflicting, not collinear
+    r3 = _row("HLA-A*01:01:01:01", 0, 40, "ctg2", 1000, 1040, 0)
+    r4 = _row("HLA-A*01:01:01:01", 20, 60, "ctg2", 1020, 1060, 0)
+    assert m.check_collinear([r3, r4]) is False
+
+
+def test_process_hap_chains_multi_record_alignment(tmp_path):
+    allele = _non_repeat_allele()  # 80 bp, no homopolymer runs
+    edits = [("snv", 5, "G" if allele[5] != "G" else "T")]
+    seq1, cs1, qs1, qe1 = make_alignment(allele, edits, "+", 0, 40)
+    seq2, cs2, qs2, qe2 = make_alignment(allele, [], "+", 40, len(allele))
+    template = "HLA-A*01:01:01:01"
+    people = tmp_path / "people"
+    hap_dir = people / "p1" / "immuannot_output" / "hap1"
+    hap_dir.mkdir(parents=True)
+    lines = [
+        paf_line(template, len(allele), qs1, qe1, "+", "ctg1", 5000, 1000, 1000 + len(seq1),
+                 len(edits), cs1),
+        paf_line(template, len(allele), qs2, qe2, "+", "ctg1", 5000, 1000 + len(seq1),
+                 1000 + len(seq1) + len(seq2), 0, cs2),
+    ]
+    with gzip.open(hap_dir / "mm2.ipd.gen.paf.gz", "wt") as fh:
+        fh.writelines(lines)
+    with gzip.open(hap_dir / "cds.fa.gz", "wt") as fh:
+        fh.write(">ctg1_HLA-A_1\nATGGCCTGA\n")
+    call = dict(_mini_call("HLA-A", template, 1001, 1000 + len(allele)),
+               person_id="p1", hap="hap1", contig="ctg1")
+    res = m.process_hap("p1", "hap1", [call], _mini_cfg(people))[0]
+    assert res["status"] == "ok" and res["chain_status"] == "multi_record_chained"
+    assert res["n_snv"] == 1 and res["n_events"] == 1
+    assert abs(res["qcov"] - 1.0) < 1e-9
+
+    # an overlapping/inconsistent pair for a different person -> split_alignment, excluded
+    seq2b, cs2b, qs2b, qe2b = make_alignment(allele, [], "+", 30, len(allele))
+    hap_dir2 = people / "p2" / "immuannot_output" / "hap1"
+    hap_dir2.mkdir(parents=True)
+    lines2 = [
+        paf_line(template, len(allele), qs1, qe1, "+", "ctg2", 5000, 1000, 1000 + len(seq1),
+                 len(edits), cs1),
+        paf_line(template, len(allele), qs2b, qe2b, "+", "ctg2", 5000, 1010,
+                 1010 + len(seq2b), 0, cs2b),
+    ]
+    with gzip.open(hap_dir2 / "mm2.ipd.gen.paf.gz", "wt") as fh:
+        fh.writelines(lines2)
+    with gzip.open(hap_dir2 / "cds.fa.gz", "wt") as fh:
+        fh.write(">ctg2_HLA-A_1\nATGGCCTGA\n")
+    call2 = dict(_mini_call("HLA-A", template, 1001, 1000 + len(allele)),
+                person_id="p2", hap="hap1", contig="ctg2")
+    res2 = m.process_hap("p2", "hap1", [call2], _mini_cfg(people))[0]
+    assert res2["status"] == "split_alignment" and res2["chain_status"] == "split_alignment"
+
+
+def test_min_qcov_excludes_partial_call_and_no_merge(tmp_path):
+    allele = rand_seq(100, 11)
+    template = "HLA-A*01:01:01:01"
+    people = tmp_path / "people"
+    # partial: only half the allele aligned, no differences in the aligned part
+    seq, cs, qs, qe = make_alignment(allele, [], "+", 0, 50)
+    hap_dir = people / "p1" / "immuannot_output" / "hap1"
+    hap_dir.mkdir(parents=True)
+    with gzip.open(hap_dir / "mm2.ipd.gen.paf.gz", "wt") as fh:
+        fh.write(paf_line(template, 100, qs, qe, "+", "ctg1", 5000, 1000, 1000 + len(seq), 0, cs))
+    with gzip.open(hap_dir / "cds.fa.gz", "wt") as fh:
+        fh.write(">ctg1_HLA-A_1\nATGGCCTGA\n")
+    call = dict(_mini_call("HLA-A", template, 1001, 1100), person_id="p1", hap="hap1",
+               contig="ctg1")
+    res = m.process_hap("p1", "hap1", [call], _mini_cfg(people, min_qcov=0.98))[0]
+    assert abs(res["qcov"] - 0.5) < 1e-9
+    assert res["status"] == "low_qcov"
+    assert res["signature_class"] == "no_difference"   # computed for diagnostics, but excluded
+
+    # full-coverage call with the same (empty) difference pattern, different person/contig
+    seq_f, cs_f, qs_f, qe_f = make_alignment(allele, [], "+", 0, 100)
+    hap_dir2 = people / "p2" / "immuannot_output" / "hap1"
+    hap_dir2.mkdir(parents=True)
+    with gzip.open(hap_dir2 / "mm2.ipd.gen.paf.gz", "wt") as fh:
+        fh.write(paf_line(template, 100, qs_f, qe_f, "+", "ctg2", 5000, 1000,
+                          1000 + len(seq_f), 0, cs_f))
+    with gzip.open(hap_dir2 / "cds.fa.gz", "wt") as fh:
+        fh.write(">ctg2_HLA-A_1\nATGGCCTGA\n")
+    call2 = dict(_mini_call("HLA-A", template, 1001, 1100), person_id="p2", hap="hap1",
+                contig="ctg2")
+    res2 = m.process_hap("p2", "hap1", [call2], _mini_cfg(people, min_qcov=0.98))[0]
+    assert res2["status"] == "ok" and abs(res2["qcov"] - 1.0) < 1e-9
+
+    df = pd.DataFrame([res, res2])
+    df["unrelated"] = True
+    df["ancestry_pred"] = "EUR"
+    df["strict_ancestry"] = "EUR"
+    ok = df[df["status"] == "ok"]
+    clusters = m.build_clusters(ok)
+    # the low-qcov call never reaches build_clusters (only status=='ok' rows do), so it cannot
+    # silently merge into the full-coverage call's cluster despite sharing a "no difference" class
+    assert len(clusters) == 1 and clusters.iloc[0]["n_haplotypes"] == 1
+    assert set(df[df["status"] == "ok"]["person_id"]) == {"p2"}
+
+
+def test_pooling_modal_template_vs_raw_signatures():
+    rows = [
+        {"novel_id": "HLA-A_nov_x", "gene": "HLA-A", "person_id": "p1", "signature_id": "s1",
+         "signature_class": "snv_only", "used_allele": "HLA-A*01:01:01:01", "unrelated": True},
+        {"novel_id": "HLA-A_nov_x", "gene": "HLA-A", "person_id": "p2", "signature_id": "s2",
+         "signature_class": "snv_only", "used_allele": "HLA-A*01:01:01:05", "unrelated": True},
+    ]
+    ok = pd.DataFrame(rows)
+    pool = m.build_pooling(ok, None)
+    assert len(pool) == 1
+    row = pool.iloc[0]
+    assert row["n_distinct_signatures"] == 2            # raw: template-confounded, 2 "sequences"
+    assert row["n_distinct_signatures_modal_template"] == 1   # honest headline: 1 per template
+    assert row["modal_template"] == "HLA-A*01:01:01:01"       # tie -> alphabetically first
+    assert row["n_distinct_templates"] == 2
+
+
+def test_gene_summary_suppresses_small_gene_ratios():
+    calls = pd.DataFrame([{"gene": "HLA-C", "status": "ok", "chain_status": "single"}] * 5)
+    ok = pd.DataFrame([{"gene": "HLA-C", "signature_class": "homopolymer_only", "qcov": 1.0,
+                        "region_class": "intron_only", "novel_id": None,
+                        "selection_path": "template", "context_mode": "sequence",
+                        "paf_strand": "+"}] * 5)
+    clusters = pd.DataFrame(columns=["gene", "n_persons_unrelated"])
+    gsum = m.gene_summary(calls, ok, clusters)
+    row = gsum.iloc[0]
+    assert row["n_parsed"] == 5
+    assert pd.isna(row["frac_homopolymer_only"]) and pd.isna(row["median_qcov"])
+
+
+def test_suppression_across_committed_artifacts_for_small_gene(tmp_path):
+    people, refdata, nid, allele = _build_outroot(tmp_path)
+    t1 = pd.read_csv(tmp_path / "hla_calls_rich.tsv", sep="\t")
+    small_allele = rand_seq(60, 99)
+    small_cds = "ATG" + rand_seq(30, 98) + "TGA"
+    extra_rows = []
+    for i in range(3):   # fewer than MIN_COMMIT (20) carriers -> must be suppressed everywhere
+        pid = f"p{i:02d}"
+        contig = f"{pid}_ctgC"
+        hap_dir = people / pid / "immuannot_output" / "hap1"
+        seq, cs, qs, qe = make_alignment(small_allele, [], "+")
+        with gzip.open(hap_dir / "mm2.ipd.gen.paf.gz", "at") as fh:
+            fh.write(paf_line("HLA-C*01:01:01:01", len(small_allele), qs, qe, "+", contig, 5000,
+                              1000, 1000 + len(seq), 0, cs))
+        with gzip.open(hap_dir / "cds.fa.gz", "at") as fh:
+            fh.write(f">{contig}_HLA-C_1\n{small_cds.lower()}\n")
+        extra_rows.append({
+            "person_id": pid, "hap": "hap1", "contig": contig, "gene": "HLA-C", "copy_index": 1,
+            "gene_class": "classical_I", "consensus": "HLA-C*01:01:01:new", "n_fields": 4,
+            "is_novel": True, "novelty_depth": 4, "novelty_class": "beyond_cds",
+            "template_allele": "HLA-C*01:01:01:01", "template_distance": 2,
+            "gene_start": 1001, "gene_end": 1000 + len(small_allele), "strand": "+",
+            "template_warning": "NA"})
+    t1 = pd.concat([t1, pd.DataFrame(extra_rows)], ignore_index=True)
+    t1.to_csv(tmp_path / "hla_calls_rich.tsv", sep="\t", index=False)
+    out = tmp_path / "out_small_gene"
+    local = tmp_path / "local_small_gene"
+    summary = m.main(["--table1", str(tmp_path / "hla_calls_rich.tsv"),
+                      "--cohort-membership", str(tmp_path / "cohort_membership.tsv"),
+                      "--outroot", str(people),
+                      "--relatedness-table", str(tmp_path / "samples_relatedness.tsv"),
+                      "--novel-alleles", str(tmp_path / "novel_alleles.tsv"),
+                      "--refdata", str(refdata), "--genes", "HLA-A", "HLA-C", "--no-figures",
+                      "--out-dir", str(out), "--local-dir", str(local)])
+    gsum = pd.read_csv(out / "gene_summary.tsv", sep="\t")
+    row_c = gsum[gsum["gene"] == "HLA-C"].iloc[0]
+    assert row_c["n_parsed"] == "<20"   # count itself suppressed (< MIN_COMMIT)
+    assert pd.isna(row_c["frac_homopolymer_only"]) and pd.isna(row_c["median_qcov"])
+    # small-gene clusters/pools fall below the >=20 commit floor and are simply absent
+    clusters_c = pd.read_csv(out / "noncoding_signature_clusters.tsv", sep="\t")
+    assert "HLA-C" not in set(clusters_c["gene"])
+    pool_c = pd.read_csv(out / "beyond_cds_pooling.tsv", sep="\t")
+    assert "HLA-C" not in set(pool_c["gene"])
+    frac = pd.read_csv(out / "homopolymer_fraction.tsv", sep="\t")
+    small_rows = frac[(frac["gene"] == "HLA-C") & (frac["ancestry"] == "POOLED")]
+    assert len(small_rows) and small_rows["frac_homopolymer_only"].isna().all()
+
+
+def test_params_hash_changes_with_fasta_and_script_mtime(tmp_path):
+    class Args:
+        pass
+    t1_path = tmp_path / "t1.tsv"
+    t1_path.write_text("a\n")
+    fasta = tmp_path / "x.fa"
+    fasta.write_text("AAAA")
+    args = Args()
+    args.table1, args.genes, args.limit = str(t1_path), ["HLA-A"], None
+    args.homopolymer_min_run, args.min_qcov = 3, 0.98
+    args.novel_matches, args.outroot = None, str(tmp_path)
+    extra = {"fastas": [m._file_stat_tuple(str(fasta))], "ann": None}
+    h1 = m.params_hash(args, extra)
+
+    fasta.write_text("AAAAAAAA")   # size (and likely mtime) changes
+    extra2 = {"fastas": [m._file_stat_tuple(str(fasta))], "ann": None}
+    h2 = m.params_hash(args, extra2)
+    assert h1 != h2
+
+    script_path = os.path.abspath(m.__file__)
+    orig_stat = os.stat(script_path)
+    try:
+        os.utime(script_path, (orig_stat.st_atime, orig_stat.st_mtime + 1000))
+        h3 = m.params_hash(args, extra2)
+    finally:
+        os.utime(script_path, (orig_stat.st_atime, orig_stat.st_mtime))
+    assert h3 != h2
+
+
+def test_corrupt_cds_fasta_skips_only_that_person(tmp_path):
+    allele = rand_seq(50, 21)
+    template = "HLA-A*01:01:01:01"
+    seq, cs, qs, qe = make_alignment(allele, [], "+")
+    people = tmp_path / "people"
+    good_dir = people / "pgood" / "immuannot_output" / "hap1"
+    bad_dir = people / "pbad" / "immuannot_output" / "hap1"
+    good_dir.mkdir(parents=True)
+    bad_dir.mkdir(parents=True)
+    for d, contig in ((good_dir, "ctgg"), (bad_dir, "ctgb")):
+        with gzip.open(d / "mm2.ipd.gen.paf.gz", "wt") as fh:
+            fh.write(paf_line(template, len(allele), qs, qe, "+", contig, 5000, 1000,
+                              1000 + len(seq), 0, cs))
+    with gzip.open(good_dir / "cds.fa.gz", "wt") as fh:
+        fh.write(">ctgg_HLA-A_1\nATGGCCTGA\n")
+    (bad_dir / "cds.fa.gz").write_bytes(b"not a gzip file at all, truncated garbage")
+
+    cfg = _mini_cfg(people)
+    good = m.process_hap("pgood", "hap1",
+                         [dict(_mini_call("HLA-A", template, 1001, 1000 + len(allele)),
+                              person_id="pgood", hap="hap1", contig="ctgg")], cfg)[0]
+    bad = m.process_hap("pbad", "hap1",
+                        [dict(_mini_call("HLA-A", template, 1001, 1000 + len(allele)),
+                             person_id="pbad", hap="hap1", contig="ctgb")], cfg)[0]
+    assert good["cds_status"] == "ok" and good["novel_id"] is not None
+    assert bad["cds_status"] == "cds_fasta_corrupt" and bad["novel_id"] is None
+    # the corrupt cds.fa.gz only loses this person's former-cluster mapping, not their PAF-derived
+    # signature or the rest of the batch
+    assert bad["status"] == "ok" and bad["signature_id"] is not None
