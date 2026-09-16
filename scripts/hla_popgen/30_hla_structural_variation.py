@@ -83,8 +83,12 @@ def mod(filename, name):
 DEFAULT_OUTROOT = os.path.expanduser("~/pipeline_outputs")
 DEFAULT_TABLE1 = os.path.join(DEFAULT_OUTROOT, "hla_calls_rich.tsv")
 DEFAULT_COHORT = os.path.join(DEFAULT_OUTROOT, "cohort_membership.tsv")
+# ENVIRONMENT quirk #35: the old manual ~/mnt/aou-controlled mount is STALE and any process that
+# touches it hangs in uninterruptible I/O -- Ctrl-C does nothing and the terminal is lost. The
+# controlled bucket is auto-mounted under ~/workspace/ instead. Never point this at ~/mnt.
 DEFAULT_RELATEDNESS = os.path.expanduser(
-    "~/mnt/aou-controlled/v9/wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv")
+    "~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/short_read/snpindel/aux/"
+    "relatedness/samples_relatedness.tsv")
 DEFAULT_OUT_DIR = os.path.expanduser("~/results/30_hla_sv")
 
 SUPPRESS_BELOW = 20
