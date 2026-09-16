@@ -67,41 +67,39 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked (reason)
 
 VM: ⏸ Workbench tab is at the login page (2026-09-16) — Marc must sign in. Local work proceeds.
 
-## 4. Resume here (always current)  — updated 2026-09-16 ~18:40
+## 4. Resume here (always current) — updated 2026-09-17
 
-**State:** branch `fig1-drafts-and-research-map`, committed locally, **NOT pushed** (the auto-mode
-classifier blocks pushing to the public repo — ask Marc to push, or keep working locally).
+**State:** branch `fig1-drafts-and-research-map`, committed locally, **NOT pushed** (classifier
+blocks publishing to the public repo; Marc must push).
 
-**VM access (no typing into xterm needed):** open the Workbench app tab, then navigate that tab
-directly to `https://9394ec22-d949-4489-b46e-73790750472e.workbench-app-prod.verily.com/lab`.
-Use `javascript_tool` per ENVIRONMENT quirk #37: `window.runCmd/bg/res/show` helpers,
-`window.deploy(paths)` uploads files from a local read-only web server
-(`python3 <scratchpad>/serve.py`, serves `scripts/` and `sprints/` on 127.0.0.1:8765) into
-`~/repos/pv-s01` via the Jupyter contents API. Helper scripts already on the VM:
-`~/runtests.sh <module...>` and `~/run.sh <script.py> <outname> [args]` (nohup + log).
-VM worktree: `~/repos/pv-s01` at `30b14ac`; python: `~/repos/pilot-validation/.pixi/envs/spechla/bin/python`
-(pandas 2.0.3 / numpy 1.22 — older than the laptop).
+**Done:** WS1 (scripts 24, 25 full cohort), WS2 (script 26 full cohort), `_coverage.py`, WS5
+literature. All aggregate results are committed under `reports/hla_popgen/2{4,5,6}_*`.
 
-**Done:** WS1/WS2 audits; `_coverage.py` + tests (22 pass, incl. on the VM); WS5 literature file;
-scripts 24/25/26 specs; script 25 written, tests pass on the VM; VM quirks #35–38 recorded.
+**VM channel (ENVIRONMENT quirk #37):** JupyterLab tab →
+`https://9394ec22-d949-4489-b46e-73790750472e.workbench-app-prod.verily.com/lab`;
+helpers defined in the page: `window.bg(key,cmd)` / `window.res[key]` / `window.show(key,a,b)`,
+`window.deploy(paths)` (laptop → VM, needs the local server:
+`python3 <scratchpad>/serve.py`, GET serves scripts/+sprints/, POST /save writes into
+reports/hla_popgen/), `window.pull([[vmPath, repoPath]...])` (VM → laptop, no file content passes
+through the model). VM helper scripts: `~/run.sh <script.py> <outname> [args]` (detached, unbuffered),
+`~/runtests.sh <module...>`. Worktree `~/repos/pv-s01`; python
+`~/repos/pilot-validation/.pixi/envs/spechla/bin/python` (3.8/pandas 2.0.3).
+**Trap:** after deploying a changed script, clear `__pycache__` and confirm the run used the new
+file — a stale run once produced a completely wrong QC number.
 
-**Running when this was written:**
-- script 25 pilot on real data: `~/results/25_pilot/run.log` (200 people, started ~18:40).
-- background agents: script 24 implementer, script 26 implementer, critic review of script 25.
-  If they were lost, re-launch from the specs in WS1/WS2 briefs (**sonnet only — usage limits**).
+**In flight:** script 27 (coverage) implementer agent; a verification agent on the suspected
+off-by-one in the existing `21_hla_manhattan.py`.
 
 **Next actions, in order:**
-1. Read `~/results/25_pilot/run.log` + `~/results/25_pilot/summary.json`; check the assumption
-   counters (`seq_consistent`, `n_seq_inconsistent`, `touches_cds`, fallback/no-PAF-row rates,
-   `median_qcov`). Fix anything the critic flags before the full run.
-2. Deploy + pilot script 24 (`--limit 200`), then 26 (`--limit-pairs 50`), same pattern.
-3. Full runs via `~/run.sh` (nohup; they survive browser logout), then pull ONLY aggregate
-   outputs back into `reports/hla_popgen/<NN>_*/` via the contents API.
-4. Then WS3 script 27 (coverage) on 24's `allele_counts_by_resolution.tsv`, then WS4 Figure 1 v2.
-5. Keep JOURNAL.md appended and briefs' "Distilled" sections current; final report to Marc must
-   explain objective → finding → what it means → why it matters, in plain language.
+1. When 27 lands: deploy, test on VM, pilot (`--limit-genes 2`), then full run; pull results.
+2. Compose Figure 1 v2 (new script 28) from: admixture panel (existing 06), class I ternary
+   (existing 10), clean novelty rate by ancestry and field (24), coverage curves + cross-ancestry
+   matrix (27). Then a supplement list.
+3. Decide the 21_hla_manhattan question from the verification agent's verdict.
+4. Write the final plain-language report for Marc (objective → finding → meaning → why novel),
+   update `context/EXPERIMENTS.md` with pointer entries, and ask Marc to push the branch.
 
-**Constraints:** subagents = sonnet only (cost); expect hard interruption; commit after every step.
+**Constraints:** subagents = sonnet only; expect interruption; commit after every step.
 
 ## 5. Headline findings (distilled from briefs; newest first)
 
