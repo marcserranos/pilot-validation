@@ -231,3 +231,33 @@ So about a fifth of non-coding novelty is the classic long-read error mode and s
 **Where they fall:** intronic-only dominates; 8.8% of depth-4 haplotypes "touch CDS", and in 2,783
 of those 2,808 cases the genomic template differs from the called allele at field 3 — i.e. it is the
 template-vs-call mismatch the design anticipated, not a contradiction.
+
+## Where the novel proteins actually are (script 24, full cohort)
+Clean novel proteins recurrent in ≥2 unrelated people, by gene class:
+
+| gene class | recurrent clean | total clusters |
+|---|---|---|
+| mic_tap (MICA/MICB/TAP1/TAP2) | **183** | 716 |
+| class_II_accessory (DM/DO/DQA2/DQB2) | 67 | 287 |
+| class_II_paralog (DRB3/4/5) | 49 | 180 |
+| nonclassical_I (E/F/G) | 32 | 260 |
+| **classical_II (DR/DQ/DP)** | **6** | 188 |
+| **classical_I (A/B/C)** | **2** | 161 |
+| other | 8 | 17 |
+| pseudogene_I | 0 | 14 |
+
+Top genes: TAP2 79, TAP1 68, DQB2 26, DMA 22, DQA2 20, MICA 20, DMB 17, DOA 16, MICB 16, G 15.
+In the eight classical genes there are only **8** recurrent clean novel proteins in 12,233 people
+(B, C, DPA1, DQB1 one each; DPB1 and DRB1 two each).
+
+**Interpretation, and a possible reframing of the paper.** At the protein level the *classical*
+HLA genes are close to exhausted in a cohort this size — which is itself a publishable, quantitative
+statement, and it is what the coverage analysis (WS3) should confirm. The genuinely undiscovered
+space sits in the genes nobody types at scale: TAP1/TAP2, MICA/MICB, the DM/DO accessory genes and
+the DRB paralogs. Long reads are the only way to see them, and this cohort is the first at this
+size. That is a stronger and more defensible headline than "3,000 novel HLA alleles".
+
+Caveat to check before leaning on it: MIC/TAP novelty may partly reflect a less complete IPD
+reference for those genes (note MICB, where 78% of calls are field-3 novel and 22,657 of the 25,282
+"catalogued CDS under a new name" cases are MIC/TAP). Distinguish "new biology" from "thin
+reference" per gene before publishing.

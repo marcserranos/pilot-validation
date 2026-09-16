@@ -123,6 +123,13 @@ So the honest headline is **hundreds of new HLA proteins, not thousands**; ~25k 
 are a naming artifact (their CDS is catalogued); and the bulk of "protein-altering" novelty is
 frameshift/stop calls dominated by homopolymer artifacts.
 
+**WS1 — where the novelty is:** of 347 clean novel proteins recurrent in ≥2 unrelated people,
+only **8 are in the 8 classical genes** (A/B/C: 2; DR/DQ/DP: 6). The rest are TAP1/TAP2 (147),
+MIC (36), class II accessory DM/DO/DQA2/DQB2 (67), DRB paralogs (49), E/F/G (32). Possible
+reframing: the classical genes are near-exhausted at protein level, and the unexplored MHC is the
+non-classical part that only long reads can type at scale. Check reference completeness per gene
+first (MIC/TAP dominate the 25,282 "catalogued CDS under a new name" calls).
+
 **WS2 — QC (script 26, full cohort):** relatives agree at 87.0% of 21,545 comparable gene
 comparisons; only **0.8%** are unexplained sequence differences (6.5% is a gene called in one
 relative only, 3.2% dropout candidates, 2.3% single-base). Duplicate/MZ replicates give the direct
