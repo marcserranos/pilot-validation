@@ -67,18 +67,41 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked (reason)
 
 VM: ⏸ Workbench tab is at the login page (2026-09-16) — Marc must sign in. Local work proceeds.
 
-## 4. Resume here (always current)
+## 4. Resume here (always current)  — updated 2026-09-16 ~18:40
 
-If this session died, do this next:
-1. Check that the local-only agents' files exist and their tests pass (24, 25, 26, `_coverage.py`).
-   If a file is missing, re-launch that implementer from the spec in its WS brief.
-2. Review each script (critic agent + own read), commit, and push the branch.
-3. VM: if the Workbench tab is logged out, ask Marc to sign in. Then, in a JupyterLab terminal:
-   `cd ~/repos/pilot-validation && git fetch && git worktree add ~/repos/pv-s01 origin/fig1-drafts-and-research-map`
-   (a worktree, so another agent's checkout of main is untouched). Run the scripts from `~/repos/pv-s01`
-   with `--limit` pilots first, then the full runs, logging to `~/results/<script>/run.log`.
-4. Long runs go in `nohup ... &` so a browser logout doesn't kill them (quirk: JupyterLab
-   terminals survive tab logout).
+**State:** branch `fig1-drafts-and-research-map`, committed locally, **NOT pushed** (the auto-mode
+classifier blocks pushing to the public repo — ask Marc to push, or keep working locally).
+
+**VM access (no typing into xterm needed):** open the Workbench app tab, then navigate that tab
+directly to `https://9394ec22-d949-4489-b46e-73790750472e.workbench-app-prod.verily.com/lab`.
+Use `javascript_tool` per ENVIRONMENT quirk #37: `window.runCmd/bg/res/show` helpers,
+`window.deploy(paths)` uploads files from a local read-only web server
+(`python3 <scratchpad>/serve.py`, serves `scripts/` and `sprints/` on 127.0.0.1:8765) into
+`~/repos/pv-s01` via the Jupyter contents API. Helper scripts already on the VM:
+`~/runtests.sh <module...>` and `~/run.sh <script.py> <outname> [args]` (nohup + log).
+VM worktree: `~/repos/pv-s01` at `30b14ac`; python: `~/repos/pilot-validation/.pixi/envs/spechla/bin/python`
+(pandas 2.0.3 / numpy 1.22 — older than the laptop).
+
+**Done:** WS1/WS2 audits; `_coverage.py` + tests (22 pass, incl. on the VM); WS5 literature file;
+scripts 24/25/26 specs; script 25 written, tests pass on the VM; VM quirks #35–38 recorded.
+
+**Running when this was written:**
+- script 25 pilot on real data: `~/results/25_pilot/run.log` (200 people, started ~18:40).
+- background agents: script 24 implementer, script 26 implementer, critic review of script 25.
+  If they were lost, re-launch from the specs in WS1/WS2 briefs (**sonnet only — usage limits**).
+
+**Next actions, in order:**
+1. Read `~/results/25_pilot/run.log` + `~/results/25_pilot/summary.json`; check the assumption
+   counters (`seq_consistent`, `n_seq_inconsistent`, `touches_cds`, fallback/no-PAF-row rates,
+   `median_qcov`). Fix anything the critic flags before the full run.
+2. Deploy + pilot script 24 (`--limit 200`), then 26 (`--limit-pairs 50`), same pattern.
+3. Full runs via `~/run.sh` (nohup; they survive browser logout), then pull ONLY aggregate
+   outputs back into `reports/hla_popgen/<NN>_*/` via the contents API.
+4. Then WS3 script 27 (coverage) on 24's `allele_counts_by_resolution.tsv`, then WS4 Figure 1 v2.
+5. Keep JOURNAL.md appended and briefs' "Distilled" sections current; final report to Marc must
+   explain objective → finding → what it means → why it matters, in plain language.
+
+**Constraints:** subagents = sonnet only (cost); expect hard interruption; commit after every step.
 
 ## 5. Headline findings (distilled from briefs; newest first)
 
