@@ -6,3 +6,12 @@
 - Two read-only code audits launched in parallel: novelty clustering (03/04) and relatives QC
   (11/16/17).
 - Workbench tab opened at workbench.verily.com → login page. VM work blocked until Marc signs in.
+- Audits returned. Novelty: clusters keyed on CDS only (Marc's hypothesis confirmed); 87% of
+  "protein-altering" clusters are flagged artifacts; 04 saturation counted artifacts and kept
+  relatives. QC: the 0-switch test excludes mismatched genes and has no reported denominator;
+  half the relative discordance is 1–3-base (implied QV ≈ 46–47), half is multi-block.
+- Implementers launched for scripts 24 (novelty by field), 25 (non-coding novelty from PAF cs),
+  26 (QC v2). `_coverage.py` (coverage estimators, 22 tests) and the WS5 literature file done.
+- Marc signed in. VM reached via a new programmatic terminal channel (ENVIRONMENT quirk #37).
+  Found: the old mount path hangs processes (quirk #35); the VM is now 4 vCPU (quirk #36);
+  refdata is IMGT 3.55.0 with exact exon ranges (quirk #38). These facts were sent to the implementers.

@@ -1,6 +1,6 @@
 # WS5 Literature Research — HLA Novelty / Coverage / Positioning
 
-Status: IN PROGRESS. Written incrementally; sections filled as searches complete.
+Status: COMPLETE (session budget used: ~14 web searches + 1 attempted fetch; formulas/venue details flagged UNVERIFIED where not confirmed by direct page fetch).
 Scope: literature support for Omni-HLA paper (~12,000 AoU long-read HLA calls, Immuannot/IPD-IMGT/HLA, novel alleles mostly non-coding, ancestry gradient, unsaturated discovery curves).
 
 ---
@@ -114,10 +114,32 @@ GAP: no paper found this session giving an HLA/MHC-specific, quantified **allele
 
 ## F. Papers that would make a reviewer say "already done"
 
-(pending)
+Assessment: **no single paper found this session fully replicates our combination** (≈12,000-sample, multi-ancestry, long-read/assembly-based, IPD-IMGT/HLA novelty + coverage-based discovery-saturation analysis). The closest candidates, each addressing only one axis, are:
+
+1. **Zhou, Song, Li 2024 Genome Research (Immuannot paper)** — closest on "protein-level vs non-coding HLA novelty" axis: already reports the qualitative pattern that most novel alleles (2,664 of them) are non-protein-changing (only 92/2,664 novel protein sequences), but at ~268-assembly scale, no explicit ancestry stratification and no formal coverage/saturation analysis. A reviewer could say "the coding-vs-noncoding novelty pattern itself was already shown by Immuannot's own paper" — our contribution must be explicitly framed as the ~45x-larger, ancestry-stratified, coverage-quantified extension, not the first observation of the pattern.
+
+2. **Osoegawa et al., "A Gene Feature Enumeration Approach for Describing HLA Allele Polymorphism"** (PMC4674356; bioRxiv 10.1101/015222 — journal/year UNVERIFIED beyond PMCID, appears pre-2015 based on bioRxiv ID, likely Human Immunology ~2015-2016) — this paper already **predicted, prior to large NGS/long-read datasets, that as sequencing extends into non-ARD (non-antigen-recognition-domain) gene features, the number of alleles distinguished only by synonymous/non-coding variants would "increase dramatically."** A sharp reviewer could cite this as "the coding/non-coding novelty skew was already predicted a decade ago" — our value-add is being the large-scale empirical confirmation with ancestry stratification, not the first to predict/observe the qualitative phenomenon.
+
+3. **"High Resolution Class I HLA-A, -B, and -C Diversity in Eastern and Southern African Populations,"** Scientific Reports, 2025, 15:23667 (Banjoko AW, Ng'uni T, Naidoo N, Ramsuran V, Hyrien O, Ndhlovu ZM). URL: https://www.nature.com/articles/s41598-025-06704-4 ; bioRxiv 2024.09.04.611164; PMC11398358 / PMC12222908; PubMed 39282263.
+   - Closest on "ancestry-stratified HLA diversity/coverage" axis: uses rarefaction/extrapolation-style diversity curves, Hellinger diversity index, and MDS to compare HLA-A/B/C diversity **within and between African populations** (South Africa 34.1%, Rwanda 26.9%, Kenya 26.5%, Zambia 26.5%, Uganda 24.7% relative diversity; in-country variation up to 51% in Kenya) and vs. African American/European American reference populations. This is short-read/serological-or-NGS-typing based (not long-read assembly, not IPD-IMGT/HLA novel-allele discovery) and does not address coding-vs-noncoding novelty. A reviewer familiar with this paper could say "ancestry-stratified African HLA diversity was already characterized" — but it does NOT touch long-read novel-allele discovery, database coverage bias, or coverage-based extrapolation to a discovery target, so it is a partial, not full, overlap.
+
+4. **UK Biobank multi-ancestry HLA-calling paper** (medRxiv 2023.01.15.23284570 / PMC10624861, with a 2026 author correction in Communications Biology, https://www.nature.com/articles/s42003-026-09877-4) — closest on "multi-ancestry, biobank-scale HLA" axis (129 novel autoimmune-disease associations across 11 diseases), but exome/short-read HLA-HD calling for **known-allele** association testing, not long-read **novel-allele discovery** — does not overlap with our core novelty/coverage claims.
+
+5. Ongoing steady drip of small novel-allele case reports (e.g., "Six New HLA Class I Alleles by NGS," PubMed 41369049; "Seven Novel HLA Alleles ... Third Generation Sequencing," PMC13518084; "39 novel HLA alleles" 2026 study referenced in search snippet, citation UNVERIFIED; 56 novel alleles in Hong Kong Chinese 2024, citation UNVERIFIED; 236 novel alleles in HLA-DMA/DMB/DOA/DOB 2025, citation UNVERIFIED) — these are all small-N (single-digit to low-hundreds alleles), single-population/single-lab case-report-style additions to the nomenclature, not large-scale ancestry-stratified discovery-saturation studies. They collectively support (rather than undercut) our novelty claim: the literature is currently a continuous stream of small, ad hoc additions, with **no large-scale, systematic, ancestry-stratified, coverage-quantified discovery study found** — which is precisely the gap our ~12,000-sample AoU study fills.
+
+**Bottom line for section F: no paper found this session fully pre-empts our study.** The three "closest" partial overlaps are (i) Immuannot's own small-scale coding/non-coding novelty split, (ii) the African HLA diversity/rarefaction paper (ancestry-stratified but not long-read/novelty-focused), and (iii) the UK Biobank multi-ancestry paper (biobank-scale but not long-read/novelty-focused). None combines long-read assembly + ~12,000-sample scale + multi-ancestry + coverage-based saturation analysis + coding-vs-noncoding novelty decomposition in one paper.
 
 ---
 
 ## Distilled (≤10 lines)
 
-(pending)
+1. Closest precedent is Immuannot's own paper (Zhou/Song/Li 2024, Genome Research): 268 assemblies, 4,068/9,931 genes novel vs IPD, only 92/2,664 novel alleles protein-changing — same qualitative pattern as ours but ~45x smaller scale, no ancestry stratification, no coverage/saturation formalism.
+2. HPRC pan-MHC graph (bioRxiv 2023) found 1,246 novel alleles from ~246 phased haplotypes — another small-scale novelty-rate anchor point for comparison.
+3. No paper found doing ancestry-stratified, coverage-quantified HLA allele-discovery saturation at biobank scale from long reads — this combination appears genuinely open (checked HPRC, AoU LRS medRxiv 2025, UK Biobank exome papers, African HLA diversity paper — none combine long-read + large N + ancestry + coverage formalism).
+4. IPD-IMGT/HLA (release 3.63, 2026-01): 44,876 alleles; only 57.6% have full-length genomic sequence (up from 51.2% in 2023) — worse for class II/DRB1; no published ancestry-stratified breakdown of this gap was found — a genuine, citable, likely novel gap our paper can fill.
+5. Submission norms require Sanger-confirmed, ideally full-length sequence per novel allele — a bar population-scale pipelines like ours cannot meet per-allele; state this explicitly as a limitation.
+6. Chao & Jost (2012, Ecology) coverage-based rarefaction/extrapolation (Ĉ = 1 − Q1/n, refined with Q2; implemented in iNEXT) is the standard formalism for exactly our "how much allele space remains" question, but has apparently never been applied to HLA allele discovery — a clean methodological novelty claim (formulas UNVERIFIED at primary-source fidelity; corroborated only via secondary sources this session).
+7. gnomAD/HGDP+1KGP and the MTR intolerance-metric paper both show ancestral diversity beats raw sample size for discovery — directly supports our "ancestry matters more than N" framing for reference-panel design (section D).
+8. MHC/long-read assembly failure modes (uncollapsed haplotypes, allele dropout, phasebook reaching only ~95.2% haplotype coverage on simulated MHC) are documented in general terms but no HLA-specific quantified dropout rate exists — our QC section should supply this number empirically.
+9. No 2024-2026 paper was found that would fully "scoop" the combined claim (long-read + ~12,000 samples + multi-ancestry + coverage-based saturation + coding/non-coding decomposition); nearest partial overlaps are the Immuannot paper, the African HLA rarefaction paper (Sci Rep 2025), and the UK Biobank multi-ancestry exome paper — each covers only one axis.
+10. Full file with citations, URLs, and per-source relevance/UNVERIFIED flags: see path below.
