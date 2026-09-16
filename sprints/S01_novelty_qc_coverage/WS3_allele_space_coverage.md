@@ -126,3 +126,13 @@ outside the classical genes.
 - 99.6–100% of haplotypes carry an IMGT-catalogued protein; the reference gap is genomic, not protein.
 - Equal-size catalogues transfer asymmetrically: AFR→EUR 97.3% vs EUR→AFR 83.1%; EAS→AFR 71.8%.
 - Non-classical genes (DPB2, TAP1/2, MIC, HFE, DRB5) are the unsaturated part.
+
+## Sensitivity: does the artifact filter drive the near-saturation? (2026-09-17)
+Re-ran script 27 with `--exclude-flagged all`, i.e. counting every flagged (mostly homopolymer)
+allele as real. Mean protein coverage per ancestry falls from **99.3% to ~97.6%**
+(AFR 97.6, AMR 97.8, EAS 97.8, EUR 97.4, MID 97.5, SAS 97.8); the weakest genes drop to ~96.4%.
+Direction and conclusion are unchanged — coverage is high either way and far above the old
+"5-20% discovered" framing — but the exact figure is filter-dependent, because flagged alleles are
+overwhelmingly singletons and singletons are what coverage is most sensitive to. **Report both
+numbers in the paper.** Files: `sensitivity_all_alleles_summary.json`,
+`sensitivity_all_alleles_coverage_by_gene_ancestry.tsv`.

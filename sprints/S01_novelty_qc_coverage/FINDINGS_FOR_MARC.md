@@ -143,6 +143,10 @@ strands); the QC decomposition and switch power in 2.4; the coverage and transfe
 (estimators implemented from the published formulas with 22 unit tests, including brute-force
 checks).
 
+**Sensitivity check on the headline coverage number:** if every artifact-flagged allele is counted
+as real, coverage falls from 99.3% to about 97.6%. The conclusion is unchanged, but the exact figure
+depends on the artifact filter, so both belong in the paper.
+
 **Still uncertain, and stated as such:**
 1. Whether MIC/TAP novelty is biology or a thinner reference (test: reference completeness per gene).
 2. Coverage assumes haplotypes are independent draws; relatives are removed, but structure within an
