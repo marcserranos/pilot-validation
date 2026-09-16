@@ -24,3 +24,8 @@
   correct by hand; 2 CRITICAL + 5 MAJOR issues to fix before its figures are usable.
 - Critic also found a probable off-by-one in the EXISTING 21_hla_manhattan.py (minus-strand
   deletion anchor), which affects the committed per-site diversity capstone figures.
+- Pilots (200 people / 20 pairs) of scripts 24, 25, 26 all completed on real VM data. Script 24
+  needed one fix: Wilson intervals are not centred on the observed proportion, so error-bar
+  distances could go negative and matplotlib refused to plot (clamped at 0).
+- Full-cohort runs of 24 and 26 started (~/results/24_novelty_by_field, ~/results/26_qc_relatives_v2).
+  Script 25's full run waits for the critic fixes.
