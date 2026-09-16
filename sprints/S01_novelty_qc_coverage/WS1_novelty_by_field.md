@@ -168,3 +168,39 @@ Target: depth-4 calls. For each person/hap/gene copy with `novelty_depth==4`:
   "90.8% protein-altering" claim is retracted.
 - Saturation (04) counted artifacts as novel alleles and did not remove relatives. It must be
   re-run (WS3).
+
+## Critic review of script 25 (2026-09-16, fresh-context agent)
+**Verdict: the cs/strand core is correct (hand-checked on all four operators, both strands); the
+headline numbers are not paper-ready until the fixes below land.**
+
+- **CRITICAL: only one PAF record per call.** The PAF is raw, unfiltered minimap2, so a large
+  intronic indel splits the alignment and only one record is kept (the variant disappears), and
+  secondary (`tp:A:S`) rows can win on length. Fix: keep primary rows only, chain multiple primary
+  records, or mark the call `split_alignment` and exclude it.
+- **CRITICAL: no alignment-coverage floor.** A partly covered allele yields a signature that is a
+  subset of the truth and merges with full-length ones; `no_difference` is then an artifact class.
+  Fix: `--min-qcov` (≈0.98) and cross-tabulate `no_difference` against coverage.
+- **MAJOR: the pooling headline is confounded by template choice.** Signatures include the template
+  allele, so identical contigs with different templates count as distinct sequences, inflating
+  "one old cluster pooled N sequences". Fix: restrict to the modal template or re-project onto one.
+- **MAJOR: small-denominator ratios are committed unsuppressed** (`frac_homopolymer_only`,
+  `median_qcov` with `n = <20`) — that can disclose one person's genotype summary under `--genes all`.
+- **MAJOR: homopolymer fraction is inflated when the allele FASTA is missing** (every 1 bp indel is
+  called homopolymer); the figure carries no flag. Gate the figure on context availability.
+- **MAJOR: resume can mix reference contexts** — the parameter hash ignores FASTA contents and the
+  script's own mtime.
+- **MAJOR: threads won't help.** The per-line PAF parsing is GIL-bound; use a byte-prefix test and
+  processes, not threads, on the 4-vCPU VM.
+- MINOR: people missing from cohort_membership are silently treated as "related"; cluster class
+  taken from an arbitrary row; one figure plots unsuppressed counts; homozygotes contribute 2 to
+  the spectrum.
+- Six specific missing tests named (split/secondary rows, partial coverage collapse, template
+  splitting, suppression on small genes, resume invalidation, corrupt cds.fa.gz).
+
+### Spill-over finding, outside this sprint's scope
+**`21_hla_manhattan.py:walk_cs_canonical` anchors a minus-strand deletion at `qend-1-k`, where
+script 25's hand-verified logic gives `qend-k` — an off-by-one.** 21 produced the committed
+per-site diversity (π) results and the CDS-vs-non-CDS enrichment figures, the "capstone" result.
+Roughly half of all rows are minus-strand, so deletion positions in those may be shifted by one
+base. Needs checking before that figure is published: re-run a gene with the corrected offset and
+compare. Logged here so it is not lost.

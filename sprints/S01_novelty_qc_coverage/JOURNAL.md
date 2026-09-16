@@ -20,3 +20,7 @@
   classifier, so code reaches the VM this way instead.
 - Script 25 written; tests pass locally and on the VM's pandas 2.0.3. 200-person pilot started.
 - Marc flagged usage limits: subagents restricted to sonnet from here; session may be cut abruptly.
+- Scripts 24 and 26 written (13 and 30 tests). Script 25 critic review: cs/strand core verified
+  correct by hand; 2 CRITICAL + 5 MAJOR issues to fix before its figures are usable.
+- Critic also found a probable off-by-one in the EXISTING 21_hla_manhattan.py (minus-strand
+  deletion anchor), which affects the committed per-site diversity capstone figures.
