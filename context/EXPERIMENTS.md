@@ -667,3 +667,39 @@ of this). The 991 sequel2 people stay in the cohort file tagged `self_align_need
 fast-follow once Tier 3 is genuinely fixed and re-tested. **This is exactly what the two-phase split
 was designed to buy** — the untested path failed in a 13-minute test costing cents, instead of ~40
 hours into a ~$300 unattended run.
+
+## 2026-09-16/17 — Sprint S01: novelty re-definition by nomenclature field, QC v2, allele-space coverage
+
+Branch `fig1-drafts-and-research-map`; board `sprints/S01_novelty_qc_coverage/SPRINT.md`. Scripts
+24 (novelty by field), 25 (non-coding novelty from PAF cs strings), 26 (QC via relatives, v2),
+`_coverage.py` (coverage estimators), 27 (allele-space coverage). Results committed under
+`reports/hla_popgen/24_novelty_by_field/`, `25_noncoding_novelty_paf/`, `26_qc_relatives_v2/`.
+
+**24 — what "novel" means, per field (12,233 people, 11,856 unrelated, 875,179 haplotype-gene
+calls, 375 s).** 280,695 novel calls: 172,272 non-coding-only (field 4), 30,795 synonymous (field
+3), 75,442 protein (field 2, 71% carrying an artifact flag). Of the 104,532 field-2/3 calls with a
+recovered CDS: 25,282 have a CDS already in IPD-IMGT (naming artifact, mostly MIC/TAP), 72,667 are
+frameshift/premature-stop, 5,288 are genuine novel-protein calls → **1,404 distinct novel proteins,
+1,026 fully clean, 347 recurrent in ≥2 unrelated people**. Of those 347, only **8 are in the 8
+classical genes**; the rest are TAP1/TAP2 (147), class II accessory (67), DRB paralogs (49), E/F/G
+(32), MIC (36). The earlier "90.8% of novel clusters are protein-altering" is retracted: 87% of
+those clusters are flagged artifacts (mostly homopolymer indels).
+
+**25 — non-coding novelty resolved to real sequences (classical genes, 32,207 depth-4 haplotypes,
+11,507 people).** The old CDS-hash clustering pooled every haplotype sharing a known CDS: 708
+former clusters actually contain **15,112 distinct genomic sequences** (largest single cluster: 287).
+21.3% of depth-4 haplotypes differ only by homopolymer indels. 9,805 secondary alignment rows were
+excluded; a 0.98 query-coverage floor drops 300 calls.
+
+**26 — QC via relatives, rebuilt (574 first-degree-or-closer pairs chosen on AoU kinship only).**
+87.0% of 21,545 comparable gene comparisons are sequence-identical; the residual splits into
+6.5% called in one relative only, 3.2% dropout candidates, 2.3% single-base, **0.8% unexplained**.
+Duplicate/MZ replicates give the direct error rate: 121 differing bases in 306,033 → **QV ≈ 34**.
+Phasing: **0 switches over 3,021 testable transitions with 100% detection power** (the old
+"545/545, 0 switches" excluded mismatching genes before counting and never reported a denominator).
+Homozygosity obs/exp 1.10 (LR) vs 1.07 (SR, same people) → small real allele dropout. SR-vs-LR
+2-field agreement: known 1.78/2, non-coding-novel 1.74, synonymous 1.70, **protein-novel 0.93**.
+
+Two real-data traps cost time and are recorded in the briefs: a `cds.fa.gz` header's trailing
+integer is a file-wide record ordinal, not the gene's copy index; and a run can silently execute a
+stale deployed file (always clear `__pycache__` and verify the run used the new code).
