@@ -1,0 +1,102 @@
+{
+  "n_pairs": "574",
+  "n_replicate_pairs": "<20",
+  "sharing_frac_median": 1.0,
+  "overall_discordance_rate": 0.12977488976560686,
+  "overall_discordance_ci": [
+    0.1253534144105377,
+    0.1343283682055635
+  ],
+  "n_gene_comparisons_comparable": 21545,
+  "n_discordant": 2796,
+  "category_counts": {
+    "concordant": 18749,
+    "missing_both": 2563,
+    "other_multiblock": 176,
+    "missing_one": 1393,
+    "point_diff": 491,
+    "dropout_candidate": 697,
+    "fragmentation_candidate": 39
+  },
+  "threshold_sweep": [
+    {
+      "threshold": 0.5,
+      "n_pairs": "566",
+      "n_gene_comparisons": 21241,
+      "n_discordant": 2607,
+      "discordance_rate": 0.12273433454168825,
+      "ci_lo": 0.11838959533054925,
+      "ci_hi": 0.1272155119346421
+    },
+    {
+      "threshold": 0.8,
+      "n_pairs": "532",
+      "n_gene_comparisons": 19970,
+      "n_discordant": 2176,
+      "discordance_rate": 0.10896344516775162,
+      "ci_lo": 0.10471670909549763,
+      "ci_hi": 0.11336059857675304
+    },
+    {
+      "threshold": 0.9,
+      "n_pairs": "483",
+      "n_gene_comparisons": 18150,
+      "n_discordant": 1783,
+      "discordance_rate": 0.09823691460055096,
+      "ci_lo": 0.09399142263991683,
+      "ci_hi": 0.10265244363684964
+    },
+    {
+      "threshold": 0.95,
+      "n_pairs": "356",
+      "n_gene_comparisons": 13390,
+      "n_discordant": 1126,
+      "discordance_rate": 0.08409260642270351,
+      "ci_lo": 0.07951027102888306,
+      "ci_hi": 0.08891352158936028
+    }
+  ],
+  "replicate_qv": 34.02982889319279,
+  "replicate_zero_differences": false,
+  "replicate_n_diff_bases": 121,
+  "replicate_n_aligned_bases": 306033,
+  "switch_power": {
+    "n_pairs": 569,
+    "n_eligible_pairs": 532,
+    "detection_rate": 1.0,
+    "total_testable_transitions": 3021,
+    "median_testable_transitions": 5.0,
+    "median_resolved_genes": 15.0,
+    "n_pairs_zero_testable": 37,
+    "n_pairs_with_observed_switch": 0
+  },
+  "homozygosity_n_groups": 144,
+  "homozygosity_median_ratio_by_measure": {
+    "LR_2field": 1.1391062957816,
+    "LR_CDS_exact": 1.1031615271521398,
+    "SR_2field": 1.0670049300567688
+  },
+  "sr_lr_mean_alleles_matching_by_field_class": {
+    "f2_protein": 0.9258710155670867,
+    "f3_synonymous": 1.7027027027027026,
+    "f4_noncoding": 1.7437510823760318,
+    "known": 1.7751567829244141
+  },
+  "sr_lr_excluded_undetermined": "252",
+  "yob_stratification": "skipped (no --yob-tsv)",
+  "params": {
+    "resolution": 2,
+    "seed": 20260916,
+    "bootstrap": 200,
+    "strict_ancestry_min": 0.9,
+    "min_ancestry_n": 50,
+    "limit_pairs": null,
+    "threads": 4,
+    "sharing_thresholds": [
+      0.5,
+      0.8,
+      0.9,
+      0.95
+    ]
+  }
+}

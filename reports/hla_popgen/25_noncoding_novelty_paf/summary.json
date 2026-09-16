@@ -1,0 +1,149 @@
+{
+  "n_persons": 11507,
+  "n_depth4_haplotypes": 32207,
+  "n_parsed": 31886,
+  "status_counts": {
+    "ok": 31886,
+    "low_qcov": 300,
+    "no_row": 21
+  },
+  "n_secondary_filtered": 9805,
+  "n_multi_record_chained": 0,
+  "n_split_alignment": 0,
+  "n_low_qcov": 300,
+  "min_qcov": 0.98,
+  "selection_path_counts": {
+    "template": 31869,
+    "fallback_3field": "<20"
+  },
+  "cds_status_counts": {
+    "ok": 32204,
+    "ambiguous_copy": "<20"
+  },
+  "n_signatures": 15112,
+  "n_signatures_ge20_unrelated": 184,
+  "n_former_clusters": 708,
+  "median_signatures_per_former_cluster": 1.0,
+  "max_signatures_per_former_cluster": 287,
+  "median_signatures_per_former_cluster_raw": 2.0,
+  "max_signatures_per_former_cluster_raw": 788,
+  "frac_homopolymer_only": 0.2126,
+  "homopolymer_gate_reason": null,
+  "signature_class_haplotypes": {
+    "indel_nonhomopolymer": 10250,
+    "snv_only": 8731,
+    "homopolymer_only": 6778,
+    "snv_plus_indel": 5048,
+    "no_difference": 1079
+  },
+  "region_class_haplotypes": {
+    "intron_only": 23366,
+    "involves_utr": 4633,
+    "touches_cds": 2808,
+    "no_difference": 1079
+  },
+  "frac_region_class": {
+    "intron_only": 0.7328,
+    "involves_utr": 0.1453,
+    "touches_cds": 0.0881,
+    "no_difference": 0.0338
+  },
+  "touches_cds": {
+    "n": 2808,
+    "n_template_shares_call_3fields": 25,
+    "n_template_differs_at_3fields": 2783,
+    "by_selection_path": {
+      "template": 2808
+    },
+    "n_signatures": 1343
+  },
+  "no_difference_by_qcov_decile": [
+    {
+      "qcov_decile": "(-0.001, 0.1]",
+      "n_calls": "<20",
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.1, 0.2]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.2, 0.3]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.3, 0.4]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.4, 0.5]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.5, 0.6]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.6, 0.7]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.7, 0.8]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.8, 0.9]",
+      "n_calls": 0,
+      "n_no_difference": 0,
+      "frac_no_difference": null
+    },
+    {
+      "qcov_decile": "(0.9, 1.0]",
+      "n_calls": 32185,
+      "n_no_difference": 1175,
+      "frac_no_difference": 0.0365076899
+    }
+  ],
+  "frac_context_sequence": 1.0,
+  "n_seq_inconsistent": 0,
+  "strand_counts": {
+    "-": 16433,
+    "+": 15453
+  },
+  "median_qcov": 1.0,
+  "relatedness_available": true,
+  "n_unrelated_lr": 11856,
+  "n_missing_from_cohort_membership": 0,
+  "allele_fastas": [
+    "gen.fa.gz"
+  ],
+  "n_allele_sequences_loaded": 6476,
+  "n_annotations_loaded": 6476,
+  "genes": [
+    "HLA-A",
+    "HLA-B",
+    "HLA-C",
+    "HLA-DPA1",
+    "HLA-DPB1",
+    "HLA-DQA1",
+    "HLA-DQB1",
+    "HLA-DRB1"
+  ],
+  "limit": null,
+  "min_commit_count": 20
+}

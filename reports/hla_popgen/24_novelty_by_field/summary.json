@@ -1,0 +1,146 @@
+{
+  "limit": null,
+  "n_people": "12233",
+  "n_people_unrelated": "11856",
+  "n_people_removed_for_relatedness": "377",
+  "relatedness_skipped": false,
+  "kin_min": 0.0442,
+  "strict_threshold": 0.9,
+  "headline": {
+    "n_haplotype_gene_calls": "875179",
+    "n_novel_calls_any_depth": "280695",
+    "n_f2_protein_calls": "75442",
+    "n_f2_protein_calls_clean": "22122",
+    "n_f3_synonymous_calls": "30795",
+    "n_f4_noncoding_calls": "172272",
+    "n_depth23_calls_with_sequence": "104532",
+    "n_cds_known_naming_artifacts": "25282",
+    "n_frameshift_or_stop_calls": "72667",
+    "n_novel_protein_calls": "5288",
+    "n_novel_protein_clusters": "1404",
+    "n_novel_protein_clusters_all_clean": "1026",
+    "n_novel_protein_clusters_clean_recurrent_unrelated": "231",
+    "n_novel_cds_synonymous_clusters": "419",
+    "frac_f2_calls_flagged": 0.7067681132525648
+  },
+  "match_stats": {
+    "n_novel_table1_rows": "108306",
+    "n_matched": "108247",
+    "n_ambiguous_copy": "58",
+    "n_missing_cds": "<20",
+    "n_join_ambiguous": "3715",
+    "n_copy1_duplicate_keys_dropped": "0",
+    "n_seq_calls_joined": "104532"
+  },
+  "allele_table_dropped": {
+    "protein_all": "41892",
+    "protein_clean_only": "40690",
+    "cds_all": "41892",
+    "cds_clean_only": "40690"
+  },
+  "n_depth3_protein_not_catalogued": "<20",
+  "n_depth2_protein_catalogued": "185",
+  "refdata": {
+    "n_files": 40,
+    "n_records": "38896",
+    "n_with_terminal_stop": "21423",
+    "n_nonstandard_frame": "15590",
+    "n_unparsed_headers": "0"
+  },
+  "alleles_csv": "/home/jupyter/tools/Immuannot_refdata/alleles.csv.gz",
+  "n_exon_maps": 286,
+  "imgt_version_alleles_csv": "IPD-IMGT/HLA-V3.55.0",
+  "exon_map_genes_with_mode": [
+    "A",
+    "B",
+    "C",
+    "DMA",
+    "DMB",
+    "DOA",
+    "DOB",
+    "DPA1",
+    "DPB1",
+    "DPB2",
+    "DQA1",
+    "DQA2",
+    "DQB1",
+    "DQB2",
+    "DRA",
+    "DRB1",
+    "DRB3",
+    "DRB4",
+    "DRB5",
+    "E",
+    "F",
+    "G",
+    "HFE",
+    "L",
+    "MICA",
+    "MICB",
+    "N",
+    "TAP1",
+    "TAP2",
+    "U",
+    "V",
+    "Y"
+  ],
+  "groove_method_counts": {
+    "NA": "740",
+    "refdata_exon": "664"
+  },
+  "funnel": {
+    "all_genes": [
+      [
+        "depth-2/3 novel calls",
+        "106237"
+      ],
+      [
+        "matched observed CDS",
+        "104532"
+      ],
+      [
+        "no artifact label",
+        "46350"
+      ],
+      [
+        "CDS not in IMGT snapshot",
+        "22784"
+      ],
+      [
+        "novel protein",
+        "4886"
+      ],
+      [
+        "in clean protein cluster recurrent in >=2 unrelated",
+        "4080"
+      ]
+    ],
+    "classical": [
+      [
+        "depth-2/3 novel calls",
+        "4805"
+      ],
+      [
+        "matched observed CDS",
+        "4634"
+      ],
+      [
+        "no artifact label",
+        "428"
+      ],
+      [
+        "CDS not in IMGT snapshot",
+        "427"
+      ],
+      [
+        "novel protein",
+        "210"
+      ],
+      [
+        "in clean protein cluster recurrent in >=2 unrelated",
+        "<20"
+      ]
+    ]
+  },
+  "runtime_s": 395.7
+}
