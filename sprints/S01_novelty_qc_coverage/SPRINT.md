@@ -57,17 +57,30 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked (reason)
 | WS | Goal | Brief | Status |
 |---|---|---|---|
 | WS0 | Scaffolding, commit drafts, STATUS pointer | this file | ◐ |
-| WS1 | Novelty re-definition by field; artifact accounting; protein-level novel alleles; IMGT-known CDS check | `WS1_novelty_by_field.md` | ◐ audit running |
-| WS2 | QC audit: source of relative discordance, switch-test power, twins, dropout, read support | `WS2_qc_audit.md` | ◐ audit running |
-| WS3 | Allele-space coverage by resolution and ancestry; cross-ancestry matrix; sampling scenarios | `WS3_allele_space_coverage.md` | ☐ |
+| WS1 | Novelty re-definition by field; artifact accounting; protein-level novel alleles; IMGT-known CDS check | `WS1_novelty_by_field.md` | ◐ audit done; scripts 24, 25 being implemented |
+| WS2 | QC audit: source of relative discordance, switch-test power, twins, dropout, read support | `WS2_qc_audit.md` | ◐ audit done; script 26 being implemented |
+| WS3 | Allele-space coverage by resolution and ancestry; cross-ancestry matrix; sampling scenarios | `WS3_allele_space_coverage.md` | ◐ `_coverage.py` library being implemented |
 | WS4 | Figure 1 v2 from WS1–3 results | `WS4_figure1.md` | ☐ |
-| WS5 | Literature positioning (coverage estimators, long-read HLA at scale, IMGT submission) | `WS5_literature.md` | ☐ |
+| WS5 | Literature positioning (coverage estimators, long-read HLA at scale, IMGT submission) | `WS5_literature.md` | ◐ research agent running |
 | WS6 | Remaining supervisor items: LD (2), structural variation/KIR (6), selection lit (7) | `WS6_supervisor_items.md` | ☐ |
 | — | HLA × TCR/BCR (needs Aleix's join) | plan in `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` §3 | ⏸ Aleix |
 
 VM: ⏸ Workbench tab is at the login page (2026-09-16) — Marc must sign in. Local work proceeds.
 
-## 4. Headline findings (distilled from briefs; newest first)
+## 4. Resume here (always current)
+
+If this session died, do this next:
+1. Check that the local-only agents' files exist and their tests pass (24, 25, 26, `_coverage.py`).
+   If a file is missing, re-launch that implementer from the spec in its WS brief.
+2. Review each script (critic agent + own read), commit, and push the branch.
+3. VM: if the Workbench tab is logged out, ask Marc to sign in. Then, in a JupyterLab terminal:
+   `cd ~/repos/pilot-validation && git fetch && git worktree add ~/repos/pv-s01 origin/fig1-drafts-and-research-map`
+   (a worktree, so another agent's checkout of main is untouched). Run the scripts from `~/repos/pv-s01`
+   with `--limit` pilots first, then the full runs, logging to `~/results/<script>/run.log`.
+4. Long runs go in `nohup ... &` so a browser logout doesn't kill them (quirk: JupyterLab
+   terminals survive tab logout).
+
+## 5. Headline findings (distilled from briefs; newest first)
 
 - (none yet this sprint) Carried in from 2026-09-15: after removing flagged artifacts, 93–99.7% of
   novel classical-gene haplotypes are non-coding-only; 7 recurrent CDS-changing novel alleles.
