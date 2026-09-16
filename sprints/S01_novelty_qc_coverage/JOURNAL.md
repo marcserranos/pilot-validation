@@ -43,3 +43,10 @@
 - Script 27 (coverage) implemented, tested on the VM, run on the full cohort; results pulled and
   committed. Off-by-one in 21_hla_manhattan confirmed but harmless (affects only an unused field);
   patched with a regression test.
+- Figure 1 v2 composed (script 28, laptop-only) from committed results. Coverage sensitivity run
+  (all alleles incl. flagged): 97.6% vs 99.3%.
+- Fresh-context critic checked FINDINGS_FOR_MARC.md against the data: funnel, pooling, QC, QV,
+  switch power and transfer matrix all CONFIRMED; found 3 real errors (classical novel-protein
+  count 6 not 8; mislabelled gene-family groups; coverage range excludes MID's 97.1%). All fixed.
+- Sprint deliverables complete: scripts 24-28, results in reports/hla_popgen/2{4,5,6,7,8}_*,
+  FINDINGS_FOR_MARC.md, EXPERIMENTS.md entries. Branch not pushed (needs Marc).

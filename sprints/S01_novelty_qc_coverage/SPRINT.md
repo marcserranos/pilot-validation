@@ -67,39 +67,29 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked (reason)
 
 VM: ⏸ Workbench tab is at the login page (2026-09-16) — Marc must sign in. Local work proceeds.
 
-## 4. Resume here (always current) — updated 2026-09-17
+## 4. Resume here (always current) — updated 2026-09-17 (sprint complete)
 
-**State:** branch `fig1-drafts-and-research-map`, committed locally, **NOT pushed** (classifier
-blocks publishing to the public repo; Marc must push).
+**S01 is done.** Scripts 24-28 written, tested, run on the full cohort; results committed under
+`reports/hla_popgen/2{4,5,6,7,8}_*`; findings in `FINDINGS_FOR_MARC.md`; `context/EXPERIMENTS.md`
+updated. Branch `fig1-drafts-and-research-map` is committed **but not pushed** — pushing to the
+public repo is blocked for the agent, so Marc must push.
 
-**Done:** WS1 (scripts 24, 25 full cohort), WS2 (script 26 full cohort), `_coverage.py`, WS5
-literature. All aggregate results are committed under `reports/hla_popgen/2{4,5,6}_*`.
+**If you are picking this up cold:** read `FINDINGS_FOR_MARC.md`, then this file's §5.
 
-**VM channel (ENVIRONMENT quirk #37):** JupyterLab tab →
-`https://9394ec22-d949-4489-b46e-73790750472e.workbench-app-prod.verily.com/lab`;
-helpers defined in the page: `window.bg(key,cmd)` / `window.res[key]` / `window.show(key,a,b)`,
-`window.deploy(paths)` (laptop → VM, needs the local server:
-`python3 <scratchpad>/serve.py`, GET serves scripts/+sprints/, POST /save writes into
-reports/hla_popgen/), `window.pull([[vmPath, repoPath]...])` (VM → laptop, no file content passes
-through the model). VM helper scripts: `~/run.sh <script.py> <outname> [args]` (detached, unbuffered),
-`~/runtests.sh <module...>`. Worktree `~/repos/pv-s01`; python
-`~/repos/pilot-validation/.pixi/envs/spechla/bin/python` (3.8/pandas 2.0.3).
-**Trap:** after deploying a changed script, clear `__pycache__` and confirm the run used the new
-file — a stale run once produced a completely wrong QC number.
+**Open items, ranked (next sprint):**
+1. Confirm novel proteins with RNA-seq read support (also the join with Aleix's cohort).
+2. Non-classical MHC atlas (TAP1/TAP2, MIC, DM/DO) — the possible new spine of the paper; first
+   check reference completeness per gene so "new biology" is separated from "thin reference".
+3. Remaining supervisor items: LD for DQ/DP by ancestry, structural variation + KIR, selection
+   methods literature review.
+4. A budget curve for the sampling designs (coverage vs catalogue size per design); the full-size
+   designs all saturate and are uninformative.
 
-**In flight:** script 27 (coverage) implementer agent; a verification agent on the suspected
-off-by-one in the existing `21_hla_manhattan.py`.
-
-**Next actions, in order:**
-1. When 27 lands: deploy, test on VM, pilot (`--limit-genes 2`), then full run; pull results.
-2. Compose Figure 1 v2 (new script 28) from: admixture panel (existing 06), class I ternary
-   (existing 10), clean novelty rate by ancestry and field (24), coverage curves + cross-ancestry
-   matrix (27). Then a supplement list.
-3. Decide the 21_hla_manhattan question from the verification agent's verdict.
-4. Write the final plain-language report for Marc (objective → finding → meaning → why novel),
-   update `context/EXPERIMENTS.md` with pointer entries, and ask Marc to push the branch.
-
-**Constraints:** subagents = sonnet only; expect interruption; commit after every step.
+**VM channel and traps** (ENVIRONMENT quirks #35-38): JupyterLab tab →
+`.../lab`; `window.bg/res/show/deploy/pull` helpers; `~/run.sh`, `~/runtests.sh`; worktree
+`~/repos/pv-s01`; local server `python3 <scratchpad>/serve.py` (GET scripts/sprints, POST /save →
+reports/hla_popgen). After deploying a changed script, clear `__pycache__` and verify the run used
+it. Use a second terminal for status probes; one terminal serialises everything.
 
 ## 5. Headline findings (distilled from briefs; newest first)
 
