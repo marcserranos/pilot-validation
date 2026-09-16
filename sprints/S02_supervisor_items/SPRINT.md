@@ -84,21 +84,55 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked/parked
 | WS | Goal | Brief | Status |
 |---|---|---|---|
 | WS0 | Scaffolding; restate S01's phasing QC in the DPA1–DPB1 / DQA1–DQB1 form Cole asked for (A2) | this file | ◐ |
-| WS1 | LD between DQ and DP alleles within each ancestry (A3) | `WS1_ld_by_ancestry.md` | ☐ |
-| WS2 | Structural variation: gene deletions, duplications, DRB copy number; KIR answer (A4, A5) | `WS2_structural_variation.md` | ☐ |
-| WS3 | Main-text callout list of common novel alleles absent from IPD-IMGT (A6) | `WS3_novel_callouts.md` | ☐ |
+| WS1 | LD between DQ and DP alleles within each ancestry (A3) | script 29 | ◐ written + tested + smoke-tested; needs the VM run |
+| WS2 | Structural variation: gene deletions, duplications, DRB copy number; KIR answer (A4, A5) | script 30 | ◐ written + tested + smoke-tested; needs the VM run |
+| WS3 | Main-text callout list of common novel alleles absent from IPD-IMGT (A6) | script 32 + `reports/hla_popgen/32_novel_callouts/README.md` | ☑ done |
 | WS4 | Figure 1 v3 + supplement dump, strict-admixture variants (A1, A9, A11) | `WS4_figure1_v3.md` | ☐ |
-| WS5 | Selection: ARS vs non-ARS amino-acid diversity; class I vs II differentiation; literature (A7, A8, A10) | `WS_literature_selection.md`, `WS5_selection.md` | ◐ literature agent running |
+| WS5 | Selection: ARS vs non-ARS amino-acid diversity; class I vs II differentiation; literature (A7, A8, A10) | `WS_literature_selection.md`, `WS5_ars_definition.md`, script 31 | ◐ literature + ARS definition done; script 31 needs the VM run |
 | — | Short-read validation of novel alleles (A12) | — | ⏸ parked by Cole |
 | — | HLA × TCR/BCR join | `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` §3 | ⏸ Aleix |
 
 ## 5. Resume here (always current)
 
-*2026-09-17, sprint opening.* Scaffold written; literature agent dispatched. Nothing run yet.
-VM state unknown — assume it restarted (ENVIRONMENT quirk #14) and re-verify the mount before
-trusting anything that reads AoU data. S01's VM channel and traps are documented in
-`../S01_novelty_qc_coverage/SPRINT.md` §4 and ENVIRONMENT quirks #35–38; reuse them verbatim.
+*2026-09-17.* Scripts **29** (LD), **30** (structural variation), **31** (amino-acid diversity /
+differentiation) and **32** (novel-allele callouts) are written, unit-tested (127 fixture tests
+across the four) and smoke-tested against a synthetic cohort built in the session scratchpad.
+**32 has already been run for real** — it needs only committed aggregates. **29, 30 and 31 still
+need their full-cohort VM run**; that is the next action.
+
+Literature (A7) and the structural ARS definition are done and committed.
+
+VM: assume it restarted (ENVIRONMENT quirk #14); re-verify the auto-mount before trusting
+anything that reads AoU data. **Do not touch `~/mnt/aou-controlled`** — quirk #35, it hangs the
+process irrecoverably; all three scripts already default to the `~/workspace/` auto-mount. S01's
+VM channel and traps are in `../S01_novelty_qc_coverage/SPRINT.md` §4 and quirks #35–38.
+
+Command to run on the VM once the mount is verified:
+
+```
+for s in 29_hla_ld_by_ancestry 30_hla_structural_variation 31_aa_diversity_selection; do
+  setsid nohup python3 -u scripts/hla_popgen/$s.py --out-dir ~/results/$s < /dev/null & disown
+done
+```
+
+(Clear `__pycache__` after deploying changed files and verify the run used them — S01 lost a day
+to a stale deployed script that produced plausible wrong numbers.)
 
 ## 6. Headline findings (distilled, newest first)
 
-*(empty — nothing run yet)*
+**WS3 — the main-text callout list (script 32, committed aggregates, 2026-09-17).**
+38 clean, recurrent novel alleles are carried by **>= 20 unrelated people**; 29 are novel
+proteins and 9 are novel synonymous CDS (reported separately, since they are *not* new proteins).
+**None is in a classical HLA gene.** They are TAP1/TAP2 (26), DQB2/DQA2/DM/DO (10), MICB, HLA-G,
+HLA-F. The largest: a TAP1 protein one residue from TAP1*01:01, in **426** unrelated people and
+**~139 per 1,000** African-ancestry participants.
+
+The obvious objection — "TAP is just under-catalogued" — is answered with script 27's independent
+measurement, printed beside every callout: the share of a gene's haplotypes whose protein is
+already absent from IPD-IMGT is **8.0% for TAP1 and 6.9% for TAP2**, against **0.1-0.2% for
+HLA-A/B/C**. The genes with the most novel alleles are the genes with the largest catalogue gap,
+so the two independent estimates agree. That is evidence for the reframing S01 proposed (the
+paper's spine is the non-classical MHC), not against it.
+
+A further 309 clean recurrent alleles sit below the disclosure threshold: the IMGT submission
+queue, countable but not nameable.
