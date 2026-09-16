@@ -125,10 +125,14 @@ So the honest headline is **hundreds of new HLA proteins, not thousands**; ~25k 
 are a naming artifact (their CDS is catalogued); and the bulk of "protein-altering" novelty is
 frameshift/stop calls dominated by homopolymer artifacts.
 
-**WS2 — QC:** the previous "0 switches / 95% concordance" pair is not usable as evidence (errors
-are excluded before switches are counted; no denominator; pairs selected on the statistic
-reported). Script 26 rebuilds it. A real-data bug (cds.fa.gz header ordinals read as copy indices)
-first produced an impossible 78% discordance — fixed, regression-tested, re-running.
+**WS2 — QC (script 26, full cohort):** relatives agree at 87.0% of 21,545 comparable gene
+comparisons; only **0.8%** are unexplained sequence differences (6.5% is a gene called in one
+relative only, 3.2% dropout candidates, 2.3% single-base). Duplicate/MZ replicates give the direct
+error rate: **QV ≈ 34** (121 differing bases in 306,033). Phasing: **0 switches over 3,021 testable
+transitions at 100% detection power** — unlike the old "545/545", this test could have failed.
+Homozygosity excess vs the same people's short-read calls (1.10 vs 1.07) shows small real dropout.
+Novel-protein calls are the one place short reads disagree (0.93 of 2 alleles matching vs 1.78 for
+known alleles).
 
 **Carried in from 2026-09-15 (still true, now better quantified):** non-coding novelty dominates,
 and the flagged-artifact rate is flat across ancestries (a built-in control).

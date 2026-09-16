@@ -34,3 +34,6 @@
 - Script 24 full run done (375 s): 1,404 distinct novel proteins, 1,026 clean, 231 recurrent in
   unrelated people; 25,282 novel-flagged calls have a CDS already in IMGT (naming artifact);
   72,667 frameshift/stop calls.
+- The 78% discordance was a stale-file artifact: the run had executed the pre-fix script. After a
+  clean re-run, discordance is 13.0% overall and 87.0% of comparable genes are concordant.
+  QC results recorded in WS2. Script 25 full run and script 27 implementation under way.

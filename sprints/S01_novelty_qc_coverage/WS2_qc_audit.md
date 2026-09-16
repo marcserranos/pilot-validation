@@ -122,3 +122,44 @@ record on a hap is used; a gene with several records is a genuine multi-copy cas
 mapped onto Table 1's `copy_index` from this file, so it is excluded and counted. Two regression
 tests added with realistic headers (the original fixtures had one record per file, so they passed
 both before and after the bug — a fixture-realism failure worth remembering).
+
+## Results — script 26, full cohort (2026-09-16)
+574 first-degree-or-closer pairs, selected on AoU kinship only (no HLA data), 21,545 comparable
+gene comparisons.
+
+| category | n | share of comparable |
+|---|---|---|
+| concordant (identical sequence) | 18,749 | 87.0% |
+| called in only one relative | 1,393 | 6.5% |
+| dropout candidate (a relative is homozygous-by-sequence there) | 697 | 3.2% |
+| point difference (≤3 bases, one block) | 491 | 2.3% |
+| unexplained multi-block | 176 | **0.8%** |
+| fragmentation candidate | 39 | 0.2% |
+
+**So the 5%/13% "discordance" is mostly not miscalled alleles.** Half is presence/absence (a gene
+called in one relative and not the other), and only 0.8% of comparisons are a genuinely different
+sequence with no benign explanation.
+
+**Direct technical error (duplicate/MZ pairs, the only true replicates):** 121 differing bases over
+306,033 aligned bases → **QV ≈ 34** (~1 error per 2,500 bases), worse than the QV 46–47 implied
+indirectly by 1-base divergence counts. Report the replicate number as the honest one.
+
+**The switch test now has power and now means something:** 3,021 testable transitions (median 5 per
+pair; 37 pairs have none), synthetic single switches are detected in **100%** of eligible pairs, and
+**0 real switches** are observed. This is the statement the paper can make — the old "545/545" could
+not distinguish "no switches" from "no test".
+
+**Allele dropout is real but small:** observed/expected homozygosity is 1.10 (LR, exact CDS) and
+1.14 (LR, 2-field) versus 1.07 for the same people's short-read calls.
+
+**Short-read vs long-read (mean alleles matching out of 2):** known 1.78, non-coding-novel 1.74,
+synonymous-novel 1.70, **protein-novel 0.93**. Novel-protein calls are exactly where short reads
+disagree — partly expected (a novel allele has no short-read equivalent) and partly a caution.
+
+### Distilled (for SPRINT.md)
+- Relatives agree at 87% of comparable genes; only **0.8%** of comparisons are unexplained sequence
+  differences. Half of all discordance is a gene called in one relative only.
+- Duplicate/twin replicates give the true error rate: **QV ≈ 34**.
+- Phasing: **0 switches across 3,021 testable transitions, with 100% detection power** — the claim
+  is now supported by a test that could have failed.
+- Homozygosity excess vs short reads (1.10 vs 1.07) indicates a small amount of allele dropout.
