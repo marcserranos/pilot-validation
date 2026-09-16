@@ -101,6 +101,11 @@ a duplicate is not (see COMPREHENSIVE_REPORT.md for the narrative these map onto
 22_panel_overview.py        → cross-gene CDS vs non-CDS comparison, from 21's panel_summary.tsv
 ```
 
+**Figure 1 drafts** (23 — laptop-only, reads committed aggregates)
+```
+23_fig1_draft_panels.py     → novel rate by ancestry x gene + SFS known vs novel, split CDS/non-coding/artifact
+```
+
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can
 settle — chiefly **whether the intermediate files survived on the production VM**. It is cheap
 (~2 minutes) and prints one JSON block to paste back. Nothing downstream should be trusted until it

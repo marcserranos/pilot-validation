@@ -11,6 +11,7 @@ pilot-validation/
 ├── context/            MUST be fully read at the start of every new session — see "Read order" below
 ├── scripts/            all pipeline code (.py / .sh) — nothing to read up front, used as needed
 ├── reference/          upstream tool docs + AoU data-access research — consult, don't ingest wholesale
+├── sprints/            active autonomous sprint boards — read sprints/README.md, then the active SPRINT.md only
 └── reports/            finished, delivery-ready writeups (e.g. for supervisors) — read on demand,
                         pointed to from EXPERIMENTS.md, never read wholesale at session start
 ```

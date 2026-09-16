@@ -1,0 +1,8 @@
+novel_id	gene	nearest_allele	novelty_class	cds_distance	n_aa_changes	n_persons	n_ancestries	n_AFR	n_AMR	n_EAS	n_EUR	n_MID	n_SAS
+HLA-DQB1_nov_5fe7f9c1	HLA-DQB1	HLA-DQB1*02:02:01:01	protein_altering	1.0	20.0	<20	2	<20	<20	0	0	0	0
+HLA-DPB1_nov_fab8779c	HLA-DPB1	HLA-DPB1*75:01	protein_altering	1.0	1.0	<20	2	0	<20	<20	0	0	0
+HLA-DPB1_nov_9dfebb85	HLA-DPB1	HLA-DPB1*14:01:01:01	protein_altering	2.0	22.0	<20	1	0	0	<20	0	0	0
+HLA-DPA1_nov_e1ba4007	HLA-DPA1	HLA-DPA1*02:01:08:01	protein_altering	2.0	6.0	<20	1	<20	0	0	0	0	0
+HLA-DRB1_nov_67913fcb	HLA-DRB1	HLA-DRB1*03:02:01:01	protein_altering	1.0	2.0	<20	2	<20	<20	0	0	0	0
+HLA-B_nov_7d8c1f06	HLA-B	HLA-B*44:02:01:02S	protein_altering	3.0	1.0	<20	1	<20	0	0	0	0	0
+HLA-DRB1_nov_b9d7df6e	HLA-DRB1	HLA-DRB1*15:03:01:01	protein_altering	1.0	4.0	<20	1	<20	0	0	0	0	0

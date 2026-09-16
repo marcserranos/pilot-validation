@@ -1,0 +1,9 @@
+gene	cds_changing	noncoding_only	flagged_artifact	undetermined	sum_all_buckets	richness_novel_haplotypes	noncoding_share_of_clean_%
+HLA-A	57	743	657	0	1457	1447	92.9
+HLA-B	91	2333	729	1	3154	3133	96.2
+HLA-C	80	1707	826	0	2613	2594	95.5
+HLA-DPA1	40	2698	407	0	3145	3132	98.5
+HLA-DPB1	45	4487	627	0	5159	5125	99.0
+HLA-DQA1	55	3509	395	0	3959	3931	98.5
+HLA-DQB1	50	2214	603	0	2867	2839	97.8
+HLA-DRB1	39	14268	577	0	14884	14670	99.7
