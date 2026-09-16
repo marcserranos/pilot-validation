@@ -188,3 +188,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def test_minus_strand_insertion_anchor_is_a_boundary_not_a_base():
+    """REGRESSION (2026-09-17): a cs '-' op consumes no canonical base, so its anchor is the
+    boundary before the next unconsumed base. On the minus strand that is `qend - q_consumed`;
+    using the consumed-base formula (`qend - 1 - q_consumed`) shifted every minus-strand
+    contig-insertion anchor by 1 bp. Plus-strand anchors were always correct."""
+    m = _load_module("21_hla_manhattan.py", "m21_regression")
+    _, ins_plus = m.walk_cs_canonical(":3-tt:7", 0, 10, "+")
+    assert ins_plus == [3]
+    _, ins_minus = m.walk_cs_canonical(":3-tt:7", 0, 10, "-")
+    assert ins_minus == [7]

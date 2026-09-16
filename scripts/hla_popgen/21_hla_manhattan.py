@@ -225,7 +225,14 @@ def walk_cs_canonical(cs_string, qstart, qend, strand):
             q_consumed += n
         elif tok[0] == "-":
             # Present in contig, absent from canonical -> no canonical coordinate; anchor only.
-            insertions.append(canon_pos(q_consumed))
+            # This op consumes NO canonical base, so its anchor is a boundary between bases, not a
+            # base position: on the minus strand that boundary is `qend - q_consumed`, whereas
+            # canon_pos() (= qend - 1 - q_consumed) is the formula for a consumed base. Using
+            # canon_pos here shifted minus-strand anchors by 1 bp (~half of all rows). Only
+            # `insertions` was affected, and nothing downstream reads it -- per-site pi, the
+            # Manhattan figures and panel_summary.tsv come from `observed`, which is correct --
+            # so committed results are unaffected. Fixed 2026-09-17 before anything consumes it.
+            insertions.append((qstart + q_consumed) if strand == "+" else (qend - q_consumed))
     return observed, insertions
 
 

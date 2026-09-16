@@ -261,3 +261,13 @@ Caveat to check before leaning on it: MIC/TAP novelty may partly reflect a less 
 reference for those genes (note MICB, where 78% of calls are field-3 novel and 22,657 of the 25,282
 "catalogued CDS under a new name" cases are MIC/TAP). Distinguish "new biology" from "thin
 reference" per gene before publishing.
+
+## Resolution of the 21_hla_manhattan spill-over (2026-09-17)
+**CONFIRMED as a real off-by-one, but harmless to the committed results.** The `-` cs operator
+consumes no canonical base, so its anchor is a boundary, not a base position: on the minus strand
+that is `qend - q_consumed`, while the script used the consumed-base formula `qend - 1 - q_consumed`.
+However the affected value only ever lands in `insertions` → `insertion_counts` in the per-gene
+JSON, which nothing reads: per-site π, the Manhattan figures and `panel_summary.tsv` are all built
+from `observed`, whose substitution and deletion branches are correct. **The capstone
+CDS-vs-non-CDS diversity results do not need regenerating.** Patched anyway, with a regression test,
+before anything starts consuming `insertion_counts`.
