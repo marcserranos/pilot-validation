@@ -204,3 +204,30 @@ per-site diversity (π) results and the CDS-vs-non-CDS enrichment figures, the "
 Roughly half of all rows are minus-strand, so deletion positions in those may be shifted by one
 base. Needs checking before that figure is published: re-run a gene with the corrected offset and
 compare. Logged here so it is not lost.
+
+## Results — script 25, full cohort, classical genes (2026-09-16)
+32,207 depth-4 (non-coding-novel) haplotypes across 11,507 people; 31,886 parsed
+(300 excluded by the 0.98 alignment-coverage floor, 21 with no usable alignment row); 9,805
+secondary alignment rows filtered out; 0 split/chained alignments.
+
+**The pooling is now measured, and it is severe.**
+
+| | |
+|---|---|
+| former CDS-hash clusters (classical genes) | 708 |
+| distinct non-coding sequences (signatures) behind them | **15,112** |
+| median signatures per former cluster (modal template / raw) | 1.0 / 2.0 |
+| max signatures in one former cluster (modal template / raw) | **287 / 788** |
+| signatures carried by ≥20 unrelated people | 184 |
+
+So "a novel allele carried by 1,531 people" was never one allele: the largest former cluster
+contains 287 genuinely different genomic sequences. Any recurrence statistic computed on the old
+clusters is an upper bound on nothing meaningful, and the 2026-09-15 draft callout was wrong.
+
+**What the non-coding differences are** (haplotypes): non-homopolymer indel 10,250; SNV only 8,731;
+**homopolymer-only 6,778 (21.3%)**; SNV+indel 5,048; no difference within the aligned region 1,079.
+So about a fifth of non-coding novelty is the classic long-read error mode and should be discounted.
+
+**Where they fall:** intronic-only dominates; 8.8% of depth-4 haplotypes "touch CDS", and in 2,783
+of those 2,808 cases the genomic template differs from the called allele at field 3 — i.e. it is the
+template-vs-call mismatch the design anticipated, not a contradiction.

@@ -37,3 +37,6 @@
 - The 78% discordance was a stale-file artifact: the run had executed the pre-fix script. After a
   clean re-run, discordance is 13.0% overall and 87.0% of comparable genes are concordant.
   QC results recorded in WS2. Script 25 full run and script 27 implementation under way.
+- 2026-09-17: usage limit interrupted the session; VM runs were unaffected. Script 25 full run
+  finished: 15,112 distinct non-coding sequences behind 708 former clusters (max 287 in one),
+  21.3% homopolymer-only. Script 27 implementer was killed mid-way and is being relaunched.

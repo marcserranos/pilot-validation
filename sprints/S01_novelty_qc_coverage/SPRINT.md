@@ -134,5 +134,11 @@ Homozygosity excess vs the same people's short-read calls (1.10 vs 1.07) shows s
 Novel-protein calls are the one place short reads disagree (0.93 of 2 alleles matching vs 1.78 for
 known alleles).
 
+**WS1 — non-coding novelty (script 25, full cohort, classical genes):** the 708 former CDS-hash
+clusters hide **15,112 distinct genomic sequences**; the largest single cluster pools **287** of
+them. Only 184 signatures reach ≥20 unrelated carriers. **21.3% of non-coding novel haplotypes
+differ only by homopolymer indels** (the long-read error mode). Marc's clustering hypothesis is
+confirmed with numbers, and the 2026-09-15 "one allele in 1,531 people" callout is retracted.
+
 **Carried in from 2026-09-15 (still true, now better quantified):** non-coding novelty dominates,
 and the flagged-artifact rate is flat across ancestries (a built-in control).
