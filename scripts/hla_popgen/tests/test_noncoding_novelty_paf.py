@@ -261,9 +261,14 @@ def _row(qname, qs, qe, tname, ts, te, nm, strand="+"):
 
 
 def test_row_selection_template_and_fallback():
+    # Two records for the SAME (qname, tname, strand) triple are now treated as one "group" (see
+    # select_paf_group / check_collinear): they either get chained or flagged split_alignment.
+    # This test's earlier fixture had two overlapping/duplicate template rows on ctg1, which the
+    # new grouping logic would (correctly) treat as a conflicting split rather than "pick the
+    # longer one" -- so the redundant shorter duplicate is dropped here and the group-vs-fallback
+    # selection logic (still exercised) is checked directly in test_row_grouping_and_chaining.
     rows = [
-        _row("HLA-A*01:01:01:01", 0, 80, "ctg1", 1000, 1080, 3),
-        _row("HLA-A*01:01:01:01", 0, 100, "ctg1", 1000, 1100, 5),   # longest -> chosen
+        _row("HLA-A*01:01:01:01", 0, 100, "ctg1", 1000, 1100, 5),   # the real hit
         _row("HLA-A*01:01:01:01", 0, 100, "ctg2", 1000, 1100, 0),   # wrong contig
         _row("HLA-A*01:01:01:01", 0, 100, "ctg1", 5000, 5100, 0),   # outside gene span
         _row("HLA-A*01:01:01:02", 0, 90, "ctg1", 1000, 1090, 1),

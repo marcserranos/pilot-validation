@@ -110,3 +110,15 @@ Aggregate outputs only.
 - Half of relative discordance is 1–3-base differences, consistent with HiFi consensus error
   (implied QV ≈ 46–47). The other half is multi-block; dropout, relationship and paralog
   explanations are under test.
+
+## Real-data bug found in the first full run (2026-09-16)
+The first full run of 26 reported **78% discordance between relatives**, contradicting script 17's
+94.8% exact-sequence agreement. Cause: the trailing integer in a `cds.fa.gz` header
+(`>{contig}_{gene}_{i}`) is the record's **ordinal within the file** — `HLA-E_1`, `HLA-L_2`,
+`HLA-K_3` across *different* genes — not the gene's copy_index. The script keyed on it and kept
+"copy 1", so it dropped the sequence of every gene except the file's first record; almost every
+comparison then fell into "missing", and the few that remained were biased. Fixed: a gene with one
+record on a hap is used; a gene with several records is a genuine multi-copy case that cannot be
+mapped onto Table 1's `copy_index` from this file, so it is excluded and counted. Two regression
+tests added with realistic headers (the original fixtures had one record per file, so they passed
+both before and after the bug — a fixture-realism failure worth remembering).

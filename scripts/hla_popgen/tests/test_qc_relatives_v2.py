@@ -578,3 +578,39 @@ if __name__ == "__main__":
         fn(**kw)
         print(f"ok {name}")
     print("ok")
+
+
+def test_cds_header_ordinal_is_not_copy_index(tmp_path):
+    """REGRESSION (real-data bug, 2026-09-16): the trailing integer in a cds.fa.gz header runs
+    across the whole file (HLA-E_1, HLA-L_2, HLA-A_3 ...), it is NOT the gene's copy_index.
+    Treating it as copy_index and keeping only '1' dropped every gene but the file's first record,
+    which made 78% of relative gene-comparisons look missing. Each gene here appears once, with
+    ordinals 1..3, and all three sequences must come back."""
+    import gzip
+    root = tmp_path / "people" / "P1" / "immuannot_output" / "hap1"
+    root.mkdir(parents=True)
+    with gzip.open(str(root / "cds.fa.gz"), "wt") as f:
+        for ordinal, (gene, seq) in enumerate(
+                [("HLA-E", "AAA"), ("HLA-A", "CCC"), ("HLA-DRB1", "GGG")], start=1):
+            f.write(">ctg1_%s_%d GT_AG:GT_AG\n%s\n" % (gene, ordinal, seq))
+    cds = mod.load_person_cds(str(tmp_path / "people"), "P1", ["A", "E", "DRB1"])
+    assert cds[("hap1", "A")] == ["CCC"]
+    assert cds[("hap1", "E")] == ["AAA"]
+    assert cds[("hap1", "DRB1")] == ["GGG"]
+    pmap = mod.build_person_map(cds, {}, {}, "P1", ["A", "E", "DRB1"])
+    assert pmap["A"]["seq"]["hap1"] == "CCC"
+    assert pmap["DRB1"]["seq"]["hap1"] == "GGG"
+
+
+def test_multi_record_gene_is_treated_as_ambiguous(tmp_path):
+    """Two records for the same gene on one hap (DRB paralog / segmental duplication) cannot be
+    mapped to Table 1's copy_index from this file, so the gene carries no copy_index==1 sequence."""
+    import gzip
+    root = tmp_path / "people" / "P2" / "immuannot_output" / "hap1"
+    root.mkdir(parents=True)
+    with gzip.open(str(root / "cds.fa.gz"), "wt") as f:
+        f.write(">ctg1_HLA-DRB1_1 GT_AG\nAAA\n>ctg2_HLA-DRB1_2 GT_AG\nTTT\n")
+    cds = mod.load_person_cds(str(tmp_path / "people"), "P2", ["DRB1"])
+    assert sorted(cds[("hap1", "DRB1")]) == ["AAA", "TTT"]
+    pmap = mod.build_person_map(cds, {}, {}, "P2", ["DRB1"])
+    assert "hap1" not in pmap.get("DRB1", {}).get("seq", {})

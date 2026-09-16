@@ -308,7 +308,17 @@ def load_person_cds(people_root, person_id, genes):
         for g, key in want.items():
             recs = idx.get(key)
             if recs:
-                out[(hap, g)] = {int(ci): seq for ci, seq in recs}
+                # REAL-DATA TRAP (found 2026-09-16 against the production cohort): the trailing
+                # integer in a cds.fa.gz header `>{contig}_{gene}_{i}` is the record's ORDINAL
+                # WITHIN THE FILE (HLA-E_1, HLA-L_2, HLA-K_3 ... across different genes), NOT the
+                # gene's copy_index. Keying on it and taking "copy 1" silently dropped the
+                # sequence of every gene except whichever happened to be the file's first record,
+                # which made 78% of relative gene-comparisons look missing/discordant.
+                # A gene with exactly one record on this hap is unambiguous; a gene with several
+                # records is a real multi-copy case (DRB paralogs, segmental duplication) that
+                # cannot be mapped onto Table 1's copy_index from this file alone, so it is kept
+                # as a list and excluded by callers that are defined on copy_index==1.
+                out[(hap, g)] = [seq for _, seq in recs]
     return out
 
 
@@ -321,7 +331,8 @@ def build_person_map(cds, contig_lookup, name_lookup, person_id, genes, digest=F
     for gene in genes:
         entry = {"seq": {}, "contig": {}, "name": {}}
         for hap in ("hap1", "hap2"):
-            seq = (cds.get((hap, gene)) or {}).get(1)
+            recs = cds.get((hap, gene)) or []
+            seq = recs[0] if len(recs) == 1 else None  # >1 record: ambiguous copy, see load_person_cds
             if seq is not None:
                 entry["seq"][hap] = seq_digest(seq) if digest else seq
             ctg = contig_lookup.get((person_id, gene, hap))

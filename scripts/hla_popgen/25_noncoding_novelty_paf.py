@@ -116,6 +116,7 @@ import re
 import sys
 import time
 from collections import Counter, defaultdict
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -163,6 +164,11 @@ STRICT_ANCESTRY_MIN = 0.9
 MIN_COMMIT = 20                 # counts 1..19 are written as "<20" in committed outputs
 HOMOPOLYMER_MIN_RUN = 3
 BATCH_PERSONS = 500
+MIN_QCOV = 0.98                 # calls covering less of the allele than this are excluded
+                                 # from clustering (a partial alignment yields a signature that
+                                 # is a subset of the truth and falsely merges with full ones)
+CONTEXT_SEQUENCE_MIN_FRAC = 0.99  # below this, the homopolymer flag is not trustworthy enough
+                                   # to publish (see --allow-content-only)
 
 KINDS = ("SNV", "CONTIG_DEL", "CONTIG_INS")
 SIG_CLASSES = ["homopolymer_only", "indel_nonhomopolymer", "snv_plus_indel", "snv_only",
@@ -430,10 +436,25 @@ def classify_signature(n_snv, n_indel, n_hp):
     return "snv_plus_indel"
 
 
+def merge_events(event_lists):
+    """Merge several already-parsed (allele-coordinate) event lists from chained PAF records into
+    one, in the same sort order parse_cs_events produces."""
+    merged = [e for lst in event_lists for e in lst]
+    return sorted(merged, key=lambda e: (e[0], KINDS.index(e[1]), e[2], e[3]))
+
+
 def build_signature(gene, used_allele, cs, qstart, qend, strand, allele_seq=None, ann=None,
                     min_run=HOMOPOLYMER_MIN_RUN):
-    """Full per-call signature record (raises CsError)."""
+    """Full per-call signature record for a single PAF record (raises CsError)."""
     events = parse_cs_events(cs, qstart, qend, strand)
+    return build_signature_from_events(gene, used_allele, events, allele_seq, ann, min_run)
+
+
+def build_signature_from_events(gene, used_allele, events, allele_seq=None, ann=None,
+                                min_run=HOMOPOLYMER_MIN_RUN):
+    """Same as build_signature, but takes already-parsed events (allele coordinates) so that
+    multiple chained PAF records (see select_paf_group/check_collinear) can be merged into one
+    signature before this is called."""
     ctx = None
     consistent = None
     if allele_seq is not None:
@@ -489,50 +510,112 @@ def parse_paf_line(line):
         "qname": f[0], "qkey": norm_allele(f[0]), "qlen": int(f[1]), "qstart": int(f[2]),
         "qend": int(f[3]), "strand": f[4], "tname": f[5], "tstart": int(f[7]),
         "tend": int(f[8]), "nm": int(nm) if nm is not None else None, "cs": get_tag(f, "cs"),
+        "tp": get_tag(f, "tp"),
     }
 
 
 def read_paf_candidates(paf_path, exact_keys, prefix_keys, contigs):
-    """One pass; keep rows whose query is a wanted allele (exact or 3-field prefix) on a wanted
-    contig."""
+    """One pass; keep PRIMARY rows (tp:A:P, or no tp tag at all -- treated as primary) whose
+    query is a wanted allele (exact or 3-field prefix) on a wanted contig. Secondary rows
+    (tp:A:S) that would otherwise have matched are dropped and counted, since the raw minimap2
+    PAF can let a shorter secondary alignment win on length if it is not filtered out first.
+    -> (rows, n_secondary_filtered)."""
     rows = []
+    n_secondary = 0
     genes = {k.split("*", 1)[0] for k in exact_keys | prefix_keys}
+    # Cheap reject on the raw (unnormalized) query name before paying for .strip()/.upper()/etc:
+    # PAF query names are not guaranteed to carry the 'HLA-' prefix or a fixed case, so we accept
+    # any of the plausible raw spellings of "<gene>*" here; normalization still runs on survivors.
+    raw_prefixes = tuple(sorted(
+        {f"{g}*" for g in genes} | {f"HLA-{g}*" for g in genes} | {f"hla-{g}*" for g in genes}
+        | {f"Hla-{g}*" for g in genes}))
     with gzip.open(paf_path, "rt") as fh:
         for line in fh:
             tab = line.find("\t")
             if tab < 0:
                 continue
-            key = norm_allele(line[:tab])
+            head = line[:tab]
+            if not head.startswith(raw_prefixes):
+                continue
+            key = norm_allele(head)
             if key.split("*", 1)[0] not in genes:
                 continue
             if key not in exact_keys and key_prefix3(key) not in prefix_keys:
                 continue
             r = parse_paf_line(line)
-            if r is not None and r["tname"] in contigs:
-                rows.append(r)
-    return rows
+            if r is None or r["tname"] not in contigs:
+                continue
+            if r["tp"] == "S":
+                n_secondary += 1
+                continue
+            rows.append(r)
+    return rows, n_secondary
 
 
-def select_paf_row(rows, contig, gene_start, gene_end, template_key, prefix_key):
-    """-> (row or None, selection_path)."""
+def check_collinear(group):
+    """group: >=2 primary PAF records sharing (qname, tname, strand). True when they are
+    non-overlapping in query coordinates and ordered consistently with strand in target
+    coordinates -- i.e. minimap2 split one true alignment into pieces (typically across a large
+    intronic indel) rather than reporting two genuinely different/conflicting hits."""
+    segs = sorted(group, key=lambda r: r["qstart"])
+    for a, b in zip(segs, segs[1:]):
+        if a["qend"] > b["qstart"]:
+            return False
+        if a["strand"] == "+":
+            if a["tend"] > b["tstart"]:
+                return False
+        else:
+            if b["tend"] > a["tstart"]:
+                return False
+    return True
+
+
+def select_paf_group(rows, contig, gene_start, gene_end, template_key, prefix_key):
+    """rows: primary-only PAF records (see read_paf_candidates). -> (group, selection_path).
+    `group` is every primary record sharing (qname, tname, strand) with the winning candidate:
+    when minimap2 splits one true alignment into several primary records (e.g. across a large
+    indel), they all share that triple and the caller (process_hap) must chain or flag them
+    split_alignment. group is None (path 'no_row') if nothing matched."""
     lo, hi = int(gene_start) - 1, int(gene_end)  # 1-based inclusive -> 0-based half-open
 
     def on_target(r):
         return r["tname"] == contig and r["tstart"] < hi and r["tend"] > lo
 
+    def grouped(cands):
+        groups = defaultdict(list)
+        for r in cands:
+            groups[(r["qname"], r["tname"], r["strand"])].append(r)
+        return list(groups.values())
+
     big = 10 ** 9
     cands = [r for r in rows if r["qkey"] == template_key and on_target(r)]
     if cands:
-        best = max(cands, key=lambda r: (r["qend"] - r["qstart"],
-                                         -(r["nm"] if r["nm"] is not None else big)))
+        def score(grp):
+            span = sum(r["qend"] - r["qstart"] for r in grp)
+            nms = [r["nm"] for r in grp if r["nm"] is not None]
+            nm = sum(nms) if len(nms) == len(grp) else None
+            return span, -(nm if nm is not None else big)
+        best = max(grouped(cands), key=score)
         return best, "template"
     if prefix_key:
         cands = [r for r in rows if key_prefix3(r["qkey"]) == prefix_key and on_target(r)]
         if cands:
-            best = min(cands, key=lambda r: (r["nm"] if r["nm"] is not None else big,
-                                             -(r["qend"] - r["qstart"]), r["qkey"]))
+            def score2(grp):
+                span = sum(r["qend"] - r["qstart"] for r in grp)
+                nms = [r["nm"] for r in grp if r["nm"] is not None]
+                nm = sum(nms) if len(nms) == len(grp) else None
+                return (nm if nm is not None else big, -span, grp[0]["qkey"])
+            best = min(grouped(cands), key=score2)
             return best, "fallback_3field"
     return None, "no_row"
+
+
+def select_paf_row(rows, contig, gene_start, gene_end, template_key, prefix_key):
+    """Back-compat convenience wrapper around select_paf_group returning a single representative
+    row instead of the whole group (used by callers/tests that don't need chaining). New code
+    that must detect multi-record chains/splits should call select_paf_group directly."""
+    group, path = select_paf_group(rows, contig, gene_start, gene_end, template_key, prefix_key)
+    return (group[0] if group else None), path
 
 
 # ---------------------------------------------------------------------------
@@ -666,18 +749,30 @@ def strict_ancestry(cohort, threshold=STRICT_ANCESTRY_MIN):
 # Per-haplotype worker
 # ---------------------------------------------------------------------------
 def process_hap(pid, hap, calls, cfg):
-    """calls: list of dicts (Table 1 depth-4 rows of this person/hap). -> list of result dicts."""
+    """calls: list of dicts (Table 1 depth-4 rows of this person/hap). -> list of result dicts.
+
+    PAF record selection (fix for the CRITICAL "one PAF record per call" issue): secondary rows
+    are dropped in read_paf_candidates; the remaining primary rows are grouped by
+    (qname, tname, strand) in select_paf_group. A group of size 1 is the common case. A group of
+    >1 means minimap2 emitted several primary records for what should be one alignment (typically
+    split across a large indel): if they are collinear and non-overlapping in query coordinates
+    (check_collinear) they are CHAINED -- their cs strings are parsed independently and the
+    resulting events merged, and qcov is the union of their covered query length over qlen; if
+    they conflict, the call is marked status='split_alignment' and excluded from clustering (but
+    counted). A --min-qcov floor then excludes any surviving call whose covered fraction is too
+    low (status='low_qcov'), since a partial alignment yields a signature that is a strict subset
+    of the truth and would otherwise silently merge with full-length calls."""
     hap_dir = os.path.join(cfg["outroot"], pid, "immuannot_output", hap)
     paf = os.path.join(hap_dir, "mm2.ipd.gen.paf.gz")
     exact = {c["template_key"] for c in calls if c["template_key"]}
     prefix = {c["prefix_key"] for c in calls if c["prefix_key"]}
     contigs = {c["contig"] for c in calls}
-    rows, paf_status = [], "ok"
+    rows, paf_status, n_secondary_filtered = [], "ok", 0
     if not os.path.exists(paf):
         paf_status = "paf_missing"
     else:
         try:
-            rows = read_paf_candidates(paf, exact, prefix, contigs)
+            rows, n_secondary_filtered = read_paf_candidates(paf, exact, prefix, contigs)
         except (OSError, EOFError, ValueError) as e:
             paf_status = f"paf_error:{type(e).__name__}"
 
@@ -686,6 +781,7 @@ def process_hap(pid, hap, calls, cfg):
     for c in calls:
         res = {k: c[k] for k in ("person_id", "hap", "contig", "gene", "copy_index",
                                  "consensus", "template_allele", "gene_start", "gene_end")}
+        res["n_secondary_filtered_hap"] = n_secondary_filtered
         # --- old novel_id via observed CDS hash ---
         sha1, cds_status = None, "ok"
         if cfg["novel_matches"] is not None:
@@ -695,55 +791,76 @@ def process_hap(pid, hap, calls, cfg):
             cds_status = "ambiguous_copy"
         else:
             if cds_index is None:
-                cds_index = parse_cds_fasta(os.path.join(hap_dir, "cds.fa.gz"))
-            cands = cds_index.get(f"{c['contig']}_{c['gene']}", [])
-            if len(cands) == 0 or not cands[0][1]:
-                cds_status = "missing_cds"
-            elif len(cands) > 1:
-                cds_status = "ambiguous_copy"
-            else:
-                sha1 = hashlib.sha1(cands[0][1].encode("ascii")).hexdigest()
+                try:
+                    cds_index = parse_cds_fasta(os.path.join(hap_dir, "cds.fa.gz"))
+                except (OSError, EOFError, gzip.BadGzipFile, UnicodeDecodeError):
+                    cds_index = {}
+                    cds_status = "cds_fasta_corrupt"
+            if cds_status == "ok":
+                cands = cds_index.get(f"{c['contig']}_{c['gene']}", [])
+                if len(cands) == 0 or not cands[0][1]:
+                    cds_status = "missing_cds"
+                elif len(cands) > 1:
+                    cds_status = "ambiguous_copy"
+                else:
+                    sha1 = hashlib.sha1(cands[0][1].encode("ascii")).hexdigest()
         res["cds_status"] = cds_status
         res["cds_seq_sha1"] = sha1
         res["novel_id"] = f"{c['gene']}_nov_{sha1[:8]}" if sha1 else None
 
-        # --- PAF row + signature ---
-        res.update(used_allele=None, selection_path="no_row", paf_strand=None, qlen=np.nan,
-                   qstart=np.nan, qend=np.nan, qcov=np.nan, nm=np.nan)
+        # --- PAF row(s) + signature ---
+        res.update(used_allele=None, selection_path="no_row", chain_status="n/a",
+                   paf_strand=None, qlen=np.nan, qstart=np.nan, qend=np.nan, qcov=np.nan,
+                   nm=np.nan)
         if paf_status != "ok":
             res["status"] = paf_status
             out.append(res)
             continue
-        row, path = select_paf_row(rows, c["contig"], c["gene_start"], c["gene_end"],
-                                   c["template_key"], c["prefix_key"])
+        group, path = select_paf_group(rows, c["contig"], c["gene_start"], c["gene_end"],
+                                       c["template_key"], c["prefix_key"])
         res["selection_path"] = path
-        if row is None:
+        if group is None:
             res["status"] = "no_row"
             out.append(res)
             continue
-        res.update(used_allele=row["qname"], paf_strand=row["strand"], qlen=row["qlen"],
-                   qstart=row["qstart"], qend=row["qend"],
-                   qcov=(row["qend"] - row["qstart"]) / row["qlen"] if row["qlen"] else np.nan,
-                   nm=row["nm"] if row["nm"] is not None else np.nan)
-        if row["cs"] is None:
+        qname, strand, qlen = group[0]["qname"], group[0]["strand"], group[0]["qlen"]
+        covered = sum(r["qend"] - r["qstart"] for r in group)
+        res.update(used_allele=qname, paf_strand=strand, qlen=qlen,
+                   qstart=min(r["qstart"] for r in group), qend=max(r["qend"] for r in group),
+                   qcov=(covered / qlen) if qlen else np.nan)
+        nms = [r["nm"] for r in group if r["nm"] is not None]
+        res["nm"] = sum(nms) if len(nms) == len(group) else np.nan
+        if len(group) > 1 and not check_collinear(group):
+            res["status"] = "split_alignment"
+            res["chain_status"] = "split_alignment"
+            out.append(res)
+            continue
+        res["chain_status"] = "single" if len(group) == 1 else "multi_record_chained"
+        if any(r["cs"] is None for r in group):
             res["status"] = "cs_missing"
             out.append(res)
             continue
-        seq = cfg["allele_seqs"].get(row["qkey"])
-        if seq is not None and len(seq) != row["qlen"]:
-            seq = None
-            res["allele_seq_len_mismatch"] = True
         try:
-            sig = build_signature(c["gene"], row["qname"], row["cs"], row["qstart"],
-                                  row["qend"], row["strand"], seq,
-                                  cfg["annotations"].get(row["qkey"]), cfg["min_run"])
+            events = merge_events([parse_cs_events(r["cs"], r["qstart"], r["qend"], r["strand"])
+                                   for r in group])
         except CsError as e:
             res["status"] = f"cs_error:{e}"
             out.append(res)
             continue
-        sig.pop("events")
+        qkey = group[0]["qkey"]
+        seq = cfg["allele_seqs"].get(qkey)
+        if seq is not None and len(seq) != qlen:
+            seq = None
+            res["allele_seq_len_mismatch"] = True
+        sig = build_signature_from_events(c["gene"], qname, events, seq,
+                                          cfg["annotations"].get(qkey), cfg["min_run"])
         res.update(sig)
-        res["status"] = "ok"
+        # The floor excludes the call from clustering (its signature is a subset of the truth
+        # and would otherwise merge with full-length calls), but the signature is still computed
+        # and kept so low-coverage 'no_difference' calls can be cross-tabulated against qcov
+        # (see no_difference_by_qcov_decile) -- that cross-tab is exactly what motivates the
+        # floor.
+        res["status"] = "low_qcov" if res["qcov"] < cfg["min_qcov"] else "ok"
         out.append(res)
     return out
 
@@ -769,22 +886,35 @@ def suppress_frame(df, cols, min_n=MIN_COMMIT):
     return df
 
 
+def _majority(series):
+    """-> (mode value, n_disagreeing) for a categorical Series that is expected -- but not
+    guaranteed -- to be constant within a signature cluster."""
+    counts = series.value_counts()
+    mode = counts.idxmax()
+    return mode, int(len(series) - counts.max())
+
+
 def build_clusters(ok):
-    """ok: per-call rows with status=='ok'. -> per-signature cluster table (full, unsuppressed)."""
+    """ok: per-call rows with status=='ok'. -> per-signature cluster table (full, unsuppressed).
+    signature_class/region_class are supposed to be pure functions of the signature, so every
+    member of a cluster should agree; they are still taken by majority vote with a recorded
+    disagreement count rather than an arbitrary row's value, as a safety net."""
     recs = []
     for sid, g in ok.groupby("signature_id", sort=False):
         first = g.iloc[0]
         persons = set(g["person_id"])
-        unrel = g[g["unrelated"] == True]  # noqa: E712
+        unrel = g[g["unrelated"].fillna(False) == True]  # noqa: E712
+        sig_class, n_sig_disagree = _majority(g["signature_class"])
+        region_class, n_region_disagree = _majority(g["region_class"])
         rec = {
             "signature_id": sid, "gene": first["gene"], "template_allele": first["used_allele"],
-            "signature_class": first["signature_class"],
+            "signature_class": sig_class, "n_signature_class_disagree": n_sig_disagree,
             "n_events": int(first["n_events"]), "n_snv": int(first["n_snv"]),
             "n_indel": int(first["n_indel"]),
             "n_homopolymer_indel": int(first["n_homopolymer_indel"]),
-            "all_homopolymer": first["signature_class"] == "homopolymer_only",
+            "all_homopolymer": sig_class == "homopolymer_only",
             "homopolymer_context_checked": bool(g["homopolymer_context_checked"].all()),
-            "region_class": first["region_class"],
+            "region_class": region_class, "n_region_class_disagree": n_region_disagree,
             "n_events_intron": int(first["n_events_intron"]),
             "n_events_utr": int(first["n_events_utr"]),
             "n_events_cds": int(first["n_events_cds"]),
@@ -798,6 +928,7 @@ def build_clusters(ok):
             "n_minus_strand": int((g["paf_strand"] == "-").sum()),
             "n_fallback_rows": int((g["selection_path"] == "fallback_3field").sum()),
             "n_partial_alignment": int((g["qcov"] < 1.0).sum()),
+            "n_multi_record_chained": int((g["chain_status"] == "multi_record_chained").sum()),
             "n_former_novel_ids": g["novel_id"].dropna().nunique(),
         }
         per_person = g.drop_duplicates("person_id")
@@ -814,15 +945,29 @@ def build_clusters(ok):
 
 
 def build_pooling(ok, novel_tsv):
+    """Per former CDS-hash cluster (novel_id), how many distinct non-coding signatures it pooled.
+    n_distinct_signatures counts every signature seen, but the signature includes the template
+    allele (see module docstring), so two identical contigs aligned against different templates
+    count as two signatures even though the sequence pooling is confounded by template choice,
+    not by real biology. n_distinct_signatures_modal_template restricts to calls that used the
+    cluster's single most common template, which is the honest headline number for "how many
+    distinct sequences did this one old cluster actually pool" -- report and figure both use it,
+    with the raw number kept alongside for transparency."""
     recs = []
     sub = ok[ok["novel_id"].notna()]
     for nid, g in sub.groupby("novel_id"):
         sig_counts = g["signature_id"].value_counts()
         nonhp = g[~g["signature_class"].isin(["homopolymer_only", "no_difference"])]
+        modal_template = g["used_allele"].mode()
+        modal_template = modal_template.iloc[0] if len(modal_template) else None
+        g_modal = g[g["used_allele"] == modal_template] if modal_template is not None else g.iloc[0:0]
         rec = {
             "novel_id": nid, "gene": g["gene"].iloc[0],
             "n_haplotypes": len(g), "n_persons": g["person_id"].nunique(),
-            "n_persons_unrelated": g.loc[g["unrelated"] == True, "person_id"].nunique(),  # noqa
+            "n_persons_unrelated":
+                g.loc[g["unrelated"].fillna(False) == True, "person_id"].nunique(),  # noqa
+            "modal_template": modal_template,
+            "n_distinct_signatures_modal_template": int(g_modal["signature_id"].nunique()),
             "n_distinct_signatures": int(len(sig_counts)),
             "n_distinct_nonhomopolymer_signatures": int(nonhp["signature_id"].nunique()),
             "n_distinct_templates": int(g["used_allele"].nunique()),
@@ -843,15 +988,36 @@ def build_pooling(ok, novel_tsv):
     return df
 
 
-def pooling_distribution(pool):
+def pooling_distribution(pool, col="n_distinct_signatures_modal_template"):
+    """Distribution of former clusters by number of distinct signatures. Uses the modal-template
+    count by default (the headline, honest number -- see build_pooling); pass
+    col='n_distinct_signatures' for the raw, template-confounded distribution."""
     bins = [(1, 1), (2, 2), (3, 5), (6, 10), (11, 50), (51, 100), (101, 1000), (1001, 10 ** 9)]
     recs = []
     for lo, hi in bins:
         label = str(lo) if lo == hi else (f">{lo - 1}" if hi >= 10 ** 9 else f"{lo}-{hi}")
-        n = int(((pool["n_distinct_signatures"] >= lo) & (pool["n_distinct_signatures"] <= hi)).sum()) \
-            if len(pool) else 0
+        n = int(((pool[col] >= lo) & (pool[col] <= hi)).sum()) if len(pool) else 0
         recs.append({"n_distinct_signatures_bin": label, "n_former_clusters": n})
     return pd.DataFrame(recs)
+
+
+def no_difference_by_qcov_decile(res):
+    """Cross-tab of the no_difference signature class against qcov deciles, over every call that
+    reached a signature (status 'ok' or 'low_qcov') -- i.e. before the --min-qcov floor is
+    applied to clustering. Motivates the floor: no_difference should not simply track low qcov."""
+    d = res[res["status"].isin(["ok", "low_qcov"]) & res["qcov"].notna()].copy()
+    edges = np.linspace(0.0, 1.0, 11)
+    cols = ["qcov_decile", "n_calls", "n_no_difference", "frac_no_difference"]
+    if not len(d):
+        return pd.DataFrame(columns=cols)
+    d["qcov_decile"] = pd.cut(d["qcov"], bins=edges, include_lowest=True)
+    recs = []
+    for decile, g in d.groupby("qcov_decile", observed=False):
+        n = len(g)
+        nd = int((g["signature_class"] == "no_difference").sum())
+        recs.append({"qcov_decile": str(decile), "n_calls": n, "n_no_difference": nd,
+                     "frac_no_difference": (nd / n) if n else np.nan})
+    return pd.DataFrame(recs, columns=cols)
 
 
 def homopolymer_fractions(ok):
@@ -859,7 +1025,7 @@ def homopolymer_fractions(ok):
     genes = sorted(ok["gene"].unique()) + ["ALL"]
     for scheme, col in (("pred", "ancestry_pred"), ("strict", "strict_ancestry")):
         for unrel_only in (False, True):
-            d = ok[ok["unrelated"] == True] if unrel_only else ok  # noqa: E712
+            d = ok[ok["unrelated"].fillna(False) == True] if unrel_only else ok  # noqa: E712
             for gene in genes:
                 dg = d if gene == "ALL" else d[d["gene"] == gene]
                 for anc in ["POOLED"] + vc.ANCESTRY_ORDER:
@@ -880,7 +1046,7 @@ def nonhp_sfs(ok):
     recs = []
     nonhp = ok[~ok["signature_class"].isin(["homopolymer_only", "no_difference"])]
     for unrel_only in (False, True):
-        d = nonhp[nonhp["unrelated"] == True] if unrel_only else nonhp  # noqa: E712
+        d = nonhp[nonhp["unrelated"].fillna(False) == True] if unrel_only else nonhp  # noqa: E712
         for gene in sorted(ok["gene"].unique()) + ["ALL"]:
             dg = d if gene == "ALL" else d[d["gene"] == gene]
             counts = dg.groupby("signature_id").size()
@@ -916,9 +1082,21 @@ def gene_summary(calls, ok, clusters):
         c = calls[calls["gene"] == gene]
         o = ok[ok["gene"] == gene]
         cl = clusters[clusters["gene"] == gene] if len(clusters) else clusters
-        rec = {"gene": gene, "n_depth4_haplotypes": len(c), "n_parsed": len(o),
+        n_parsed = len(o)
+        # small-denominator ratios are blanked, not just the small counts they're built from --
+        # a lone float like frac_homopolymer_only=1.0 or median_qcov=0.87 can disclose one
+        # person's summary under --genes all just as surely as an unsuppressed count would.
+        frac_hp = float((o["signature_class"] == "homopolymer_only").mean()) if n_parsed else np.nan
+        med_qcov = float(o["qcov"].median()) if n_parsed else np.nan
+        if n_parsed < MIN_COMMIT:
+            frac_hp = np.nan
+            med_qcov = np.nan
+        rec = {"gene": gene, "n_depth4_haplotypes": len(c), "n_parsed": n_parsed,
                "n_no_row": int((c["status"] == "no_row").sum()),
                "n_cs_error": int(c["status"].astype(str).str.startswith("cs_error").sum()),
+               "n_split_alignment": int((c["status"] == "split_alignment").sum()),
+               "n_low_qcov": int((c["status"] == "low_qcov").sum()),
+               "n_multi_record_chained": int((c["chain_status"] == "multi_record_chained").sum()),
                "n_fallback_3field": int((o["selection_path"] == "fallback_3field").sum()),
                "n_context_sequence": int((o["context_mode"] == "sequence").sum()),
                "n_minus_strand": int((o["paf_strand"] == "-").sum()),
@@ -926,9 +1104,8 @@ def gene_summary(calls, ok, clusters):
                "n_signatures_ge20_unrelated": int((cl["n_persons_unrelated"] >= MIN_COMMIT).sum())
                if len(cl) else 0,
                "n_former_novel_ids": o["novel_id"].dropna().nunique(),
-               "frac_homopolymer_only": float((o["signature_class"] == "homopolymer_only").mean())
-               if len(o) else np.nan,
-               "median_qcov": float(o["qcov"].median()) if len(o) else np.nan}
+               "frac_homopolymer_only": frac_hp,
+               "median_qcov": med_qcov}
         for rc_ in REGION_CLASSES:
             rec[f"n_{rc_}"] = int((o["region_class"] == rc_).sum())
         recs.append(rec)
@@ -945,21 +1122,30 @@ def _plt():
     return plt
 
 
-def fig_pooling(pool, path, dpi=200):
+def fig_pooling(pool_committed, dist_committed, path, dpi=200):
+    """pool_committed: beyond_cds_pooling rows already filtered to n_persons >= MIN_COMMIT (as
+    committed). dist_committed: pooling_distribution(pool) already passed through suppress_frame
+    -- bins with n_former_clusters in 1..19 carry the string '<20' rather than the real count, and
+    are drawn as a bar of height 0 with that label, so the figure never shows a small-denominator
+    number the TSV would have blanked."""
     plt = _plt()
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
     ax = axes[0]
-    dist = pooling_distribution(pool)
-    ax.bar(dist["n_distinct_signatures_bin"], dist["n_former_clusters"], color="#0072B2")
-    ax.set_xlabel("Distinct non-coding signatures inside one former cluster")
+    heights = [v if isinstance(v, (int, float)) and not pd.isna(v) else 0
+              for v in dist_committed["n_former_clusters"]]
+    ax.bar(dist_committed["n_distinct_signatures_bin"], heights, color="#0072B2")
+    for i, v in enumerate(dist_committed["n_former_clusters"]):
+        if not (isinstance(v, (int, float)) and not pd.isna(v)):
+            ax.text(i, 0.3, str(v), ha="center", fontsize=7, rotation=90, color="#555")
+    ax.set_xlabel("Distinct non-coding signatures inside one former cluster (modal template)")
     ax.set_ylabel("Former depth-4 clusters")
     ax.set_title("How many sequences each 'beyond_cds' cluster pooled", fontsize=10)
     ax.tick_params(axis="x", rotation=30)
     ax = axes[1]
-    big = pool[pool["n_persons"] >= MIN_COMMIT] if len(pool) else pool
+    big = pool_committed
     if len(big):
-        ax.scatter(big["n_haplotypes"], big["n_distinct_signatures"], s=18, color="#D55E00",
-                   alpha=0.8, edgecolor="none")
+        ax.scatter(big["n_haplotypes"], big["n_distinct_signatures_modal_template"], s=18,
+                   color="#D55E00", alpha=0.8, edgecolor="none")
         ax.plot([1, big["n_haplotypes"].max()], [1, big["n_haplotypes"].max()], ls="--",
                 color="#999999", lw=0.8, label="one signature per haplotype")
         ax.set_xscale("log")
@@ -969,7 +1155,7 @@ def fig_pooling(pool, path, dpi=200):
         ax.text(0.5, 0.5, f"no former cluster with >= {MIN_COMMIT} persons", ha="center",
                 transform=ax.transAxes)
     ax.set_xlabel("Haplotypes in former cluster")
-    ax.set_ylabel("Distinct signatures")
+    ax.set_ylabel("Distinct signatures (modal template)")
     ax.set_title(f"Former clusters with >= {MIN_COMMIT} persons", fontsize=10)
     for a in axes:
         a.spines[["top", "right"]].set_visible(False)
@@ -1063,7 +1249,7 @@ def _md(df):
     return "\n".join(lines)
 
 
-def write_report(path, summary, gsum_c, frac_c, pool_dist, args):
+def write_report(path, summary, gsum_c, frac_c, pool_dist, qcov_decile, args):
     s = summary
     L = ["# Depth-4 ('beyond CDS') novelty, split by the real non-coding sequence", ""]
     L += ["## In plain words", "",
@@ -1075,19 +1261,34 @@ def write_report(path, summary, gsum_c, frac_c, pool_dist, args):
           "writes the exact differences as a signature. Calls with identical signatures are "
           "grouped together.", "",
           f"- Depth-4 haplotypes examined: **{s['n_depth4_haplotypes']}**; with a readable "
-          f"difference string: **{s['n_parsed']}**.",
+          f"difference string: **{s['n_parsed']}**. Excluded before clustering: "
+          f"**{s['status_counts'].get('split_alignment', 0)}** split alignments, "
+          f"**{s['status_counts'].get('low_qcov', 0)}** below the --min-qcov floor "
+          f"({args.min_qcov}).",
+          f"- PAF selection: **{s['n_secondary_filtered']}** secondary (`tp:A:S`) records were "
+          f"discarded before selection; **{s['n_multi_record_chained']}** calls needed multiple "
+          f"primary records chained into one alignment; **{s['n_split_alignment']}** could not "
+          "be chained (conflicting/overlapping primary records) and were excluded.",
           f"- Distinct signatures: **{s['n_signatures']}**. Former clusters split: "
           f"**{s['n_former_clusters']}** former clusters contain a median of "
-          f"**{s['median_signatures_per_former_cluster']}** signatures "
-          f"(max {s['max_signatures_per_former_cluster']}).",
+          f"**{s['median_signatures_per_former_cluster']}** distinct signatures using each "
+          "cluster's single most common (modal) template "
+          f"(max {s['max_signatures_per_former_cluster']}); using the raw, template-confounded "
+          f"count instead the median is **{s['median_signatures_per_former_cluster_raw']}** "
+          f"(max {s['max_signatures_per_former_cluster_raw']}) -- the modal-template number is "
+          "the honest headline (see Caveats).",
           f"- Fraction of depth-4 haplotypes whose only differences are homopolymer indels "
-          f"(the typical long-read error pattern): **{s['frac_homopolymer_only']}**.",
+          f"(the typical long-read error pattern): **{s['frac_homopolymer_only']}**"
+          + (f" ({s['homopolymer_gate_reason']})" if s.get("homopolymer_gate_reason") else "")
+          + ".",
           f"- Homopolymer context was checked against the real allele sequence for "
           f"**{s['frac_context_sequence']}** of haplotypes. For the rest, the flag only means "
           "'the inserted or deleted bases are all one letter', which also catches every "
           "1-bp indel, so it over-counts.", "",
           f"Counts from 1 to {MIN_COMMIT - 1} are written as `<{MIN_COMMIT}`. Signatures are "
-          f"listed only when they have at least {MIN_COMMIT} unrelated carriers.", "",
+          f"listed only when they have at least {MIN_COMMIT} unrelated carriers. Any ratio whose "
+          f"denominator count is below {MIN_COMMIT} is blanked (`NA`) rather than shown, in "
+          "every committed table, `summary.json`, and figure.", "",
           "## How the difference string is read", "",
           "minimap2 aligned every known genomic allele (query) to the person's contig (target). "
           "In its cs string, `*ab` means contig base a and allele base b, `+seq` means bases the "
@@ -1097,13 +1298,21 @@ def write_report(path, summary, gsum_c, frac_c, pool_dist, args):
           "and the bases are reverse-complemented, so the same difference gives the same "
           "signature on either strand.", "",
           "## Per gene", "", _md(gsum_c), "",
-          "## Former clusters by number of distinct signatures", "", _md(pool_dist), "",
-          "## Homopolymer-only fraction (all genes, strict ancestry, unrelated only)", "",
-          _md(frac_c[(frac_c["gene"] == "ALL") & (frac_c["ancestry_scheme"] == "strict")
-                     & (frac_c["unrelated_only"] == True)]  # noqa: E712
-              [["ancestry", "n_haplotypes", "n_homopolymer_only", "n_snv_only",
-                "n_snv_plus_indel", "n_indel_nonhomopolymer", "frac_homopolymer_only"]]), "",
-          "## Where the differences are", "",
+          "## Former clusters by number of distinct signatures (modal template, the headline)",
+          "", _md(pool_dist), "",
+          "## `no_difference` calls by alignment-coverage decile", "",
+          "Motivates the `--min-qcov` floor: a call that only partly covers the allele can "
+          "wrongly look identical to it. Computed before the floor excludes low-coverage calls "
+          "from clustering.", "", _md(qcov_decile), "",
+          "## Homopolymer-only fraction (all genes, strict ancestry, unrelated only)", ""]
+    if s.get("homopolymer_gate_reason"):
+        L += [f"_Not shown: {s['homopolymer_gate_reason']}_", ""]
+    else:
+        L += [_md(frac_c[(frac_c["gene"] == "ALL") & (frac_c["ancestry_scheme"] == "strict")
+                         & (frac_c["unrelated_only"] == True)]  # noqa: E712
+                  [["ancestry", "n_haplotypes", "n_homopolymer_only", "n_snv_only",
+                    "n_snv_plus_indel", "n_indel_nonhomopolymer", "frac_homopolymer_only"]]), ""]
+    L += ["## Where the differences are", "",
           "Each event is placed on the template allele's own map from `alleles.csv.gz` (UTR5, "
           "exonN, intronN, UTR3). A depth-4 call has a known coding sequence, so its differences "
           "should sit in introns or UTRs. Haplotypes whose differences touch the coding sequence "
@@ -1111,17 +1320,30 @@ def write_report(path, summary, gsum_c, frac_c, pool_dist, args):
           "pipeline inconsistency.", "",
           f"- Share of parsed haplotypes by region class: `{json.dumps(s['frac_region_class'])}`",
           f"- Touching CDS: `{json.dumps(s['touches_cds'])}`", "",
+          "## Cohort coverage", "",
+          f"- **{s['n_missing_from_cohort_membership']}** haplotypes belong to a person absent "
+          "from `cohort_membership.tsv`; their relatedness status is recorded as `NA` (a third "
+          "state, not silently treated as related or unrelated).",
+          f"- Cluster-level `signature_class`/`region_class` are taken by majority vote across "
+          "member calls; disagreements are recorded per cluster "
+          "(`n_signature_class_disagree`, `n_region_class_disagree`) -- they are expected to be "
+          "zero, since both are pure functions of the signature.", "",
           "## Caveats", "",
           "- The signature is keyed on the template allele. Two identical sequences with "
-          "different templates count as two signatures.",
+          "different templates count as two raw signatures; the modal-template number used as "
+          "the headline above avoids this confound by restricting to each cluster's single most "
+          "common template.",
           "- Differences outside the aligned part of the allele are not seen "
-          "(see `median_qcov`).",
+          "(see `median_qcov`); calls covering less than "
+          f"{args.min_qcov} of the allele are excluded from clustering entirely.",
           "- Without the allele sequence, an indel inside a repeat may be placed differently on "
           "the two strands and split one signature into two.",
           "- Former-cluster mapping skips genes with more than one copy on a contig (same rule "
-          "as 03).", "",
+          "as 03).",
+          "- Multi-record chaining assumes non-overlapping, order-consistent primary alignments; "
+          "anything else is excluded as `split_alignment` rather than guessed at.", "",
           f"Run: genes={args.genes}, limit={args.limit}, homopolymer_min_run="
-          f"{args.homopolymer_min_run}."]
+          f"{args.homopolymer_min_run}, min_qcov={args.min_qcov}, threads={args.threads}."]
     with open(path, "w") as fh:
         fh.write("\n".join(L) + "\n")
 
@@ -1139,13 +1361,65 @@ def load_novel_matches(path):
             for r in df.itertuples(index=False)}
 
 
+def _file_stat_tuple(path):
+    """(abspath, size, mtime) or (path, None, None) if it can't be stat'd -- used so the resume
+    checkpoint is invalidated whenever a FASTA/annotation file's content could plausibly have
+    changed, not just when Table 1 or the CLI args change."""
+    try:
+        st = os.stat(path)
+        return [os.path.abspath(path), st.st_size, int(st.st_mtime)]
+    except OSError:
+        return [path, None, None]
+
+
 def params_hash(args, extra):
     st = os.stat(args.table1)
+    script_st = os.stat(os.path.abspath(__file__))
     blob = json.dumps({"t1": [os.path.abspath(args.table1), st.st_size, int(st.st_mtime)],
                        "genes": args.genes, "limit": args.limit, "min_run": args.homopolymer_min_run,
+                       "min_qcov": args.min_qcov,
                        "novel_matches": args.novel_matches, "outroot": os.path.abspath(args.outroot),
+                       "script": [os.path.abspath(__file__), script_st.st_size,
+                                 int(script_st.st_mtime)],
                        **extra}, sort_keys=True)
     return hashlib.sha1(blob.encode()).hexdigest()[:12]
+
+
+def _process_hap_task(task, cfg):
+    pid, hap, calls = task
+    return process_hap(pid, hap, calls, cfg)
+
+
+def _process_hap_probe():
+    """Trivial module-level function used to test whether a fresh worker process can actually
+    import/pickle code from this module before committing to ProcessPoolExecutor. A dynamically
+    loaded copy of this module (e.g. under a test harness using importlib, or any environment
+    where this file isn't reachable as a normal import) will fail this probe even though a
+    builtin like `int` would round-trip fine, which is why we probe with our own function."""
+    return True
+
+
+def _make_executor(threads):
+    """-> (executor, kind). Prefers ProcessPoolExecutor: PAF-line parsing (parse_cs_events, the
+    per-line regex scan) is pure Python and GIL-bound, so on the VM's 4 vCPUs threads barely help.
+    Falls back to ThreadPoolExecutor if worker processes can't actually run our code (e.g. a
+    sandboxed/fork-restricted environment, or this module loaded in a way children can't import)."""
+    if threads <= 1:
+        return None, "none"
+    try:
+        ex = concurrent.futures.ProcessPoolExecutor(max_workers=threads)
+        if not ex.submit(_process_hap_probe).result(timeout=60):
+            raise RuntimeError("probe returned an unexpected result")
+        return ex, "process"
+    except Exception as e:
+        try:
+            ex.shutdown(wait=False, cancel_futures=True)
+        except Exception:
+            pass
+        print(f"WARNING: ProcessPoolExecutor unavailable ({type(e).__name__}: {e}); falling "
+              "back to ThreadPoolExecutor. PAF parsing is GIL-bound so this will be slower on a "
+              "multi-core VM, but threads still overlap file I/O.", file=sys.stderr)
+        return concurrent.futures.ThreadPoolExecutor(max_workers=threads), "thread"
 
 
 def run_calls(tasks, cfg, threads, ckpt_dir, resume=True):
@@ -1157,7 +1431,8 @@ def run_calls(tasks, cfg, threads, ckpt_dir, resume=True):
         by_pid[t[0]].append(t)
     frames = []
     t0 = time.time()
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=threads) if threads > 1 else None
+    worker = partial(_process_hap_task, cfg=cfg)
+    executor, kind = _make_executor(threads)
     try:
         for b in range(0, len(pids), BATCH_PERSONS):
             fn = os.path.join(ckpt_dir, f"batch_{b // BATCH_PERSONS:05d}.pkl")
@@ -1165,8 +1440,7 @@ def run_calls(tasks, cfg, threads, ckpt_dir, resume=True):
                 frames.append(pd.read_pickle(fn))
                 continue
             batch = [t for pid in pids[b:b + BATCH_PERSONS] for t in by_pid[pid]]
-            fn_ = lambda t: process_hap(t[0], t[1], t[2], cfg)  # noqa: E731
-            results = pool.map(fn_, batch) if pool else map(fn_, batch)
+            results = list(executor.map(worker, batch)) if executor else [worker(t) for t in batch]
             rows = [r for res in results for r in res]
             df = pd.DataFrame(rows)
             tmp = fn + ".tmp"
@@ -1175,10 +1449,10 @@ def run_calls(tasks, cfg, threads, ckpt_dir, resume=True):
             frames.append(df)
             done = min(b + BATCH_PERSONS, len(pids))
             el = time.time() - t0
-            print(f"  {done}/{len(pids)} persons, {el:.0f}s", file=sys.stderr)
+            print(f"  {done}/{len(pids)} persons, {el:.0f}s ({kind})", file=sys.stderr)
     finally:
-        if pool:
-            pool.shutdown()
+        if executor:
+            executor.shutdown()
     frames = [f for f in frames if len(f)]
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
@@ -1203,9 +1477,19 @@ def main(argv=None):
     ap.add_argument("--genes", nargs="+", default=list(vc.CLASSICAL_GENES),
                     help="Gene names, or 'all' for every gene in Table 1.")
     ap.add_argument("--limit", type=int, default=None, help="Pilot: first N persons (sorted).")
-    ap.add_argument("--threads", type=int, default=8,
-                    help="I/O threads (VM: 4 vCPU / 31 GB; PAFs are streamed, never held).")
+    ap.add_argument("--threads", type=int, default=4,
+                    help="Worker processes (VM: 4 vCPU / 31 GB). PAF-line parsing is pure-Python "
+                    "and GIL-bound, so this uses ProcessPoolExecutor by default, falling back to "
+                    "threads only if worker processes fail to start.")
     ap.add_argument("--homopolymer-min-run", type=int, default=HOMOPOLYMER_MIN_RUN)
+    ap.add_argument("--min-qcov", type=float, default=MIN_QCOV,
+                    help="Calls covering less of the allele than this (chained query coverage / "
+                    "qlen) are excluded from clustering and marked status=low_qcov.")
+    ap.add_argument("--allow-content-only", action="store_true",
+                    help="Emit the homopolymer figure/fraction even when the allele sequence "
+                    "was unavailable for most calls (frac_context_sequence < "
+                    f"{CONTEXT_SEQUENCE_MIN_FRAC}), overriding the honesty gate. For debugging "
+                    "only: without the sequence, every 1-bp indel is flagged as a homopolymer.")
     ap.add_argument("--kin-threshold", type=float, default=KIN_THRESHOLD)
     ap.add_argument("--out-dir", default=DEFAULT_OUT_DIR)
     ap.add_argument("--local-dir", default=DEFAULT_LOCAL_DIR)
@@ -1286,8 +1570,9 @@ def main(argv=None):
     tasks = [(pid, hap, cs) for (pid, hap), cs in sorted(by_hap.items())]
     cfg = {"outroot": args.outroot, "group_sizes": group_sizes, "novel_matches": novel_matches,
            "allele_seqs": allele_seqs, "annotations": annotations,
-           "min_run": args.homopolymer_min_run}
-    h = params_hash(args, {"fastas": fastas, "ann": len(annotations)})
+           "min_run": args.homopolymer_min_run, "min_qcov": args.min_qcov}
+    ann_stat = _file_stat_tuple(ann_path) if os.path.exists(ann_path) else None
+    h = params_hash(args, {"fastas": [_file_stat_tuple(f) for f in fastas], "ann": ann_stat})
     ckpt = os.path.join(local_dir, "25_checkpoints", h)
     res = run_calls(tasks, cfg, args.threads, ckpt, resume=not args.no_resume)
 
@@ -1295,9 +1580,19 @@ def main(argv=None):
     res["ancestry_pred"] = res["person_id"].map(anc["ancestry_pred"]) if "ancestry_pred" in anc \
         else pd.NA
     res["strict_ancestry"] = res["person_id"].map(anc["strict_ancestry"])
-    # Without a relatedness table every unrelated_only view is empty (summary flags it).
-    res["unrelated"] = res["person_id"].map(lambda p: p in unrelated).astype(bool) if have_rel \
-        else False
+    # People absent from cohort_membership get a third state (NA), not silently "related"
+    # (previously False) or "unrelated" -- their relatedness status is simply unknown. Without a
+    # relatedness table every unrelated_only view is empty too (summary flags it via
+    # relatedness_available).
+    cohort_ids = set(cohort["person_id"])
+    n_missing_from_cohort = int((~res["person_id"].isin(cohort_ids)).sum())
+
+    def _unrelated_state(p):
+        if p not in cohort_ids or not have_rel:
+            return pd.NA
+        return p in unrelated
+
+    res["unrelated"] = res["person_id"].map(_unrelated_state)
     for col in ("signature_id", "signature_class", "context_mode", "event_tokens",
                 "homopolymer_context_checked", "n_events_cds", "event_regions", "region_class",
                 "n_events_intron", "n_events_utr", "n_events_unannotated",
@@ -1320,7 +1615,9 @@ def main(argv=None):
     frac = homopolymer_fractions(ok)
     sfs = nonhp_sfs(ok)
     gsum = gene_summary(res, ok, clusters)
-    dist = pooling_distribution(pool)
+    dist = pooling_distribution(pool)                              # modal-template (headline)
+    dist_raw = pooling_distribution(pool, col="n_distinct_signatures")  # raw, template-confounded
+    qcov_decile = no_difference_by_qcov_decile(res)
 
     # VM-local full versions
     clusters.to_csv(os.path.join(local_dir, "25_noncoding_signature_clusters_full.tsv"), sep="\t",
@@ -1329,10 +1626,16 @@ def main(argv=None):
     frac.to_csv(os.path.join(local_dir, "25_homopolymer_fraction_full.tsv"), sep="\t", index=False)
     sfs.to_csv(os.path.join(local_dir, "25_nonhomopolymer_sfs_full.tsv"), sep="\t", index=False)
     gsum.to_csv(os.path.join(local_dir, "25_gene_summary_full.tsv"), sep="\t", index=False)
+    dist_raw.to_csv(os.path.join(local_dir, "25_pooling_distribution_raw_full.tsv"), sep="\t",
+                    index=False)
+    qcov_decile.to_csv(os.path.join(local_dir, "25_no_difference_by_qcov_decile_full.tsv"),
+                       sep="\t", index=False)
 
     # Committed, suppressed versions
     count_cols_cl = ["n_haplotypes", "n_persons", "n_persons_unrelated", "n_haplotypes_unrelated",
-                     "n_plus_strand", "n_minus_strand", "n_fallback_rows", "n_partial_alignment"] + \
+                     "n_plus_strand", "n_minus_strand", "n_fallback_rows", "n_partial_alignment",
+                     "n_multi_record_chained", "n_signature_class_disagree",
+                     "n_region_class_disagree"] + \
         [c for c in clusters.columns if c.startswith("n_persons_pred_") or
          c.startswith("n_persons_strict_")]
     cl_c = clusters[clusters["n_persons_unrelated"] >= MIN_COMMIT] if len(clusters) else clusters
@@ -1340,30 +1643,69 @@ def main(argv=None):
         os.path.join(out_dir, "noncoding_signature_clusters.tsv"), sep="\t", index=False)
     pool_c = pool[pool["n_persons"] >= MIN_COMMIT] if len(pool) else pool
     suppress_frame(pool_c, ["n_haplotypes", "n_persons", "n_persons_unrelated",
-                            "n_haplotypes_homopolymer_only", "old_n_persons",
-                            "old_n_haplotypes"]).to_csv(
+                            "n_distinct_templates", "n_haplotypes_homopolymer_only",
+                            "old_n_persons", "old_n_haplotypes"]).to_csv(
         os.path.join(out_dir, "beyond_cds_pooling.tsv"), sep="\t", index=False)
-    suppress_frame(dist, ["n_former_clusters"]).to_csv(
-        os.path.join(out_dir, "pooling_distribution.tsv"), sep="\t", index=False)
+    dist_c = suppress_frame(dist, ["n_former_clusters"])
+    dist_c.to_csv(os.path.join(out_dir, "pooling_distribution.tsv"), sep="\t", index=False)
     frac_c = frac.copy()
     frac_c.loc[frac_c["n_haplotypes"] < MIN_COMMIT, "frac_homopolymer_only"] = np.nan
     frac_c = suppress_frame(frac_c, ["n_haplotypes", "n_persons"] +
                             [f"n_{c}" for c in SIG_CLASSES])
+    n_context_ok = int((ok["context_mode"] == "sequence").sum()) if len(ok) else 0
+    frac_context_sequence = round(n_context_ok / len(ok), 4) if len(ok) else None
+    homopolymer_gate = (frac_context_sequence is not None
+                        and frac_context_sequence < CONTEXT_SEQUENCE_MIN_FRAC
+                        and not args.allow_content_only)
+    homopolymer_gate_reason = None
+    if homopolymer_gate:
+        homopolymer_gate_reason = (
+            f"frac_context_sequence={frac_context_sequence} < {CONTEXT_SEQUENCE_MIN_FRAC}: the "
+            "allele sequence needed to verify homopolymer context was unavailable for most "
+            "calls, so the content-only flag (every 1-bp indel counts) would overstate the "
+            "homopolymer fraction. Re-run with --allow-content-only to override for debugging.")
+        frac_c["frac_homopolymer_only"] = np.nan
     frac_c.to_csv(os.path.join(out_dir, "homopolymer_fraction.tsv"), sep="\t", index=False)
     suppress_frame(sfs, ["n_signatures"]).to_csv(
         os.path.join(out_dir, "nonhomopolymer_sfs.tsv"), sep="\t", index=False)
     gsum_c = suppress_frame(gsum, ["n_depth4_haplotypes", "n_parsed", "n_no_row", "n_cs_error",
+                                   "n_split_alignment", "n_low_qcov", "n_multi_record_chained",
                                    "n_fallback_3field", "n_context_sequence", "n_minus_strand",
                                    "n_signatures", "n_signatures_ge20_unrelated",
                                    "n_former_novel_ids"] + [f"n_{c}" for c in REGION_CLASSES])
+    if homopolymer_gate:
+        gsum_c["frac_homopolymer_only"] = np.nan
     gsum_c.to_csv(os.path.join(out_dir, "gene_summary.tsv"), sep="\t", index=False)
+    qcov_decile_c = suppress_frame(qcov_decile, ["n_calls", "n_no_difference"])
+    qcov_decile_c.loc[qcov_decile["n_calls"] < MIN_COMMIT, "frac_no_difference"] = np.nan
+    qcov_decile_c.to_csv(os.path.join(out_dir, "no_difference_by_qcov_decile.tsv"), sep="\t",
+                         index=False)
 
     status_counts = res["status"].astype(str).str.split(":").str[0].value_counts().to_dict()
+    n_secondary_filtered = int(
+        res.drop_duplicates(["person_id", "hap"])["n_secondary_filtered_hap"].sum())
+    median_modal = pool["n_distinct_signatures_modal_template"].median() if len(pool) else None
+    max_modal = pool["n_distinct_signatures_modal_template"].max() if len(pool) else None
+    median_raw = pool["n_distinct_signatures"].median() if len(pool) else None
+    max_raw = pool["n_distinct_signatures"].max() if len(pool) else None
+    frac_hp_overall = float((ok["signature_class"] == "homopolymer_only").mean()) \
+        if len(ok) else None
+    if frac_hp_overall is not None:
+        frac_hp_overall = round(frac_hp_overall, 4) if len(ok) >= MIN_COMMIT else None
+    if homopolymer_gate:
+        frac_hp_overall = None
+    median_qcov_overall = float(ok["qcov"].median()) if len(ok) >= MIN_COMMIT else None
     summary = {
         "n_persons": suppress(len(persons)),
         "n_depth4_haplotypes": suppress(len(res)),
         "n_parsed": suppress(len(ok)),
         "status_counts": {k: suppress(v) for k, v in status_counts.items()},
+        "n_secondary_filtered": suppress(n_secondary_filtered),
+        "n_multi_record_chained": suppress(int((res["chain_status"] ==
+                                                "multi_record_chained").sum())),
+        "n_split_alignment": suppress(int((res["status"] == "split_alignment").sum())),
+        "n_low_qcov": suppress(int((res["status"] == "low_qcov").sum())),
+        "min_qcov": args.min_qcov,
         "selection_path_counts": {k: suppress(v) for k, v in
                                   ok["selection_path"].value_counts().to_dict().items()},
         "cds_status_counts": {k: suppress(v) for k, v in
@@ -1371,26 +1713,31 @@ def main(argv=None):
         "n_signatures": suppress(len(clusters)),
         "n_signatures_ge20_unrelated": suppress(len(cl_c)),
         "n_former_clusters": suppress(len(pool)),
-        "median_signatures_per_former_cluster":
-            float(pool["n_distinct_signatures"].median()) if len(pool) else None,
-        "max_signatures_per_former_cluster":
-            int(pool["n_distinct_signatures"].max()) if len(pool) else None,
-        "frac_homopolymer_only": round(float((ok["signature_class"] == "homopolymer_only").mean()), 4)
-        if len(ok) else None,
+        "median_signatures_per_former_cluster": float(median_modal) if median_modal is not None
+        else None,
+        "max_signatures_per_former_cluster": int(max_modal) if max_modal is not None else None,
+        "median_signatures_per_former_cluster_raw": float(median_raw) if median_raw is not None
+        else None,
+        "max_signatures_per_former_cluster_raw": int(max_raw) if max_raw is not None else None,
+        "frac_homopolymer_only": frac_hp_overall,
+        "homopolymer_gate_reason": homopolymer_gate_reason,
         "signature_class_haplotypes": {k: suppress(v) for k, v in
                                        ok["signature_class"].value_counts().to_dict().items()},
         "region_class_haplotypes": {k: suppress(v) for k, v in
                                     ok["region_class"].value_counts().to_dict().items()},
         "frac_region_class": {k: round(float(v), 4) for k, v in
-                              ok["region_class"].value_counts(normalize=True).to_dict().items()},
+                              ok["region_class"].value_counts(normalize=True).to_dict().items()}
+        if len(ok) >= MIN_COMMIT else {},
         "touches_cds": touches_cds_diag(ok),
-        "frac_context_sequence": round(float((ok["context_mode"] == "sequence").mean()), 4)
-        if len(ok) else None,
+        "no_difference_by_qcov_decile": json.loads(
+            qcov_decile_c.to_json(orient="records")) if len(qcov_decile_c) else [],
+        "frac_context_sequence": frac_context_sequence,
         "n_seq_inconsistent": suppress(int((ok["seq_consistent"] == False).sum())),  # noqa: E712
         "strand_counts": {k: suppress(v) for k, v in ok["paf_strand"].value_counts().to_dict().items()},
-        "median_qcov": float(ok["qcov"].median()) if len(ok) else None,
+        "median_qcov": median_qcov_overall,
         "relatedness_available": have_rel,
         "n_unrelated_lr": suppress(len(unrelated)),
+        "n_missing_from_cohort_membership": suppress(n_missing_from_cohort),
         "allele_fastas": [os.path.basename(f) for f in fastas],
         "n_allele_sequences_loaded": len(allele_seqs),
         "n_annotations_loaded": len(annotations),
@@ -1401,10 +1748,13 @@ def main(argv=None):
     with open(os.path.join(out_dir, "summary.json"), "w") as fh:
         json.dump(summary, fh, indent=2, default=str)
     write_report(os.path.join(out_dir, "noncoding_novelty_report.md"), summary, gsum_c, frac_c,
-                 suppress_frame(dist, ["n_former_clusters"]), args)
+                 dist_c, qcov_decile_c, args)
     if not args.no_figures:
-        fig_pooling(pool, os.path.join(out_dir, "fig1_signatures_per_former_cluster.png"))
-        fig_homopolymer(frac, os.path.join(out_dir, "fig2_homopolymer_fraction.png"))
+        fig_pooling(pool_c, dist_c, os.path.join(out_dir, "fig1_signatures_per_former_cluster.png"))
+        if not homopolymer_gate:
+            # frac (not frac_c): _stacked() already re-derives each bar from n_{cls}/n_haplotypes
+            # and zeroes it out below MIN_COMMIT itself, so it needs the numeric columns intact.
+            fig_homopolymer(frac, os.path.join(out_dir, "fig2_homopolymer_fraction.png"))
         fig_sfs(sfs, os.path.join(out_dir, "fig3_nonhomopolymer_sfs.png"))
     print(json.dumps(summary, indent=2, default=str), file=sys.stderr)
     print(f"committed outputs -> {out_dir}\nlocal outputs -> {local_dir}", file=sys.stderr)

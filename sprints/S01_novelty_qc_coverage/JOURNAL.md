@@ -29,3 +29,5 @@
   distances could go negative and matplotlib refused to plot (clamped at 0).
 - Full-cohort runs of 24 and 26 started (~/results/24_novelty_by_field, ~/results/26_qc_relatives_v2).
   Script 25's full run waits for the critic fixes.
+- First full run of 26 gave an impossible 78% relative discordance. Root cause: cds.fa.gz header
+  ordinals are not copy indices (see WS2). Fixed, regression-tested, re-running.
