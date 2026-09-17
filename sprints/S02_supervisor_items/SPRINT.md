@@ -83,24 +83,32 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked/parked
 
 | WS | Goal | Brief | Status |
 |---|---|---|---|
-| WS0 | Scaffolding; restate S01's phasing QC in the DPA1–DPB1 / DQA1–DQB1 form Cole asked for (A2) | this file | ◐ |
-| WS1 | LD between DQ and DP alleles within each ancestry (A3) | script 29 | ◐ written + tested + smoke-tested; needs the VM run |
-| WS2 | Structural variation: gene deletions, duplications, DRB copy number; KIR answer (A4, A5) | script 30 | ◐ written + tested + smoke-tested; needs the VM run |
+| WS0 | Scaffolding; restate S01's phasing QC in the DPA1–DPB1 / DQA1–DQB1 form Cole asked for (A2) | this file; `FINDINGS_FOR_MARC.md` §4b | ☑ done |
+| WS1 | LD between DQ and DP alleles within each ancestry (A3) | script 29 + `reports/hla_popgen/29_hla_ld/README.md` | ☑ done |
+| WS2 | Structural variation: gene deletions, duplications, DRB copy number; KIR answer (A4, A5) | script 30 + `reports/hla_popgen/30_hla_sv/README.md` | ☑ done |
 | WS3 | Main-text callout list of common novel alleles absent from IPD-IMGT (A6) | script 32 + `reports/hla_popgen/32_novel_callouts/README.md` | ☑ done |
-| WS4 | Figure 1 v3 + supplement dump, strict-admixture variants (A1, A9, A11) | `WS4_figure1_v3.md` | ☐ |
-| WS5 | Selection: ARS vs non-ARS amino-acid diversity; class I vs II differentiation; literature (A7, A8, A10) | `WS_literature_selection.md`, `WS5_ars_definition.md`, script 31 | ◐ literature + ARS definition done; script 31 needs the VM run |
+| WS4 | Figure 1 v3 + supplement dump, strict-admixture variants (A1, A9, A11) | `WS4_figure1_v3.md` + script 33 | ◐ panels c/d done; a (admixture) and b (ternary) need a VM rerun of scripts 06/10 |
+| WS5 | Selection: ARS vs non-ARS amino-acid diversity; class I vs II differentiation; literature (A7, A8, A10) | `WS_literature_selection.md`, `WS5_ars_definition.md`, script 31 + `reports/hla_popgen/31_aa_diversity/README.md` | ☑ done at exon level; the structural contact-vs-non-contact refinement is still pending a transfer function |
 | — | Short-read validation of novel alleles (A12) | — | ⏸ parked by Cole |
 | — | HLA × TCR/BCR join | `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` §3 | ⏸ Aleix |
 
 ## 5. Resume here (always current)
 
-*2026-09-17.* Scripts **29** (LD), **30** (structural variation), **31** (amino-acid diversity /
-differentiation) and **32** (novel-allele callouts) are written, unit-tested (127 fixture tests
-across the four) and smoke-tested against a synthetic cohort built in the session scratchpad.
-**32 has already been run for real** — it needs only committed aggregates. **29, 30 and 31 still
-need their full-cohort VM run**; that is the next action.
+*2026-09-17, end of sprint.* Scripts **29–33** are written, unit-tested (150 fixture tests) and
+**all have been run on the full cohort**; results are committed under `reports/hla_popgen/29_hla_ld`,
+`30_hla_sv`, `31_aa_diversity`, `32_novel_callouts`, `33_figure1_v3`. Findings are distilled in
+`FINDINGS_FOR_MARC.md`.
 
-Literature (A7) and the structural ARS definition are done and committed.
+**Remaining for a next sprint:**
+1. Figure 1 panels **a** (admixture) and **b** (class I ternary) need scripts 06 and 10 rerun at
+   the stricter admixture threshold, committing the frequency **tables** this time, not just the
+   figures (`WS4_figure1_v3.md` lists exactly what).
+2. The structural peptide-contact comparison inside the groove exons needs a
+   `contact_indices_for(gene, protein)` transfer function in `_ars_residues.py` plus the chain
+   sequences, so the PDB residue numbers can be mapped onto our signal-peptide-inclusive numbering
+   offline. Script 31 already calls it and degrades cleanly when it is absent.
+3. Script 23's SFS regenerated at S01's corrected novelty definition (panel d caveat).
+4. Short-read validation of the 38 callout alleles — Cole parked it, but the list now exists.
 
 VM: assume it restarted (ENVIRONMENT quirk #14); re-verify the auto-mount before trusting
 anything that reads AoU data. **Do not touch `~/mnt/aou-controlled`** — quirk #35, it hangs the

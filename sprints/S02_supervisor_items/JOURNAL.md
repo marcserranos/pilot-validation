@@ -34,3 +34,23 @@
 - Added the catalogue-gap control to the callout list after noticing the list was dominated by
   TAP1/TAP2 and could be read as reference depth rather than biology. It is measurable, script 27
   already measured it, and it agrees with the novelty ranking.
+- VM session. The JupyterLab tab was still alive; re-established the programmatic terminal channel
+  (quirk #37). One correction to that recipe worth recording: the terminal **echoes the command it
+  is given**, so a literal BEGIN/END marker inside the command text matches before the real output
+  does. Emit markers with `printf '<<%s>>\n' 'Bkey'` so the echoed line never contains them.
+- Deployed scripts 29/30/31 and `_ars_residues.py`, verified md5 against the local copies, cleared
+  `__pycache__`, launched all three. **The VM then went down mid-run** — the Workbench console
+  says a reboot is required — and all three processes died with the gateway returning 502. It came
+  back on its own about four minutes later; relaunched and all three completed.
+- A second retrieval quirk: **jupytext is installed on this VM and claims `.md` files as
+  notebooks**, so `/api/contents/<path>.md?content=1` returns nbformat JSON with empty content
+  instead of the file. Pass `&type=file&format=text` to get the real bytes. Without it the three
+  result READMEs silently came back empty.
+- All three full-cohort runs completed on 11,856 unrelated people, matching S01's cohort exactly —
+  a free cross-check that the cohort construction is deterministic.
+- Every control passed: the LD method recovers strong linkage at B~C and weak at A~B; the deletion
+  caller reproduces the DR51/52/53 expectation in 92-98% of haplotypes with a 0.04-2.0%
+  false-positive rate at genes that are never deleted; the groove-diversity test shows no
+  enrichment in DRA, HLA-F or DRB4.
+- Ran a fresh-context critic agent over `FINDINGS_FOR_MARC.md`, checking every quantitative claim
+  against the committed tables.
