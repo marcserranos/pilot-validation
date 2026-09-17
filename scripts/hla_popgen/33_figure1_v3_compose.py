@@ -36,6 +36,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -304,8 +305,12 @@ def write_readme(path, rates, gene_for_sfs):
              "occurrences while known alleles reach hundreds — is unaffected, but the absolute "
              "allele counts in the novel series are an over-estimate. Regenerating it at the "
              "corrected definition needs the VM.\n")
+    text = "\n".join(L)
+    # The per-row appends above each end in a newline and the join adds another, which puts a
+    # blank line between table rows -- markdown then renders the table as plain text.
+    text = re.sub(r"\|\n\n\|", "|\n|", text)
     with open(path, "w") as fh:
-        fh.write("\n".join(L))
+        fh.write(text)
 
 
 def run(args):

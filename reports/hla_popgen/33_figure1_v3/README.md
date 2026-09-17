@@ -7,13 +7,9 @@
 
 | panel | Cole's ask | status |
 |---|---|---|
-
 | a | admixture bar plot | **not in this file** — needs a rerun of script 06 at the stricter admixture threshold (ask A9) |
-
 | b | class I ternary, HLA-A or HLA-B | **not in this file** — script 10 committed figures but not the per-allele frequency table, so it cannot be recomposed offline |
-
 | c | novel rate by ancestry, broken out by gene | **here**, and rebuilt at S01's corrected novelty definition |
-
 | d | SFS over all alleles, novel vs known in two colours | **here** |
 
 
