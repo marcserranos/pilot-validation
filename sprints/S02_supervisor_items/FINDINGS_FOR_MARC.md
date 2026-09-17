@@ -222,6 +222,18 @@ Against that baseline:
 | MICA | 4.2% |
 | MICB | 2.9% |
 
+**One lead worth chasing, flagged as a lead and not a result.** Four class I pseudogenes —
+HLA-H (12.15%), HLA-K (12.42%), HLA-T (12.25%) and HLA-U (12.37%) — come out with near-identical
+deletion rates, while every other pseudogene sits under 1.4%. Four independent genes agreeing to
+within 0.3 percentage points is not what independent deletions look like. Either they sit in one
+segment that is deleted as a block on about 12% of haplotypes — which would be a real
+haplotype-level structural polymorphism and a nice finding — or they share a detection artifact.
+Deciding between those needs checking whether the same haplotypes are missing all four, which is
+a short follow-up and is not done.
+
+HLA-Y is absent from 81.6% of haplotypes, which is expected: it is a pseudogene known to be
+present only on a subset of haplotypes.
+
 C4 copy number resolves cleanly per haplotype: 54.1% carry one C4A and one C4B, 14.8% carry C4A
 only, 10.5% C4B only. This is genuine copy-number variation phased on individual haplotypes, which
 is exactly the thing short reads cannot do well.
