@@ -171,6 +171,12 @@ linkage** — more distinct DQ and DR–DQ haplotypes, consistent with older eff
 and more accumulated recombination. That is a real population-genetics result, not a frequency
 artifact, and it is the kind of thing this cohort is uniquely placed to show.
 
+One caveat I want on the record: the rarefaction target is always the smallest ancestry, which
+here is Middle Eastern. That means MID is "subsampled" to its own full size, so its interval
+collapses to a single point — that is *no* variance estimate, not a precise one, and MID must not
+be compared as though it had a tight interval. The AFR-vs-EUR comparison above is unaffected;
+both have proper intervals over genuine subsamples.
+
 **DPA1~DPB1 does not follow the pattern** — there MID/SAS/EAS are lowest and AMR/EUR highest, with
 AFR in the middle. That is worth flagging rather than smoothing over, because Brandt et al. 2018
 (*G3*) independently singled out the DP locus as the exception among HLA genes, arguing it is

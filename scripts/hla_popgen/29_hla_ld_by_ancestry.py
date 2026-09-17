@@ -532,6 +532,11 @@ def write_readme(path, args, diag_rows, multi_rows, rare_rows, top_r2, n_people)
         L.append("\nRead this table as: *at equal sample size*, does the same pair of loci travel "
                  "together more tightly in one ancestry than another? Non-overlapping CIs are the "
                  "claim; overlapping CIs are not.\n")
+        L.append("\n**`interval_is_degenerate` matters.** The rarefaction target is the smallest "
+                 "qualifying ancestry, so that ancestry is subsampled to its own full size: every "
+                 "replicate is the same sample and its interval collapses to a point. A "
+                 "zero-width interval here means *no sampling-variance estimate*, not a precise "
+                 "one. Never compare against it as though it were a tight CI.\n")
 
     L.append("\n## 4. Strongest individual allele pairs (what Cole asked for literally)\n")
     t = pd.DataFrame(top_r2)
@@ -655,7 +660,13 @@ def run(args):
             rs = rarefied_stats(pairs, target, args.n_bootstrap, rng)
             if rs is None:
                 continue
-            rs.update({"pair": pair_name, "role": role, "ancestry": anc})
+            # The rarefaction target is the smallest qualifying ancestry, so that ancestry is
+            # subsampled to its own full size: every replicate is the identical sample and its
+            # "interval" collapses to a point. That is not a precise estimate, it is no estimate
+            # of sampling variance at all, and it must not be read as a tight CI.
+            rs.update({"pair": pair_name, "role": role, "ancestry": anc,
+                       "is_rarefaction_target": len(pairs) == target,
+                       "interval_is_degenerate": len(pairs) <= target})
             rare_rows.append(rs)
 
     # ---- write ----
