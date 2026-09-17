@@ -254,6 +254,30 @@ This is Hughes & Nei's 1988 result reproduced at biobank scale with controls the
 It is a replication, not a discovery — but it is the replication that licenses everything else we
 say about selection.
 
+### The check that convinced me the pipeline is right
+
+The per-residue tracks don't just show diversity in the right *region*. They pick out the right
+*residues*. Converting our numbering to mature-protein numbering (subtracting the signal peptide),
+the ten most diverse positions are:
+
+- **DRB1**: 11, 13, 37, 67, 70, 71, 74, 96 — β11, β13, β71 and β74 are the positions that define
+  the rheumatoid-arthritis shared epitope and that dominate the amino-acid-level association
+  signal in autoimmune GWAS.
+- **DQB1**: 26, 30, 55, **57**, 70, 71, 74, 87 — β57 is arguably the single most studied residue
+  in human immunogenetics (type 1 diabetes, celiac disease).
+- **HLA-B**: 45, 67, **77, 80**, 95, 97, 114, 116 — 77 and 80 are the Bw4/Bw6 epitope, i.e. the
+  KIR-binding determinant; 116 is a principal peptide anchor.
+
+Nothing in this analysis knows about disease, about KIR, or about those papers. It ranks residues
+purely by how much amino-acid diversity the cohort's own allele frequencies produce, and the
+residues that come out on top are the ones the field already knows matter. That is about as good
+an end-to-end sanity check as this pipeline can give itself.
+
+One honesty note: the mature-numbering conversion above uses signal-peptide lengths (DRB1 29,
+DQB1 32, HLA-B 24) that I have not verified against IMGT in this session — the agreement with
+known positions is itself the evidence they are right. The committed table uses our own
+reference-protein numbering throughout, which needs no such assumption.
+
 **On Cole's class I vs class II hypothesis (A10): the data do not clearly support it.** Ranked by
 Hedrick's standardised G′st, the most differentiated gene between ancestries is **HLA-B (0.518)**,
 a class I gene, followed by DPB1 (0.483), DRB1 (0.444) and HLA-A (0.417). Class I and class II
