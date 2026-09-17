@@ -703,3 +703,30 @@ Homozygosity obs/exp 1.10 (LR) vs 1.07 (SR, same people) → small real allele d
 Two real-data traps cost time and are recorded in the briefs: a `cds.fa.gz` header's trailing
 integer is a file-wide record ordinal, not the gene's copy index; and a run can silently execute a
 stale deployed file (always clear `__pycache__` and verify the run used the new code).
+
+## 2026-09-17 — S02: supervisor items from the 2026-09-17 call (scripts 29–33)
+
+Sprint board: `sprints/S02_supervisor_items/SPRINT.md`. Findings: that folder's
+`FINDINGS_FOR_MARC.md`. All runs on 11,856 unrelated people (identical cohort to S01).
+
+- **29_hla_ld_by_ancestry** → `reports/hla_popgen/29_hla_ld/`. LD at physically-phased cis gene
+  pairs, within ancestry, compared only at a common rarefied haplotype count. Controls pass
+  (B~C D' 0.87–0.92; A~B 0.58–0.74). AFR shows significantly weaker class II linkage than EUR
+  (DQA1~DQB1 0.908 [0.890–0.925] vs 0.974 [0.964–0.983]; DRB1~DQB1 0.880 vs 0.947). DPA1~DPB1 does
+  not follow that pattern. DPA1–DPB1 physically phased in 96.96% of assemblies carrying both.
+- **30_hla_structural_variation** → `reports/hla_popgen/30_hla_sv/`. Deletions called only from
+  bridged absence. Positive control (DR51/52/53) concordant in 92–98% across all 13 DRB1 groups;
+  false-positive rate 0.04–2.0%. DRB5 83.1% / DRB4 69.6% / DRB3 49.3% / C4B 19.6% / C4A 11.0% /
+  MICA 4.2% deleted. C4: 54.1% of haplotypes 1A/1B. **KIR: zero calls, as expected (chr19).**
+- **31_aa_diversity_selection** → `reports/hla_popgen/31_aa_diversity/`. Groove-exon enrichment of
+  amino-acid diversity significant in 8 genes (DPB1 8.0x down to HLA-A 2.2x, p <= 0.0015); absent
+  in the conserved controls DRA/HLA-F/DRB4. Differentiation ranked by Hedrick's G'st puts HLA-B
+  (0.518) first, not a class II gene; raw Fst gives a different ranking driven by within-population
+  heterozygosity (the Brandt 2018 artifact).
+- **32_novel_allele_callouts** → `reports/hla_popgen/32_novel_callouts/`. 38 clean recurrent novel
+  alleles with >= 20 unrelated carriers (29 proteins, 9 synonymous); none in a classical gene;
+  TAP1/TAP2 dominate, and the per-gene IPD-IMGT catalogue gap (TAP1 8.0% vs HLA-A/B/C 0.1–0.2%)
+  agrees with that ranking. 309 more in the submission queue.
+- **33_figure1_v3_compose** → `reports/hla_popgen/33_figure1_v3/`. Figure 1 panels c and d. Panel c
+  splits novelty by nomenclature field with the artifact rate as a flat negative control
+  (1.1–3.3% everywhere, vs clean novelty 45.7–71.2% at DRB1). Panels a and b still need a VM rerun.
