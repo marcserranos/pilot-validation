@@ -1,0 +1,12 @@
+{
+  "panels_built": [
+    "c",
+    "d"
+  ],
+  "panels_pending_vm": [
+    "a_admixture",
+    "b_class_I_ternary"
+  ],
+  "ancestry_scheme": "strict",
+  "sfs_gene": "ALL_CLASSICAL"
+}
