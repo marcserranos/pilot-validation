@@ -143,28 +143,125 @@ by checking the structures rather than trusting the headers.
 
 ---
 
-## 4. What is still running
+## 4. The three analyses that needed the VM — all finished
 
-Three analyses are executing on the VM as this is written, and their results are not in this
-document:
+### 4a. LD between DQ and DP alleles, within ancestry (Cole's A3)
 
-- **LD between DQ and DP alleles within each ancestry** (Cole's A3, which he raised twice). The
-  script reports the r² he asked for, plus a multi-allelic D′ and a bias-corrected Cramér's V, and
-  makes the cross-ancestry comparison only on haplotype counts **rarefied to a common n** — because
-  r² is bounded by allele frequencies and every contingency-table statistic inflates with allele
-  count, and ancestries differ in both. DRB1–DQB1 and HLA-B–HLA-C are included as positive
-  controls: if the method does not find strong LD there, the method is broken.
-- **Deletions and duplications** (A4). A gene is called deleted only when one contig carries genes
-  on *both* sides of it — a bridged absence — so assembly fragmentation cannot masquerade as
-  biology. DRB3/4/5 against the textbook DR51/52/53 expectation is the positive control; HLA-A/B/C
-  are the false-positive rate. C4 copy number and long/short composition come along for free.
-- **Amino-acid diversity per residue** (A8/A10), groove vs non-groove, plus between-ancestry
-  differentiation per gene reported as Hedrick's standardised G′st rather than raw Fst.
+He predicted the linkage patterns would differ between ancestries beyond just frequencies. **They
+do**, and the effect survives the fair comparison.
 
-**KIR (A5) is already answered**: there are **zero** KIR calls, and that is correct — the KIR
-cluster is on chromosome 19, outside the chromosome 6 window these assemblies were trimmed to.
-Genotyping KIR would need a separate extraction from the original BAMs. It is a real opportunity,
-not an oversight, and worth saying that way to Cole since he expected it to "just be called".
+The trap he walked us toward: r² is bounded by allele frequencies, and every contingency-table
+statistic inflates when there are more alleles relative to sample size. Ancestries differ in both.
+So the comparison is made only on haplotype counts **rarefied to a common n** (~560 phased
+haplotypes per ancestry), with an interval over subsamples.
+
+First, the controls. HLA-B~HLA-C, 90 kb apart and known to be in strong LD, comes out at
+D′ 0.87–0.92. HLA-A~HLA-B, 1.4 Mb apart, comes out lowest at 0.58–0.74. The method finds strong
+linkage where strong linkage is known to exist and weak linkage where it is not.
+
+Then the finding, at equal sample size:
+
+| pair | AFR | EUR |
+|---|---|---|
+| DQA1~DQB1 | **0.908** [0.890–0.925] | **0.974** [0.964–0.983] |
+| DRB1~DQB1 | **0.880** [0.860–0.899] | **0.947** [0.932–0.960] |
+
+Non-overlapping intervals. **African-ancestry haplotypes carry measurably weaker class II
+linkage** — more distinct DQ and DR–DQ haplotypes, consistent with older effective population size
+and more accumulated recombination. That is a real population-genetics result, not a frequency
+artifact, and it is the kind of thing this cohort is uniquely placed to show.
+
+**DPA1~DPB1 does not follow the pattern** — there MID/SAS/EAS are lowest and AMR/EUR highest, with
+AFR in the middle. That is worth flagging rather than smoothing over, because Brandt et al. 2018
+(*G3*) independently singled out the DP locus as the exception among HLA genes, arguing it is
+under directional rather than balancing selection. Our data behave the same way.
+
+### 4b. The phasing question Cole called critical (A2)
+
+He said: *"we don't want there to be a switch between DPA1 and DPB1."* Direct answer:
+
+- **DPA1 and DPB1 sit on the same assembled contig in 96.96%** of assemblies that carry both
+  genes; DQA1–DQB1 in 96.31%. In those, the pairing is physical, not statistical.
+- S01's switch test, rebuilt so it could fail, found **zero switches over 3,021 testable
+  transitions at 100% detection power** on injected synthetic switches.
+- HLA-A~HLA-B, 1.4 Mb apart, is phased in only **30.2%** of assemblies — the honest limit of what
+  these assemblies span, and itself a number worth reporting.
+
+The strong observed DP and DQ linkage is a third, independent line of evidence: if the phasing
+were switching, the LD would be destroyed.
+
+### 4c. Deletions and duplications (A4), and KIR (A5)
+
+Cole said *"let's do that, it could be pretty crazy."* The method calls a gene deleted only when a
+single contig carries genes on **both** sides of it, so assembly fragmentation cannot masquerade
+as biology.
+
+**The positive control passes.** Which second DRB locus a haplotype carries is determined by its
+DRB1 group — textbook immunogenetics, known independently of our data. We recover it in
+**92–98%** of haplotypes across all 13 DRB1 groups, including the groups whose correct answer is
+"no second DRB locus at all".
+
+**The negative control gives the false-positive rate:** 0.04–2.0% at HLA-A/B/C, DRA, DQ, DP and
+DRB1.
+
+Against that baseline:
+
+| gene | haplotypes lacking it |
+|---|---|
+| DRB5 | 83.1% |
+| DRB4 | 69.6% |
+| DRB3 | 49.3% |
+| C4B | 19.6% |
+| C4A | 11.0% |
+| MICA | 4.2% |
+| MICB | 2.9% |
+
+C4 copy number resolves cleanly per haplotype: 54.1% carry one C4A and one C4B, 14.8% carry C4A
+only, 10.5% C4B only. This is genuine copy-number variation phased on individual haplotypes, which
+is exactly the thing short reads cannot do well.
+
+**KIR: zero calls, and that is correct.** The KIR cluster is on chromosome 19, outside the
+chromosome 6 window these assemblies were trimmed to. Cole expected it to "just be called" — it
+cannot be, and typing it would need a separate extraction from the original BAMs. Worth saying
+plainly, because it is an opportunity rather than an oversight.
+
+### 4d. Amino-acid diversity, groove vs the rest (A8), and differentiation (A10)
+
+Diversity is concentrated in the peptide-binding groove exons, significantly, in eight genes:
+
+| gene | groove / non-groove | p |
+|---|---|---|
+| DPB1 | **8.0×** | 0.0005 |
+| DRB3 | 6.3× | 0.001 |
+| DRB5 | 6.2× | 0.0015 |
+| DQA1 | 4.3× | 0.0005 |
+| DRB1 | 3.7× | 0.0005 |
+| HLA-B | 3.6× | 0.0005 |
+| DQB1 | 3.0× | 0.0005 |
+| HLA-A | 2.2× | 0.001 |
+
+**The conserved controls show nothing**, which is what makes the rest credible: DRA 0.0×, HLA-F
+0.04×, DRB4 0.03×, all p > 0.5. HLA-C (1.3×) and DPA1 (2.0×) are not significant either, and are
+reported as such rather than rounded up.
+
+This is Hughes & Nei's 1988 result reproduced at biobank scale with controls they did not have.
+It is a replication, not a discovery — but it is the replication that licenses everything else we
+say about selection.
+
+**On Cole's class I vs class II hypothesis (A10): the data do not clearly support it.** Ranked by
+Hedrick's standardised G′st, the most differentiated gene between ancestries is **HLA-B (0.518)**,
+a class I gene, followed by DPB1 (0.483), DRB1 (0.444) and HLA-A (0.417). Class I and class II
+interleave.
+
+There is a methodological point here worth showing him. **Raw Fst would have given a completely
+different ranking** — DRB5 (0.165), DRB4 (0.146) and DPA1 (0.131) at the top — purely because those
+genes have lower within-population heterozygosity, which mechanically allows a larger Fst. At
+HLA-B, within-population heterozygosity is 0.954, so raw Fst cannot exceed about 0.05 no matter
+how different the populations are. This is exactly the artifact Brandt et al. 2018 documented, and
+we can demonstrate it in our own data rather than just cite it.
+
+Non-classical controls sit near zero differentiation as they should: HLA-E 0.022, DRA 0.029,
+HLA-F 0.049, HLA-G 0.059.
 
 ---
 
@@ -172,10 +269,10 @@ not an oversight, and worth saying that way to Cole since he expected it to "jus
 
 1. **Push the branch.** Still blocked for me — publishing to the public repo is denied by the
    permission classifier. Everything is committed locally on `fig1-drafts-and-research-map`.
-2. **Reboot the VM.** It went down mid-run (the Workbench console says a reboot is required). It
-   came back on its own and the runs were relaunched, but if it needs a manual reboot again, that
-   is a shared-resource decision I did not want to make without you — another session may be using
-   it.
+2. **The VM needs a reboot.** The Workbench console says so, and it went down mid-run once
+   already, killing all three jobs. It came back on its own and the runs were relaunched and
+   completed, but the warning is still showing. Rebooting is a shared-resource decision I did not
+   want to make without you — another session may be using it.
 3. **The short-read validation Cole parked.** He said *"I wouldn't do that right now"*, but it is
    the single strongest confirmation available for the 38 callout alleles: every one of those
    people also has high-coverage short reads, and realigning them to the long-read assembly tests
@@ -196,4 +293,6 @@ not an oversight, and worth saying that way to Cole since he expected it to "jus
 | peptide-contact residues | `reference/ars_peptide_contacts.tsv`, `WS5_ars_definition.md` |
 | what the call asked for, item by item | `SPRINT.md` §1 |
 | what went wrong and when | `JOURNAL.md` |
-| LD / structural variation / amino-acid diversity | `reports/hla_popgen/29_*`, `30_*`, `31_*` once the VM run lands |
+| LD by ancestry | `reports/hla_popgen/29_hla_ld/` |
+| deletions, duplications, C4, KIR | `reports/hla_popgen/30_hla_sv/` |
+| amino-acid diversity and differentiation | `reports/hla_popgen/31_aa_diversity/` |
