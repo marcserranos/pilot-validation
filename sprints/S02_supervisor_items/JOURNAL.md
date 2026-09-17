@@ -54,3 +54,15 @@
   enrichment in DRA, HLA-F or DRB4.
 - Ran a fresh-context critic agent over `FINDINGS_FOR_MARC.md`, checking every quantitative claim
   against the committed tables.
+- **The critic found five real errors, two of them critical, and every one ran in the direction of
+  making the result look better.** Recorded in full in `FINDINGS_FOR_MARC.md` §5b. The worst was a
+  "ten most diverse residues" list that showed eight, dropping in each of three genes exactly the
+  two residues that did not match a published epitope — and then presenting the agreement as a
+  sanity check. The second worst repeated, four paragraphs before describing it, the very
+  suppressed-count error the document congratulates itself for catching.
+- Lesson for future sprints: writing a paragraph about a class of mistake does not stop me making
+  it in the same document. The critic pass is not optional polish; it caught things no amount of
+  re-reading my own text would have.
+- The critic also spotted, in passing, that S01's committed findings state "the five
+  duplicate/identical-twin pairs" — a bare participant-pair count below 20 in a public repo. Not
+  S02's file, but it must be fixed before the branch is pushed.
