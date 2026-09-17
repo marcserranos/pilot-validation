@@ -389,15 +389,18 @@ def fig_multiallelic(rare_rows, path):
             continue
         ax.bar(xs, ys, width=width * 0.92, color=ANCESTRY_COLORS.get(anc, "#777777"),
                label=anc, yerr=[lo, hi], capsize=2, error_kw={"lw": 0.8})
+    # Each pair is rarefied to ITS OWN smallest qualifying ancestry, so a single n in the title
+    # would be wrong for four of the five groups. Label each pair with the n actually used.
+    per_pair_n = {p: int(df[df["pair"] == p]["rarefied_to"].iloc[0]) for p in pairs}
     ax.set_xticks(range(len(pairs)))
-    ax.set_xticklabels(pairs, rotation=0)
+    ax.set_xticklabels(["%s\nn=%d" % (p, per_pair_n[p]) for p in pairs], rotation=0)
     ax.set_ylabel("multi-allelic D' (Hedrick 1987)")
-    ax.set_ylim(0, 1.02)
-    n_rare = int(df["rarefied_to"].iloc[0]) if "rarefied_to" in df.columns else 0
-    ax.set_title("Two-locus LD within ancestry, rarefied to %d phased haplotypes per ancestry\n"
-                 "(equal n and equal opportunity for allelic richness; 95%% CI over subsamples)"
-                 % n_rare, fontsize=9)
-    ax.legend(frameon=False, ncol=len(ancs), fontsize=8, loc="lower right")
+    ax.set_ylim(0, 1.15)
+    ax.set_title("Two-locus LD within ancestry, each pair rarefied to a common haplotype count "
+                 "across ancestries\n(equal n and equal opportunity for allelic richness; "
+                 "95% interval over subsamples)", fontsize=9)
+    ax.legend(frameon=False, ncol=len(ancs), fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, 1.0))
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
