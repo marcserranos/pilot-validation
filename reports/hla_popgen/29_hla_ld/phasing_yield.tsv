@@ -1,0 +1,6 @@
+pair	role	assemblies_with_both_genes_somewhere	assemblies_with_both_genes_somewhere_disp	phased_haplotypes	phased_haplotypes_disp	pct_phased	multi_copy_ambiguous_disp	unresolved_2field_call_disp	contig_carries_only_one_gene_disp
+DQA1~DQB1	ask	22481	22481	21652	21652	96.31	<20	781	1744
+DPA1~DPB1	ask	22601	22601	21913	21913	96.96	0	911	658
+DRB1~DQB1	control_high	22055	22055	20229	20229	91.72	<20	822	4172
+B~C	control_high	22416	22416	19474	19474	86.88	<20	1138	5262
+A~B	control_weak	22187	22187	6709	6709	30.24	<20	94	32810

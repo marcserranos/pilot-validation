@@ -1,0 +1,11 @@
+{
+  "kir": {
+    "n_kir_rows": 0,
+    "kir_genes_seen": [],
+    "verdict": "EXPECTED: no KIR calls; the KIR cluster is on chr19, outside the chr6 trim window used to build these assemblies. Genotyping KIR would need a separate extraction from the original BAMs."
+  },
+  "n_people_unrelated": "11856",
+  "haplotypes_seen": "23699",
+  "bridged_absences": "935929",
+  "unbridged_absences": "3032899"
+}

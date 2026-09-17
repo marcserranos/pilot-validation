@@ -1,0 +1,13 @@
+{
+  "n_people_unrelated": "11856",
+  "pairs": [
+    "DQA1~DQB1",
+    "DPA1~DPB1",
+    "DRB1~DQB1",
+    "B~C",
+    "A~B"
+  ],
+  "rarefy_to": null,
+  "strict_threshold": 0.9,
+  "kin_min": 0.0442
+}

@@ -1,0 +1,22 @@
+{
+  "n_people_unrelated": "11855",
+  "pct_calls_unresolved_protein": 2.701,
+  "ars_contacts_used": false,
+  "genes": [
+    "A",
+    "B",
+    "C",
+    "DPA1",
+    "DPB1",
+    "DQA1",
+    "DQB1",
+    "DRB1",
+    "DRB3",
+    "DRB4",
+    "DRB5",
+    "E",
+    "F",
+    "G",
+    "DRA"
+  ]
+}
