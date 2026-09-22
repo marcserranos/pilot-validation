@@ -23,11 +23,30 @@ document; the raw transcript still has the original wording.
 | "Chromosome 14, I think" | **chromosome 19** | Same cross-check as above — KIR is chr19 in every existing repo reference (`SCHEMA.md`, `EXPERIMENTS.md`, `RUNBOOK.md`). Cole misspoke or the transcript mis-heard him; chromosome 14 is not corrected anywhere else in the call, and nothing in the discussion depends on the number itself, so this doesn't change any action item — just don't scope the rerun around chr14. |
 | "VJ CAMERS" | **VJ k-mers** | "Camers" isn't a real term in this space; "k-mers" is the standard TCR/BCR repertoire feature (V/J-gene-usage plus CDR3 k-mer counts) and is phonetically what an ASR system garbles into "camers." No exact repo precedent for this term (Aleix's repertoire work lives on his branch, not merged here), but it's the only sensible reading given the surrounding sentence ("do like a normal regression... on the CAMERS as well"). |
 
-One more term is *probably* also a transcription error but is left uncorrected because there's no
-way to confidently resolve it from context: **"the onshore paper"** — the TCR-repertoire-classification
-benchmark paper Cole assigned as reading (VJ-usage + CDR3 features, XGBoost/logistic-regression
-baselines, technical-methods appendix). Cole said he'd send it to Marc directly — get the real title
-from that link rather than guessing here.
+**Resolved after the call:** "the onshore paper" Cole assigned as reading is confirmed (via the
+bioRxiv link he sent that evening — see References below) to be **BenchRep-T** (Im, Cohen-Lavi,
+Buendia, Kundaje, Boyd) — not "onshore" at all, just another ASR mangling. Its own headline result
+— "simple baselines prove competitive, with tree-based models trained on V- and J-gene usage and
+short sequence motifs approaching the classification performance of more complex methods" — is
+independent confirmation that "VJ k-mers" is the right correction above (this is exactly the
+feature type the paper benchmarks) and directly backs Cole's "start with the base model, don't get
+cute" instruction.
+
+---
+
+## References Cole sent after the call (Slack, evening of 2026-09-22)
+
+Five items, sent as a batch after the meeting ended — mapped here to the discussion topic each one
+supports.
+
+| Sent | Link / file | Identified as | Maps to |
+|---|---|---|---|
+| 7:34 PM | [sciencedirect.com/.../S0198885910005033](https://www.sciencedirect.com/science/article/pii/S0198885910005033) | Human Immunology article (pii prefix). **Could not confirm title/authors** — ScienceDirect returned HTTP 403 to automated fetch. Sent immediately before the PMC G1/G2 paper below, so likely an earlier/companion reference on HLA-DQ heterodimer compatibility — **open the link directly to confirm** before citing it anywhere. | §3 Linkage disequilibrium (DQ G1/G2 rule) |
+| 7:44 PM | [nature.com/articles/s41586-026-10667-5](https://www.nature.com/articles/s41586-026-10667-5) | **"Analysis of 173,303 exomes and genomes in the Pakistan Genome Resource"**, *Nature*, 2026. A biobank with high familial relatedness, broadening the catalogue of human genetic variation. (Paywalled — could not fetch full text automatically, title/scope confirmed from the shared preview.) | §6 Figure 1 discussion — source of the Pakistan/endogamy tangent and very likely the paper with the saturation-curve figure ("Fig 3, panel E") Cole referenced for inspiration |
+| 7:56 PM | [pmc.ncbi.nlm.nih.gov/articles/PMC9121842](https://pmc.ncbi.nlm.nih.gov/articles/PMC9121842/) | **Petersdorf EW, Bengtsson M, Horowitz M, McKallor C, Spellman SR, Spierings E, Gooley TA, Stevenson P. "HLA-DQ heterodimers in hematopoietic cell transplantation." *Blood* 2022;139(20):3009–3017.** This is **the** source of the G1/G2 rule — see the precise definition folded into §3 below. | §3 Linkage disequilibrium — resolves the "might be something in the literature" open question about *why* G1/G2 incompatibility exists: it's not just a population-genetics curiosity, it's a clinically established transplant-relapse risk factor |
+| 8:04 PM | [biorxiv.org/content/10.64898/2026.06.09.727013v1](https://www.biorxiv.org/content/10.64898/2026.06.09.727013v1) | **Im C, Cohen-Lavi L, Buendia A, Kundaje A, Boyd SD. "BenchRep-T: A Systematic Evaluation of T-Cell Repertoire-Based Disease Diagnostics."** bioRxiv, 2026. Benchmarks 9 methods (statistical → deep learning) for TCR-based disease classification; finds tree-based models on V/J-gene usage + short motifs (k-mers) competitive with complex methods. | §9 Prediction workstream — this **is** "the onshore paper" (see correction above); the assigned reading/methodology template |
+| 8:41 PM | `dq_ld.pdf` — now saved at [`reference/cole_dq_g1g2_target_figure.pdf`](../reference/cole_dq_g1g2_target_figure.pdf) | Cole's own recreation target, now confirmed by inspection (see full spec in §3 below). Cole: **"I would recreate this."** | §3 Linkage disequilibrium — direct, concrete spec for the replotted DQ heatmap (see action items) |
+| 10:48–10:50 PM (later Slack message, same evening) | — (text only, no link) | Cole, looking at his own figure: *"I'm so interested in the phasing because I wonder if the light blue in the 'predicted incompatible' cells are actually phase errors? ... these are rare but occur at low frequency because there is still some recombination, but generally these are probably deleterious."* | §2 QC/phasing × §3 LD — a concrete cross-check request, folded into §3 below |
 
 ---
 
@@ -86,9 +105,61 @@ start simple (TCR/BCR repertoire only, baseline regression → XGBoost) and add 
   a G1+G2 pairing on the same haplotype is non-functional and gets purged by background selection
   (cis vs. trans inheritance). **He already ran this analysis in parallel and got the same answer
   Marc did.**
+- **The precise rule** (Petersdorf et al. 2022, *Blood* — see References below, sent 7:56 PM):
+  **Group 1 (G1)** = any **DQA1\*02/\*03/\*04/\*05/\*06** α-chain paired with any **DQB1\*02/\*03/\*04**
+  β-chain. **Group 2 (G2)** = **DQA1\*01** α-chain paired with any **DQB1\*05/\*06** β-chain. A G1α
+  with a G2β (or vice versa) forms a non-functional heterodimer in cis — the thing background
+  selection purges. This isn't just a population-genetics curiosity: the same paper shows
+  **G1G2/G2G2 genotypes carry significantly higher post-transplant relapse risk** than G1G1 in
+  hematopoietic cell transplantation, and relapse risk scales with the number of G2 molecules
+  present — resolving the "might be something in the literature" open question from the call itself.
 - **Concrete ask:** replot the DQ heatmap reordered by G1/G2 group so the incompatible quadrant
   reads as visually near-zero — he called this a strong candidate panel. Noted DP has **no
   equivalent G1/G2 rule** (unresolved — see below).
+- **Direct spec via `dq_ld.pdf`** (Slack, 8:41 PM — now saved at
+  [`reference/cole_dq_g1g2_target_figure.pdf`](../reference/cole_dq_g1g2_target_figure.pdf)). Cole's
+  recreation target, confirmed by inspection:
+  - A **DQA1 (rows) × DQB1 (columns) heatmap**, one cell per specific allele pair (4-field
+    resolution, e.g. `05:01:01:01`), colored by **signed phased D′** on a diverging scale from
+    **−1.00 (blue) to +1.00 (red)** — explicitly labeled "Signed phased D′" on the colorbar. This is
+    a different statistic from what's in slides 12–13: those used **multiallelic D′ (Hedrick 1987,
+    unsigned)** and per-ancestry r², summarized per gene pair or per top-12-alleles; Cole's version
+    is **pairwise, allele-specific, signed, and phased** — the sign is what makes "avoided together"
+    (deep blue) visually distinct from "no signal" (white), which an unsigned/r² statistic can't do.
+  - The alleles are **sorted into exactly two blocks per axis**, splitting at the G1/G2 boundary:
+    DQA1 rows split into **DQA1\*01 (the G2 α-allele)** on top vs. **DQA1\*02/03/04/05/06 (G1
+    α-alleles)** below; DQB1 columns split into **DQB1\*05/06 (G2 β-alleles)** on the left vs.
+    **DQB1\*02/03/04 (G1 β-alleles)** on the right — producing a clean 2×2 grid with a black
+    crosshair dividing it.
+  - **Top-left quadrant (DQA1\*01 × DQB1\*05/06, i.e. G2×G2)** and **bottom-right quadrant
+    (DQA1\*02–06 × DQB1\*02/03/04, i.e. G1×G1)** show real, patterned structure — clusters of strong
+    positive D′ (near +1, specific allele pairs that travel together) amid mostly weak/negative
+    background.
+  - **Top-right quadrant (DQA1\*01 × DQB1\*02/03/04)** and **bottom-left quadrant
+    (DQA1\*02–06 × DQB1\*05/06)** — the cross-group, biologically-incompatible pairings — are
+    overwhelmingly **uniform deep blue (D′ ≈ −1)**, and Cole's own figure labels each of these two
+    quadrants **"Predicted incompatible"** directly on the plot.
+  - **Recreation spec:** compute pairwise signed, phased D′ (not r², not multiallelic/unsigned D′)
+    between individual DQA1 and DQB1 alleles at high-enough resolution to match (looks like 4-field,
+    i.e. `05:01:01:01`-style calls, at whatever frequency floor keeps cells estimable); sort/group
+    rows and columns by the Petersdorf G1/G2 rule; render as a diverging heatmap (−1 to +1) with the
+    2×2 grid and "Predicted incompatible" labels on the off-diagonal blocks.
+- **Cole's follow-up (Slack, 10:48–10:50 PM, same evening), looking at his own figure:** *"I'm so
+  interested in the phasing because I wonder if the light blue in the 'predicted incompatible' cells
+  are actually phase errors? ... these are rare but occur at low frequency because there is still
+  some recombination, but generally these are probably deleterious."* In other words: the
+  "incompatible" quadrants aren't *perfectly* uniform −1 — a handful of cells are lighter blue
+  (D′ closer to 0, i.e. the pairing does occur at low frequency), and Cole isn't sure whether that
+  residual signal is (a) genuine rare recombination between the DQ genes producing a real,
+  presumably-deleterious G1/G2 heterodimer, or (b) a **phasing artifact** — a switch error that
+  falsely places a G1 and G2 allele on the same called haplotype when they're really in trans. This
+  is directly testable with data this project already has: **cross-tabulate the light-blue
+  (nonzero) cells in the incompatible quadrants against the per-individual physical-phasing-
+  confidence flag from §2** (same-contig vs. not, from the DQA1~DQB1/DPA1~DPB1 phasing-yield work).
+  If the light-blue occurrences cluster in the ~3–8% of individuals with *lower*-confidence phasing,
+  that's evidence for phase error; if they're spread evenly regardless of phasing confidence, that
+  supports Cole's "real, rare, and deleterious" reading. **New, concrete action item** (folds
+  together the §2 phasing-confidence file Cole already asked for and this figure).
 - Also flagged: this pattern could be partly confounded by DRB1's physical proximity rather than
   being independently causal; he's tried conditioning on DRB1 / higher-order LD without a clean
   answer yet.
@@ -173,12 +244,14 @@ start simple (TCR/BCR repertoire only, baseline regression → XGBoost) and add 
   highly correlated, so adding HLA early mostly just increases dimensionality without adding
   independent signal. Mix in HLA later, especially for cases where the repertoire isn't fully
   observed.
-- **Baseline approach:** replicate a specific benchmark paper Cole is sending directly to Marc (the
-  "onshore paper," title unconfirmed — see correction note above; benchmarks TCR-based disease
-  classification using VJ-usage/k-mer features with linear/logistic regression and XGBoost
-  baselines, and has a strong technical-methods appendix). **Action:** read it closely, replicate
-  its exact train/test/cross-validation splitting methodology on the AoU dataset before
-  improvising.
+- **Baseline approach:** replicate **BenchRep-T** (Im, Cohen-Lavi, Buendia, Kundaje, Boyd, bioRxiv
+  2026 — the paper Cole called "the onshore paper," sent 8:04 PM, see References) — it benchmarks
+  9 methods (statistical → deep learning) for TCR-based disease classification and finds that
+  **tree-based models on V/J-gene usage + short sequence motifs (k-mers) are competitive with much
+  more complex methods**, with a strong technical-methods appendix on splitting/evaluation. This is
+  independent published confirmation of Cole's "start simple" instruction, not just his opinion.
+  **Action:** read it closely, replicate its exact train/test/cross-validation splitting
+  methodology on the AoU dataset before improvising.
 - David Bonet (tabular-modeling expert) will advise, but the explicit instruction is **"start with
   the base model... don't get cute"** — beat a simple baseline before reaching for fancier
   architectures. SCEPTR-style embeddings are fine to explore but not the starting point.
@@ -218,23 +291,38 @@ start simple (TCR/BCR repertoire only, baseline regression → XGBoost) and add 
 - Scope size/cost of rerunning the long-read Immuannot pipeline over the KIR region (chr19) —
   report back next week.
 - Push KIR calls to the bucket once run; already done for common two-field HLA alleles.
-- Replot the DQA1~DQB1 LD heatmap grouped by G1/G2 protein groups.
+- ~~Get `dq_ld.pdf` out of Slack and into the repo~~ — **done**, saved at
+  [`reference/cole_dq_g1g2_target_figure.pdf`](../reference/cole_dq_g1g2_target_figure.pdf).
+- **Recreate Cole's DQ figure exactly**: pairwise **signed, phased D′** (not r², not
+  multiallelic/unsigned D′) between individual DQA1 and DQB1 alleles, using the precise Petersdorf
+  et al. 2022 rule (G1 = DQA1\*02/03/04/05/06 + DQB1\*02/03/04; G2 = DQA1\*01 + DQB1\*05/06) to sort
+  rows/columns into the 2×2 grid, diverging colormap −1 to +1, "Predicted incompatible" labels on
+  the two cross-group quadrants. Full spec in §3 above; reference figure at the path above.
+- **New cross-check Cole asked for (10:48–10:50 PM Slack):** pull the individual-level
+  physical-phasing-confidence flag from the §2 phasing work (same-contig vs. not, per DQA1~DQB1
+  pair) and cross-tabulate it against which individuals carry the light-blue (nonzero D′, not −1)
+  cells inside the "predicted incompatible" quadrants — tests whether that residual signal is
+  **phase error** (concentrated in low-confidence-phasing individuals) or **genuine rare
+  recombination** (evenly spread, Cole's working guess, and "probably deleterious" either way).
 - Turn the LD figure into a clean supplement: CSV of r² and D′, with a distinct color for "not
   observed / below n=20" rather than folding it into the existing scale.
 - Simplify the deletions figure's color scheme for the supplement.
 - Rework Figure 1 per the panel-by-panel feedback above (axis ticks, drop annotation, stricter
   ancestry filter, panel c/d reconsideration).
 - Recompute novelty/coverage percentages and build per-ancestry saturation curves (inspired by the
-  reference paper's Fig. 3E).
-- Read Cole's assigned TCR-classification benchmark paper (get the real title/link from Cole);
-  replicate its data-splitting methodology on the AoU TCR/BCR data.
+  Pakistan Genome Resource paper's saturation-curve figure — confirm which panel once the Nature
+  paywall is cleared).
+- Read **BenchRep-T** (Im et al., bioRxiv 2026.06.09.727013v1) closely; replicate its exact
+  train/test/cross-validation splitting methodology on the AoU TCR/BCR data.
 - Sync with Aleix on TCR/BCR data shape and kick off the prediction baseline.
 - Follow up on whether "zero people with two independent HLA-A deletions" is statistically
   meaningful at this cohort size.
+- Confirm the ScienceDirect link's actual title (automated fetch was blocked, 403) before citing it.
 
 **Cole:**
-- Send the G1/G2 DQ-grouping reference paper, and the TCR-classification benchmark paper, directly
-  to Marc.
+- Already sent: the Petersdorf DQ G1/G2 paper (PMC9121842), the BenchRep-T preprint, the Pakistan
+  Genome Resource paper, a ScienceDirect reference (title TBD), and `dq_ld.pdf` (Slack, 2026-09-22
+  evening — see References section below).
 - Continue leading the stat-gen half (LD, deletions, structural variation).
 - Think further about peptide-groove ↔ TCR/BCR embedding relationship (no concrete plan yet).
 
@@ -246,8 +334,18 @@ start simple (TCR/BCR repertoire only, baseline regression → XGBoost) and add 
   inversion)? Needs literature check + short-read validation.
 - Whether/when to formally revisit short-read validation of the 38 novel callout alleles — flagged
   as high-value by Marc, not explicitly re-authorized in this call.
-- Biological mechanism behind the G1/G2 DQ incompatibility rule (functional vs. antigen-presentation
-  vs. something else) — "might be something in the literature."
+- ~~Biological mechanism behind the G1/G2 DQ incompatibility rule~~ — **resolved**: Petersdorf et al.
+  2022 (*Blood*, PMC9121842) ties it to post-transplant relapse risk, i.e. functional
+  antigen-presentation consequence, not just a population-genetics pattern. See §3.
 - How to operationalize the peptide-groove ↔ TCR/BCR distance idea.
-- Exact identity of "the onshore paper" — get the real title from Cole's link before citing it
-  anywhere durable.
+- **New:** are the light-blue (non−1) cells inside the "predicted incompatible" DQ quadrants phase
+  errors or genuine rare recombination? Cole's working guess is the latter ("probably deleterious"),
+  but he explicitly wants it checked against phasing confidence rather than assumed — see the
+  cross-check action item above.
+- The ScienceDirect reference (pii S0198885910005033) — title unconfirmed, automated fetch blocked
+  (403); open it manually to see whether it's an earlier/companion G1-G2 reference or something
+  else.
+- Whether the Pakistan Genome Resource paper is in fact the source of the saturation-curve figure
+  Cole referenced (Fig. 3, panel E) — plausible given the topic match (large biobank, high
+  familial relatedness) but not confirmed page-by-page (Nature blocked automated fetch behind a
+  login wall).
