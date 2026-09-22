@@ -103,9 +103,9 @@ reports the denominator (**3,021 testable transitions**) and measures its own po
 synthetic switches: it detects them **100%** of the time, and still finds **zero real switches**.
 That is now a real result.
 
-**A number we should quote and did not have:** the five duplicate/identical-twin pairs are the only
-true technical replicates. They differ at 121 bases out of 306,033 → **about Q34, one error per
-2,500 bases**. That is worse than the Q46 implied indirectly, and it is the honest figure.
+**A number we should quote and did not have:** the duplicate/identical-twin pairs (fewer than 20,
+so the exact count stays suppressed) are the only true technical replicates. They differ at 121
+bases out of 306,033 → **about Q34, one error per 2,500 bases**. That is worse than the Q46 implied indirectly, and it is the honest figure.
 
 Two supporting signals: long-read calls show slightly more homozygosity than the same people's
 short-read calls (1.10 vs 1.07 observed/expected), consistent with the small dropout above; and
