@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Figure 1 — assemble the four panels Cole specified into one sheet.
+"""SUPERSEDED by 36_figure1_native.py — kept only for provenance.
+
+This pasted four rendered PNGs into one sheet. Script 36 draws the same four panels natively
+from data in a single figure, applies the strict 0.98 admixture threshold, closes a disclosure
+hole in the ternary, and exports the underlying tables. Use 36.
+
+Figure 1 — assemble the four panels Cole specified into one sheet.
 
 Cole's spec (2026-09-17 call, ask A1):
 

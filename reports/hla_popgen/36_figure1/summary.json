@@ -1,0 +1,8 @@
+{
+  "n_people": 11833,
+  "strict_threshold": 0.98,
+  "gene_ternary": "HLA-B",
+  "min_carriers_ternary": 20,
+  "n_alleles_ternary": 53,
+  "native_replot": true
+}
