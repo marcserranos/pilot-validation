@@ -39,8 +39,17 @@ CLI usage (one structure/chain-set/cutoff per call; append rows to a TSV):
         --out reference/ars_peptide_contacts.tsv
 """
 import argparse
+import csv
 import os
 import sys
+
+# ---------------------------------------------------------------------------
+# repo-relative default paths
+# ---------------------------------------------------------------------------
+_HERE = os.path.dirname(os.path.abspath(__file__))                 # scripts/hla_popgen
+_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))                # repo root
+DEFAULT_CONTACTS_TSV = os.path.join(_REPO_ROOT, "reference", "ars_peptide_contacts.tsv")
+DEFAULT_CHAIN_SEQUENCES_TSV = os.path.join(_REPO_ROOT, "reference", "ars_chain_sequences.tsv")
 
 # ---------------------------------------------------------------------------
 # amino acid tables
@@ -263,6 +272,88 @@ def align_and_transfer(query_seq, struct_seq, struct_contact_indices):
         if qc != "-" and sc != "-":
             struct_to_query[si] = qi
     return {struct_to_query[idx] for idx in struct_contact_indices if idx in struct_to_query}
+
+
+def _read_tsv_rows(path):
+    with open(path, newline="") as fh:
+        return list(csv.DictReader(fh, delimiter="\t"))
+
+
+def contact_indices_for(gene, query_protein, contacts_tsv=None, chains_tsv=None):
+    """Peptide-contact residue positions for `gene`, as 0-based indices into `query_protein`.
+
+    Glues `reference/ars_peptide_contacts.tsv` (author resnum -> contact) to
+    `reference/ars_chain_sequences.tsv` (structure chain sequence + parallel author resnums) and
+    `align_and_transfer` (structure sequence -> query sequence by alignment, so a query that
+    includes the signal peptide -- ours always do, ~24-32 residues longer at the N-terminus than
+    the structure's mature chain -- is handled as a leading gap rather than a fixed-offset guess).
+
+    Returns `[]` when `gene` has no structural definition at all (normal -- most genes in this
+    project's target list don't have a solved peptide-bound structure). Anything else that would
+    otherwise produce an empty result -- contacts present but no matching chain-sequence row,
+    contacts whose author_resnum can't be found in that row, or an alignment that transfers zero
+    contacts onto the query -- is a data/alignment bug, not a legitimate empty answer, and raises
+    instead of silently returning `[]`.
+    """
+    contacts_path = contacts_tsv or DEFAULT_CONTACTS_TSV
+    chains_path = chains_tsv or DEFAULT_CHAIN_SEQUENCES_TSV
+
+    if not os.path.exists(contacts_path):
+        return []
+    contact_rows = [r for r in _read_tsv_rows(contacts_path) if r["gene"] == gene]
+    if not contact_rows:
+        return []
+
+    if not os.path.exists(chains_path):
+        raise RuntimeError(
+            f"gene {gene!r} has {len(contact_rows)} peptide-contact row(s) in {contacts_path} "
+            f"but {chains_path} does not exist -- cannot transfer contacts onto query numbering")
+    chain_rows = [r for r in _read_tsv_rows(chains_path) if r["gene"] == gene]
+    if not chain_rows:
+        raise RuntimeError(
+            f"gene {gene!r} has {len(contact_rows)} peptide-contact row(s) in {contacts_path} but "
+            f"no matching row in {chains_path} -- add its structure chain sequence/resnums")
+    if len(chain_rows) > 1:
+        raise RuntimeError(
+            f"gene {gene!r} has {len(chain_rows)} chain-sequence rows in {chains_path}; "
+            "expected exactly one")
+
+    row = chain_rows[0]
+    struct_seq = row["sequence"]
+    struct_resnums = row["resnums"].split(",") if row["resnums"] else []
+    if len(struct_resnums) != len(struct_seq):
+        raise RuntimeError(
+            f"gene {gene!r}: sequence (len {len(struct_seq)}) and resnums (len "
+            f"{len(struct_resnums)}) disagree in {chains_path}")
+
+    resnum_to_struct_idx = {}
+    for idx, rn in enumerate(struct_resnums):
+        resnum_to_struct_idx.setdefault(rn, idx)
+
+    struct_contact_indices = set()
+    missing = []
+    for r in contact_rows:
+        key = str(int(r["author_resnum"]))
+        if key in resnum_to_struct_idx:
+            struct_contact_indices.add(resnum_to_struct_idx[key])
+        else:
+            missing.append(key)
+    if missing:
+        print(f"[ars] WARNING: {len(missing)}/{len(contact_rows)} contact author_resnum(s) for "
+              f"gene {gene!r} not found in {chains_path} (e.g. {missing[:5]})", file=sys.stderr)
+    if not struct_contact_indices:
+        raise RuntimeError(
+            f"gene {gene!r} has {len(contact_rows)} peptide-contact row(s) but none could be "
+            f"located in its chain-sequence resnums -- this is a data bug, not a legitimately "
+            f"empty result")
+
+    transferred = align_and_transfer(query_protein, struct_seq, struct_contact_indices)
+    if not transferred:
+        raise RuntimeError(
+            f"gene {gene!r}: alignment transferred zero of {len(struct_contact_indices)} "
+            f"structure contact position(s) onto the query sequence -- check the query is really "
+            f"this gene's translated protein before trusting this result")
+    return sorted(transferred)
 
 
 # ---------------------------------------------------------------------------

@@ -133,11 +133,14 @@ top ten land on canonical functional positions.
 `fig_allele_differentiation.png`.
 
 **Left:**
-1. The sharper **contact vs non-contact** comparison *inside* the groove exons needs a small
-   transfer function so PDB residue numbers map onto our numbering (script 31 already calls it and
-   degrades cleanly without it). Half a day, no VM.
-2. One residue (DQB1 −4) lands inside the signal peptide under our assumed leader length — verify
-   the leader lengths against IMGT before any mature-numbering figure goes in the paper.
+1. The **transfer function is now written and verified (09-22)** — `contact_indices_for()` in
+   `_ars_residues.py`, plus `reference/ars_chain_sequences.tsv`. It maps the 206 structural
+   peptide-contact residues onto our own numbering by alignment, and is verified offset-invariant
+   under 24/29/32-residue leaders, so **no signal-peptide length is assumed anywhere in the
+   analysis**. What remains is one VM rerun of script 31 to produce the contact-vs-non-contact
+   numbers; script 31 already calls the function.
+2. The DQB1 −4 oddity was a *presentation-layer* artifact of the mature-numbering conversion, not
+   an analysis error. Still verify leader lengths before any figure caption uses mature numbering.
 
 ---
 
@@ -232,16 +235,16 @@ Independent of each other — each can go to a separate agent or session.
 | **P1** | Rerun scripts 06 + 10 at strict 0.98, commit the frequency tables | yes | S | Unblocks Figure 1 panels a/b and answers ask A9 |
 | **P2** | Regenerate the SFS at the corrected novelty definition | yes | S | Panel d's absolute counts are currently over-estimates |
 | **P3** | H/K/T/U co-deletion: same haplotypes or not? | yes | S | Either a real ~12% block deletion or an artifact to retract |
-| **P4** | ARS contact-vs-non-contact transfer function + rerun 31 | no | S | Sharpens Block D from exon-level to residue-level |
-| **P5** | Verify signal-peptide lengths against IMGT | no | XS | A mature-numbering figure is unsafe until this is done |
+| ~~P4~~ | ~~ARS contact transfer function~~ — **done 09-22**; rerunning script 31 to get the numbers still needs the VM | was: no | S | Sharpens Block D from exon-level to residue-level |
+| ~~P5~~ | ~~Verify signal-peptide lengths~~ — **moot for the analysis**: transfer is alignment-based and verified offset-invariant under 24/29/32aa leaders. Still worth checking before any *mature-numbering figure caption* | no | XS | |
 | **P6** | Short-read validation of the 38 callout alleles | yes | L | The orthogonal confirmation the whole novelty claim lacks |
 | **P7** | Supplement figure dump | yes | M | Ask A11; mostly assembly of things that exist |
 | **P8** | KIR genotyping from original BAMs | yes | L | Cole asked; currently impossible from these assemblies |
 | **P9** | HLA × TCR/BCR join with Aleix | yes | XL | The paper's second half |
 
 **Suggested parallel split if you want three agents running:** P1+P2+P7 (one agent, all Figure 1,
-all VM); P4+P5 (one agent, local, finishes Block D); P3 (one agent, VM, short). P6 and P9 need a
-decision from Cole first.
+all VM); P3 (one agent, VM, short); the script-31 rerun that finishes Block D (VM, short — can
+ride along with either). P6 and P9 need a decision from Cole first.
 
 ---
 

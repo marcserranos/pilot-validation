@@ -117,3 +117,33 @@ python3 scripts/hla_popgen/_ars_residues.py --pdb 1HHK.pdb --gene A --pdb-id 1HH
 ```
 
 Tests: `python3 scripts/hla_popgen/tests/test_ars_residues.py`.
+
+## Transferring contacts onto our own protein numbering: `ars_chain_sequences.tsv` + `contact_indices_for`
+
+`ars_peptide_contacts.tsv` records author residue numbers, which are only meaningful against the
+structure's own chain -- there was no way to map them onto our translated protein sequences without
+also knowing what that chain's sequence *was*. `reference/ars_chain_sequences.tsv` closes that gap:
+one row per gene (`gene, pdb_id, chain, sequence, resnums`) giving the MHC chain's one-letter
+sequence exactly as `chain_sequence()` returns it, alongside the parallel comma-joined author
+resnums for those same positions, in the same order. Built from the same six PDB files (not
+committed, same reproduction command as above). Unresolved residues (no coordinates, so no author
+resnum) are dropped, and for 3LQZ chain B specifically the covalently-fused peptide/linker segment
+(author resnum < 0, described above) is dropped too, leaving only the mature DPB1 domain -- the same
+population of atoms the contact recomputation itself treated as the MHC chain. Every one of the 207
+rows in `ars_peptide_contacts.tsv` resolves to a matching (resnum, aa) pair in this file; that
+consistency is checked as part of `contact_indices_for`, not just asserted here.
+
+`contact_indices_for(gene, query_protein, contacts_tsv=None, chains_tsv=None)` (new in
+`_ars_residues.py`) is the function script 31 calls (`ars.contact_indices_for(gene, ref_prot)`) when
+it detects it exists. It looks up `gene`'s contact rows and chain-sequence row (default paths
+resolve relative to the repo root, so it works from any cwd), then reuses `align_and_transfer` to
+map the structure's contact positions onto 0-based indices of `query_protein` by alignment -- the
+same mechanism that already avoids guessing at the query's ~24-32-residue signal-peptide offset
+elsewhere in this module. A gene absent from the structural set (no rows in the contacts TSV)
+returns `[]`, which is the expected, silent case for most of the target gene list. Anything else
+that would otherwise come back empty -- a chain-sequence row missing for a gene that does have
+contacts, an author_resnum that can't be found in that row, or an alignment that transfers zero
+contacts onto the query -- raises instead, on the view that a *present* structural definition
+yielding zero transferred contacts is a bug (wrong gene/sequence pairing, a broken alignment) and
+must not be swallowed into the same `[]` a caller would otherwise read as "no structure for this
+gene."

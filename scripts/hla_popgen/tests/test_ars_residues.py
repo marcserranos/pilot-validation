@@ -14,8 +14,10 @@ wrong silently:
 
 Run: python3 scripts/hla_popgen/tests/test_ars_residues.py
 """
+import csv
 import os
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HLA_POPGEN_DIR = os.path.dirname(HERE)
@@ -174,6 +176,86 @@ def test_compute_contact_rows_shape():
     check("all TSV columns present", set(m.TSV_COLUMNS) <= set(row.keys()), str(row))
     check("author_resnum matches the geometric contact", row["author_resnum"] == 1, str(row))
     check("aa is the one-letter code", row["aa"] == "G", str(row))
+
+
+# ---------------------------------------------------------------------------
+# contact_indices_for: glues contacts TSV + chain-sequences TSV + align_and_transfer
+# ---------------------------------------------------------------------------
+def _write_tsv(path, columns, rows):
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh, delimiter="\t")
+        w.writerow(columns)
+        for r in rows:
+            w.writerow([r[c] for c in columns])
+
+
+def _fixture_tsvs(tmpdir, struct_seq, struct_resnums, contact_resnums, gene="TESTGENE"):
+    """Write a minimal contacts.tsv + chains.tsv pair for one gene: `struct_resnums` is a list of
+    author resnums (str) parallel to `struct_seq`; `contact_resnums` picks which of those resnums
+    are recorded as peptide contacts."""
+    contacts_path = os.path.join(tmpdir, "contacts.tsv")
+    chains_path = os.path.join(tmpdir, "chains.tsv")
+    struct_rn_to_aa = dict(zip(struct_resnums, struct_seq))
+    contact_rows = [
+        {"gene": gene, "pdb_id": "0XYZ", "mhc_chain": "A", "peptide_chain": "C",
+         "cutoff_angstrom": 4.5, "author_resnum": rn, "aa": struct_rn_to_aa[rn],
+         "source": "fixture"}
+        for rn in contact_resnums
+    ]
+    _write_tsv(contacts_path, m.TSV_COLUMNS, contact_rows)
+    _write_tsv(chains_path, ["gene", "pdb_id", "chain", "sequence", "resnums"], [
+        {"gene": gene, "pdb_id": "0XYZ", "chain": "A", "sequence": struct_seq,
+         "resnums": ",".join(struct_resnums)},
+    ])
+    return contacts_path, chains_path
+
+
+def test_contact_indices_for_shifts_by_leading_offset():
+    """The load-bearing case: our query proteins include the signal peptide and so are ~24-32
+    residues longer at the N-terminus than the structure's mature chain. A leading offset must be
+    absorbed as a gap, landing every contact at (structure index + offset length), not silently
+    mis-registered."""
+    struct_seq = "ACDEFGHIKLMNPQRSTVWY"           # 20 distinct residues, resnum 1..20, no gaps
+    struct_resnums = [str(i) for i in range(1, 21)]
+    contact_resnums = ["3", "10", "18"]            # struct 0-based indices 2, 9, 17
+    with tempfile.TemporaryDirectory() as tmp:
+        contacts_path, chains_path = _fixture_tsvs(tmp, struct_seq, struct_resnums,
+                                                     contact_resnums)
+        query = "M" * 25 + struct_seq
+        indices = m.contact_indices_for("TESTGENE", query, contacts_tsv=contacts_path,
+                                         chains_tsv=chains_path)
+        check("indices are exactly the structure contact positions shifted by 25",
+              indices == [27, 34, 42], str(indices))
+
+
+def test_contact_indices_for_internal_gap():
+    """struct_seq has two residues ('E','F') with no counterpart in the query. The contact on the
+    missing residue must be dropped, not misassigned; the contact on the shared residue must still
+    transfer to the right query index."""
+    struct_seq = "ACDEFGHIK"                       # resnum 1..9
+    struct_resnums = [str(i) for i in range(1, 10)]
+    contact_resnums = ["4", "7"]                    # E is resnum 4 (missing from query), H is resnum 7
+    query_seq = "ACDGHIK"                           # query is missing struct's E,F (resnum 4,5)
+    with tempfile.TemporaryDirectory() as tmp:
+        contacts_path, chains_path = _fixture_tsvs(tmp, struct_seq, struct_resnums,
+                                                     contact_resnums)
+        indices = m.contact_indices_for("TESTGENE", query_seq, contacts_tsv=contacts_path,
+                                         chains_tsv=chains_path)
+        check("only the shared contact residue survives the internal gap",
+              len(indices) == 1, str(indices))
+        check("the shared residue (H) transfers to its query index",
+              query_seq[indices[0]] == "H", f"indices={indices} query={query_seq}")
+
+
+def test_contact_indices_for_absent_gene_returns_empty():
+    struct_seq = "ACDEFGHIK"
+    struct_resnums = [str(i) for i in range(1, 10)]
+    with tempfile.TemporaryDirectory() as tmp:
+        contacts_path, chains_path = _fixture_tsvs(tmp, struct_seq, struct_resnums, ["4"])
+        indices = m.contact_indices_for("NOT-A-REAL-GENE", "ANYQUERYSEQ",
+                                         contacts_tsv=contacts_path, chains_tsv=chains_path)
+        check("a gene with no structural definition returns an empty list, not an error",
+              indices == [], str(indices))
 
 
 def main():
