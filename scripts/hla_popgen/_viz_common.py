@@ -469,3 +469,143 @@ def write_report(path, lines):
 def n_flag(n, min_cell_n):
     """Returns True if a cell's raw N is thin enough to suppress/flag."""
     return pd.isna(n) or n < min_cell_n
+
+
+# ---------------------------------------------------------------------------
+# Nature-style publication figures (S03 Task A). Extends this module, backward compatible --
+# nothing above is touched, `savefig()` above still works exactly as before for the 05/06/07
+# figure scripts. This section is for later, publication-grade figures (36_figure1_native.py's
+# type scale was the model: one font size scale, no top/right spines, embedded fonts).
+#
+# Usage:
+#     from _viz_common import nature_style, mm, save_fig, panel_letter, SUPPRESSED_COLOR, \
+#         diverging_cmap, diverging_norm, hatch_suppressed, ANCESTRY_COLORS
+#
+#     with nature_style():
+#         fig, ax = plt.subplots(figsize=(mm(NATURE_SINGLE_COL_MM), mm(60)))
+#         ax.plot(...)
+#         panel_letter(ax, "a")
+#     save_fig(fig, "reports/hla_popgen/NN_x/my_panel")   # writes .pdf (embedded fonts) + .png (600 dpi)
+#
+# ANCESTRY_COLORS (defined near the top of this file) is reused here on purpose -- 36's ANC_COLORS
+# dict has the identical six hex values, so this is the one place that dict should ever live;
+# nothing here redefines it.
+# ---------------------------------------------------------------------------
+NATURE_RC = {
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
+    "font.size": 7,
+    "axes.titlesize": 7,
+    "axes.labelsize": 7,
+    "xtick.labelsize": 5,
+    "ytick.labelsize": 5,
+    "legend.fontsize": 6,
+    "axes.linewidth": 0.5,
+    "xtick.major.width": 0.5,
+    "ytick.major.width": 0.5,
+    "xtick.minor.width": 0.35,
+    "ytick.minor.width": 0.35,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "pdf.fonttype": 42,   # embed as TrueType (Type 42), not Type 3 -- journals require this
+    "ps.fonttype": 42,
+    "savefig.dpi": 600,
+}
+
+# Nature spec: panel letters are bold, lowercase, 8pt -- distinct from body text (5-7pt above).
+PANEL_LETTER_FONTSIZE = 8
+
+# Nature column widths in mm -- use with mm() for matplotlib figsize (always inches).
+NATURE_SINGLE_COL_MM = 89
+NATURE_DOUBLE_COL_MM = 183
+
+
+def nature_style(apply=False):
+    """Nature Publishing Group house style for matplotlib.
+
+    Returns a context manager by default (`with nature_style(): ...`) that restores whatever
+    rcParams were active on exit -- the normal, safe way to use this, since it can never leak
+    style into a caller's other figures. Pass apply=True to instead push NATURE_RC onto the
+    *global* rcParams with no restore, for the rare case where the style needs to outlive a
+    `with` block (e.g. handed off to a helper in another module that draws later).
+    """
+    if apply:
+        matplotlib.rcParams.update(NATURE_RC)
+        return None
+    return matplotlib.rc_context(rc=NATURE_RC)
+
+
+def mm(x):
+    """Millimetres -> inches, for matplotlib `figsize` (always inches). Nature widths: 89 mm
+    single-column, 183 mm double-column/full-page (NATURE_SINGLE_COL_MM / NATURE_DOUBLE_COL_MM)."""
+    return x / 25.4
+
+
+def panel_letter(ax, letter, dx=-0.12, dy=1.05, fontsize=PANEL_LETTER_FONTSIZE):
+    """Bold lowercase panel letter (Nature spec) just outside the axes, in axes-fraction
+    coordinates. `letter` is lowercased automatically regardless of what's passed in."""
+    ax.text(dx, dy, str(letter).lower(), transform=ax.transAxes, fontsize=fontsize,
+            fontweight="bold", va="bottom", ha="left")
+
+
+def save_fig(fig, path_stem, dpi=600):
+    """Writes `<path_stem>.pdf` (vector, embedded TrueType/Type-42 fonts) and `<path_stem>.png`
+    (raster, `dpi`, default 600 -- Nature's minimum for combination art), creating the parent
+    directory if needed, then closes `fig`. Returns (pdf_path, png_path).
+
+    Distinct from the plain `savefig()` above (which is PNG-only, 150 dpi, for the 05/06/07
+    exploratory figures) -- this is the publication pair.
+    """
+    path_stem = str(path_stem)
+    parent = os.path.dirname(path_stem)
+    if parent:
+        ensure_dir(parent)
+    pdf_path = path_stem + ".pdf"
+    png_path = path_stem + ".png"
+    with matplotlib.rc_context(rc={"pdf.fonttype": 42, "ps.fonttype": 42}):
+        fig.savefig(pdf_path, dpi=dpi, bbox_inches="tight")
+    fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  wrote {pdf_path}", file=sys.stderr)
+    print(f"  wrote {png_path}", file=sys.stderr)
+    return pdf_path, png_path
+
+
+# ---------------------------------------------------------------------------
+# Diverging colormap for signed statistics (e.g. signed LD, a difference-from-zero), always used
+# with a norm centered at 0 (diverging_norm), plus a fixed "not observed / suppressed" color +
+# hatch helper for AoU small-cell (<20) cells -- these must read as visibly distinct from real
+# data, never folded into a color scale as if they were an ordinary low value (feedback:
+# "Suppressed counts are not zero").
+# ---------------------------------------------------------------------------
+SUPPRESSED_COLOR = "#D9D9D9"   # light grey -- reserved; not a valid data color on any scale here
+
+
+def diverging_cmap():
+    """Blue-white-red diverging colormap for signed statistics. Returns the colormap only, not
+    a norm -- pair it with diverging_norm(vmin, vmax) so the actual data range is centered at 0
+    correctly for each figure (the range differs per figure; the colormap doesn't need to)."""
+    from matplotlib.colors import LinearSegmentedColormap
+    return LinearSegmentedColormap.from_list(
+        "nature_diverging_bwr", ["#2166AC", "#F7F7F7", "#B2182B"], N=256)
+
+
+def diverging_norm(vmin=-1.0, vmax=1.0):
+    """TwoSlopeNorm centered at 0, for use with diverging_cmap(). vmin/vmax should bracket the
+    actual data range; defaults to [-1, 1] for correlation-like statistics (e.g. signed D')."""
+    from matplotlib.colors import TwoSlopeNorm
+    return TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+
+
+def hatch_suppressed(ax, x, y, width, height, **kwargs):
+    """Draws a light-grey hatched rectangle (SUPPRESSED_COLOR fill) marking one 'not observed /
+    below n=20' cell on a heatmap or grid, so it reads as visibly different from anywhere on a
+    color scale rather than as if it were a real low value. x, y, width, height are in data
+    coordinates by default (pass transform=ax.transAxes via kwargs for axes-fraction placement),
+    matching matplotlib.patches.Rectangle's constructor. Returns the patch (already added to ax)."""
+    from matplotlib.patches import Rectangle
+    zorder = kwargs.pop("zorder", 4)
+    rect = Rectangle((x, y), width, height, facecolor=SUPPRESSED_COLOR, edgecolor="#999999",
+                     hatch="////", linewidth=0.3, zorder=zorder, **kwargs)
+    ax.add_patch(rect)
+    return rect
