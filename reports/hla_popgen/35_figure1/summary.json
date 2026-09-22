@@ -1,0 +1,14 @@
+{
+  "panels": [
+    "a",
+    "b",
+    "c"
+  ],
+  "sources": [
+    "reports/hla_popgen/06_figures_structure/lr_full/admixture_barcode.png",
+    "reports/hla_popgen/10_allele_ancestry_geometry/gene_B/ternary_B.png",
+    "reports/hla_popgen/33_figure1_v3/figure1_v3_panels_cd.png"
+  ],
+  "is_layout_not_reanalysis": true,
+  "strict_admixture_applied": false
+}
