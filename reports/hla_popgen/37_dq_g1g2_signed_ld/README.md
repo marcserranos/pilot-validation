@@ -54,3 +54,67 @@ disclosure floor -- in both cases, no D' is estimated or shown for that cell.
   LD estimates (which this script does not repeat or override).
 - `A~B`/`B~C`/`DRB1~DQB1` are in the CSV but not the heatmap panel, which is scoped to
   DQA1~DQB1/DPA1~DPB1 per the task.
+
+---
+
+# WS1 addendum — G1/G2 purge, signed-D' main figure, artifact-vs-recombinant checks
+
+*Added by a separate S03 agent (WS1) on 2026-09-22, after the `37b_ld_supplement_table.py` work
+above. Script: `scripts/hla_popgen/37_dq_g1g2_signed_ld.py`. Does NOT supersede
+`supp_table_ld_pairs.csv`/`supp_heatmap_dq_dp.{png,pdf}` above — this session had no VM access to
+produce a VM-derived version to supersede it with (see "Status" below), so 37b's committed,
+already-public-data supplement stands as-is. This addendum instead covers WS1's own scope: the
+G1/G2-classified main figure recreating Cole's target layout, the O/E purge statistic, and the
+four artifact-vs-biology checks (a)-(d) on incompatible-pair carriers — none of which 37b's script
+computes (37b re-renders 29's raw signed D' with no G1/G2 grouping, no crosshair/quadrant layout,
+no O/E, no artifact checks).*
+
+## Status: implementation complete, VM run NOT done
+
+`workbench.verily.com` in this session's browser pane redirected straight to a sign-in page — no
+authenticated tab was available (contrary to CLAUDE.md's assumption that Marc hands over a
+logged-in tab), and entering credentials is outside what this agent does. **No number below is a
+real result.** `37_dq_g1g2_signed_ld.py` exits with a clear FATAL message if
+`~/pipeline_outputs/hla_calls_rich.tsv` is missing rather than fabricating output.
+
+## What was built (all in `scripts/hla_popgen/37_dq_g1g2_signed_ld.py`)
+
+- `signed_dprime_table()` — signed D' (Lewontin 1964, sign kept, range [-1,1]) per allele pair,
+  from 29's `extract_haplotypes` reused verbatim, at 4-field (Cole's resolution) and 2-field, each
+  allele needing >=20 haplotype carriers on its own margin, pooled and per ancestry.
+- `dq_group()`/`classify_pair()` — Petersdorf 2022 G1 (DQA1*02/03/04/05/06 x DQB1*02/03/04) / G2
+  (DQA1*01 x DQB1*05/06) / `predicted_incompatible` classification.
+- `fig_g1g2_signed_ld()` — recreates the target PDF's layout exactly: DQA1*01 (G2) row block on
+  top, DQB1*05/06 (G2) column block on the left, black crosshair, diverging [-1,1] colormap
+  labelled "Signed phased D'", "Predicted incompatible" text in both off-diagonal quadrants,
+  carrier-frequency marginal bars, suppressed/not-observed cells hatched grey
+  (`_viz_common.hatch_suppressed`), Nature house style (`nature_style()`/`save_fig()`).
+- `observed_expected_incompatible()` — O/E for the cross-group ("incompatible") haplotype count
+  under a group-marginal independence null, with a bootstrap CI (resample haplotypes, recompute
+  O and E each replicate). Pooled and per ancestry; counts <20 written `<20`.
+- Four artifact-check functions for deliverable 4 — `check_a_swap_explicable` (VM),
+  `build_phasing_confidence_table`/`check_b_phasing_confidence_crosstab` (per-person file stays
+  on the VM at `~/s03/results/37/phasing_confidence_per_person.tsv`, never pulled back; only the
+  aggregate cross-tab leaves), `check_c_mendelian_transmission` (16's related pairs),
+  `check_d_short_read_concordance` (SR genotype table). `run_artifact_checks()` is the VM entry
+  point (`--artifact-checks`).
+- `cluster_dp_matrix()`/`fig_dp_clustered()` — hierarchical clustering (profile-correlation
+  distance, average linkage) of the DPA1xDPB1 signed-D' matrix, looking for a data-driven
+  "forbidden block" analogous to G1/G2 — an original angle the task calls out, unrun so whether DP
+  shows one is still open.
+
+## Unit test
+
+`scripts/hla_popgen/tests/test_dq_g1g2_signed_ld.py` — 16/16 checks pass locally: signed D' hits
+exactly -1 under synthetic perfect repulsion, +1 under perfect coupling, ~0 (|D'|<0.05, n=20k)
+under independence; the 20-haplotype floor correctly drops a rare synthetic allele; the G1/G2
+classifier is checked on four worked examples (both incompatible directions included); the O/E
+purge statistic returns ~1 (CI bracketing 1) on a synthetic independent population and near-0 O/E
+(observed=0) on a synthetic fully-purged population.
+
+## Next step
+
+Deploy `37_dq_g1g2_signed_ld.py` to the VM per `VM_CHANNEL.md`, run with `--artifact-checks`, pull
+back everything under `~/s03/results/37/` except `phasing_confidence_per_person.tsv`, and fill in
+this addendum's real O/E numbers, the artifact-check verdict, and the main/DP-clustered figures.
+
