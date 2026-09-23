@@ -1,48 +1,52 @@
 #!/usr/bin/env python3
-"""Figure 1 v5 — the introductory figure of the paper, redrawn to Cole's 2026-09-22 panel-by-panel
-feedback (sprints/CALL_SUMMARY_2026-09-22.md Sec 6) and Nature's own figure spec (double column,
-183 mm, <=~170 mm tall, 5-7 pt text, bold lowercase 8 pt panel letters).
+"""Figure 1 v5 -- the introductory figure of the paper, redrawn to Cole's 2026-09-22 panel-by-panel
+feedback (sprints/CALL_SUMMARY_2026-09-22.md Sec 6) and then to the orchestrator's 2026-09-23
+review of the first v5 draft (fixed 183x150 mm canvas, censored-cell display bug, panel a rebuilt
+from disclosure-safe bins, new panel f). Nature spec: double column 183 mm, <=~150 mm tall, 6 pt
+body text, 7 pt axis titles, bold lowercase 8 pt panel letters, no in-panel caption text (the
+legend lives in the README only).
 
-Two-stage pipeline, because panels (a) and (b) are built from per-person admixture/carriage that
-must never leave the VM (per-person renormalised admixture IS participant-level information):
+Two-stage pipeline -- panel (a) needs a VM-side aggregation step of its own now (see
+40a_admixture_bins.py), panel (b) needs a VM render of per-allele centroids (never per-person
+data leaves the VM for either):
 
-  Stage 1 (`--mode vm-panels`, run on the VM): loads Table 1 + cohort membership, reuses
-  36_figure1_native.py's own `panel_a_data`/`panel_b_data` (never re-derived -- this project's one
-  definition of "unrelated, strict-ancestry, per-allele centroid"), draws panel (a) ALONE as a
-  vector figure (no '>=98%' annotation, per Cole's ask), and exports two aggregate,
-  disclosure-safe tables: panel_a_group_sizes.tsv (group sizes + fraction clearing the strict
-  threshold) and panel_b_ternary_alleles.tsv (per-allele simplex centroid + suppressed carrier
-  count, >=20-carrier floor already enforced by 36's own panel_b_data). Only the rendered panel
-  (a) image and these two aggregate tables leave the VM.
+  Stage 0 (VM, `40a_admixture_bins.py`, separate script): bins unrelated people into >=20-person
+  bins (sorted by predicted ancestry, then dominant-component probability) and exports per-bin
+  MEAN admixture proportions -- disclosure-safe by construction, no bin can be smaller than the
+  AoU small-cell floor. Writes panel_a_admixture_bins.tsv.
 
-  Stage 2 (`--mode compose`, run locally): composes the full figure from
-    - the VM-rendered panel (a) image (embedded as-is, already disclosure-safe)
-    - the pulled panel_b_ternary_alleles.tsv, redrawn locally with 0-100 tick marks on all three
-      axes (Cole's ask) at the stricter ancestry filter already baked into the VM export
-    - panel (c)+(d) merged: a gene x ancestry novelty-rate heatmap (this IS 33_figure1_v3's "the
-      800,000 one" panel, Cole's explicit preferred replacement for the old reference-incompleteness
-      bar chart), with panel (d) -- novel protein alleles per gene, labelled 'protein alleles not
-      in IPD-IMGT/HLA/HLA' (not 'not in classical genes') -- as a marginal bar aligned to the same
-      gene rows, per Cole's "d as a marginal bar on c's heatmap" suggestion. Restricted to the 8
-      classical genes shown in the heatmap; the extended, ancestry-split gene list is the existing
-      34_novel_recurrence/ supplement, referenced in the legend rather than duplicated here.
+  Stage 1 (`--mode vm-panels`, VM): reuses 36_figure1_native.py's own `panel_b_data` (never
+  re-derived) to export the per-allele ternary centroid table for panel (b). Only the aggregate
+  table leaves the VM.
+
+  Stage 2 (`--mode compose`, local): composes the full 183x150 mm figure from
+    - panel_a_admixture_bins.tsv (binned admixture strip; placeholder box until the VM run lands)
+    - panel_b_ternary_alleles.tsv (ternary, 0/50/100 ticks, light 25-step gridlines)
+    - panel (c): gene x ancestry heatmap of the PROTEIN-LEVEL novelty rate (field 2 only -- same
+      definition panel (d) uses, and the metric least inflated by non-coding diversity/artifacts;
+      see README for why this was chosen over the any-field genomic-level rate 33/36 used).
+      Every cell whose numerator has ANY censored (`<20`) contribution is drawn hatched and
+      labelled as an upper-bound interval ('<=x%'), never as a bare point value -- this is the
+      exact bug flagged in the 2026-09-23 review (MID x HLA-A rendered as a bogus '0').
+    - panel (d): novel protein alleles per gene (same rows as c), stacked by recurrence class,
+      as a marginal bar sharing c's y-axis. Recurrence-class COUNTS are allele-level, not
+      participant-level, so they are not subject to the small-cell rule (established convention,
+      36_figure1_native.py's own panel-d docstring) -- but a legend entry with zero total across
+      the displayed genes is dropped rather than shown as a phantom category.
     - panel (e): per-ancestry allele-discovery curves from 39_saturation_by_ancestry, re-read at
-      render time (another agent was correcting 39's extrapolation fits concurrently -- the curve
-      *points* themselves (mean_distinct/lo2_5/hi97_5 per N) are independent of the Clench
-      extrapolation fit and unaffected, but this script always reads curves.tsv fresh rather than
-      caching it, so a corrected run is picked up automatically), with direct end-of-curve labels
-      instead of a legend box.
-  Produces two layout variants (A, B) and a `--pick {A,B}` final export.
+      render time (safe against 39's concurrent extrapolation-fit correction -- only the raw
+      curve points are plotted, not the Clench fit).
+    - panel (f): DQ G1/G2 observed-vs-expected purge by ancestry, from 37_dq_g1g2_signed_ld's
+      already-committed, disclosure-cleared oe_purge_committed.tsv. Chosen over a KIR preview
+      because 41_kir_scoping has no aggregate data yet (scoping-only, pending the WS3 rerun),
+      while the DQ O/E table is well powered (563-4,146 haplotypes/ancestry) and already public.
 
-Usage (VM):
+Usage (VM, run 40a first, then this):
+    python3 scripts/hla_popgen/40a_admixture_bins.py --out ~/s03/results/40/panel_a_admixture_bins.tsv
     python3 scripts/hla_popgen/40_figure1_v5.py vm-panels --out-dir ~/s03/results/40
 
-Usage (local, after pulling panel_a.png/.pdf + the two aggregate tables back):
-    python3 scripts/hla_popgen/40_figure1_v5.py compose \\
-        --panel-a-image reports/hla_popgen/40_figure1_v5/panel_a.png \\
-        --panel-a-table reports/hla_popgen/40_figure1_v5/panel_a_group_sizes.tsv \\
-        --panel-b-table reports/hla_popgen/40_figure1_v5/panel_b_ternary_alleles.tsv \\
-        --pick A
+Usage (local):
+    python3 scripts/hla_popgen/40_figure1_v5.py compose --pick A
 """
 import argparse
 import importlib.util
@@ -66,15 +70,18 @@ SUPPRESS_BELOW = 20
 ANC = vc.ANCESTRY_ORDER  # ["AFR","AMR","EAS","EUR","MID","SAS"]
 ANC_COLORS = vc.ANCESTRY_COLORS
 CLASSICAL = ["HLA-A", "HLA-B", "HLA-C", "HLA-DPA1", "HLA-DPB1", "HLA-DQA1", "HLA-DQB1", "HLA-DRB1"]
-CLASSICAL_BARE = [g.replace("HLA-", "") for g in CLASSICAL]
 TERNARY = ["AFR", "EUR", "AMR"]
 
-FS_PANEL = 8       # Nature spec: bold lowercase panel letters, 8pt
-FS_TITLE = 6.5      # no in-panel titles per design brief -- used only for axis/cbar labels
+# Orchestrator spec: 6 pt body text, 7 pt axis titles, 8 pt bold panel letters.
+FS_PANEL = 8
+FS_TITLE = 7.0
 FS_LABEL = 6.0
-FS_TICK = 5.0
-FS_LEG = 5.0
-FS_ANNOT = 5.0
+FS_TICK = 6.0
+FS_LEG = 6.0
+FS_ANNOT = 6.0
+
+CANVAS_W_MM = 183.0
+CANVAS_H_MM = 150.0
 
 
 def _load(fn, name):
@@ -91,49 +98,11 @@ def suppress(n):
 
 
 # ===========================================================================================
-# STAGE 1 -- VM only: panel (a) rendered image + panel (a)/(b) aggregate tables
+# STAGE 1 -- VM only: panel (b) aggregate table
 # ===========================================================================================
-def draw_panel_a_alone(pa, strict, n_people, out_stem):
-    """Panel (a) admixture barcode, standalone, vector. NO '>=98%' annotation under each block
-    (Cole's ask, 2026-09-22 call, panel a row) -- the earlier 36_figure1_native.py version printed
-    it directly on the panel; here it is dropped from the figure and kept only in the pulled
-    panel_a_group_sizes.tsv table, where it belongs (a number, not a plot annotation)."""
-    import matplotlib
-    matplotlib.use("Agg")
-    with vc.nature_style():
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(30)))
-        x = np.arange(len(pa))
-        bottom = np.zeros(len(pa))
-        for a in ANC:
-            v = pa["p_" + a.lower()].to_numpy(dtype=float)
-            ax.fill_between(x, bottom, bottom + v, color=ANC_COLORS[a], linewidth=0, label=a)
-            bottom += v
-        codes = pa["anc"].to_numpy()
-        for i in range(1, len(codes)):
-            if codes[i] != codes[i - 1]:
-                ax.axvline(i, color="white", lw=0.5)
-        ax.set_xlim(0, len(pa))
-        ax.set_ylim(0, 1)
-        ax.set_xticks([])
-        ax.set_yticks([0, 0.5, 1.0])
-        ax.set_ylabel("admixture\nproportion", fontsize=FS_LABEL)
-        ax.tick_params(labelsize=FS_TICK)
-        start = 0
-        for i in range(1, len(codes) + 1):
-            if i == len(codes) or codes[i] != codes[start]:
-                mid = (start + i) / 2.0
-                if (i - start) / float(len(codes)) > 0.02:
-                    ax.text(mid, -0.06, codes[start], ha="center", va="top",
-                            fontsize=FS_TICK, fontweight="bold", color="#333333",
-                            transform=ax.get_xaxis_transform())
-                start = i
-        ax.legend(ncol=6, frameon=False, fontsize=FS_LEG, loc="upper center",
-                  bbox_to_anchor=(0.5, -0.28), handlelength=1.0, columnspacing=1.0)
-        vc.save_fig(fig, out_stem)
-
-
 def run_vm_panels(args):
+    """Panel (a) is now handled by 40a_admixture_bins.py (run separately). This mode only
+    exports panel (b)'s per-allele ternary centroid table."""
     os.makedirs(args.out_dir, exist_ok=True)
     m36 = _load("36_figure1_native.py", "fig1_native_v36")
     m24 = _load("24_novelty_by_field.py", "novelty_by_field")
@@ -148,170 +117,229 @@ def run_vm_panels(args):
     keep = people[people["unrelated"]]
     anc_of = {p: a for p, a in zip(keep["person_id"].astype(str), keep["anc_strict"]) if a in ANC}
     people_keep = set(anc_of)
-    all_unrelated = set(keep["person_id"].astype(str))
-    print("[40] unrelated=%d, strict-ancestry (>=%.2f)=%d" %
-          (len(all_unrelated), args.strict_threshold, len(people_keep)), flush=True)
-
-    pa, pa_cols = m36.panel_a_data(cohort, all_unrelated, args.strict_threshold)
-    pb = m36.panel_b_data(t1, cohort, people_keep, args.gene, args.min_carriers,
-                          args.strict_threshold)
-    print("[40] panel a n=%d | panel b %d alleles (gene=%s)" % (len(pa), len(pb), args.gene),
+    print("[40] strict-ancestry (>=%.2f) unrelated=%d" % (args.strict_threshold, len(people_keep)),
           flush=True)
 
-    draw_panel_a_alone(pa, args.strict_threshold, len(pa),
-                       os.path.join(args.out_dir, "panel_a"))
-
-    grp = (pa.groupby("anc").agg(n_people=("anc", "size"),
-                                 frac_passing_strict=("passes_strict", "mean")).reset_index())
-    grp["n_people_disp"] = grp["n_people"].apply(suppress)
-    grp.to_csv(os.path.join(args.out_dir, "panel_a_group_sizes.tsv"), sep="\t", index=False)
+    pb = m36.panel_b_data(t1, cohort, people_keep, args.gene, args.min_carriers,
+                          args.strict_threshold)
+    print("[40] panel b: %d alleles (gene=%s)" % (len(pb), args.gene), flush=True)
     pb.drop(columns=["n_carriers"]).to_csv(
         os.path.join(args.out_dir, "panel_b_ternary_alleles.tsv"), sep="\t", index=False)
-
     with open(os.path.join(args.out_dir, "vm_panels_summary.json"), "w") as fh:
-        json.dump({"n_people_panel_a": len(pa), "n_people_strict_ancestry": len(people_keep),
-                   "n_alleles_panel_b": len(pb), "gene_b": args.gene,
-                   "strict_threshold": args.strict_threshold,
+        json.dump({"n_people_strict_ancestry": len(people_keep), "n_alleles_panel_b": len(pb),
+                   "gene_b": args.gene, "strict_threshold": args.strict_threshold,
                    "min_carriers": args.min_carriers, "n_removed_relatedness": n_removed}, fh,
                   indent=2)
-    print("[40 vm-panels] done -> %s (pull panel_a.png/.pdf, panel_a_group_sizes.tsv, "
-          "panel_b_ternary_alleles.tsv, vm_panels_summary.json back)" % args.out_dir)
+    print("[40 vm-panels] done -> %s" % args.out_dir)
 
 
 # ===========================================================================================
-# STAGE 2 -- local: compose the full figure
+# STAGE 2 -- local: compose
 # ===========================================================================================
+def mm(x):
+    return vc.mm(x)
+
+
+# ---- panel a: binned admixture strip ------------------------------------------------------
+def draw_panel_a(ax, bins_path):
+    if not (bins_path and os.path.exists(bins_path)):
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.add_patch(__import__("matplotlib.pyplot", fromlist=["Rectangle"]).Rectangle(
+            (0, 0), 1, 1, fill=False, edgecolor="#BBBBBB", lw=0.6, linestyle="--"))
+        ax.text(0.5, 0.5, "panel a: awaiting 40a_admixture_bins.py VM run", ha="center",
+               va="center", fontsize=FS_LABEL, color="#999999", transform=ax.transAxes)
+        ax.axis("off")
+        return None
+    d = pd.read_csv(bins_path, sep="\t")
+    d = d.sort_values(["anc", "order_within_anc"]).reset_index(drop=True)
+    x = np.arange(len(d))
+    bottom = np.zeros(len(d))
+    for a in ANC:
+        v = d["p_" + a.lower()].to_numpy(dtype=float)
+        ax.fill_between(x, bottom, bottom + v, color=ANC_COLORS[a], linewidth=0)
+        bottom += v
+    codes = d["anc"].to_numpy()
+    for i in range(1, len(codes)):
+        if codes[i] != codes[i - 1]:
+            ax.axvline(i, color="white", lw=0.4)
+    ax.set_xlim(0, len(d))
+    ax.set_ylim(0, 1)
+    ax.set_xticks([])
+    ax.set_yticks([0, 1.0])
+    ax.set_ylabel("admixture\nproportion", fontsize=FS_LABEL)
+    ax.tick_params(labelsize=FS_TICK)
+    start = 0
+    for i in range(1, len(codes) + 1):
+        if i == len(codes) or codes[i] != codes[start]:
+            mid = (start + i) / 2.0
+            ax.text(mid, -0.10, codes[start], ha="center", va="top", fontsize=FS_TICK,
+                   fontweight="bold", color=ANC_COLORS[codes[start]],
+                   transform=ax.get_xaxis_transform())
+            start = i
+    ax.spines[["top", "right"]].set_visible(False)
+    return d
+
+
+# ---- panel b: ternary --------------------------------------------------------------------
 def tern_xy(p):
     l, r, t = p
     return r + 0.5 * t, (np.sqrt(3) / 2.0) * t
 
 
 def draw_ternary_grid(ax):
-    """0-100 tick marks + gridlines on all three ternary axes (Cole's ask, panel b row)."""
+    """3 ticks/side (0/50/100) + light 25-step gridlines; vertex labels offset clear of the
+    tick text (orchestrator: 'axis labels not overlapping ticks')."""
     V = {"AFR": (1, 0, 0), "EUR": (0, 1, 0), "AMR": (0, 0, 1)}
     xy = {k: tern_xy(v) for k, v in V.items()}
     tri = np.array([xy["AFR"], xy["EUR"], xy["AMR"], xy["AFR"]])
     ax.plot(tri[:, 0], tri[:, 1], color="#333333", lw=0.6, zorder=2)
-    ticks = [0, 20, 40, 60, 80, 100]
-    # AFR axis (l): gridlines of constant l=k, parallel to EUR-AMR edge; ticks along the AFR-AMR
-    # edge (r=0 side), reading 0 at AMR vertex up to 100 at AFR vertex.
-    for k in ticks:
+    grid_at = [25, 50, 75]
+    for k in grid_at:
         kk = k / 100.0
-        if 0 < k < 100:
-            p0 = tern_xy((kk, 1 - kk, 0)); p1 = tern_xy((kk, 0, 1 - kk))
-            ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#DDDDDD", lw=0.3, zorder=1)
-        # tick label on the AFR-EUR edge (t=0 side): point where l=k, r=1-k, t=0
-        tp = tern_xy((kk, 1 - kk, 0))
-        ax.text(tp[0], tp[1] - 0.035, str(k), fontsize=FS_ANNOT, ha="center", va="top",
-                color="#666666")
-    # EUR axis (r): ticks along AMR-AFR edge is already the l axis; put EUR ticks along the
-    # EUR-AMR edge (l=0 side): point where r=k, t=1-k, l=0
-    for k in ticks:
+        p0 = tern_xy((kk, 1 - kk, 0)); p1 = tern_xy((kk, 0, 1 - kk))
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E5E5E5", lw=0.3, zorder=1)
+        p0 = tern_xy((0, kk, 1 - kk)); p1 = tern_xy((1 - kk, kk, 0))
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E5E5E5", lw=0.3, zorder=1)
+        p0 = tern_xy((1 - kk, 0, kk)); p1 = tern_xy((0, 1 - kk, kk))
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E5E5E5", lw=0.3, zorder=1)
+    # Numeric labels only at the midpoint (50) of each side -- the 0/100 ends of every axis
+    # coincide exactly with a vertex (e.g. AFR-axis 0 sits at the EUR vertex), so a numeral there
+    # would stack directly on top of that vertex's own bold corner label. A short unlabelled tick
+    # mark stands in for 0/100 instead; the corner label already conveys "this vertex = 100".
+    for k in [0, 50, 100]:
         kk = k / 100.0
-        tp = tern_xy((0, kk, 1 - kk))
-        ax.text(tp[0] - 0.02, tp[1], str(k), fontsize=FS_ANNOT, ha="right", va="center",
-                color="#666666")
-    # AMR axis (t): ticks along the AFR-EUR edge is shared with l; put AMR ticks along the
-    # EUR-AFR... use the remaining free edge: AFR-AMR edge (r=0 side): point where t=k, l=1-k, r=0
-    for k in ticks:
-        kk = k / 100.0
-        tp = tern_xy((1 - kk, 0, kk))
-        ax.text(tp[0] + 0.02, tp[1], str(k), fontsize=FS_ANNOT, ha="left", va="center",
-                color="#666666")
+        for p0f, p1f, off, ha, va in [
+            (lambda kk=kk: tern_xy((kk, 1 - kk, 0)), None, (0, -1), "center", "top"),
+            (lambda kk=kk: tern_xy((0, kk, 1 - kk)), None, (-1, 0), "right", "center"),
+            (lambda kk=kk: tern_xy((1 - kk, 0, kk)), None, (1, 0), "left", "center"),
+        ]:
+            tp = p0f()
+            dx, dy = off[0] * 0.018, off[1] * 0.018
+            ax.plot([tp[0], tp[0] + dx], [tp[1], tp[1] + dy], color="#999999", lw=0.5, zorder=2)
+            if k == 50:
+                ax.text(tp[0] + dx * 2.1, tp[1] + dy * 2.1, str(k), fontsize=FS_ANNOT,
+                       ha=ha, va=va, color="#777777")
     return xy
 
 
-def draw_panel_b(ax, pb, gene_b, min_carriers, strict, n_alleles_note=True):
+def draw_panel_b(ax, pb, gene_b, min_carriers, strict):
     xy = draw_ternary_grid(ax)
     if not pb.empty:
         n = pb["n_carriers_disp"].apply(lambda s: 19 if str(s).startswith("<") else float(s))
-        n = n.to_numpy(dtype=float)
-        n = np.maximum(n, 1.0)
+        n = np.maximum(n.to_numpy(dtype=float), 1.0)
         lo, hi = np.log10(n.min()), np.log10(n.max())
         rng = max(1e-9, hi - lo)
         alpha = 0.25 + 0.65 * (np.log10(n) - lo) / rng
-        size = 6 + 34 * (np.log10(n) - lo) / rng
+        size = 5 + 26 * (np.log10(n) - lo) / rng
         for (_, r), al, sz in zip(pb.iterrows(), alpha, size):
             xyp = tern_xy((r[TERNARY[0]], r[TERNARY[1]], r[TERNARY[2]]))
             novel = r["frac_novel_calls"] > 0.5
             dom = max(TERNARY, key=lambda a: r[a])
             ax.scatter([xyp[0]], [xyp[1]], s=sz, marker="^" if novel else "o",
                       facecolor=ANC_COLORS[dom], edgecolor="none", alpha=float(al), zorder=3)
-    for lab, pos, ha, va, off in [("AFR", xy["AFR"], "right", "top", (-3, -8)),
-                                  ("EUR", xy["EUR"], "left", "top", (3, -8)),
-                                  ("AMR", xy["AMR"], "center", "bottom", (0, 9))]:
+    for lab, pos, ha, va, off in [("AFR", xy["AFR"], "right", "top", (-3, -11)),
+                                  ("EUR", xy["EUR"], "left", "top", (3, -11)),
+                                  ("AMR", xy["AMR"], "center", "bottom", (0, 6))]:
         ax.annotate(lab, pos, fontsize=FS_LABEL, fontweight="bold", ha=ha, va=va,
-                    xytext=off, textcoords="offset points")
-    ax.set_xlim(-0.16, 1.16)
-    ax.set_ylim(-0.14, np.sqrt(3) / 2 + 0.13)
+                   xytext=off, textcoords="offset points", color=ANC_COLORS[lab])
+    ax.set_xlim(-0.18, 1.18)
+    ax.set_ylim(-0.24, np.sqrt(3) / 2 + 0.16)
     ax.axis("off")
     from matplotlib.lines import Line2D
-    ax.legend(handles=[Line2D([], [], marker="o", ls="none", color="#666666", ms=3,
+    ax.legend(handles=[Line2D([], [], marker="o", ls="none", color="#666666", ms=2.6,
                               label="catalogued"),
-                       Line2D([], [], marker="^", ls="none", color="#666666", ms=3,
+                       Line2D([], [], marker="^", ls="none", color="#666666", ms=2.6,
                               label="first observed here")],
-              frameon=False, fontsize=FS_LEG, loc="upper right", handletextpad=0.3,
-              bbox_to_anchor=(1.05, 1.08))
+             frameon=False, fontsize=FS_LEG, loc="upper center", handletextpad=0.3,
+             borderaxespad=0.0, ncol=2, columnspacing=0.8,
+             bbox_to_anchor=(0.5, 1.34))
 
 
+# ---- panel c/d: protein-novelty heatmap + recurrence marginal bar -------------------------
 def load_panel_cd(field_counts_path, clusters_path, ancestry_scheme="strict"):
-    """(c) novelty-rate heatmap table (gene x ancestry, lower-bound %) + (d) marginal bar table
-    (gene -> once/mid/high novel-protein-allele counts, classical genes only, pooled ancestry)."""
+    """Panel c metric: the ANY-FIELD novelty rate (field 2+3+4 summed) -- the same metric Cole
+    endorsed as 'the 800,000 one' (33_figure1_v3), i.e. any sequence absent from IPD-IMGT/HLA at
+    any nomenclature field. This is dominated by non-coding (intronic/UTR) differences (S01: see
+    README for the protein/synonymous/non-coding breakdown) -- NOT the same claim as panel (d)'s
+    novel-*protein* count. Kept as the main-panel metric (rather than switching to protein-only)
+    because at protein-level resolution almost every gene x ancestry cell's numerator is <20 and
+    the heatmap becomes uniformly hatched/illegible; the any-field rate is well powered (few
+    censored cells) and is literally the panel Cole asked for. Both are reported in the README.
+    """
     m33 = _load("33_figure1_v3_compose.py", "fig1v3_compose")
     counts = pd.read_csv(field_counts_path, sep="\t")
     rates = m33.rate_by_gene_ancestry(counts, ancestry_scheme, True, CLASSICAL)
-    pivot = (rates[rates["field_class"] != "artifact_control"]
-             .pivot_table(index="gene", columns="ancestry", values="pct_lower", aggfunc="sum")
-             .reindex(index=CLASSICAL, columns=ANC))
-    n_cens = (rates.pivot_table(index="gene", columns="ancestry", values="n_censored_cells",
-                                aggfunc="sum").reindex(index=CLASSICAL, columns=ANC))
-    n_called = (rates.pivot_table(index="gene", columns="ancestry", values="n_called_upper",
-                                  aggfunc="max").reindex(index=CLASSICAL, columns=ANC))
+    fields = rates[rates["field_class"] != "artifact_control"].copy()
+
+    lo = fields.pivot_table(index="gene", columns="ancestry", values="pct_lower",
+                            aggfunc="sum").reindex(index=CLASSICAL, columns=ANC)
+    hi = fields.pivot_table(index="gene", columns="ancestry", values="pct_upper",
+                            aggfunc="sum").reindex(index=CLASSICAL, columns=ANC)
+    ncens = fields.pivot_table(index="gene", columns="ancestry", values="n_censored_cells",
+                               aggfunc="sum").reindex(index=CLASSICAL, columns=ANC).fillna(0)
+    called_hi = fields.pivot_table(index="gene", columns="ancestry", values="n_called_upper",
+                                   aggfunc="max").reindex(index=CLASSICAL, columns=ANC)
 
     m34 = _load("34_novel_protein_recurrence.py", "novel_recurrence")
     cl = pd.read_csv(clusters_path, sep="\t", dtype=str)
-    prot = cl[cl["cluster_type"] == "novel_protein"]
-    prot = m34.classify(prot)
-    dtab = m34.gene_table(prot)
-    dtab = dtab.reindex(CLASSICAL).fillna(0)
-    return pivot, n_cens, n_called, dtab
+    prot_cl = cl[cl["cluster_type"] == "novel_protein"]
+    prot_cl = m34.classify(prot_cl)
+    dtab = m34.gene_table(prot_cl).reindex(CLASSICAL).fillna(0)
+    return lo, hi, ncens, called_hi, dtab
 
 
-def draw_panel_cd(ax_hm, ax_bar, pivot, n_cens, n_called, dtab, cax=None):
+def draw_panel_cd(ax_hm, ax_bar, lo, hi, ncens, called_hi, dtab, cax=None):
     genes = CLASSICAL
     ancs = ANC
-    data = pivot.reindex(index=genes, columns=ancs).to_numpy(dtype=float)
-    im = ax_hm.imshow(data, cmap="YlOrRd", aspect="auto", vmin=0,
-                      vmax=np.nanmax(data) if np.nanmax(data) > 0 else 1)
+    data = lo.reindex(index=genes, columns=ancs).to_numpy(dtype=float)
+    vmax = np.nanmax(hi.reindex(index=genes, columns=ancs).to_numpy(dtype=float))
+    vmax = vmax if vmax and vmax > 0 else 1.0
+    im = ax_hm.imshow(data, cmap="YlOrRd", aspect="auto", vmin=0, vmax=vmax)
     for i, g in enumerate(genes):
         for j, a in enumerate(ancs):
-            nc = n_cens.loc[g, a] if (g in n_cens.index and a in n_cens.columns) else 0
-            called_hi = n_called.loc[g, a] if (g in n_called.index and a in n_called.columns) else 0
-            if pd.isna(data[i, j]) or (nc and nc > 0 and called_hi < SUPPRESS_BELOW):
+            ch = called_hi.loc[g, a] if (g in called_hi.index and a in called_hi.columns) else 0
+            nc = ncens.loc[g, a] if (g in ncens.index and a in ncens.columns) else 0
+            h = hi.loc[g, a] if (g in hi.index and a in hi.columns) else np.nan
+            l = data[i, j]
+            if pd.isna(l) or (ch is not None and ch < SUPPRESS_BELOW):
                 vc.hatch_suppressed(ax_hm, j - 0.5, i - 0.5, 1, 1)
+                ax_hm.text(j, i, "n/a", ha="center", va="center", fontsize=FS_ANNOT - 0.5,
+                          color="#888888")
+                continue
+            if nc and nc > 0:
+                # numerator has a censored (<20) contribution -- never show a bare point value
+                # (this is the exact bug the 2026-09-23 review caught: MID x HLA-A rendered as a
+                # false '0' when the true rate could be anywhere up to the upper bound).
+                vc.hatch_suppressed(ax_hm, j - 0.5, i - 0.5, 1, 1, alpha=0.55)
+                ax_hm.text(j, i, "≤%.0f" % h, ha="center", va="center",
+                          fontsize=FS_ANNOT - 0.3, color="#222222")
             else:
-                ax_hm.text(j, i, "%.0f" % data[i, j], ha="center", va="center",
-                          fontsize=FS_ANNOT, color="#222222")
+                ax_hm.text(j, i, "%.0f" % l, ha="center", va="center", fontsize=FS_ANNOT,
+                          color="#222222")
     ax_hm.set_xticks(range(len(ancs)))
     ax_hm.set_xticklabels(ancs, fontsize=FS_TICK)
+    for tick, a in zip(ax_hm.get_xticklabels(), ancs):
+        tick.set_color(ANC_COLORS[a])
+        tick.set_fontweight("bold")
     ax_hm.set_yticks(range(len(genes)))
     ax_hm.set_yticklabels([g.replace("HLA-", "") for g in genes], fontsize=FS_TICK)
-    ax_hm.set_ylabel("% called haplotypes carrying sequence\nabsent from IPD-IMGT/HLA",
-                     fontsize=FS_LABEL)
+    ax_hm.set_ylabel("% called haplotypes with sequence (any field)\nabsent from IPD-IMGT/HLA "
+                     "-- mostly non-coding", fontsize=FS_TITLE)
     for sp in ax_hm.spines.values():
         sp.set_visible(False)
     if cax is not None:
         cb = ax_hm.figure.colorbar(im, cax=cax, orientation="vertical")
-        cb.ax.tick_params(labelsize=FS_TICK)
-        cb.set_label("% novel haplotypes", fontsize=FS_LABEL)
+        cb.ax.tick_params(labelsize=FS_ANNOT, length=2)
+        cb.set_label("% (lower bound)", fontsize=FS_ANNOT, labelpad=2)
 
-    # marginal bar, same gene rows, horizontal, stacked by recurrence class
-    cols = [("seen once", "#C9CFD6"), ("2–19 unrelated people", "#5B8FBF"),
-            ("≥20 unrelated people", "#B4472E")]
+    cols_all = [("seen once", "#C9CFD6"), ("2–19 unrelated people", "#5B8FBF"),
+               ("≥20 unrelated people", "#B4472E")]
+    cols = [(k, c) for k, c in cols_all
+           if k in dtab.columns and float(dtab.reindex(genes)[k].sum()) > 0]
     y = np.arange(len(genes))
     left = np.zeros(len(genes))
     for key, col in cols:
-        v = dtab.reindex(genes)[key].to_numpy(dtype=float) if key in dtab.columns else np.zeros(len(genes))
+        v = dtab.reindex(genes)[key].to_numpy(dtype=float)
         ax_bar.barh(y, v, left=left, height=0.72, color=col, label=key, edgecolor="white",
                    linewidth=0.3, zorder=3)
         left += v
@@ -320,13 +348,14 @@ def draw_panel_cd(ax_hm, ax_bar, pivot, n_cens, n_called, dtab, cax=None):
     ax_bar.set_ylim(-0.5, len(genes) - 0.5)
     ax_bar.invert_yaxis()
     ax_hm.invert_yaxis()
-    ax_bar.set_xlabel("protein alleles not in\nIPD-IMGT/HLA", fontsize=FS_LABEL)
+    ax_bar.set_xlabel("novel protein alleles", fontsize=FS_TITLE)
     ax_bar.tick_params(axis="x", labelsize=FS_TICK)
     ax_bar.spines[["top", "right"]].set_visible(False)
     ax_bar.legend(frameon=False, fontsize=FS_LEG, loc="upper center",
-                 bbox_to_anchor=(0.5, -0.24), ncol=1, handlelength=1.0, labelspacing=0.25)
+                 bbox_to_anchor=(0.5, -0.32), ncol=1, handlelength=1.0, labelspacing=0.2)
 
 
+# ---- panel e: discovery curves --------------------------------------------------------------
 def draw_panel_e(ax, curves_path, scheme="pred"):
     df = pd.read_csv(curves_path, sep="\t")
     d = df[(df["scheme"] == scheme) & (df["gene_group"] == "classical_pooled")
@@ -339,19 +368,16 @@ def draw_panel_e(ax, curves_path, scheme="pred"):
             continue
         x = sub["n"].to_numpy(dtype=float)
         y = sub["mean_distinct"].to_numpy(dtype=float)
-        lo = sub["lo2_5"].to_numpy(dtype=float)
-        hi = sub["hi97_5"].to_numpy(dtype=float)
-        ax.plot(x, y, color=ANC_COLORS[a], lw=1.0, zorder=3)
-        ax.fill_between(x, lo, hi, color=ANC_COLORS[a], alpha=0.15, linewidth=0, zorder=2)
+        lo_ = sub["lo2_5"].to_numpy(dtype=float)
+        hi_ = sub["hi97_5"].to_numpy(dtype=float)
+        ax.plot(x, y, color=ANC_COLORS[a], lw=0.9, zorder=3)
+        ax.fill_between(x, lo_, hi_, color=ANC_COLORS[a], alpha=0.15, linewidth=0, zorder=2)
         ends[a] = (x[-1], y[-1])
         xmax = max(xmax, x[-1])
-    # direct end labels, spaced apart vertically so close-together curve ends don't collide --
-    # sort by y, then greedily push labels apart by a minimum fraction of the y-range.
     if ends:
-        yr = ax.get_ylim()
         ymin_data = min(v[1] for v in ends.values())
         ymax_data = max(v[1] for v in ends.values())
-        min_gap = max(1.0, (ymax_data - ymin_data) * 0.09) if ymax_data > ymin_data else 1.0
+        min_gap = max(1.0, (ymax_data - ymin_data) * 0.15) if ymax_data > ymin_data else 1.0
         order = sorted(ends, key=lambda a: ends[a][1])
         placed = []
         for a in order:
@@ -361,127 +387,121 @@ def draw_panel_e(ax, curves_path, scheme="pred"):
             placed.append(y)
         for a, y_lab in zip(order, placed):
             x0, y0 = ends[a]
-            ax.annotate(a, (x0, y_lab), xytext=(4, 0), textcoords="offset points",
+            ax.annotate(a, (x0, y_lab), xytext=(3, 0), textcoords="offset points",
                        fontsize=FS_ANNOT, color=ANC_COLORS[a], fontweight="bold", va="center")
-        ax.set_xlim(0, xmax * 1.16)
-    ax.set_xlabel("people sampled (both haplotypes)", fontsize=FS_LABEL)
-    ax.set_ylabel("distinct HLA protein alleles\n(8 classical genes, pooled)", fontsize=FS_LABEL)
+        ax.set_xlim(0, xmax * 1.14)
+    ax.set_xlabel("people sampled (both haplotypes)", fontsize=FS_TITLE)
+    ax.set_ylabel("distinct HLA protein alleles\n(8 classical genes, pooled)", fontsize=FS_TITLE)
     ax.tick_params(labelsize=FS_TICK)
     ax.spines[["top", "right"]].set_visible(False)
 
 
-def compose_layout(layout, panel_a_img, pb, pivot, n_cens, n_called, dtab, curves_path,
-                   n_people_a, gene_b, min_carriers, strict):
+# ---- panel f: DQ G1/G2 observed-vs-expected purge -------------------------------------------
+def draw_panel_f(ax, oe_path):
+    d = pd.read_csv(oe_path, sep="\t")
+    d = d[d["ancestry"].isin(ANC)].set_index("ancestry").reindex(ANC)
+    x = np.arange(len(ANC))
+    w = 0.34
+    exp_v = d["expected"].to_numpy(dtype=float)
+    obs_hi = d["observed_upper"].to_numpy(dtype=float)
+    ax.bar(x - w / 2, exp_v, width=w, color="#B0B0B0", label="expected (independence)", zorder=3)
+    bars_obs = ax.bar(x + w / 2, np.maximum(obs_hi, exp_v * 0.006), width=w, color="#B4472E",
+                      label="observed (upper bound)", zorder=3)
+    for i, a in enumerate(ANC):
+        ax.text(i + w / 2, exp_v[i] * 0.02 + max(exp_v) * 0.01, "0", ha="center", va="bottom",
+               fontsize=FS_ANNOT, color="#B4472E", fontweight="bold")
+    ax.set_xticks(x)
+    ax.set_xticklabels(ANC, fontsize=FS_TICK)
+    for tick, a in zip(ax.get_xticklabels(), ANC):
+        tick.set_color(ANC_COLORS[a])
+        tick.set_fontweight("bold")
+    ax.set_ylabel("DQA1~DQB1 cis haplotypes\nin G1×G2 cross-group cells", fontsize=FS_TITLE)
+    ax.tick_params(axis="y", labelsize=FS_TICK)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(frameon=False, fontsize=FS_LEG, loc="upper right", handlelength=1.0)
+
+
+def compose_layout(layout, bins_path, pb, cd_data, curves_path, oe_path, gene_b, min_carriers,
+                   strict):
     import matplotlib
     matplotlib.use("Agg")
     with vc.nature_style():
         import matplotlib.pyplot as plt
-        import matplotlib.image as mpimg
         from matplotlib.gridspec import GridSpec
 
-        W, H = vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(168)
+        W, H = mm(CANVAS_W_MM), mm(CANVAS_H_MM)
         fig = plt.figure(figsize=(W, H))
+        outer = GridSpec(3, 1, height_ratios=[25, 58, 55], hspace=0.85, left=0.050, right=0.985,
+                         top=0.98, bottom=0.075, figure=fig)
+
+        ax_a = fig.add_subplot(outer[0])
+        draw_panel_a(ax_a, bins_path)
+        vc.panel_letter(ax_a, "a", dx=-0.028, dy=1.12)
 
         if layout == "A":
-            # full-width strip (a) on top, then b | c+d, then e | spare
-            gs = GridSpec(3, 2, height_ratios=[0.62, 1.35, 1.15], width_ratios=[1.0, 1.35],
-                         hspace=0.62, wspace=0.32, left=0.075, right=0.965, top=0.975,
-                         bottom=0.10, figure=fig)
-            ax_a = fig.add_subplot(gs[0, :])
-            ax_b = fig.add_subplot(gs[1, 0])
-            gs_cd = gs[1, 1].subgridspec(1, 3, width_ratios=[1.0, 0.5, 0.06], wspace=0.12)
-            ax_c = fig.add_subplot(gs_cd[0, 0])
-            ax_d = fig.add_subplot(gs_cd[0, 1])
-            cax = fig.add_subplot(gs_cd[0, 2])
-            ax_e = fig.add_subplot(gs[2, 0])
-            ax_spare = fig.add_subplot(gs[2, 1])
-            ax_spare.axis("off")
-            ax_spare.text(0.02, 0.9, "(reserved: KIR panel, pending WS3 rerun)",
-                          fontsize=FS_ANNOT, color="#999999", transform=ax_spare.transAxes)
+            gs2 = outer[1].subgridspec(1, 4, width_ratios=[55, 78, 32, 4], wspace=0.55)
         else:
-            # layout B: (a) top strip; (b) and (e) share the left column stacked; (c+d) full
-            # height on the right -- keeps the heatmap tall enough to read all 8 gene rows without
-            # a marginal bar dominating the page, and puts the two point-cloud/line panels (b, e)
-            # together since they share the same ancestry-colour reading convention.
-            gs = GridSpec(3, 2, height_ratios=[0.62, 1.0, 1.0], width_ratios=[1.0, 1.15],
-                         hspace=0.55, wspace=0.30, left=0.075, right=0.965, top=0.975,
-                         bottom=0.10, figure=fig)
-            ax_a = fig.add_subplot(gs[0, :])
-            ax_b = fig.add_subplot(gs[1, 0])
-            ax_e = fig.add_subplot(gs[2, 0])
-            gs_cd = gs[1:, 1].subgridspec(1, 3, width_ratios=[1.0, 0.45, 0.055], wspace=0.14)
-            ax_c = fig.add_subplot(gs_cd[0, 0])
-            ax_d = fig.add_subplot(gs_cd[0, 1])
-            cax = fig.add_subplot(gs_cd[0, 2])
-
-        if panel_a_img and os.path.exists(panel_a_img):
-            img = mpimg.imread(panel_a_img)
-            ax_a.imshow(img, aspect="auto")
-        else:
-            ax_a.set_xlim(0, 1); ax_a.set_ylim(0, 1)
-            ax_a.add_patch(plt.Rectangle((0, 0), 1, 1, fill=False, edgecolor="#BBBBBB", lw=0.6,
-                                         linestyle="--"))
-            ax_a.text(0.5, 0.5, "panel a pending VM re-render (see README)", ha="center",
-                      va="center", fontsize=FS_LABEL, color="#999999", transform=ax_a.transAxes)
-        ax_a.axis("off")
-        vc.panel_letter(ax_a, "a", dx=-0.01, dy=1.02)
+            # layout B: swap b/c+d emphasis -- give the heatmap a touch more width and the
+            # ternary a touch less, to see whether it reads better with 8 gene rows.
+            gs2 = outer[1].subgridspec(1, 4, width_ratios=[50, 84, 32, 4], wspace=0.55)
+        ax_b = fig.add_subplot(gs2[0, 0])
+        ax_c = fig.add_subplot(gs2[0, 1])
+        ax_d = fig.add_subplot(gs2[0, 2])
+        cax = fig.add_subplot(gs2[0, 3])
 
         draw_panel_b(ax_b, pb, gene_b, min_carriers, strict)
-        vc.panel_letter(ax_b, "b", dx=-0.06)
+        vc.panel_letter(ax_b, "b", dx=-0.10, dy=1.06)
 
-        draw_panel_cd(ax_c, ax_d, pivot, n_cens, n_called, dtab, cax=cax)
-        vc.panel_letter(ax_c, "c", dx=-0.30)
-        vc.panel_letter(ax_d, "d", dx=-0.10)
+        lo, hi, ncens, called_hi, dtab = cd_data
+        draw_panel_cd(ax_c, ax_d, lo, hi, ncens, called_hi, dtab, cax=cax)
+        vc.panel_letter(ax_c, "c", dx=-0.34, dy=1.05)
+        vc.panel_letter(ax_d, "d", dx=-0.12, dy=1.05)
+        # shrink the colorbar to ~3 x 30 mm, vertically centered on the heatmap, instead of the
+        # full 62 mm row height a plain gridspec cell would give it.
+        fig.canvas.draw()
+        p_hm = ax_c.get_position()
+        p_cax = cax.get_position()
+        target_h = mm(30) / H
+        cy = (p_hm.y0 + p_hm.y1) / 2.0
+        cax.set_position([p_cax.x0, cy - target_h / 2, min(p_cax.width, mm(3) / W), target_h])
 
+        gs3 = outer[2].subgridspec(1, 2, width_ratios=[1, 1], wspace=0.55)
+        ax_e = fig.add_subplot(gs3[0, 0])
+        ax_f = fig.add_subplot(gs3[0, 1])
         draw_panel_e(ax_e, curves_path)
-        vc.panel_letter(ax_e, "e", dx=-0.14)
+        vc.panel_letter(ax_e, "e", dx=-0.15, dy=1.05)
+        draw_panel_f(ax_f, oe_path)
+        vc.panel_letter(ax_f, "f", dx=-0.16, dy=1.05)
 
-        note = ("a  all unrelated participants (n=%s), predicted ancestry, ordered least->most "
-                "admixed within block; per-group %% clearing the strict ancestry threshold "
-                "(>=%.2f) is in panel_a_group_sizes.tsv, not annotated on the panel.\n"
-                "b  HLA-%s alleles, strict ancestry (probability >=%.2f), >=%d carriers; point "
-                "area/opacity ~ carrier count (log).   c  exact lower-bound rate; hatched cell = "
-                "denominator <%d haplotypes.   d  pooled across ancestry (ancestry split: "
-                "reports/hla_popgen/34_novel_recurrence/, all genes).   e  25 permutations/point, "
-                "mean +/- 95%% band, `pred` ancestry scheme; see reports/hla_popgen/"
-                "39_saturation_by_ancestry/ for the strict95 sensitivity curve."
-                % (n_people_a, strict, gene_b.replace("HLA-", ""), strict, min_carriers,
-                   SUPPRESS_BELOW))
-        fig.text(0.01, 0.006, note, fontsize=FS_ANNOT, color="#666666", ha="left", va="bottom",
-                 linespacing=1.4)
         return fig
 
 
 def run_compose(args):
     os.makedirs(args.out_dir, exist_ok=True)
     pb = pd.read_csv(args.panel_b_table, sep="\t")
-    pa_groups = pd.read_csv(args.panel_a_table, sep="\t")
-    n_people_a = int(pd.to_numeric(pa_groups["n_people"], errors="coerce").sum())
-
-    pivot, n_cens, n_called, dtab = load_panel_cd(args.field_counts, args.clusters,
-                                                  args.ancestry_scheme)
+    cd_data = load_panel_cd(args.field_counts, args.clusters, args.ancestry_scheme)
 
     figs = {}
     for layout in ["A", "B"]:
-        fig = compose_layout(layout, args.panel_a_image, pb, pivot, n_cens, n_called, dtab,
-                             args.curves, n_people_a, args.gene, args.min_carriers,
-                             args.strict_threshold)
+        fig = compose_layout(layout, args.panel_a_bins, pb, cd_data, args.curves, args.oe_table,
+                             args.gene, args.min_carriers, args.strict_threshold)
         stem = os.path.join(args.out_dir, "layout_%s" % layout)
         vc.save_fig(fig, stem)
         figs[layout] = stem + ".png"
 
     chosen = args.pick
     import shutil
-    shutil.copy(figs[chosen] , os.path.join(args.out_dir, "figure1_v5.png"))
+    shutil.copy(figs[chosen], os.path.join(args.out_dir, "figure1_v5.png"))
     shutil.copy(figs[chosen].replace(".png", ".pdf"),
                os.path.join(args.out_dir, "figure1_v5.pdf"))
 
     with open(os.path.join(args.out_dir, "compose_summary.json"), "w") as fh:
-        json.dump({"layouts_built": ["A", "B"], "chosen": chosen,
-                   "n_people_panel_a": n_people_a, "gene_b": args.gene,
-                   "min_carriers_b": args.min_carriers,
-                   "strict_threshold": args.strict_threshold,
-                   "ancestry_scheme_cd": args.ancestry_scheme}, fh, indent=2)
+        json.dump({"layouts_built": ["A", "B"], "chosen": chosen, "gene_b": args.gene,
+                   "min_carriers_b": args.min_carriers, "strict_threshold": args.strict_threshold,
+                   "ancestry_scheme_cd": args.ancestry_scheme,
+                   "panel_a_bins_present": bool(args.panel_a_bins and
+                                                os.path.exists(args.panel_a_bins)),
+                   "canvas_mm": [CANVAS_W_MM, CANVAS_H_MM]}, fh, indent=2)
     print("[40 compose] wrote layouts A/B, chose %s -> %s" % (chosen, args.out_dir))
 
 
@@ -506,9 +526,8 @@ def main(argv=None):
     vmp.add_argument("--out-dir", default=os.path.expanduser("~/s03/results/40"))
 
     cmp_ = sub.add_parser("compose")
-    cmp_.add_argument("--panel-a-image", default=os.path.join(DEFAULT_OUT_DIR, "panel_a.png"))
-    cmp_.add_argument("--panel-a-table",
-                      default=os.path.join(DEFAULT_OUT_DIR, "panel_a_group_sizes.tsv"))
+    cmp_.add_argument("--panel-a-bins",
+                      default=os.path.join(DEFAULT_OUT_DIR, "panel_a_admixture_bins.tsv"))
     cmp_.add_argument("--panel-b-table",
                       default=os.path.join(DEFAULT_OUT_DIR, "panel_b_ternary_alleles.tsv"))
     cmp_.add_argument("--field-counts", default=os.path.join(
@@ -517,6 +536,8 @@ def main(argv=None):
         DEFAULT_REPORTS, "24_novelty_by_field", "protein_level_novel_clusters.tsv"))
     cmp_.add_argument("--curves", default=os.path.join(
         DEFAULT_REPORTS, "39_saturation_by_ancestry", "curves.tsv"))
+    cmp_.add_argument("--oe-table", default=os.path.join(
+        DEFAULT_REPORTS, "37_dq_g1g2_signed_ld", "oe_purge_committed.tsv"))
     cmp_.add_argument("--ancestry-scheme", choices=["strict", "pred"], default="strict")
     cmp_.add_argument("--gene", default="HLA-B")
     cmp_.add_argument("--min-carriers", type=int, default=20)
