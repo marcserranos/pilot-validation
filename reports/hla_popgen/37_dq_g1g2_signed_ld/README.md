@@ -262,3 +262,128 @@ otherwise occlude each other.*
   status parsing, N recovery, the O/E censored-interval bounds (including the all-censored ->
   lower-bound-exactly-0 guardrail), and exact pooled-D' reconstruction on synthetic data.
 
+---
+
+# VM run (2026-09-23): real cohort, 4-field, WS1 deliverables 1-3 -- and a verdict
+
+*Fourth S03 agent, WS1 continuation. Ran on the live Workbench VM (`ws1b`) via the programmatic
+JupyterLab REST/websocket channel (`VM_CHANNEL.md`), `<=2` cores, plain-text `PUT /api/contents`
+deploys only, no base64. Deployed and ran the already-committed `scripts/hla_popgen/37_vm_run.py`
+(a prior agent's condensed, dependency-free standalone runner -- the committed
+`37_dq_g1g2_signed_ld.py` needs `29_hla_ld_by_ancestry.py`/`16_phasing_mendelian_validation.py`/
+`24_novelty_by_field.py`, which this VM's `~/repos/pilot-validation` checkout (a different branch)
+does not have; `37_vm_run.py` avoids that by reimplementing the needed logic inline). Added and
+ran `scripts/hla_popgen/37d_mask_rephase_em.py`, the mask-and-rephase experiment (deliverable 3).*
+
+## Deliverable 1 -- O/E, pooled + per ancestry, 4-field and 2-field, real cohort
+
+`37_vm_run.py` on 13,252 unrelated people: **17,255 physically-phased DQA1~DQB1 haplotypes at
+4-field, 22,341 at 2-field. Zero cross-group ("predicted incompatible") haplotypes observed at
+either resolution, pooled.** `37_vm_run.py`'s own `oe_purge_table.tsv` only ever emitted pooled
+("ALL") rows, because its `build_people()` picks the ancestry column by substring match
+(`"anc" in colname`), and `max_template_distance`/`mean_template_distance` both contain the
+substring `"anc"` (dist**anc**e) and sort before `ancestry_pred` in `cohort_membership.tsv`'s
+column order -- so every person was silently bucketed by a template-distance value ('1.0', '2.0',
+..., NaN), not AFR/AMR/EAS/EUR/MID/SAS. Verified directly against `cohort_membership.tsv`.
+`37d_mask_rephase_em.py` re-derives ancestry correctly from `ancestry_pred` and recomputes the O/E
+table per ancestry (`vm_oe_purge_table_by_ancestry.tsv`, `vm_fig_oe_purge_by_ancestry.png/.pdf`):
+
+| ancestry | 4-field N | 4-field observed | 4-field expected | 2-field N | 2-field observed | 2-field expected |
+|---|---|---|---|---|---|---|
+| AFR | 4192 | **0** | 2093.2 | 5545 | **0** | 2765.4 |
+| AMR | 4107 | **0** | 1792.2 | 5066 | **0** | 2223.1 |
+| EAS | 2056 | **0** | 959.7 | 2796 | **0** | 1345.5 |
+| EUR | 4484 | **0** | 2167.4 | 5626 | **0** | 2692.6 |
+| MID | 662 | **0** | 300.8 | 920 | **0** | 407.8 |
+| SAS | 1717 | **0** | 856.9 | 2343 | **0** | 1171.4 |
+| ALL | 17255 | **0** | 8320.1 | 22341 | **0** | 10793.4 |
+
+Zero observed against 300-8320 expected under group-marginal independence, in **every** ancestry,
+**every** resolution, on the full real cohort -- the "any incompatible cis haplotype at all, no
+floor" version of deliverable 1 finds none. `37_vm_run.py`'s artifact-check (a) (swap-explicable
+rate) is consequently vacuous: 0 incompatible carriers means nothing to test
+(`vm_run_summary.json`).
+
+## Deliverable 3 -- the mask-and-rephase experiment (the key result)
+
+`37d_mask_rephase_em.py` (new script this session): **truth set** = 9,967 people with DQA1 and
+DQB1 physically phased (same contig) on *both* hap1 and hap2 (2-field; 4-field truth set is a
+subset, thinner). For each ancestry, fit a 2-locus multiallelic EM (Excoffier & Slatkin 1995,
+`em_haplotype_freqs`) on the unphased genotypes of every unrelated person of that ancestry with two
+calls at each locus (10,107 pooled), then re-phase each truth-set person with the higher-posterior
+diplotype (`most_likely_pair`) and compare to their known true phase.
+
+**Result (`vm_em_mask_rephase_summary.tsv`, `vm_fig_mask_rephase_comparison.png/.pdf`): EM
+statistical rephasing manufactured *zero* spurious incompatible cis haplotypes, pooled or in any
+ancestry (0/9,835 x 2 = 0/19,670 inferred haplotypes) -- matching truth exactly on this axis.**
+Switch errors (EM resolves a doubly-heterozygous person to the wrong phase entirely, regardless of
+G1/G2) were rare and mostly below the 20-count disclosure floor per ancestry; pooled, **20/8,174
+doubly-heterozygous truth people (switch rate 0.24%)**. So on this cohort, at this LD strength, a
+population-level EM haplotype estimator does not manufacture the kind of cross-group cis pair
+Cole's target figure shows as light blue -- **the null hypothesis (statistical-phasing artifact)
+is not supported by this specific EM reconstruction.**
+
+**The real-world "different contig" group tells a different story.** For people whose DQA1 and
+DQB1 calls sit on different contigs within the same assembly hap (no physical cis evidence, so any
+pairing is inferred from the pipeline's own hap1/hap2 label rather than measured): 320 such
+pooled hap-level pairs exist, of which **fewer than 20 are G1/G2-incompatible** (exact count
+withheld -- the numerator itself is below the 20-person disclosure floor, so no rate is reported;
+see `vm_diffcontig_implied_pairing.tsv`). This is **not zero**, unlike both the physical-phasing
+truth set and the EM-rephased set. Per-ancestry breakdowns (AFR 119 pairs, EUR 71, AMR 62, SAS 30,
+EAS 27, MID <20) are all individually below the floor for the incompatible count, consistent with
+AFR/EUR (thinner contig assembly, more fragmentation) carrying more of this signal, but not
+statistically resolvable person-by-person at this N.
+
+### Verdict
+
+Physical phasing shows a complete purge (0/17,255 at 4-field, real cohort). A standard
+population-EM statistical phaser, run on this cohort's own allele frequencies, reproduces that
+purge almost exactly (0 spurious incompatible haplotypes; ~0.2% switch-error rate unrelated to
+G1/G2). The one regime that does produce incompatible-looking cis pairs is naive use of the
+assembly's own hap1/hap2 label when the two genes are not on the same contig -- a small but
+nonzero fraction (<20/320 pooled, so roughly single-digit percent) of haplotype pairs. **Read
+together: Cole's light-blue cells are more consistent with assembly/contig-boundary artifacts
+(genes on different contigs, phase unknown, and a naive hap-label pairing used anyway) than with
+generic EM statistical-phasing error** -- though this cohort's own statistically-phased DQ calls
+(if produced by something other than the population-EM tested here) were not directly examined,
+so this is evidence about the *class* of statistical-phasing error, not a re-analysis of Cole's
+own pipeline's specific phasing method.
+
+## Caveats (VM run)
+
+- `37_vm_run.py` is a previously-deployed, independently-written condensed runner, not the
+  committed `37_dq_g1g2_signed_ld.py` -- its logic was spot-checked against the committed script's
+  docstring/functions (`extract_haplotypes`, `dq_group`/`classify_pair`, `observed_expected_incompatible`)
+  during this session but not line-by-line diffed against it; both compile and both reused for the
+  real O/E numbers above.
+- The `build_people()` ancestry-column bug (see deliverable 1) affects only `37_vm_run.py`'s *own*
+  `oe_purge_table.tsv` (pooled-only) and its unused-here artifact-check groupings; `unrelated_ids`
+  (the relatedness filter) is unaffected and was reused as-is. Not fixed in `37_vm_run.py` itself
+  (another agent's file, out of this session's direct scope) -- flagged here and worked around in
+  `37d_mask_rephase_em.py` by re-deriving `anc_of` from `cohort_membership.tsv`'s `ancestry_pred`
+  column directly.
+- EM was run at 2-field only (4-field would need a much larger truth set per ancestry to converge
+  reliably given how many more distinct alleles enter the multiallelic EM at that resolution --
+  not attempted this session).
+- All released rates are gated so that **both** the numerator and denominator clear the 20-count
+  disclosure floor -- a rate computed from a `<20` numerator over a disclosed denominator would let
+  a reader back-compute the suppressed count (e.g. `0.0026 x 1926 approx 5`), defeating the
+  masking. This was caught and fixed mid-session (an earlier pulled TSV had this leak; the
+  committed `vm_*.tsv` files here do not).
+- Deliverable 4's artifact checks (b) phasing-confidence file, (c) Mendelian transmission, (d)
+  short-read concordance were not run this session (deliverable 1's zero-incompatible-carriers
+  result makes (a) trivially null and leaves nothing for (b)-(d) to test against real incompatible
+  carriers; they remain implemented in `37_dq_g1g2_signed_ld.py`/available in `37_vm_run.py` for a
+  future session if a nonzero incompatible-carrier set is ever found, e.g. from a different gene
+  pair or a larger cohort).
+- Deliverable 4's per-person phasing-confidence file was not built this session (no incompatible
+  carriers to build it around, per above).
+- Figures render slightly non-final (the O/E figure's expected-vs-observed annotation arrow could
+  be tightened) -- numbers are final; a follow-up pass could tighten layout only.
+- Unit test: `scripts/hla_popgen/tests/test_37d_mask_rephase_em.py` (7/7 checks pass) -- the EM
+  estimator recovers coupling-dominant frequencies and resolves a doubly-heterozygous genotype to
+  the correct (coupling) phase on synthetic data; a purely-doubly-heterozygous synthetic
+  population is deliberately *not* asserted to break symmetry (a real EM degeneracy under two
+  alleles per locus with no anchoring homozygotes, not a bug); an independence-generated
+  population converges near the uniform product-of-marginals frequencies; an all-unambiguous
+  population does not crash or divide by zero.

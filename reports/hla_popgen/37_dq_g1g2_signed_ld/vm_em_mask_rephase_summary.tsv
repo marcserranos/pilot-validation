@@ -1,0 +1,8 @@
+ancestry	n_em_pool	n_truth	n_truth_doublehet	switch_errors	switch_rate	spurious_incompatible_cis	spurious_incompatible_rate	note
+AFR	2476	2376	1926	<20		0
+AMR	2285	2233	1858	<20		0
+EAS	1284	1259	1059	<20		0
+EUR	2522	2465	2083	<20		0
+MID	420	411	325	0		0
+SAS	1097	1069	903	<20		0
+ALL	10107	9835	8174	20	0.0024	0	0.0

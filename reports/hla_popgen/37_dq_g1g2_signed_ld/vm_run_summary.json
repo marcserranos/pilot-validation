@@ -1,0 +1,14 @@
+{
+  "n_people_unrelated": "13252",
+  "pairs": ["DQA1~DQB1", "DPA1~DPB1"],
+  "artifact_check_a_swap_explicable": {
+    "n_incompatible_carriers_disp": "0",
+    "n_testable_disp": "0",
+    "n_swap_explicable_disp": "0",
+    "rate": null,
+    "null_n_testable_disp": "0",
+    "null_n_swap_explicable_disp": "0",
+    "null_rate": null,
+    "note": "No incompatible cis carriers exist at 4-field either (see vm_oe_purge_table_by_ancestry.tsv), so the swap-explicable check is vacuously null -- nothing to test."
+  }
+}
