@@ -97,6 +97,66 @@ class TestParseHapGtf(unittest.TestCase):
         self.assertEqual(kir.parse_hap_gtf("/no/such/path.gtf.gz"), [])
 
 
+class TestClassifyNovoltyTier(unittest.TestCase):
+    def _row(self, consensus, cds_distance=None, cds_mut=None):
+        return {"consensus": consensus, "cds_distance": cds_distance, "cds_mut": cds_mut,
+                "is_novel": consensus.endswith("new") and consensus != "undetermined",
+                "is_undetermined": consensus == "undetermined"}
+
+    def test_known(self):
+        row = self._row("KIR3DL3*00101")
+        self.assertEqual(kir.classify_novelty_tier(row), "known")
+
+    def test_undetermined(self):
+        row = self._row("undetermined")
+        self.assertEqual(kir.classify_novelty_tier(row), "undetermined")
+
+    def test_novel_genomic_known_cds(self):
+        row = self._row("KIR3DL2*00201new", cds_distance=0)
+        self.assertEqual(kir.classify_novelty_tier(row), "novel_genomic_known_cds")
+
+    def test_novel_cds_synonymous(self):
+        # Real example from pilot output: Gly(GGG)<Gly(GGC) -- same amino acid both sides.
+        row = self._row("KIR2DL2*004new", cds_distance=1,
+                         cds_mut="KIR2DL2*004|:35*cg:1011|Gly(GGG)<Gly(GGC);")
+        self.assertEqual(kir.classify_novelty_tier(row), "novel_cds_synonymous")
+
+    def test_novel_protein(self):
+        # Real example: Gln(CAA)<Rrg(CGA) -- different amino acid.
+        row = self._row("KIR3DL2*00801new", cds_distance=1,
+                         cds_mut="KIR3DL2*0080101|:121*ga:1246|Gln(CAA)<Rrg(CGA);")
+        self.assertEqual(kir.classify_novelty_tier(row), "novel_protein")
+
+    def test_novel_protein_wins_if_any_candidate_nonsynonymous(self):
+        # Multiple tied candidates, comma-joined -- one synonymous, one not: must be novel_protein.
+        row = self._row("KIR2DP1*001new", cds_distance=1,
+                         cds_mut="A|:1*ac:1|Gly(GGG)<Gly(GGC),B|:2*ac:2|Gln(CAA)<Rrg(CGA);")
+        self.assertEqual(kir.classify_novelty_tier(row), "novel_protein")
+
+    def test_missing_cds_distance_is_unclassified(self):
+        row = self._row("KIR2DL1*001new")
+        self.assertEqual(kir.classify_novelty_tier(row), "novel_unclassified")
+
+
+class TestClassifyFrameworkMiss(unittest.TestCase):
+    def test_centromeric_end_missing_nothing_after(self):
+        # KIR3DL3 missing, and none of 2DL4/3DP1/3DL2 called either -> edge fragmented.
+        self.assertEqual(kir.classify_framework_miss("KIR3DL3", []), "edge_fragmented")
+
+    def test_centromeric_end_missing_with_telomeric_genes_present(self):
+        self.assertEqual(kir.classify_framework_miss("KIR3DL3", ["KIR3DL2"]), "flanked")
+
+    def test_telomeric_end_missing_nothing_before(self):
+        self.assertEqual(kir.classify_framework_miss("KIR3DL2", []), "edge_fragmented")
+
+    def test_middle_gene_flanked_both_sides(self):
+        self.assertEqual(kir.classify_framework_miss("KIR2DL4", ["KIR3DL3", "KIR3DL2"]), "flanked")
+
+    def test_middle_gene_flanked_one_side_only(self):
+        self.assertEqual(kir.classify_framework_miss("KIR3DP1", ["KIR3DL3"]),
+                          "ambiguous_partial_flank")
+
+
 class TestAggregateQuality(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()

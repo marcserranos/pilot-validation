@@ -149,6 +149,73 @@ scoping pilot.
 Selection mix (aggregate-only, matches §3's summary): 2 people each for AFR/AMR/EAS ×
 {revio, sequel2e}, 1 each for EUR/MID/SAS × sequel2e (2 each × revio), 1 UNASSIGNED/revio.
 
+### 3a. Novelty decomposition (2026-09-23 follow-up)
+
+60.8% "novel" does not mean 60.8% protein-changing. Decomposed each of the 383 calls into 4 tiers,
+mirroring `24_novelty_by_field.py`'s known/f4_noncoding/f3_synonymous/f2_protein framework but
+derived directly from Immuannot's own already-computed CDS-vs-refdata comparison
+(`cds_distance`/`cds_mut` GTF fields) rather than rebuilding that script's `RefIndex`/
+`classify_sequence()` machinery from raw contig sequence — `cds_distance` is itself the edit
+distance of a CDS-vs-CDS alignment against **IPD-KIR's own `CDSseq/*.fa.gz` reference** (confirmed
+present for all 17 KIR genes under `~/tools/Immuannot_refdata/CDSseq/`, the same directory
+`RefIndex` globs), so this reuses the same reference data and search result, just without redoing
+the alignment ourselves — a documented tradeoff (see `classify_novelty_tier()`'s docstring), not a
+shortcut that changes what's being measured.
+
+| Gene | n calls | known | novel, genomic-only (intron/UTR) | novel CDS, synonymous | **novel protein** |
+|---|---|---|---|---|---|
+| KIR2DL1 | 37 | 48.6% | 45.9% | 0.0% | 5.4% |
+| KIR2DL2 | 12 | 0.0% | 91.7% | 8.3% | 0.0% |
+| KIR2DL3 | 26 | 0.0% | 92.3% | 0.0% | 7.7% |
+| KIR2DL4 (fw) | 36 | 58.3% | 38.9% | 0.0% | 2.8% |
+| KIR2DL5A | 8 | 87.5% | 12.5% | 0.0% | 0.0% |
+| KIR2DL5B | 11 | 36.4% | 45.5% | 0.0% | 18.2% |
+| KIR2DP1 | 36 | 44.4% | 47.2% | 2.8% | 5.6% |
+| KIR2DS1 | 9 | 55.6% | 44.4% | 0.0% | 0.0% |
+| KIR2DS2 | 9 | 33.3% | 66.7% | 0.0% | 0.0% |
+| KIR2DS3 | 9 | 33.3% | 66.7% | 0.0% | 0.0% |
+| KIR2DS4 | 28 | 21.4% | 75.0% | 0.0% | 3.6% |
+| KIR2DS5 | 9 | 33.3% | 66.7% | 0.0% | 0.0% |
+| KIR3DL1 | 31 | 35.5% | 61.3% | 0.0% | 3.2% |
+| KIR3DL2 (fw) | 37 | 18.9% | 70.3% | 0.0% | 10.8% |
+| KIR3DL3 (fw) | 39 | 30.8% | 64.1% | 0.0% | 5.1% |
+| KIR3DP1 (fw) | 38 | 73.7% | 23.7% | 0.0% | 2.6% |
+| KIR3DS1 | 8 | 75.0% | 25.0% | 0.0% | 0.0% |
+
+**Confirmed: novelty is dominated by non-coding/genomic-only differences**, exactly as
+hypothesized — "novel, genomic-only" is the largest novel tier for every gene except KIR2DL5A,
+protein-level novelty tops out at 18.2% (KIR2DL5B, n=11 — small-n, treat as noisy) and is ≤11% for
+every other gene, usually single digits. "novel CDS, synonymous" is nearly always 0% — when the
+CDS itself differs from every known CDS, it's almost always a real amino-acid change (protein
+tier), not a silent one; genuine synonymous-only CDS novelty appears only in KIR2DL2 (8.3%) and
+KIR2DP1 (2.8%). This reframes the headline finding: KIR alleles genuinely diverge from IPD-KIR far
+more than HLA diverges from IPD-IMGT/HLA (consistent with IPD-KIR's much smaller reference panel,
+1,530 genomic alleles), but that divergence is overwhelmingly in non-coding sequence, not protein
+sequence — the same "bounded imprecision, not unreliable calling" pattern this project already
+established for AoU-native's DQA1 calls (`context/DECISIONS.md`).
+
+### 3b. Framework-gene miss classification (2026-09-23 follow-up)
+
+All 15 framework-gene misses (across 40 haplotypes × 4 framework genes) classified by whether
+genes flanking the missing one (centromeric AND/OR telomeric, per the canonical
+KIR3DL3→KIR2DL4→KIR3DP1→KIR3DL2 array order) were also called on that same haplotype — see
+`classify_framework_miss()`'s docstring for the exact rule and its limitations.
+
+| Classification | Count | Meaning |
+|---|---|---|
+| **flanked** | 11 | Genes on **both** sides of the missing one are called — the contig clearly spans across its expected position. A real deletion or a miscall-as-a-different-gene is more plausible than an incomplete assembly. |
+| **ambiguous_partial_flank** | 4 | Only one side has a flanking framework gene called — doesn't cleanly fit either explanation. |
+| **edge_fragmented** | 0 | (Missing at an array end with nothing beyond it — none observed.) |
+
+**Zero of the 15 misses look like simple assembly fragmentation.** 11/15 are clearly "flanked" —
+the contig has real sequence on both sides of the gap, so contig-too-short is not the explanation;
+these are either genuine deletions (KIR3DP1 and KIR2DL4 in particular have documented real-deletion
+haplotypes in the literature, per the coordinator's own note) or the gene was called under a
+different name (a miscall this classification cannot distinguish from a real deletion — would need
+per-haplotype inspection of what other gene sits at the expected coordinates, out of scope for an
+aggregate-only pilot pass). This strengthens, not weakens, the go/no-go case: the framework-gene
+misses are not a trim/assembly artifact.
+
 ## 4. Scale-up estimate
 
 The original full-cohort **HLA** production run (`run_production_orchestrator.py`,
@@ -186,9 +253,22 @@ KIR-specific adjustments now that the pilot's real timing has landed:
   it never collides with the canonical `immuannot_calls.tsv`), but reuses every other piece of
   infrastructure the HLA run already proved (mount check, PID lock, resumability, heartbeat).
 
+**`run_production_orchestrator.py` now takes `--region`/`--pad`/`--out-suffix`** (added 2026-09-23,
+backward compatible — defaults reproduce the prior HLA-only behavior byte-for-byte; unit-tested in
+`scripts/production_orchestrator/tests/test_orchestrator_region_flags.py`, 6 tests). `--out-suffix`
+isolates BOTH the per-worker fragment files AND the canonical `immuannot_calls<suffix>.tsv`/
+`immuannot_timing<suffix>.tsv` merge target — the orchestrator now **refuses to start** (loud
+`FATAL`, before touching the mount) if `--region` differs from the HLA default without a
+non-empty `--out-suffix`, specifically to prevent a KIR run from silently merging into the real
+HLA canonical files (the class of bug ENVIRONMENT.md quirk #29 already cost days to recover from
+once). Writing that test also caught a real bug in the first cut of this change: a plain glob
+pattern for the default (empty) suffix would ALSO match a `.kir.`-suffixed run's fragments (glob's
+`*` matches across dots) — fixed with a regex-anchored fragment filter before this ever ran for
+real.
+
 **Exact command for the full run** (once pilot quality clears go/no-go — same VM sizing as the
 HLA run, since nothing about KIR's I/O/CPU profile is expected to differ enough to justify a
-different machine type until the pilot timing says otherwise):
+different machine type until a larger pilot says otherwise):
 
 ```bash
 # On a dedicated n2-highcpu-96 Workbench VM instance (not the shared 4-vCPU big_run VM):
@@ -197,24 +277,59 @@ gcsfuse --billing-project wb-glacial-potato-8710 --implicit-dirs vwb-aou-dataset
 setsid nohup pixi run -e specimmune -- python3 scripts/production_orchestrator/run_production_orchestrator.py \
     --cohort ~/pipeline_outputs/immuannot_cohort_full.tsv \
     --concurrency 24 --threads-per-person 4 \
-    --region chr19:54600000-54920000 --pad 100000 \
+    --region chr19:54600000-54920000 --pad 100000 --out-suffix .kir \
     --vm-rate <live Workbench-UI-confirmed USD/hour for n2-highcpu-96> \
     --monitor-url http://46.225.123.54:8943 \
     > ~/pipeline_outputs/kir_full_run.log 2>&1 < /dev/null &
 disown
 ```
 
-(`run_production_orchestrator.py` does not currently expose `--region`/`--pad`/`--out-suffix`
-flags — it hardcodes the HLA window in two places per the recon brief in `LOG.md`. **Before this
-command can actually run, WS5's follow-on is to add those flags to the orchestrator**, mirroring
-`run_immuannot_person.py`'s own existing `--region` flag, backward-compatible default unchanged.
-Flagged, not done here — out of this scoping pilot's scope, and this repo's public/no-participant-
-data rule means that small addition is safe to make outside VM time.)
+**Still a real risk even with `--out-suffix`:** `run_immuannot_person.py` writes each person's
+per-person intermediate output (`<outroot>/<pid>/immuannot_output/hap{1,2}.gtf.gz`) to a path keyed
+only by `person_id`, not by region/suffix. Running this against the **same `--outroot`** as the
+HLA run would overwrite each person's HLA `hap*.gtf.gz` with their KIR one (or vice versa) and
+would also make the orchestrator's resumability scan (`scan_already_done()`, which checks for
+literal `hap1.gtf.gz`/`hap2.gtf.gz` existence) think KIR people are "already done" from the HLA
+run and skip them entirely, silently producing an empty KIR run. **Use a separate `--outroot`
+(e.g. `~/pipeline_outputs_kir`) for the full KIR run** — not yet enforced in code (would need
+`run_immuannot_person.py`'s own intermediate-path convention changed, out of this backward-compat-
+only change's scope), so this is a documented operational rule, not a guardrail.
 
 **Disk:** reuses the HLA run's 2TB disk — KIR outputs are per-person `hap{1,2}.gtf.gz` +
 trimmed FASTA, same order of magnitude as HLA's ~81 MB/person, so no separate disk provisioning
 needed if run as a second pass on the same VM/disk (recommended), or budget ~1.2 TB extra if run
 as a fully separate instance.
+
+## 4a. Extended pilot (launched 2026-09-23, running in background)
+
+Launched a 170-person run (the original 20 + ~150 new people, same `--seed 41` — the selection
+function is a deterministic prefix: requesting more people with the same seed reproduces the exact
+same first 20 picks, so the 150 new people are genuinely additional, not overlapping, and the
+already-done 20 skip instantly via the resumability check). Stratified the same way as the pilot
+(ancestry × platform round-robin over AFR/AMR/EAS/EUR/SAS/MID), giving roughly 25+ people per
+ancestry group once complete (MID capped by however many exist in the candidate pool). 2 cores,
+`setsid nohup`, resumable (kill-and-relaunch-safe), running unattended for hours — this is expected
+and also keeps the VM from idling out. Launched, not waited on.
+
+```bash
+# Launch (already running as of this report):
+cd ~/repos/pilot-validation && setsid nohup pixi run -e specimmune -- python3 ~/s03/41_kir_pilot.py \
+    --n-people 170 --seed 41 --threads 2 --outroot ~/s03/results/41/pipeline_outputs \
+    --out-suffix .kir41 > ~/s03/results/41/run_extended.log 2>&1 < /dev/null &
+disown
+
+# Check progress any time (safe, read-only):
+tail -20 ~/s03/results/41/run_extended.log
+
+# Aggregate once complete (re-running the SAME command above is enough -- every person already
+# done skips instantly via the hap1/hap2.gtf.gz resumability check, and it recomputes+overwrites
+# ~/s03/results/41/pipeline_outputs/41_kir_pilot_summary.kir41.tsv from all 170 people's real
+# output in well under a minute):
+cd ~/repos/pilot-validation && pixi run -e specimmune -- python3 ~/s03/41_kir_pilot.py \
+    --n-people 170 --seed 41 --threads 2 --outroot ~/s03/results/41/pipeline_outputs \
+    --out-suffix .kir41 > ~/s03/results/41/run_extended_aggregate.log 2>&1
+tail -5 ~/s03/results/41/run_extended_aggregate.log   # prints the final aggregate-only Quality dict
+```
 
 ## 5. Go/no-go
 

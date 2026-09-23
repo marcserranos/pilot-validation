@@ -370,7 +370,7 @@ def run_one_person(pid, args, enable_self_align):
         "--immuannot-dir", args.immuannot_dir, "--refdir", args.refdir,
         "--threads", str(args.threads_per_person),
         "--region", args.region, "--pad", str(args.pad),
-        "--out-suffix", f".{pid}", "--force",
+        "--out-suffix", f"{args.out_suffix}.{pid}", "--force",
     ]
     if enable_self_align:
         cmd.append("--enable-self-align-fallback")
@@ -388,19 +388,38 @@ def run_one_person(pid, args, enable_self_align):
     return pid, proc.returncode, elapsed
 
 
-def merge_fragments(outroot):
-    """Merges every --out-suffix-isolated fragment into the canonical immuannot_calls.tsv /
-    immuannot_timing.tsv. A bounded glob over already-produced small files, not a du/df tree walk --
-    safe to call periodically. Single-writer (only the orchestrator's own main thread calls this),
-    so no read-modify-write race despite write_incremental()'s own non-atomicity."""
+def merge_fragments(outroot, out_suffix=""):
+    """Merges every --out-suffix-isolated fragment into the canonical immuannot_calls<out_suffix>.tsv
+    / immuannot_timing<out_suffix>.tsv. A bounded glob over already-produced small files, not a
+    du/df tree walk -- safe to call periodically. Single-writer (only the orchestrator's own main
+    thread calls this), so no read-modify-write race despite write_incremental()'s own
+    non-atomicity.
+
+    `out_suffix` (added for the KIR full-run, S03 WS5 -- see run_immuannot_person.py's own
+    --region/--pad, which already generalized; this orchestrator's canonical OUTPUT filenames were
+    the last hardcoded-to-HLA piece): default "" reproduces the exact prior filenames
+    (immuannot_calls.tsv / immuannot_timing.tsv) and glob pattern -- fully backward compatible. A
+    non-empty out_suffix (e.g. ".kir") keeps a KIR run's canonical files and per-worker fragments
+    from ever touching the HLA run's canonical immuannot_calls.tsv/immuannot_timing.tsv, even if
+    both share the same --outroot."""
     total_fragments = 0
     for base in ("immuannot_calls", "immuannot_timing"):
-        fragments = sorted(glob.glob(os.path.join(outroot, f"{base}.*.tsv")))
+        # glob's "*" matches across dots, so a plain f"{base}{out_suffix}.*.tsv" glob would also
+        # match a DIFFERENT out_suffix's fragments (e.g. out_suffix="" -- pattern
+        # "immuannot_calls.*.tsv" -- would also swallow "immuannot_calls.kir.12345.tsv", a KIR
+        # run's fragment, straight into the HLA canonical file: the exact collision --out-suffix
+        # exists to prevent). Anchor with a regex instead: exactly one dot-delimited segment (the
+        # pid) between "{base}{out_suffix}." and ".tsv", no extra segments. Caught by
+        # scripts/production_orchestrator/tests/test_orchestrator_region_flags.py before this
+        # shipped, not found empirically -- keep that test green if this pattern ever changes.
+        candidates = glob.glob(os.path.join(outroot, f"{base}{out_suffix}.*.tsv"))
+        pat = re.compile(rf"^{re.escape(base)}{re.escape(out_suffix)}\.[^.]+\.tsv$")
+        fragments = sorted(c for c in candidates if pat.match(os.path.basename(c)))
         if not fragments:
             continue
         total_fragments += len(fragments)
         frames = []
-        canonical = os.path.join(outroot, f"{base}.tsv")
+        canonical = os.path.join(outroot, f"{base}{out_suffix}.tsv")
         if os.path.exists(canonical):
             frames.append(pd.read_csv(canonical, sep="\t", dtype=str))
         for frag in fragments:
@@ -476,7 +495,7 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
     if not worklist:
         print(f"  [{phase_label}] nothing left to do -- every person already done or given-up.",
               file=sys.stderr)
-        merge_fragments(args.outroot)
+        merge_fragments(args.outroot, args.out_suffix)
         return len(done_set), len(gave_up_set), 0.0
 
     state = {"done": len(done_set), "failed": len(gave_up_set), "lock": threading.Lock(),
@@ -591,13 +610,13 @@ def run_phase(phase_label, people, ancestry_map, args, monitor_state_file, enabl
 
             n_since_merge += 1
             if n_since_merge >= 500:
-                merge_fragments(args.outroot)
+                merge_fragments(args.outroot, args.out_suffix)
                 n_since_merge = 0
 
     wall = time.time() - t0
     stop_event.set()
     hb_thread.join(timeout=5)
-    merge_fragments(args.outroot)
+    merge_fragments(args.outroot, args.out_suffix)
 
     with state["lock"]:
         d, f = state["done"], state["failed"]
@@ -621,6 +640,20 @@ def main():
                     help="Threads per Immuannot invocation (default 4, same committed config).")
     ap.add_argument("--region", default=DEFAULT_REGION)
     ap.add_argument("--pad", type=int, default=DEFAULT_PAD)
+    ap.add_argument("--out-suffix", default="",
+                    help="Appended to the CANONICAL merged output filenames (default '' --> "
+                         "immuannot_calls.tsv/immuannot_timing.tsv, byte-for-byte the prior "
+                         "behavior) and folded into each per-worker's own --out-suffix "
+                         "(<out-suffix>.<pid>, was just .<pid> before). Added for the KIR full "
+                         "run (S03 WS5, 2026-09-23) -- run_immuannot_person.py's --region/--pad "
+                         "already generalized past chr6 HLA; this orchestrator's canonical "
+                         "OUTPUT filenames were the one piece still hardcoded to HLA, which would "
+                         "otherwise let a --region chr19:... run silently merge KIR fragments "
+                         "into the real HLA immuannot_calls.tsv. Pass e.g. '.kir' for a KIR run. "
+                         "REQUIRED (non-empty) whenever --region differs from the HLA default -- "
+                         "enforced below, not just documented, since a silent canonical-file "
+                         "collision has already happened once in this project's history "
+                         "(ENVIRONMENT.md quirk #29) and cost days to recover from.")
     ap.add_argument("--single-phase", action="store_true",
                     help="Disable the default automatic two-phase behavior (see module docstring) "
                          "and just run ONE pass over --cohort, filtered by --skip-trim-tier/"
@@ -673,6 +706,14 @@ def main():
                          "an individual phase's own cost -- but this flag's warning is the real "
                          "total-spend check.")
     args = ap.parse_args()
+
+    if args.region != DEFAULT_REGION and not args.out_suffix:
+        die(f"--region {args.region!r} differs from the HLA default ({DEFAULT_REGION!r}) but "
+            f"--out-suffix is empty. Without it, this run's canonical output would merge "
+            f"straight into the real immuannot_calls.tsv/immuannot_timing.tsv (shared with any "
+            f"HLA run against the same --outroot) -- exactly the kind of silent-corruption bug "
+            f"ENVIRONMENT.md quirk #29 already cost days to recover from once. Pass a distinct "
+            f"--out-suffix (e.g. '.kir').")
 
     total_cores = args.concurrency * args.threads_per_person
     n_cpu = os.cpu_count() or 0

@@ -93,6 +93,14 @@ FRAMEWORK_GENES = ["KIR3DL3", "KIR2DL4", "KIR3DP1", "KIR3DL2"]  # present on ~al
 # Hsu et al 2002 haplotype-A/B framework already used informally in SCHEMA.md's kir gene_class row).
 B_CONTENT_GENES = {"KIR2DL2", "KIR2DL5A", "KIR2DL5B", "KIR2DS1", "KIR2DS2", "KIR2DS3", "KIR2DS5",
                     "KIR3DS1"}
+# Canonical centromeric -> telomeric order of the 4 framework genes (textbook KIR gene-cluster
+# organization; corroborated by this script's own GRCh38 coordinate lookup for the two ends --
+# KIR3DL3 chr19:54,724,442 lowest / KIR3DL2 chr19:54,850,443 highest among the four). Used only
+# to classify a MISSING framework gene as "flanked" (genes both centromeric and telomeric of it
+# are called on the same haplotype, so the contig clearly spans across its expected position) vs.
+# "edge fragmented" (missing at an end with nothing beyond it -- consistent with the contig simply
+# not extending that far, an assembly-completeness artifact, not necessarily real biology).
+FRAMEWORK_ORDER = ["KIR3DL3", "KIR2DL4", "KIR3DP1", "KIR3DL2"]
 
 
 def log(msg):
@@ -253,8 +261,9 @@ def run_one_person(pid, args, kir_ref_cache, platform_of):
 # analogue but this script doesn't write into that shared production table).
 # ---------------------------------------------------------------------------
 def parse_hap_gtf(gtf_path):
-    """Returns list of dicts: {gene, consensus, is_novel, is_undetermined}, one per transcript
-    row (one per gene-copy call -- multi-copy genes get >1 row, matching Table 1's grain)."""
+    """Returns list of dicts: {gene, consensus, is_novel, is_undetermined, start, end,
+    cds_distance, cds_mut, novelty_tier}, one per transcript row (one per gene-copy call --
+    multi-copy genes get >1 row, matching Table 1's grain)."""
     rows = []
     if not gtf_path or not os.path.exists(gtf_path):
         return rows
@@ -271,9 +280,23 @@ def parse_hap_gtf(gtf_path):
             if not gene_m or not cons_m:
                 continue
             consensus = cons_m.group(1)
+            # cds_distance is unquoted per IMMUANNOT_GTF_SPEC.md (same convention as
+            # template_distance); only present when a CDS-level search actually ran (i.e. the
+            # gene-level template wasn't already a perfect match). cds_mut is a quoted,
+            # comma-joined list of candidate-allele diffs, only present when cds_distance > 0 --
+            # confirmed on real pilot output (2026-09-23), e.g.
+            # 'cds_distance 1; cds_mut "KIR2DL2*004|:35*cg:1011|Gly(GGG)<Gly(GGC);"' (synonymous,
+            # same amino acid either side of "<") vs '...Gln(CAA)<Rrg(CGA)...' (nonsynonymous).
+            cds_dist_m = re.search(r'cds_distance (\d+)', attrs)
+            cds_mut_m = re.search(r'cds_mut "([^"]*)"', attrs)
+            cds_distance = int(cds_dist_m.group(1)) if cds_dist_m else None
+            cds_mut = cds_mut_m.group(1) if cds_mut_m else None
             rows.append({
                 "gene": gene_m.group(1),
                 "consensus": consensus,
+                "start": int(fields[3]), "end": int(fields[4]),
+                "cds_distance": cds_distance,
+                "cds_mut": cds_mut,
                 # Novelty suffix: confirmed on real pilot output (2026-09-22/23) that KIR
                 # consensus strings append "new" DIRECTLY to the allele digits with NO colon
                 # (e.g. "KIR3DL2*00201new"), unlike IMMUANNOT_GTF_SPEC.md's HLA-style illustrative
@@ -286,7 +309,84 @@ def parse_hap_gtf(gtf_path):
                 "is_novel": consensus.rstrip('"').endswith("new") and consensus != "undetermined",
                 "is_undetermined": consensus == "undetermined",
             })
+    for r in rows:
+        r["novelty_tier"] = classify_novelty_tier(r)
     return rows
+
+
+def classify_novelty_tier(row):
+    """Four-tier novelty classification, mirroring 24_novelty_by_field.py's
+    known/f4_noncoding/f3_synonymous/f2_protein framework but derived directly from
+    Immuannot's OWN already-computed CDS-vs-refdata comparison (cds_distance/cds_mut) instead of
+    rebuilding that script's RefIndex/classify_sequence() machinery (which needs the raw CDS
+    nucleotide sequence reconstructed from the trimmed contig FASTA -- this pilot's
+    run_immuannot_person.py invocation doesn't persist that). cds_distance is itself the NM of a
+    CDS-vs-CDS alignment against IPD-KIR's CDSseq/*.fa.gz reference (confirmed present for all
+    17 KIR genes under ~/tools/Immuannot_refdata/CDSseq/, same directory 24_novelty_by_field.py's
+    RefIndex globs) -- so this reuses the SAME reference data and search result Immuannot already
+    computed, just without redoing the alignment ourselves. Deliberately not a rebuild of
+    RefIndex -- documented tradeoff, not an oversight.
+
+    Tiers:
+      known               -- consensus is an exact match to a cataloged IPD-KIR allele.
+      undetermined         -- Immuannot could not resolve gene/CDS mapping at all.
+      novel_genomic_known_cds -- consensus is "new" (genomic sequence unmatched) but
+                              cds_distance == 0: the CDS portion exactly matches a known CDS, so
+                              every real difference is intronic/UTR (synonymous-or-intronic at the
+                              genomic level, matching HLA's f4_noncoding).
+      novel_cds_synonymous -- cds_distance > 0 but every candidate-allele diff in cds_mut shows
+                              the SAME amino acid on both sides of "<" (silent codon changes only).
+      novel_protein        -- cds_distance > 0 and at least one cds_mut diff shows a DIFFERENT
+                              amino acid on either side of "<" (a real protein-level change).
+      novel_unclassified   -- "new" but cds_distance missing (should not happen per spec, since a
+                              non-perfect gene-level match always triggers a CDS search; kept as an
+                              explicit bucket rather than silently mis-bucketing it).
+    """
+    if row["is_undetermined"]:
+        return "undetermined"
+    if not row["is_novel"]:
+        return "known"
+    if row["cds_distance"] is None:
+        return "novel_unclassified"
+    if row["cds_distance"] == 0:
+        return "novel_genomic_known_cds"
+    mut = row["cds_mut"] or ""
+    # Each candidate-allele diff segment is "...|REFaa(REFcodon)<OBSaa(OBScodon)", segments
+    # comma-joined. Extract every (REFaa, OBSaa) pair; any mismatch anywhere => protein-level.
+    pairs = re.findall(r'([A-Za-z]+)\([ACGTacgt]+\)<([A-Za-z]+)\([ACGTacgt]+\)', mut)
+    if not pairs:
+        return "novel_unclassified"
+    if any(ref_aa != obs_aa for ref_aa, obs_aa in pairs):
+        return "novel_protein"
+    return "novel_cds_synonymous"
+
+
+def classify_framework_miss(missing_gene, genes_called_on_hap):
+    """Classifies ONE missing framework gene on ONE haplotype into one of three aggregate-only
+    buckets (never returns/logs a person_id): 'flanked' (genes on both sides, per
+    FRAMEWORK_ORDER, are called -- the contig clearly spans across where this gene should be, so
+    a real deletion or a miscall-as-a-different-gene is more plausible than fragmentation),
+    'edge_fragmented' (missing at an array end with nothing beyond it on that side -- consistent
+    with the contig simply not extending that far), or 'ambiguous_partial_flank' (only one side
+    has a flanking framework gene called -- doesn't cleanly fit either explanation from framework
+    genes alone). This cannot, by itself, distinguish 'real deletion' from 'called as a different
+    gene' within the 'flanked' bucket -- that would need per-haplotype manual GTF inspection
+    (which specific other gene sits at the expected coordinates), out of scope for an
+    aggregate-only pilot pass; flagged as a known limitation, not silently conflated."""
+    idx = FRAMEWORK_ORDER.index(missing_gene)
+    before = FRAMEWORK_ORDER[:idx]
+    after = FRAMEWORK_ORDER[idx + 1:]
+    has_before = any(g in genes_called_on_hap for g in before)
+    has_after = any(g in genes_called_on_hap for g in after)
+    if idx == 0:
+        return "flanked" if has_after else "edge_fragmented"
+    if idx == len(FRAMEWORK_ORDER) - 1:
+        return "flanked" if has_before else "edge_fragmented"
+    if has_before and has_after:
+        return "flanked"
+    if not has_before and not has_after:
+        return "edge_fragmented"
+    return "ambiguous_partial_flank"
 
 
 def aggregate_quality(person_ids, args):
@@ -304,6 +404,9 @@ def aggregate_quality(person_ids, args):
     n_haps_with_3dl1_or_3ds1 = 0
     total_calls, total_novel, total_undetermined = 0, 0, 0
     kir_gene_hap_presence = defaultdict(int)
+    # Per-gene novelty tier counts: {gene: {tier: count}}. Aggregate-only (gene symbols + counts).
+    gene_tier_counts = defaultdict(lambda: defaultdict(int))
+    framework_miss_class = defaultdict(int)
 
     for pid in person_ids:
         for hap in ("hap1", "hap2"):
@@ -321,6 +424,8 @@ def aggregate_quality(person_ids, args):
             for g in FRAMEWORK_GENES:
                 if g in genes_called:
                     framework_present_count[g] += 1
+                else:
+                    framework_miss_class[classify_framework_miss(g, genes_called)] += 1
             content = "cB" if B_CONTENT_GENES.intersection(genes_called) else "cA"
             ac_hap_content[content] += 1
             has_2dl2, has_2dl3 = "KIR2DL2" in genes_called, "KIR2DL3" in genes_called
@@ -337,9 +442,24 @@ def aggregate_quality(person_ids, args):
                 total_calls += 1
                 total_novel += int(r["is_novel"])
                 total_undetermined += int(r["is_undetermined"])
+                gene_tier_counts[r["gene"]][r["novelty_tier"]] += 1
 
     def pct(n, d):
         return round(100.0 * n / d, 1) if d else None
+
+    per_gene_novelty = {}
+    for gene in KIR_GENES:
+        tiers = gene_tier_counts.get(gene, {})
+        gene_total = sum(tiers.values())
+        if gene_total == 0:
+            continue
+        per_gene_novelty[gene] = {
+            "n_calls": gene_total,
+            "pct_known": pct(tiers.get("known", 0), gene_total),
+            "pct_novel_genomic_known_cds": pct(tiers.get("novel_genomic_known_cds", 0), gene_total),
+            "pct_novel_cds_synonymous": pct(tiers.get("novel_cds_synonymous", 0), gene_total),
+            "pct_novel_protein": pct(tiers.get("novel_protein", 0), gene_total),
+        }
 
     return {
         "n_people": len(person_ids),
@@ -358,6 +478,8 @@ def aggregate_quality(person_ids, args):
         "total_kir_calls": total_calls,
         "pct_novel": pct(total_novel, total_calls),
         "pct_undetermined": pct(total_undetermined, total_calls),
+        "per_gene_novelty_tiers": per_gene_novelty,
+        "framework_miss_classification": dict(framework_miss_class),
     }
 
 
