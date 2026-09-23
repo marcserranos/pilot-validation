@@ -187,38 +187,43 @@ def tern_xy(p):
 
 
 def draw_ternary_grid(ax):
-    """3 ticks/side (0/50/100) + light 25-step gridlines; vertex labels offset clear of the
-    tick text (orchestrator: 'axis labels not overlapping ticks')."""
+    """Light gridlines every 20% (orchestrator spec), numeric labels only at 0/50/100 per side,
+    placed OUTSIDE the triangle so they never sit on top of a vertex's own bold corner label or
+    on top of data points inside the triangle."""
     V = {"AFR": (1, 0, 0), "EUR": (0, 1, 0), "AMR": (0, 0, 1)}
     xy = {k: tern_xy(v) for k, v in V.items()}
     tri = np.array([xy["AFR"], xy["EUR"], xy["AMR"], xy["AFR"]])
     ax.plot(tri[:, 0], tri[:, 1], color="#333333", lw=0.6, zorder=2)
-    grid_at = [25, 50, 75]
-    for k in grid_at:
+    for k in [20, 40, 60, 80]:
         kk = k / 100.0
         p0 = tern_xy((kk, 1 - kk, 0)); p1 = tern_xy((kk, 0, 1 - kk))
-        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E5E5E5", lw=0.3, zorder=1)
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E8E8E8", lw=0.3, zorder=1)
         p0 = tern_xy((0, kk, 1 - kk)); p1 = tern_xy((1 - kk, kk, 0))
-        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E5E5E5", lw=0.3, zorder=1)
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E8E8E8", lw=0.3, zorder=1)
         p0 = tern_xy((1 - kk, 0, kk)); p1 = tern_xy((0, 1 - kk, kk))
-        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E5E5E5", lw=0.3, zorder=1)
-    # Numeric labels only at the midpoint (50) of each side -- the 0/100 ends of every axis
-    # coincide exactly with a vertex (e.g. AFR-axis 0 sits at the EUR vertex), so a numeral there
-    # would stack directly on top of that vertex's own bold corner label. A short unlabelled tick
-    # mark stands in for 0/100 instead; the corner label already conveys "this vertex = 100".
-    for k in [0, 50, 100]:
-        kk = k / 100.0
-        for p0f, p1f, off, ha, va in [
-            (lambda kk=kk: tern_xy((kk, 1 - kk, 0)), None, (0, -1), "center", "top"),
-            (lambda kk=kk: tern_xy((0, kk, 1 - kk)), None, (-1, 0), "right", "center"),
-            (lambda kk=kk: tern_xy((1 - kk, 0, kk)), None, (1, 0), "left", "center"),
-        ]:
-            tp = p0f()
-            dx, dy = off[0] * 0.018, off[1] * 0.018
-            ax.plot([tp[0], tp[0] + dx], [tp[1], tp[1] + dy], color="#999999", lw=0.5, zorder=2)
-            if k == 50:
-                ax.text(tp[0] + dx * 2.1, tp[1] + dy * 2.1, str(k), fontsize=FS_ANNOT,
-                       ha=ha, va=va, color="#777777")
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color="#E8E8E8", lw=0.3, zorder=1)
+    # Each side gets its own outward normal (perpendicular to that edge, away from the centroid),
+    # distinct from the direction any vertex's corner label sits in -- so the 0/50/100 numerals
+    # along an edge never stack on a corner label even where a tick coincides with a vertex.
+    centroid = np.mean(tri[:3], axis=0)
+    edges = [
+        ("AFR", xy["AFR"], xy["EUR"], lambda kk: tern_xy((kk, 1 - kk, 0))),
+        ("EUR", xy["EUR"], xy["AMR"], lambda kk: tern_xy((0, kk, 1 - kk))),
+        ("AMR", xy["AMR"], xy["AFR"], lambda kk: tern_xy((1 - kk, 0, kk))),
+    ]
+    for _, p_a, p_b, pt_fn in edges:
+        p_a, p_b = np.array(p_a), np.array(p_b)
+        edge_vec = p_b - p_a
+        normal = np.array([edge_vec[1], -edge_vec[0]])
+        normal = normal / (np.linalg.norm(normal) + 1e-9)
+        mid = (p_a + p_b) / 2.0
+        if np.dot(normal, mid - centroid) < 0:
+            normal = -normal
+        for k in [0, 50, 100]:
+            tp = np.array(pt_fn(k / 100.0))
+            lp = tp + normal * 0.075
+            ax.text(lp[0], lp[1], str(k), fontsize=FS_ANNOT, ha="center", va="center",
+                   color="#888888")
     return xy
 
 
@@ -237,40 +242,90 @@ def draw_panel_b(ax, pb, gene_b, min_carriers, strict):
             dom = max(TERNARY, key=lambda a: r[a])
             ax.scatter([xyp[0]], [xyp[1]], s=sz, marker="^" if novel else "o",
                       facecolor=ANC_COLORS[dom], edgecolor="none", alpha=float(al), zorder=3)
-    for lab, pos, ha, va, off in [("AFR", xy["AFR"], "right", "top", (-3, -11)),
-                                  ("EUR", xy["EUR"], "left", "top", (3, -11)),
+    for lab, pos, ha, va, off in [("AFR", xy["AFR"], "right", "top", (-4, -6)),
+                                  ("EUR", xy["EUR"], "left", "top", (4, -6)),
                                   ("AMR", xy["AMR"], "center", "bottom", (0, 6))]:
         ax.annotate(lab, pos, fontsize=FS_LABEL, fontweight="bold", ha=ha, va=va,
                    xytext=off, textcoords="offset points", color=ANC_COLORS[lab])
-    ax.set_xlim(-0.18, 1.18)
-    ax.set_ylim(-0.24, np.sqrt(3) / 2 + 0.16)
+    ax.set_xlim(-0.16, 1.16)
+    ax.set_ylim(-0.16, np.sqrt(3) / 2 + 0.12)
     ax.axis("off")
     from matplotlib.lines import Line2D
-    ax.legend(handles=[Line2D([], [], marker="o", ls="none", color="#666666", ms=2.6,
+    # Marker legend anchored inside the panel, bottom-right (orchestrator: attach it inside
+    # panel b's area rather than floating above/outside it).
+    ax.legend(handles=[Line2D([], [], marker="o", ls="none", color="#666666", ms=2.4,
                               label="catalogued"),
-                       Line2D([], [], marker="^", ls="none", color="#666666", ms=2.6,
+                       Line2D([], [], marker="^", ls="none", color="#666666", ms=2.4,
                               label="first observed here")],
-             frameon=False, fontsize=FS_LEG, loc="upper center", handletextpad=0.3,
-             borderaxespad=0.0, ncol=2, columnspacing=0.8,
-             bbox_to_anchor=(0.5, 1.34))
+             frameon=False, fontsize=FS_LEG - 0.5, loc="lower right", handletextpad=0.3,
+             borderaxespad=0.1, labelspacing=0.25, bbox_to_anchor=(1.14, -0.08))
 
 
-# ---- panel c/d: protein-novelty heatmap + recurrence marginal bar -------------------------
-def load_panel_cd(field_counts_path, clusters_path, ancestry_scheme="strict"):
-    """Panel c metric: the ANY-FIELD novelty rate (field 2+3+4 summed) -- the same metric Cole
-    endorsed as 'the 800,000 one' (33_figure1_v3), i.e. any sequence absent from IPD-IMGT/HLA at
-    any nomenclature field. This is dominated by non-coding (intronic/UTR) differences (S01: see
-    README for the protein/synonymous/non-coding breakdown) -- NOT the same claim as panel (d)'s
-    novel-*protein* count. Kept as the main-panel metric (rather than switching to protein-only)
-    because at protein-level resolution almost every gene x ancestry cell's numerator is <20 and
-    the heatmap becomes uniformly hatched/illegible; the any-field rate is well powered (few
-    censored cells) and is literally the panel Cole asked for. Both are reported in the README.
+# ---- panel c/d: novelty heatmap + recurrence marginal bar --------------------------------
+_METRIC_LABEL = {
+    "any_field": "% called haplotypes with sequence (any field)\nabsent from IPD-IMGT/HLA -- mostly non-coding",
+    "cds": "% called haplotypes with a novel\ncoding sequence (CDS)",
+    "protein": "% called haplotypes with a novel\nprotein-coding allele",
+}
+
+
+def load_panel_cd(field_counts_path, clusters_path, clusters_totals_path=None,
+                  ancestry_scheme="strict", c_metric="auto"):
+    """Prefers a direct VM export of the TOTALS (panel_c_novelty_totals.tsv, from
+    40b_novelty_rate_export.py) when present -- exact counts, suppressed exactly once, so a cell
+    is hatched only when it is genuinely <20, not because it is the sum of several independently-
+    censored sub-cells (the 2026-09-23 fix that made panel c almost entirely hatched). Falls back
+    to the older, more-heavily-censored rendering built from 24/33's committed sub-split table
+    when the totals export hasn't been run yet.
+
+    Returns (grid, metric, source) where grid is a dict of gene x ancestry DataFrames: value (%,
+    exact where not hatched), hatched (bool), text (str already formatted for the cell).
     """
+    m34 = _load("34_novel_protein_recurrence.py", "novel_recurrence")
+    cl = pd.read_csv(clusters_path, sep="\t", dtype=str)
+    prot_cl = cl[cl["cluster_type"] == "novel_protein"]
+    prot_cl = m34.classify(prot_cl)
+    dtab = m34.gene_table(prot_cl).reindex(CLASSICAL).fillna(0)
+
+    if clusters_totals_path and os.path.exists(clusters_totals_path):
+        t = pd.read_csv(clusters_totals_path, sep="\t", dtype=str)
+        metric = c_metric
+        if metric == "auto":
+            frac_ge20 = {}
+            for key in ("protein", "cds", "any_field"):
+                col = "n_novel_%s" % key
+                if col in t.columns:
+                    frac_ge20[key] = float((~t[col].astype(str).str.startswith("<")).mean())
+            # Prefer the most specific (protein) metric that is usably powered (>=50% of cells
+            # clear 20); fall back toward the broader metrics otherwise.
+            metric = next((k for k in ("protein", "cds", "any_field")
+                          if frac_ge20.get(k, 0) >= 0.5), "any_field")
+        value = pd.DataFrame(index=CLASSICAL, columns=ANC, dtype=float)
+        hatched = pd.DataFrame(index=CLASSICAL, columns=ANC, dtype=bool).fillna(True)
+        text = pd.DataFrame(index=CLASSICAL, columns=ANC, dtype=object)
+        for _, r in t.iterrows():
+            g, a = r["gene"], r["ancestry"]
+            if g not in CLASSICAL or a not in ANC:
+                continue
+            n_str = str(r.get("n_novel_%s" % metric, "<20"))
+            n_total_str = str(r.get("n_total", "<20"))
+            is_cens = n_str.startswith("<") or n_total_str.startswith("<")
+            hatched.loc[g, a] = is_cens
+            if is_cens:
+                text.loc[g, a] = n_str if n_str.startswith("<") else "n/a"
+                value.loc[g, a] = np.nan
+            else:
+                rate = r.get("rate_%s_pct" % metric, "")
+                v = float(rate) if rate not in ("", None) and not pd.isna(rate) else np.nan
+                value.loc[g, a] = v
+                text.loc[g, a] = "%.0f" % v if not np.isnan(v) else n_str
+        return {"value": value, "hatched": hatched, "text": text}, metric, "totals_export", dtab
+
+    # ---- fallback: old, sub-split-and-summed rendering (heavier hatching) -------------------
     m33 = _load("33_figure1_v3_compose.py", "fig1v3_compose")
     counts = pd.read_csv(field_counts_path, sep="\t")
     rates = m33.rate_by_gene_ancestry(counts, ancestry_scheme, True, CLASSICAL)
     fields = rates[rates["field_class"] != "artifact_control"].copy()
-
     lo = fields.pivot_table(index="gene", columns="ancestry", values="pct_lower",
                             aggfunc="sum").reindex(index=CLASSICAL, columns=ANC)
     hi = fields.pivot_table(index="gene", columns="ancestry", values="pct_upper",
@@ -279,43 +334,42 @@ def load_panel_cd(field_counts_path, clusters_path, ancestry_scheme="strict"):
                                aggfunc="sum").reindex(index=CLASSICAL, columns=ANC).fillna(0)
     called_hi = fields.pivot_table(index="gene", columns="ancestry", values="n_called_upper",
                                    aggfunc="max").reindex(index=CLASSICAL, columns=ANC)
+    value = pd.DataFrame(index=CLASSICAL, columns=ANC, dtype=float)
+    hatched = pd.DataFrame(index=CLASSICAL, columns=ANC, dtype=bool)
+    text = pd.DataFrame(index=CLASSICAL, columns=ANC, dtype=object)
+    for g in CLASSICAL:
+        for a in ANC:
+            ch = called_hi.loc[g, a] if (g in called_hi.index and a in called_hi.columns) else 0
+            nc = ncens.loc[g, a] if (g in ncens.index and a in ncens.columns) else 0
+            l = lo.loc[g, a] if (g in lo.index and a in lo.columns) else np.nan
+            h = hi.loc[g, a] if (g in hi.index and a in hi.columns) else np.nan
+            if pd.isna(l) or (ch is not None and ch < SUPPRESS_BELOW):
+                hatched.loc[g, a] = True; value.loc[g, a] = np.nan; text.loc[g, a] = "n/a"
+            elif nc and nc > 0:
+                hatched.loc[g, a] = True; value.loc[g, a] = l; text.loc[g, a] = "≤%.0f" % h
+            else:
+                hatched.loc[g, a] = False; value.loc[g, a] = l; text.loc[g, a] = "%.0f" % l
+    return {"value": value, "hatched": hatched, "text": text}, "any_field", "sub_split_fallback", dtab
 
-    m34 = _load("34_novel_protein_recurrence.py", "novel_recurrence")
-    cl = pd.read_csv(clusters_path, sep="\t", dtype=str)
-    prot_cl = cl[cl["cluster_type"] == "novel_protein"]
-    prot_cl = m34.classify(prot_cl)
-    dtab = m34.gene_table(prot_cl).reindex(CLASSICAL).fillna(0)
-    return lo, hi, ncens, called_hi, dtab
 
-
-def draw_panel_cd(ax_hm, ax_bar, lo, hi, ncens, called_hi, dtab, cax=None):
-    genes = CLASSICAL
-    ancs = ANC
-    data = lo.reindex(index=genes, columns=ancs).to_numpy(dtype=float)
-    vmax = np.nanmax(hi.reindex(index=genes, columns=ancs).to_numpy(dtype=float))
+def draw_panel_cd(ax_hm, ax_bar, grid, metric, dtab, cax=None):
+    genes, ancs = CLASSICAL, ANC
+    value = grid["value"].reindex(index=genes, columns=ancs)
+    hatched = grid["hatched"].reindex(index=genes, columns=ancs)
+    text = grid["text"].reindex(index=genes, columns=ancs)
+    data = value.to_numpy(dtype=float)
+    vmax = np.nanmax(data)
     vmax = vmax if vmax and vmax > 0 else 1.0
     im = ax_hm.imshow(data, cmap="YlOrRd", aspect="auto", vmin=0, vmax=vmax)
     for i, g in enumerate(genes):
         for j, a in enumerate(ancs):
-            ch = called_hi.loc[g, a] if (g in called_hi.index and a in called_hi.columns) else 0
-            nc = ncens.loc[g, a] if (g in ncens.index and a in ncens.columns) else 0
-            h = hi.loc[g, a] if (g in hi.index and a in hi.columns) else np.nan
-            l = data[i, j]
-            if pd.isna(l) or (ch is not None and ch < SUPPRESS_BELOW):
-                vc.hatch_suppressed(ax_hm, j - 0.5, i - 0.5, 1, 1)
-                ax_hm.text(j, i, "n/a", ha="center", va="center", fontsize=FS_ANNOT - 0.5,
-                          color="#888888")
-                continue
-            if nc and nc > 0:
-                # numerator has a censored (<20) contribution -- never show a bare point value
-                # (this is the exact bug the 2026-09-23 review caught: MID x HLA-A rendered as a
-                # false '0' when the true rate could be anywhere up to the upper bound).
+            if bool(hatched.loc[g, a]):
                 vc.hatch_suppressed(ax_hm, j - 0.5, i - 0.5, 1, 1, alpha=0.55)
-                ax_hm.text(j, i, "≤%.0f" % h, ha="center", va="center",
-                          fontsize=FS_ANNOT - 0.3, color="#222222")
+                ax_hm.text(j, i, str(text.loc[g, a]), ha="center", va="center",
+                          fontsize=FS_ANNOT - 0.5, color="#555555")
             else:
-                ax_hm.text(j, i, "%.0f" % l, ha="center", va="center", fontsize=FS_ANNOT,
-                          color="#222222")
+                ax_hm.text(j, i, str(text.loc[g, a]), ha="center", va="center",
+                          fontsize=FS_ANNOT, color="#222222")
     ax_hm.set_xticks(range(len(ancs)))
     ax_hm.set_xticklabels(ancs, fontsize=FS_TICK)
     for tick, a in zip(ax_hm.get_xticklabels(), ancs):
@@ -323,14 +377,13 @@ def draw_panel_cd(ax_hm, ax_bar, lo, hi, ncens, called_hi, dtab, cax=None):
         tick.set_fontweight("bold")
     ax_hm.set_yticks(range(len(genes)))
     ax_hm.set_yticklabels([g.replace("HLA-", "") for g in genes], fontsize=FS_TICK)
-    ax_hm.set_ylabel("% called haplotypes with sequence (any field)\nabsent from IPD-IMGT/HLA "
-                     "-- mostly non-coding", fontsize=FS_TITLE)
+    ax_hm.set_ylabel(_METRIC_LABEL.get(metric, metric), fontsize=FS_TITLE)
     for sp in ax_hm.spines.values():
         sp.set_visible(False)
     if cax is not None:
         cb = ax_hm.figure.colorbar(im, cax=cax, orientation="vertical")
         cb.ax.tick_params(labelsize=FS_ANNOT, length=2)
-        cb.set_label("% (lower bound)", fontsize=FS_ANNOT, labelpad=2)
+        cb.set_label("% (exact)", fontsize=FS_ANNOT, labelpad=2)
 
     cols_all = [("seen once", "#C9CFD6"), ("2–19 unrelated people", "#5B8FBF"),
                ("≥20 unrelated people", "#B4472E")]
@@ -351,8 +404,9 @@ def draw_panel_cd(ax_hm, ax_bar, lo, hi, ncens, called_hi, dtab, cax=None):
     ax_bar.set_xlabel("novel protein alleles", fontsize=FS_TITLE)
     ax_bar.tick_params(axis="x", labelsize=FS_TICK)
     ax_bar.spines[["top", "right"]].set_visible(False)
-    ax_bar.legend(frameon=False, fontsize=FS_LEG, loc="upper center",
-                 bbox_to_anchor=(0.5, -0.32), ncol=1, handlelength=1.0, labelspacing=0.2)
+    # Legend inside d, tucked under the bars (orchestrator: not floating below the axis).
+    ax_bar.legend(frameon=False, fontsize=FS_LEG - 0.5, loc="lower right", handlelength=1.0,
+                 labelspacing=0.2, borderaxespad=0.2, bbox_to_anchor=(1.0, 0.02))
 
 
 # ---- panel e: discovery curves --------------------------------------------------------------
@@ -404,12 +458,15 @@ def draw_panel_f(ax, oe_path):
     w = 0.34
     exp_v = d["expected"].to_numpy(dtype=float)
     obs_hi = d["observed_upper"].to_numpy(dtype=float)
-    ax.bar(x - w / 2, exp_v, width=w, color="#B0B0B0", label="expected (independence)", zorder=3)
-    bars_obs = ax.bar(x + w / 2, np.maximum(obs_hi, exp_v * 0.006), width=w, color="#B4472E",
-                      label="observed (upper bound)", zorder=3)
+    # observed_lower == observed_upper == 0 for every ancestry (n_cells_censored_lt20 is 0
+    # throughout -- see 37_dq_g1g2_signed_ld/oe_purge_committed.tsv) -- this is an EXACT zero,
+    # not a suppressed/upper-bound one, so it is labelled and coloured accordingly.
+    ax.bar(x - w / 2, exp_v, width=w, color="#B0B0B0", label="expected", zorder=3)
+    ax.bar(x + w / 2, np.maximum(obs_hi, exp_v * 0.006), width=w, color="#DDDDDD",
+          edgecolor="#999999", linewidth=0.4, label="observed", zorder=3)
     for i, a in enumerate(ANC):
-        ax.text(i + w / 2, exp_v[i] * 0.02 + max(exp_v) * 0.01, "0", ha="center", va="bottom",
-               fontsize=FS_ANNOT, color="#B4472E", fontweight="bold")
+        ax.text(i + w / 2, max(exp_v) * 0.02, "0", ha="center", va="bottom",
+               fontsize=FS_ANNOT, color=ANC_COLORS[a], fontweight="bold")
     ax.set_xticks(x)
     ax.set_xticklabels(ANC, fontsize=FS_TICK)
     for tick, a in zip(ax.get_xticklabels(), ANC):
@@ -431,7 +488,9 @@ def compose_layout(layout, bins_path, pb, cd_data, curves_path, oe_path, gene_b,
 
         W, H = mm(CANVAS_W_MM), mm(CANVAS_H_MM)
         fig = plt.figure(figsize=(W, H))
-        outer = GridSpec(3, 1, height_ratios=[25, 58, 55], hspace=0.85, left=0.050, right=0.985,
+        # Reduced from 0.85 -- most of that gap was pure whitespace below panel a's thin strip
+        # (orchestrator: reduce whitespace between rows 1 and 2).
+        outer = GridSpec(3, 1, height_ratios=[22, 60, 55], hspace=0.42, left=0.050, right=0.985,
                          top=0.98, bottom=0.075, figure=fig)
 
         ax_a = fig.add_subplot(outer[0])
@@ -452,8 +511,8 @@ def compose_layout(layout, bins_path, pb, cd_data, curves_path, oe_path, gene_b,
         draw_panel_b(ax_b, pb, gene_b, min_carriers, strict)
         vc.panel_letter(ax_b, "b", dx=-0.10, dy=1.06)
 
-        lo, hi, ncens, called_hi, dtab = cd_data
-        draw_panel_cd(ax_c, ax_d, lo, hi, ncens, called_hi, dtab, cax=cax)
+        grid, metric, dtab = cd_data
+        draw_panel_cd(ax_c, ax_d, grid, metric, dtab, cax=cax)
         vc.panel_letter(ax_c, "c", dx=-0.34, dy=1.05)
         vc.panel_letter(ax_d, "d", dx=-0.12, dy=1.05)
         # shrink the colorbar to ~3 x 30 mm, vertically centered on the heatmap, instead of the
@@ -479,7 +538,11 @@ def compose_layout(layout, bins_path, pb, cd_data, curves_path, oe_path, gene_b,
 def run_compose(args):
     os.makedirs(args.out_dir, exist_ok=True)
     pb = pd.read_csv(args.panel_b_table, sep="\t")
-    cd_data = load_panel_cd(args.field_counts, args.clusters, args.ancestry_scheme)
+    grid, metric, source, dtab = load_panel_cd(args.field_counts, args.clusters,
+                                               args.panel_c_totals, args.ancestry_scheme,
+                                               args.c_metric)
+    print("[40 compose] panel c source=%s metric=%s" % (source, metric))
+    cd_data = (grid, metric, dtab)
 
     figs = {}
     for layout in ["A", "B"]:
@@ -499,6 +562,7 @@ def run_compose(args):
         json.dump({"layouts_built": ["A", "B"], "chosen": chosen, "gene_b": args.gene,
                    "min_carriers_b": args.min_carriers, "strict_threshold": args.strict_threshold,
                    "ancestry_scheme_cd": args.ancestry_scheme,
+                   "panel_c_source": source, "panel_c_metric": metric,
                    "panel_a_bins_present": bool(args.panel_a_bins and
                                                 os.path.exists(args.panel_a_bins)),
                    "canvas_mm": [CANVAS_W_MM, CANVAS_H_MM]}, fh, indent=2)
@@ -534,6 +598,14 @@ def main(argv=None):
         DEFAULT_REPORTS, "24_novelty_by_field", "novelty_field_counts.tsv"))
     cmp_.add_argument("--clusters", default=os.path.join(
         DEFAULT_REPORTS, "24_novelty_by_field", "protein_level_novel_clusters.tsv"))
+    cmp_.add_argument("--panel-c-totals", default=os.path.join(
+        DEFAULT_OUT_DIR, "panel_c_novelty_totals.tsv"),
+        help="From 40b_novelty_rate_export.py (VM). Falls back to the heavier-censored "
+             "sub-split rendering if this file doesn't exist yet.")
+    cmp_.add_argument("--c-metric", choices=["auto", "any_field", "cds", "protein"],
+                      default="auto",
+                      help="auto picks the most specific metric (protein > cds > any_field) "
+                           "that has >=50%% of cells at >=20 in the totals export.")
     cmp_.add_argument("--curves", default=os.path.join(
         DEFAULT_REPORTS, "39_saturation_by_ancestry", "curves.tsv"))
     cmp_.add_argument("--oe-table", default=os.path.join(

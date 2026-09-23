@@ -5,6 +5,21 @@
 first v5 draft. Built by `scripts/hla_popgen/40_figure1_v5.py` (+ `40a_admixture_bins.py` for
 panel a).*
 
+## 2026-09-23 follow-up: panel c is still mostly hatched, and why
+
+The censoring fix above made panel c *correct* but revealed it is also mostly hatched: the
+committed `24_novelty_by_field` table splits each gene x ancestry cell into several
+independently-censored sub-cells (by field class and artifact label), so even a well-powered
+combined total often has *some* sub-cell below 20. **`scripts/hla_popgen/40b_novelty_rate_export.py`**
+(written this session, not yet run) fixes this the right way: it recomputes the combined totals
+directly from Table 1 on the VM and applies the `<20` rule exactly once, to the number actually
+written out, with Wilson 95% CIs from the true counts. `40_figure1_v5.py compose` now prefers
+`panel_c_novelty_totals.tsv` when present (falls back to the heavier-censored rendering
+otherwise — that fallback is what's in the current `figure1_v5.png`) and auto-selects the most
+specific metric (protein > CDS > any-field) that clears 20 in at least half of the 48 cells
+(`--c-metric` to override). Next step: run `40a_admixture_bins.py` and `40b_novelty_rate_export.py`
+on the VM, then re-run `compose`.
+
 ## Status: panels b/c/d/e/f complete and real; panel a still pending a VM run
 
 Panel **a** needs a fresh VM aggregation (`40a_admixture_bins.py`, written this session, not yet
