@@ -115,53 +115,62 @@ def estimate_n_haplotypes(df_anc):
 
 
 # ---------------------------------------------------------------------------
-# Figure: Cole's target layout, built directly from the committed table's rows for one ancestry.
-# A local (not 37's) renderer, because 37's `fig_g1g2_signed_ld` has a latent gap for this input:
-# a pair present in the table with status suppressed_lt20/not_observed is in `all_pairs` but not
-# in `look`, so it is neither plotted with a real D' value NOR hatched -- it silently renders as
-# an empty (NaN) cell. Task requires suppressed/not-estimable cells to be visibly hatched grey, so
-# this renderer treats "not estimated" (whether censored, not_observed, or simply absent from the
-# table -- e.g. an allele pair below the per-allele floor) as one hatched category.
+# Figure: Cole's target layout, built directly from the committed table's rows for one ancestry
+# (or the pooled reconstruction -- see `pool_across_ancestries`).
+#
+# IMPORTANT correction (orchestrator review, 2026-09-23): D' is NOT undefined just because a
+# pair's disclosed count is `0` ("not_observed") or `<20` ("suppressed_lt20"). `freq_hap`,
+# `freq_a`, `freq_b` are disclosed as exact floats in the committed table regardless of the
+# haplotype-count disclosure status (verified: every DQA1~DQB1 row, all 3 statuses, has a
+# non-NaN `Dprime` -- 0 NaNs out of 927 rows), so `signed_Dprime` is a real, already-public value
+# for every row that exists in the table at all. A cell should be hatched ONLY if the allele pair
+# is entirely ABSENT from the table for this ancestry (both alleles individually clear the
+# 20-haplotype floor but never appear together as a row -- this happens for a handful of the
+# union-of-ancestries pairs used in the pooled reconstruction, never within a single ancestry's
+# own dense grid). A `suppressed_lt20` cell IS coloured by its real D' but gets a small dot marker
+# so the reader knows its count is disclosed only as "<20", not as an exact integer.
 # ---------------------------------------------------------------------------
-def fig_g1g2_from_table(df_anc, path_stem, title_suffix=""):
+def fig_g1g2_from_table(df_anc, path_stem, corner_label=""):
     import matplotlib.pyplot as plt
 
     m37mod = m37()
     dq_group = m37mod.dq_group
 
-    estimated = df_anc[df_anc["status"] == "estimated"]
-    if estimated.empty:
+    have = df_anc[df_anc["signed_Dprime"].notna()]
+    if have.empty:
         return None
 
     a_alleles = sorted(
-        estimated["allele_a"].unique(),
+        have["allele_a"].unique(),
         key=lambda a: (dq_group("DQA1", a) != "G2",
-                        -estimated.loc[estimated["allele_a"] == a, "freq_a"].max()))
+                        -have.loc[have["allele_a"] == a, "freq_a"].max()))
     b_alleles = sorted(
-        estimated["allele_b"].unique(),
+        have["allele_b"].unique(),
         key=lambda b: (dq_group("DQB1", b) != "G2",
-                        -estimated.loc[estimated["allele_b"] == b, "freq_b"].max()))
+                        -have.loc[have["allele_b"] == b, "freq_b"].max()))
     n_a2 = sum(1 for a in a_alleles if dq_group("DQA1", a) == "G2")
     n_b2 = sum(1 for b in b_alleles if dq_group("DQB1", b) == "G2")
 
     M = np.full((len(a_alleles), len(b_alleles)), np.nan)
-    hatched = np.zeros_like(M, dtype=bool)
-    look = {(r["allele_a"], r["allele_b"]): r["signed_Dprime"] for _, r in estimated.iterrows()}
+    censored_dot = np.zeros_like(M, dtype=bool)
+    look = {(r["allele_a"], r["allele_b"]): r["signed_Dprime"] for _, r in have.iterrows()}
+    status_look = {(r["allele_a"], r["allele_b"]): r.get("status") for _, r in df_anc.iterrows()}
     for i, a in enumerate(a_alleles):
         for j, b in enumerate(b_alleles):
             v = look.get((a, b))
             if v is not None and not np.isnan(v):
                 M[i, j] = v
-            else:
-                hatched[i, j] = True  # covers suppressed_lt20, not_observed, and simply-absent
+                if status_look.get((a, b)) == "suppressed_lt20":
+                    censored_dot[i, j] = True
+            # else: genuinely absent from the table for this ancestry -- stays NaN -> hatched.
 
-    marg_a = {a: estimated.loc[estimated["allele_a"] == a, "freq_a"].max() for a in a_alleles}
-    marg_b = {b: estimated.loc[estimated["allele_b"] == b, "freq_b"].max() for b in b_alleles}
+    marg_a = {a: have.loc[have["allele_a"] == a, "freq_a"].max() for a in a_alleles}
+    marg_b = {b: have.loc[have["allele_b"] == b, "freq_b"].max() for b in b_alleles}
 
     with vc.nature_style():
-        fig = plt.figure(figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(170)))
-        gs = fig.add_gridspec(2, 2, width_ratios=[len(b_alleles), 6],
-                               height_ratios=[4, len(a_alleles)], wspace=0.02, hspace=0.02)
+        fig = plt.figure(figsize=(vc.mm(120), vc.mm(112)))
+        gs = fig.add_gridspec(2, 2, width_ratios=[len(b_alleles), 5],
+                               height_ratios=[3.5, len(a_alleles)], wspace=0.02, hspace=0.02)
         ax_heat = fig.add_subplot(gs[1, 0])
         ax_top = fig.add_subplot(gs[0, 0], sharex=ax_heat)
         ax_right = fig.add_subplot(gs[1, 1], sharey=ax_heat)
@@ -171,49 +180,74 @@ def fig_g1g2_from_table(df_anc, path_stem, title_suffix=""):
         ax_heat.imshow(M, cmap=cmap, norm=norm, aspect="auto", interpolation="none")
         for i in range(len(a_alleles)):
             for j in range(len(b_alleles)):
-                if hatched[i, j]:
+                if np.isnan(M[i, j]):
                     vc.hatch_suppressed(ax_heat, j - 0.5, i - 0.5, 1, 1)
+                elif censored_dot[i, j]:
+                    ax_heat.plot(j, i, marker="o", markersize=1.3, color="black", zorder=6)
 
         ax_heat.set_xticks(range(len(b_alleles)))
         ax_heat.set_xticklabels(b_alleles, rotation=90, fontsize=5)
         ax_heat.set_yticks(range(len(a_alleles)))
         ax_heat.set_yticklabels(a_alleles, fontsize=5)
-        ax_heat.set_xlabel("DQB1")
-        ax_heat.set_ylabel("DQA1")
+        ax_heat.tick_params(length=2)
+        ax_heat.set_xlabel("DQB1", fontsize=6)
+        ax_heat.set_ylabel("DQA1", fontsize=6)
         ax_heat.set_xlim(-0.5, len(b_alleles) - 0.5)
         ax_heat.set_ylim(len(a_alleles) - 0.5, -0.5)
 
-        ax_heat.axhline(n_a2 - 0.5, color="black", lw=1.0, zorder=5)
-        ax_heat.axvline(n_b2 - 0.5, color="black", lw=1.0, zorder=5)
+        ax_heat.axhline(n_a2 - 0.5, color="black", lw=0.8, zorder=5)
+        ax_heat.axvline(n_b2 - 0.5, color="black", lw=0.8, zorder=5)
 
         if n_b2 < len(b_alleles) and n_a2 > 0:
             ax_heat.text((n_b2 + len(b_alleles)) / 2 - 0.5, n_a2 / 2 - 0.5,
-                         "Predicted\nincompatible", ha="center", va="center", fontsize=6,
+                         "Predicted\nincompatible", ha="center", va="center", fontsize=5.5,
                          zorder=10, bbox=dict(boxstyle="round", fc="white", ec="none", alpha=0.85))
         if n_b2 > 0 and n_a2 < len(a_alleles):
             ax_heat.text(n_b2 / 2 - 0.5, (n_a2 + len(a_alleles)) / 2 - 0.5,
-                         "Predicted\nincompatible", ha="center", va="center", fontsize=6,
+                         "Predicted\nincompatible", ha="center", va="center", fontsize=5.5,
                          zorder=10, bbox=dict(boxstyle="round", fc="white", ec="none", alpha=0.85))
 
-        ax_top.bar(range(len(b_alleles)), [marg_b[b] for b in b_alleles], color="#555555",
-                  width=0.7)
-        ax_top.set_ylabel("carrier\nfreq.", fontsize=5)
+        # Group-block axis labels (G1/G2), per orchestrator review. Pushed well clear of the
+        # (variable-width) allele tick labels -- bbox_inches='tight' in save_fig expands the
+        # canvas to fit, so a large negative offset costs nothing.
+        label_x = -0.62
+        ax_heat.text(label_x, (n_a2 - 1) / 2 if n_a2 else 0, "G2 α (DQA1*01)",
+                    transform=ax_heat.get_yaxis_transform(), ha="center", va="center", fontsize=5,
+                    rotation=90)
+        if n_a2 < len(a_alleles):
+            ax_heat.text(label_x, n_a2 + (len(a_alleles) - n_a2 - 1) / 2, "G1 α (DQA1*02–06)",
+                        transform=ax_heat.get_yaxis_transform(), ha="center", va="center",
+                        fontsize=5, rotation=90)
+        ax_top.text((n_b2 - 1) / 2 if n_b2 else 0, 1.35, "G2 β (DQB1*05/06)",
+                   transform=ax_top.get_xaxis_transform(), ha="center", va="bottom", fontsize=4.5)
+        if n_b2 < len(b_alleles):
+            ax_top.text(n_b2 + (len(b_alleles) - n_b2 - 1) / 2, 1.35, "G1 β (DQB1*02/03/04)",
+                       transform=ax_top.get_xaxis_transform(), ha="center", va="bottom", fontsize=4.5)
+
+        ax_top.bar(range(len(b_alleles)), [marg_b[b] for b in b_alleles], color="#AAAAAA",
+                  width=0.6, linewidth=0)
+        ax_top.set_ylabel("carrier\nfreq.", fontsize=4.5)
+        ax_top.set_yticks([0, 0.1, 0.2, 0.3])
+        ax_top.set_ylim(0, max(0.31, max(marg_b.values()) * 1.05))
         ax_top.tick_params(labelbottom=False, bottom=False, labelsize=4)
         ax_top.spines[["top", "right"]].set_visible(False)
 
-        ax_right.barh(range(len(a_alleles)), [marg_a[a] for a in a_alleles], color="#555555",
-                     height=0.7)
-        ax_right.set_xlabel("carrier\nfreq.", fontsize=5)
+        ax_right.barh(range(len(a_alleles)), [marg_a[a] for a in a_alleles], color="#AAAAAA",
+                     height=0.6, linewidth=0)
+        ax_right.set_xlabel("carrier\nfreq.", fontsize=4.5)
+        ax_right.set_xticks([0, 0.1, 0.2, 0.3])
+        ax_right.set_xlim(0, max(0.31, max(marg_a.values()) * 1.05))
         ax_right.tick_params(labelleft=False, left=False, labelsize=4)
         ax_right.spines[["top", "right"]].set_visible(False)
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         cbar = fig.colorbar(sm, ax=[ax_heat, ax_right], location="right", fraction=0.05,
-                            pad=0.14, shrink=0.6)
-        cbar.set_label("Signed phased D' (2-field)", fontsize=6)
+                            pad=0.16, shrink=0.4, aspect=12)
+        cbar.set_label("Signed phased D'", fontsize=5.5)
+        cbar.ax.tick_params(labelsize=4.5)
 
-        fig.suptitle("DQA1-DQB1 signed phased D' -- from committed 29_hla_ld aggregates%s"
-                     % (" (%s)" % title_suffix if title_suffix else ""), fontsize=8)
+        if corner_label:
+            fig.text(0.01, 0.99, corner_label, ha="left", va="top", fontsize=5.5)
     return vc.save_fig(fig, path_stem)
 
 
@@ -255,9 +289,11 @@ def oe_interval_from_table(df_anc, n_haps):
 
 
 def recurrent_cross_group_pairs(df_all):
-    """Cross-group (predicted_incompatible) allele pairs with status == estimated (i.e. clearing
-    the 20-haplotype floor -- Cole's 'light blue' cells) in >=1 ancestry, tidy one-row-per-
-    (pair, ancestry)."""
+    """Cross-group (predicted_incompatible) allele pairs with status == estimated (i.e. an exact
+    disclosed count of >=20 -- Cole's 'light blue' cells, defined here by the same disclosure
+    threshold as everywhere else in this pipeline, NOT merely 'D' prime is not exactly -1', since
+    at 2-field every not_observed cross-group cell has D'==-1.0 exactly -- see README) in >=1
+    ancestry, tidy one-row-per-(pair, ancestry)."""
     m37mod = m37()
     classify_pair = m37mod.classify_pair
     df = df_all.copy()
@@ -265,6 +301,59 @@ def recurrent_cross_group_pairs(df_all):
     hits = df[(df["group"] == "predicted_incompatible") & (df["status"] == "estimated")]
     cols = ["allele_a", "allele_b", "ancestry", "n_hap_ij", "freq_a", "freq_b", "signed_Dprime"]
     return hits[cols].sort_values(["allele_a", "allele_b", "ancestry"]).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Pooled-across-ancestries reconstruction. D' depends only on allele/haplotype frequencies, and
+# pooled frequencies are exact n-weighted means of the per-ancestry frequencies (both disclosed
+# as floats regardless of the haplotype-count disclosure status) -- so pooled D' can be
+# reconstructed exactly, ancestry-marginal-floor edge cases aside (see caveat below).
+# ---------------------------------------------------------------------------
+def pool_across_ancestries(df_all, ancestries=ANCESTRY_ORDER, n_by_anc=None):
+    """Returns (pooled_df, pooled_N). pooled_df has one row per (allele_a, allele_b) pair that
+    appears in >=1 ancestry's table, with pooled freq_a/freq_b/freq_hap (N_anc-weighted sums,
+    ancestries where the pair/allele is absent contribute 0 -- a slight undercount only possible
+    when an allele's own marginal in that ancestry is <20, i.e. the omitted contribution itself
+    is <20/pooled_N, negligible at these cohort sizes) and pooled signed_Dprime recomputed from
+    those pooled frequencies via the same Lewontin formula as 29/37. status is 'pooled' for every
+    row (no per-cell count-based censoring applies to a quantity built from disclosed floats);
+    n_ancestries_observed records how many ancestries actually contributed to each cell, for
+    transparency."""
+    if n_by_anc is None:
+        n_by_anc = {a: estimate_n_haplotypes(df_all[df_all["ancestry"] == a]) for a in ancestries}
+    sub = df_all[df_all["ancestry"].isin(ancestries)].copy()
+    sub["N_anc"] = sub["ancestry"].map(n_by_anc)
+    sub = sub[sub["N_anc"].notna()]
+    pooled_N = float(sub.drop_duplicates("ancestry")["N_anc"].sum())
+    if pooled_N <= 0:
+        return pd.DataFrame(), 0
+
+    a_marg = sub.drop_duplicates(["allele_a", "ancestry"])
+    a_pool = (a_marg.assign(contrib=a_marg["N_anc"] * a_marg["freq_a"])
+              .groupby("allele_a")["contrib"].sum() / pooled_N)
+    b_marg = sub.drop_duplicates(["allele_b", "ancestry"])
+    b_pool = (b_marg.assign(contrib=b_marg["N_anc"] * b_marg["freq_b"])
+              .groupby("allele_b")["contrib"].sum() / pooled_N)
+
+    grp = sub.assign(contrib=sub["N_anc"] * sub["freq_hap"]).groupby(["allele_a", "allele_b"])
+    pooled_pij = grp["contrib"].sum() / pooled_N
+    n_anc_obs = grp["ancestry"].nunique()
+
+    rows = []
+    for (a, b), pij in pooled_pij.items():
+        pi, qj = a_pool.get(a), b_pool.get(b)
+        if pi is None or qj is None or pi <= 0 or qj <= 0:
+            continue
+        D = pij - pi * qj
+        if D >= 0:
+            dmax = min(pi * (1 - qj), (1 - pi) * qj)
+        else:
+            dmax = min(pi * qj, (1 - pi) * (1 - qj))
+        dprime = (D / dmax) if dmax > 0 else float("nan")
+        rows.append({"allele_a": a, "allele_b": b, "freq_a": pi, "freq_b": qj, "freq_hap": pij,
+                    "D": D, "signed_Dprime": dprime, "status": "pooled",
+                    "n_ancestries_observed": int(n_anc_obs.loc[(a, b)])})
+    return pd.DataFrame(rows), pooled_N
 
 
 # ---------------------------------------------------------------------------
@@ -276,28 +365,33 @@ def fig_bimodality(df_all, path_stem, ancestries=SUPPLEMENT_ANCESTRIES):
     m37mod = m37()
     classify_pair = m37mod.classify_pair
 
-    df = df_all[df_all["ancestry"].isin(ancestries) & (df_all["status"] == "estimated")].copy()
+    df = df_all[df_all["ancestry"].isin(ancestries) & df_all["signed_Dprime"].notna()].copy()
     df["group"] = [classify_pair(a, b) for a, b in zip(df["allele_a"], df["allele_b"])]
     compatible = df.loc[df["group"].isin(["G1", "G2"]), "signed_Dprime"].dropna().to_numpy()
     incompatible = df.loc[df["group"] == "predicted_incompatible", "signed_Dprime"].dropna().to_numpy()
 
     with vc.nature_style():
-        fig, ax = plt.subplots(figsize=(vc.mm(vc.NATURE_SINGLE_COL_MM), vc.mm(70)))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(vc.mm(vc.NATURE_SINGLE_COL_MM), vc.mm(60)),
+                                       sharey=True)
         bins = np.linspace(-1, 1, 41)
-        ax.hist(compatible, bins=bins, alpha=0.7, density=True,
-               label="compatible (G1/G1, G2/G2)\nn=%d" % len(compatible), color="#B2182B")
+        ax1.hist(compatible, bins=bins, density=True, color="#B2182B")
+        ax1.set_title("compatible\n(G1/G1, G2/G2)\nn=%d" % len(compatible), fontsize=5.5)
+        ax1.set_ylabel("density", fontsize=5.5)
         if len(incompatible):
-            ax.hist(incompatible, bins=bins, alpha=0.7, density=True,
-                   label="predicted incompatible\nn=%d" % len(incompatible), color="#2166AC")
+            ax2.hist(incompatible, bins=bins, density=True, color="#2166AC")
+            ax2.set_title("predicted\nincompatible\nn=%d" % len(incompatible), fontsize=5.5)
         else:
-            ax.text(0.98, 0.92, "predicted incompatible: n=0 cells clear\nthe 20-haplotype floor "
-                    "in any ancestry\n(complete purge at 2-field)", transform=ax.transAxes,
-                    ha="right", va="top", fontsize=5, color="#2166AC")
-        ax.set_xlabel("Signed phased D' (2-field, estimated cells only)")
-        ax.set_ylabel("density")
-        ax.legend(fontsize=5, frameon=False, loc="upper left")
-        ax.set_title("Bimodality within the compatible quadrants\n(pooled %s)"
-                     % ", ".join(ancestries), fontsize=7)
+            ax2.text(0.5, 0.5, "n=0 cells clear\nthe 20-haplotype\nfloor in any ancestry\n"
+                    "(complete purge)", transform=ax2.transAxes, ha="center", va="center",
+                    fontsize=5, color="#2166AC")
+            ax2.set_title("predicted\nincompatible\nn=0", fontsize=5.5)
+        for ax in (ax1, ax2):
+            ax.set_xlabel("Signed D'", fontsize=5.5)
+            ax.tick_params(labelsize=4.5)
+            ax.spines[["top", "right"]].set_visible(False)
+        fig.suptitle("Bimodality within compatible vs incompatible quadrants (pooled %s)"
+                     % ", ".join(ancestries), fontsize=6.5)
+        fig.subplots_adjust(top=0.78, wspace=0.15)
     return vc.save_fig(fig, path_stem), {
         "n_compatible": int(len(compatible)),
         "n_incompatible": int(len(incompatible)),
@@ -320,17 +414,28 @@ def run(args):
     print("[37c] N haplotypes per ancestry (DQA1~DQB1, 2-field):", n_by_anc, flush=True)
 
     main_anc = max((a for a in n_by_anc if n_by_anc[a]), key=lambda a: n_by_anc[a])
-    print("[37c] main panel ancestry (most haplotypes): %s (N=%d)"
-         % (main_anc, n_by_anc[main_anc]), flush=True)
+    print("[37c] most-haplotypes single ancestry: %s (N=%d)" % (main_anc, n_by_anc[main_anc]),
+         flush=True)
 
-    fig_g1g2_from_table(df_all[df_all["ancestry"] == main_anc],
-                        os.path.join(args.out_dir, "fig_dq_g1g2_committed_MAIN_%s" % main_anc),
-                        title_suffix="%s, main panel, N=%d haplotypes" % (main_anc, n_by_anc[main_anc]))
+    pooled_df, pooled_N = pool_across_ancestries(df_all, ANCESTRY_ORDER, n_by_anc)
+    if not pooled_df.empty:
+        pooled_df["ancestry"] = "POOLED"
+        main_label = "POOLED (all 6 ancestries, N=%d haplotypes)" % pooled_N
+        main_stem = "fig_dq_g1g2_committed_MAIN_POOLED"
+        print("[37c] main panel: pooled reconstruction, N=%d haplotypes, %d pairs (%d absent "
+             "from every ancestry's own table -> hatched)"
+             % (pooled_N, len(pooled_df),
+                pooled_df["signed_Dprime"].isna().sum()), flush=True)
+        fig_g1g2_from_table(pooled_df, os.path.join(args.out_dir, main_stem), corner_label=main_label)
+    else:
+        fig_g1g2_from_table(df_all[df_all["ancestry"] == main_anc],
+                            os.path.join(args.out_dir, "fig_dq_g1g2_committed_MAIN_%s" % main_anc),
+                            corner_label="%s, N=%d haplotypes" % (main_anc, n_by_anc[main_anc]))
 
     for anc in SUPPLEMENT_ANCESTRIES:
         fig_g1g2_from_table(df_all[df_all["ancestry"] == anc],
                             os.path.join(args.out_dir, "fig_dq_g1g2_committed_supp_%s" % anc),
-                            title_suffix="%s, N=%d haplotypes" % (anc, n_by_anc.get(anc) or 0))
+                            corner_label="%s, N=%d haplotypes" % (anc, n_by_anc.get(anc) or 0))
 
     oe_rows = []
     for anc in ANCESTRY_ORDER:

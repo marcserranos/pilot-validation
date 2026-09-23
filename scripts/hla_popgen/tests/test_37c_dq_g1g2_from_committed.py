@@ -204,6 +204,46 @@ def test_oe_interval_all_censored_lower_zero():
         os.unlink(tmp_path)
 
 
+def test_pool_across_ancestries_exact_reconstruction():
+    """Two synthetic 'ancestries' with known, disjoint contributions to the same allele pair.
+    Pooled D' should reconstruct exactly what a single pooled cohort of the combined haplotypes
+    would give -- the whole point of orchestrator point 3 (pooled freq = N-weighted mean of
+    per-ancestry freq, exact because D' depends only on frequencies)."""
+    # Ancestry X: N=600, DQA1*02:01 x DQB1*02:01 co-occur 300 times (freq 0.5 each marginal).
+    # Ancestry Y: N=400, DQA1*02:01 x DQB1*02:01 co-occur 100 times (freq_a=0.30, freq_b=0.30).
+    rows = [
+        {"allele_a": "DQA1*02:01", "allele_b": "DQB1*02:01", "freq_a": 0.5, "freq_b": 0.5,
+         "freq_hap": 300 / 600, "D": 0.0, "Dprime": 1.0, "r2": 1.0, "chi2_1df": 1.0,
+         "pair": "DQA1~DQB1", "ancestry": "X", "n_hap_ij_disp": "300"},
+        {"allele_a": "DQA1*02:01", "allele_b": "DQB1*02:01", "freq_a": 0.30, "freq_b": 0.30,
+         "freq_hap": 100 / 400, "D": 0.0, "Dprime": 1.0, "r2": 1.0, "chi2_1df": 1.0,
+         "pair": "DQA1~DQB1", "ancestry": "Y", "n_hap_ij_disp": "100"},
+    ]
+    df_raw = pd.DataFrame(rows)
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False) as fh:
+        df_raw.to_csv(fh.name, sep="\t", index=False)
+        tmp_path = fh.name
+    try:
+        loaded = mod.load_committed(tmp_path)
+        n_by_anc = {"X": 600, "Y": 400}
+        pooled_df, pooled_N = mod.pool_across_ancestries(loaded, ["X", "Y"], n_by_anc)
+        check("pooled_N == 1000", pooled_N == 1000, detail=str(pooled_N))
+        row = pooled_df.iloc[0]
+        # pooled pi = (600*0.5 + 400*0.30)/1000 = 0.42; pooled qj same = 0.42
+        # pooled pij = (300 + 100)/1000 = 0.40
+        check("pooled freq_a == 0.42", abs(row["freq_a"] - 0.42) < 1e-9, detail=str(row["freq_a"]))
+        check("pooled freq_hap == 0.40", abs(row["freq_hap"] - 0.40) < 1e-9,
+             detail=str(row["freq_hap"]))
+        # D = 0.40 - 0.42*0.42 = 0.2236; D>=0 so dmax = min(pi*(1-qj), (1-pi)*qj)
+        #   = min(0.42*0.58, 0.58*0.42) = 0.2436; Dprime = 0.2236/0.2436 ~= 0.9179
+        check("pooled signed_Dprime ~= 0.9179", abs(row["signed_Dprime"] - 0.9179) < 1e-3,
+             detail=str(row["signed_Dprime"]))
+        check("n_ancestries_observed == 2", row["n_ancestries_observed"] == 2)
+    finally:
+        os.unlink(tmp_path)
+
+
 def main():
     print("test_status_parsing")
     test_status_parsing()
@@ -211,6 +251,8 @@ def main():
     test_oe_interval_brackets_truth()
     print("test_oe_interval_all_censored_lower_zero")
     test_oe_interval_all_censored_lower_zero()
+    print("test_pool_across_ancestries_exact_reconstruction")
+    test_pool_across_ancestries_exact_reconstruction()
 
     print()
     if FAILURES:
