@@ -730,3 +730,12 @@ Sprint board: `sprints/S02_supervisor_items/SPRINT.md`. Findings: that folder's
 - **33_figure1_v3_compose** → `reports/hla_popgen/33_figure1_v3/`. Figure 1 panels c and d. Panel c
   splits novelty by nomenclature field with the artifact rate as a flat negative control
   (1.1–3.3% everywhere, vs clean novelty 45.7–71.2% at DRB1). Panels a and b still need a VM rerun.
+
+## 2026-09-22/24 — Sprint S03 (call #8), scripts 37–42
+Pointer entry; details in `sprints/S03_call8_figures_kir_prediction/{LOG.md,FINDINGS_FOR_MARC.md}` and each `reports/hla_popgen/NN_*/README.md`.
+- 37 DQ G1/G2 signed phased D′: 0/17,255 incompatible physically phased haplotypes (4-field), all ancestries; held-out EM rephasing 0.24% spurious vs ~24% naive-LE.
+- 38 HLA-A deletion: 82.8% contradicted by short reads (n=412); true rate ≤ ~0.3%.
+- 39 saturation: no ancestry saturated; equal-N slope (N=1,236) AFR 101.6/1,000 highest, EUR 80.0.
+- 40 Figure 1 v5: b/d/e/f done; a/c await VM exports 40a/40b.
+- 41 KIR pilot: 20/20 people OK, chr19:54.60–54.92 Mb, protein novelty 0–18%/gene; full run ~15 h/$45 at 96 cores.
+- 42 repertoire baseline: n=1,200 subsample; ancestry AUROC 0.64–0.81, sex 0.50; no disease ≥100 cases.

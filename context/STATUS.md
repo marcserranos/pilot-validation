@@ -4,6 +4,16 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-09-24 — Sprint S03 (call #8) complete except VM-only steps
+
+Board: [`sprints/S03_call8_figures_kir_prediction/SPRINT.md`](../sprints/S03_call8_figures_kir_prediction/SPRINT.md);
+PI report: `FINDINGS_FOR_MARC.md`; pending VM commands: `VM_HANDOFF.md` (Figure 1 panels a/c
+exports, KIR extended-pilot aggregation, KIR full run after 96-core resize, WS6 full-cohort run).
+Branch `s03-call8-figures-kir-prediction`, committed, not pushed. Scripts 37–42 added
+(37/37b–e DQ G1/G2, 38/38b deletions, 39 saturation, 40/40a/40b Figure 1 v5, 41 KIR, 42 repertoire).
+Agent VM automation from this laptop is currently denied by the auto-mode permission classifier;
+run VM steps by hand or add a permission rule.
+
 ## As of 2026-09-17 — Sprints S01 and S02 both complete, branch not pushed
 
 **Most recent sprint board:** [`sprints/S02_supervisor_items/SPRINT.md`](../sprints/S02_supervisor_items/SPRINT.md),
