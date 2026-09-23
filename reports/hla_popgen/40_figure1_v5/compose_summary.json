@@ -1,0 +1,12 @@
+{
+  "layouts_built": [
+    "A",
+    "B"
+  ],
+  "chosen": "A",
+  "n_people_panel_a": 11833,
+  "gene_b": "HLA-B",
+  "min_carriers_b": 20,
+  "strict_threshold": 0.98,
+  "ancestry_scheme_cd": "strict"
+}
