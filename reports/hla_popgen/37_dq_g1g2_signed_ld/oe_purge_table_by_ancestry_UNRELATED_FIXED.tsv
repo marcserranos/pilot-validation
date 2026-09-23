@@ -1,0 +1,15 @@
+ancestry	resolution	n_haplotypes	n_classified	observed_disp	expected	oe_ratio	note
+AFR	2field	5383	5383	0	2686.19	0.0
+AMR	2field	4844	4844	0	2127.19	0.0
+EAS	2field	2729	2729	0	1313.62	0.0
+EUR	2field	5440	5440	0	2599.29	0.0
+MID	2field	907	907	0	402.22	0.0
+SAS	2field	2304	2304	0	1151.99	0.0
+ALL	2field	21652	21652	0	10468.97	0.0
+AFR	4field	4071	4071	0	2033.64	0.0
+AMR	4field	3924	3924	0	1710.83	0.0
+EAS	4field	2007	2007	0	938.96	0.0
+EUR	4field	4335	4335	0	2093.13	0.0
+MID	4field	650	650	0	295.45	0.0
+SAS	4field	1689	1689	0	843.25	0.0
+ALL	4field	16713	16713	0	8066.21	0.0

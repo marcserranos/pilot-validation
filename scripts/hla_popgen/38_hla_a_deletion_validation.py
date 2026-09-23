@@ -557,10 +557,19 @@ def fragmentation_check(carriers, sr_map, t1, gene):
 # ---------------------------------------------------------------------------
 # Figure
 # ---------------------------------------------------------------------------
-def make_figure(calibration_rows, hwe, out_path, contig_n_genes_deleted=None):
+def make_figure(calibration_rows, hwe, out_path, contig_n_genes_deleted=None,
+                 contig_n_genes_hist_df=None):
     """contig_n_genes_deleted: array-like of contig_n_genes values, one per confirmed HLA-A
     deleted_bridged haplotype call (panel c: is the deletion concentrated on short/low-gene-count
-    bridging contigs -- a fragmentation signature -- or spread evenly?)."""
+    bridging contigs -- a fragmentation signature -- or spread evenly?).
+
+    contig_n_genes_hist_df: alternative to contig_n_genes_deleted for a LOCAL re-render from the
+    already-committed, disclosure-safe `hla_a_deleted_contig_n_genes_hist.tsv` (columns
+    contig_n_genes, n_haplotypes_disp) -- used when the per-haplotype raw values themselves never
+    left the VM. Bins with n_haplotypes_disp=='<20' are drawn as hatched grey bars at a nominal
+    placeholder height (never 0, never the true small value) per the project's AoU small-count
+    disclosure rule; only bins with a real (>=20) count are drawn as solid orange bars at their
+    true height."""
     plt_mod = __import__("matplotlib.pyplot", fromlist=["pyplot"])
     with vc.nature_style():
         fig = plt_mod.figure(figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(75)))
@@ -570,6 +579,7 @@ def make_figure(calibration_rows, hwe, out_path, contig_n_genes_deleted=None):
 
         # (a) calibration scatter: LR deletion rate vs SR-contradiction rate
         from matplotlib.lines import Line2D
+        plotted = []
         for r in calibration_rows:
             if r["sr_contradiction_rate_pct"] is None or np.isnan(r["sr_contradiction_rate_pct"]):
                 continue
@@ -578,9 +588,39 @@ def make_figure(calibration_rows, hwe, out_path, contig_n_genes_deleted=None):
             axa.scatter(r["lr_deletion_pct"], r["sr_contradiction_rate_pct"], color=color,
                        s=26 if is_target else 16, zorder=4 if is_target else 3,
                        edgecolor="black" if is_target else "none", linewidth=0.5)
-            dy = 3 if r["gene"] not in ("B", "DQB1") else -3
-            axa.annotate(r["gene"], (r["lr_deletion_pct"], r["sr_contradiction_rate_pct"]),
-                        fontsize=4.5, xytext=(3, dy), textcoords="offset points")
+            plotted.append((r["gene"], r["lr_deletion_pct"], r["sr_contradiction_rate_pct"]))
+
+        # Label placement: several negative-control genes (A, B, C, DQA1, DQB1, DRB1) sit within
+        # a few % of each other on the x-axis (LR deletion rate near 0) -- a fixed dy=3 offset
+        # made "A" and "DRB1" collide into an illegible glyph cluster (S03 critic #1, item 4).
+        # Cluster by x-proximity (same visual column) and vertically dodge labels within each
+        # cluster so no two labels overlap, drawing a thin leader line whenever a label had to
+        # move off its point -- same convention already used for the end-of-curve labels in
+        # 39_saturation_by_ancestry.py's _dodge_label_positions.
+        x_cluster_tol = 4.0  # % LR-deletion-rate units; points closer than this share a column
+        clusters = []
+        for gene, x, y in sorted(plotted, key=lambda t: t[1]):
+            if clusters and abs(x - clusters[-1][-1][1]) <= x_cluster_tol:
+                clusters[-1].append((gene, x, y))
+            else:
+                clusters.append([(gene, x, y)])
+
+        for cluster in clusters:
+            cluster_sorted = sorted(cluster, key=lambda t: -t[2])  # highest y first
+            y_span = max(1.0, cluster_sorted[0][2] - cluster_sorted[-1][2])
+            min_sep = max(y_span / max(len(cluster_sorted) - 1, 1), 4.0) if len(cluster_sorted) > 1 else 0.0
+            last_label_y = None
+            for gene, x, y in cluster_sorted:
+                label_y = y if last_label_y is None else min(y, last_label_y - min_sep)
+                last_label_y = label_y
+                moved = abs(label_y - y) > 0.5
+                # Place the label at (x + offset, label_y) in data coords -- a fixed horizontal
+                # offset plus a vertically-dodged y -- and draw a thin leader line from the point
+                # to the label whenever dodging moved it off its own point.
+                axa.text(x + 2.0, label_y, gene, fontsize=4.5, va="center", ha="left")
+                if moved:
+                    axa.plot([x + 0.3, x + 1.8], [y, label_y], color="#999999",
+                             linewidth=0.4, zorder=1)
         axa.set_xlabel("LR bridged-deletion rate (%)")
         axa.set_ylabel("SR-contradiction rate in carriers (%)")
         axa.set_title("a  Calibration: LR deletion vs SR contradiction", fontsize=6.5)
@@ -618,6 +658,22 @@ def make_figure(calibration_rows, hwe, out_path, contig_n_genes_deleted=None):
             axc.set_ylabel("Number of haplotypes")
             axc.set_title("c  Bridging-contig gene count for HLA-A 'deletions'\n(n=%d; median=%.0f)"
                           % (len(vals), np.median(vals)), fontsize=6)
+        elif contig_n_genes_hist_df is not None and len(contig_n_genes_hist_df) > 0:
+            SUPPRESSED_PLACEHOLDER = 10  # nominal bar height for '<20' bins; never 0, never real
+            hist = contig_n_genes_hist_df.sort_values("contig_n_genes")
+            x = hist["contig_n_genes"].to_numpy()
+            disp = hist["n_haplotypes_disp"].astype(str)
+            suppressed = disp.eq("<20").to_numpy()
+            heights = pd.to_numeric(disp.where(~suppressed, SUPPRESSED_PLACEHOLDER)).to_numpy()
+            axc.bar(x[~suppressed], heights[~suppressed], color="#D55E00",
+                   edgecolor="white", linewidth=0.4, width=0.85)
+            axc.bar(x[suppressed], heights[suppressed], color="none", edgecolor="#999999",
+                   hatch="////", linewidth=0.4, width=0.85)
+            n_real = int(heights[~suppressed].sum())
+            axc.set_xlabel("Genes on the bridging contig (HLA-A deleted calls)")
+            axc.set_ylabel("Number of haplotypes\n(hatched = <20, censored)")
+            axc.set_title("c  Bridging-contig gene count for HLA-A 'deletions'\n"
+                          "(n>=%d disclosed; excludes <20-censored bins)" % n_real, fontsize=6)
         vc.panel_letter(axc, "c")
 
         fig.tight_layout()

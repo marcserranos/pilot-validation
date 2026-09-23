@@ -96,3 +96,51 @@ statistics for `reports/hla_popgen/{37_dq_g1g2_signed_ld,38_hla_a_deletion_valid
 - **41**: the framework-gene miss follow-up is good; still missing a per-haplotype look at what
   gene (if any) occupies the expected coordinates for "flanked" misses, to separate real deletion
   from mislabeling.
+
+## Fixes applied (2026-09-23, sixth S03 agent)
+
+1. **[blocker] KIR small counts (41)** — `reports/hla_popgen/41_kir_scoping/README.md`: masked
+   "1 haplotype of 36" to `<20`, masked KIR2DL5B's n=11 to `<20`, masked every 1-19 `n calls`
+   value in the novelty-decomposition table to `<20`, and collapsed the ancestry×platform
+   cross-tab (§3 selection mix, both instances) to marginals only ("roughly even across 6
+   ancestries, split revio(13)/sequel2e(7)"). No TSV/JSON in that folder — README prose was the
+   only place counts lived.
+2. **[blocker] "13,252 unrelated" mislabel (37)** — confirmed via VM: `37_vm_run.py`'s own
+   `build_people()` starts from all of `cohort_membership.tsv` and greedily drops one member per
+   related PAIR in isolation, not the maximal-independent-set algorithm scripts 29/38/39 use.
+   Reran with the correct definition (`24_novelty_by_field.build_people`/`greedy_unrelated` on
+   Table-1's own person_ids) → **11,856 unrelated, exactly matching 38/39**. New script
+   `scripts/hla_popgen/37e_unrelated_fix_kfold_em.py`; corrected O/E table
+   `oe_purge_table_by_ancestry_UNRELATED_FIXED.tsv` (headline result unchanged: still 0 observed
+   cross-group haplotypes against ~10,469/8,066 expected). README's old "13,252" claim annotated
+   as superseded in place; new "Critic #1 fix" section added with the corrected numbers.
+3. **[major] EM mask-and-rephase circularity (37)** — same new script adds (a) 5-fold held-out
+   EM (train on 4 folds, rephase+score the held-out fold only — no truth-set person ever scored
+   by a model that saw their own data) and (b) a naive linkage-equilibrium baseline (independent
+   marginal frequencies, ties broken by a seeded coin flip — the "zero real LD information"
+   bound). Result: held-out EM is NOT perfectly circular-clean any more — 46/19,060 spurious
+   incompatible haplotypes pooled (0.24%), vs. the LE-naive baseline's ~24% (~100x worse) —
+   revised verdict in README. Unit tests: `tests/test_37e_unrelated_fix_kfold_em.py` (9/9 pass).
+4. **[major] 38 fig_sr_validation panel (a) label collision** — replaced the fixed-offset
+   annotate() calls with x-proximity clustering + vertical label dodging + leader lines
+   (mirrors 39's `_dodge_label_positions` convention); "A"/"DRB1" no longer collide. Figure
+   re-rendered locally from committed aggregates (`scripts/hla_popgen/38_hla_a_deletion_validation.py`
+   `make_figure()`); panel (c) also gained a `contig_n_genes_hist_df` fallback path so it can be
+   rebuilt from the disclosure-safe committed histogram without VM access.
+5. **[major] 38 multiple-testing correction** — added explicit Bonferroni statement to README
+   (12 genes, α=0.05/12=0.00417 — every test clears it except DPA1, already non-significant
+   uncorrected) and fixed `sr_calibration_panel.tsv`'s literal `fisher_p=0.0` (DRB3) to `<1e-300`
+   in both the TSV and README table.
+6. **[minor] 39 residual `p=0.0`** — `afr_vs_rest_bootstrap_test.tsv`'s two literal `0.0` p-values
+   (AFR-AMR, AFR-EUR) changed to `<0.005`, matching what the README prose already said.
+7. **[major/blocker-adjacent] 39 equal-N discovery-slope comparison** — added, computed locally
+   from the committed `curves.tsv` (no VM needed): slope of the mean rarefaction curve over
+   [0.9·N*, N*] at N*=1,236 (5 well-powered ancestries) and N*=487 (all 6, incl. MID) —
+   `equal_n_slope_comparison.tsv`. This flips the discovery-rate ranking back toward the call's
+   original AFR-least-saturated expectation (AFR highest at N*=1,236: 101.6/1,000) versus the
+   old own-N slopes (which are now demoted to a clearly-labelled secondary column). MID's Chao2
+   flagged low-power directly in the headline table. Panel (c) of `fig1_main_saturation_panel`
+   now carries an in-figure note ("MID: too few novel-allele carriers for a visible curve").
+8. Not separately re-addressed: item 9 (MID Chao2) and item 10 (panel c note) — both folded into
+   fix #7 above. Items 7/8 (thin KIR cross-tab, Cole's PDF hygiene) — #7 fixed in #1 above; #8
+   (Cole's PDF) was already handled by LOG.md's `.git/info/exclude` fix, not re-touched here.

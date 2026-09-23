@@ -537,6 +537,25 @@ def fig_saturation_panels(curve_all, curve_ge2, curve_novel, out_stem):
             ax.spines["right"].set_visible(False)
             ax.tick_params(labelsize=5.5)
             vc.panel_letter(ax, letter)
+            if letter == "c":
+                # Panel c's sampling units are only people carrying >=1 novel allele; SAS/MID
+                # have so few such carriers that their curves are squashed to a sliver near x=0
+                # relative to the other ancestries (S03 critic #1, item 10) -- easy for a reader
+                # skimming only the figure to miss, so flag it in the panel itself, not only in
+                # the caption/README. "Too small to see" = this curve's own max N is <20% of the
+                # largest curve's max N in this panel.
+                max_n_by_anc = {anc: float(np.max(vals[0])) if len(vals[0]) else 0.0
+                                 for anc, vals in data.items()}
+                if max_n_by_anc:
+                    overall_max = max(max_n_by_anc.values())
+                    tiny = [a for a in ("SAS", "MID")
+                            if a in max_n_by_anc and overall_max > 0
+                            and max_n_by_anc[a] < 0.2 * overall_max]
+                    if tiny:
+                        ax.text(0.97, 0.03,
+                                f"{'/'.join(tiny)}: too few novel-allele\ncarriers for a visible curve",
+                                transform=ax.transAxes, fontsize=4.8, color="#666666",
+                                ha="right", va="bottom", style="italic")
         fig.subplots_adjust(right=0.90, wspace=0.55)
         return vc.save_fig(fig, out_stem)
 

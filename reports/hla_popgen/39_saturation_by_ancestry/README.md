@@ -18,7 +18,7 @@ Sampling unit = **person** (both haplotypes). 25 random orderings of each ancest
 
 Every curve is still climbing at its current N (see fig1, panel a) -- the original Clench/Michaelis-Menten fit reported a *negative* 'expected new alleles per next 1,000 people' for AFR/AMR/EUR/EAS/SAS, which is impossible and was a misspecified model, not a real result (flagged in orchestrator review). The two estimators below replace it.
 
-| Ancestry | N now | Distinct now | Empirical rate / next 1,000 (last-10% slope) | Chao2 undetected (f0_hat) | Chao extrapolation: new by 2N | Clench rate / 1,000 (supplementary, known to underfit) |
+| Ancestry | N now | Distinct now | Own-N discovery rate / next 1,000 (last-10% slope, secondary -- see caveat) | Chao2 undetected (f0_hat) | Chao extrapolation: new by 2N | Clench rate / 1,000 (supplementary, known to underfit) |
 |---|---|---|---|---|---|---|
 | AFR | 3020 | 511 | 58.7 | 349 | 142 | -23.1 |
 | AMR | 2655 | 503 | 59.0 | 312 | 119 | -23.4 |
@@ -27,7 +27,18 @@ Every curve is still climbing at its current N (see fig1, panel a) -- the origin
 | MID | 487 | 277 | 175.1 | 351 | 68 | 1.9 |
 | SAS | 1236 | 332 | 84.0 | 142 | 69 | -10.5 |
 
-Both non-parametric estimators agree: every ancestry is still discovering new alleles at a substantial rate, and hundreds of alleles per ancestry remain undetected by Chao2 even after 500-3,000 people. The call's expectation that AFR is *least saturated* is **not** supported by the empirical end-slope among the five well-powered ancestries (AFR/AMR/EAS/EUR/SAS) -- SAS and EAS currently have the *highest* per-1,000-people discovery rates: SAS=84.0, EAS=78.6, EUR=62.2, AMR=59.0, AFR=58.7 (MID's 175.1/1,000 is the highest overall but its curve stops at N=487, the shortest of any ancestry, so it is the least reliable estimate here). AFR does, however, carry one of the largest ABSOLUTE undetected pools by Chao2 (f0_hat =349 vs EUR's 381, the two highest) -- 'AFR still has the most alleles left to find in absolute terms' is supported; 'AFR is climbing fastest right now, per person' is not, in this cohort.
+**Caveat on the "own-N" column above: each ancestry's slope is measured over a different, ancestry-specific window of N (its own last 10%), so the six numbers in that column are NOT directly comparable to each other** -- an ancestry with a larger current N is being measured further out on its own curve than one with a smaller N, and curves are not necessarily self-similar in shape. Kept only as a secondary, per-ancestry-scale reference. The **equal-N discovery-slope comparison** below is the primary, cross-ancestry-comparable number: it measures every ancestry's slope over the identical window of people-count, [0.9*N\*, N\*], for two choices of common N\* (`equal_n_slope_comparison.tsv`, computed locally from the already-committed `curves.tsv` -- no new VM run needed).
+
+**Primary: equal-N discovery slope, new alleles per next 1,000 people, over window [0.9*N\*, N\*]:**
+
+| N\* | AFR | AMR | EAS | EUR | MID | SAS |
+|---|---|---|---|---|---|---|
+| 1,236 (SAS's max; 5 well-powered ancestries, MID excluded -- doesn't reach 1,236) | 101.6 | 94.8 | 99.4 | 80.0 | -- | 81.3 |
+| 487 (MID's full sample; all 6 ancestries incl. MID) | 172.2 | 179.6 | 157.5 | 133.9 | 169.8 | 137.1 |
+
+At equal N, the ranking flips relative to the own-N table: **AFR now has the *highest* equal-N slope among the five well-powered ancestries at N\*=1,236 (101.6/1,000, vs. EAS 99.4, AMR 94.8, SAS 81.3, EUR 80.0)** -- the call's original expectation that AFR is least saturated IS supported once ancestries are compared on the same window of N, unlike the own-N slopes above (which measured each ancestry at a different, incomparable point on its own curve and had suggested SAS/EAS were climbing fastest). At N\*=487 (adding MID), AMR edges out AFR again (179.6 vs. 172.2), with MID close behind (169.8) -- consistent with the equal-N richness result below (AMR > AFR at N=487), and a reminder that ranking can still depend on which N\* is chosen. Both non-parametric estimators (equal-N slope and Chao2) agree: every ancestry is still discovering new alleles at a substantial rate, and hundreds of alleles per ancestry remain undetected by Chao2 even after 500-3,000 people. AFR carries one of the largest ABSOLUTE undetected pools by Chao2 (f0_hat=349 vs. EUR's 381, the two highest).
+
+**MID's Chao2 estimate (f0_hat=351) is low-power and should not be quoted standalone:** MID's curve stops at N=487 (its full available sample, the smallest N of any ancestry by a wide margin), so its Chao2 extrapolation reaches furthest past the observed range of any ancestry in this table -- treat it as illustrative only, not a reliable estimate of MID's true undetected pool.
 
 
 ## Equal-N comparison and AFR-vs-rest test
@@ -111,8 +122,9 @@ Defined as: (distinct 2-field IPD-IMGT-catalogued alleles observed in this ances
 
 - Sampling unit: person (both haplotypes); 25 permutations/point, Pakistan Fig 3e convention.
 - Identity = 24's own `prot_id` (2-field IPD-IMGT name or `<gene>_prot_<sha8>` for novel).
-- No ancestry is saturated: every curve is still rising; extrapolation uses two non-parametric estimators (empirical end-slope, Chao incidence extrapolation to 2N), Clench kept only as a supplementary, known-to-underfit column.
-- At equal N, AMR leads (not AFR) — plausibly admixture (allele-pool union across AMR's continental source populations), not necessarily higher per-source diversity; AMR still leads AFR under strict (>=0.95) ancestry assignment, so admixture doesn't fully explain it.
-- AFR is not the steepest-climbing ancestry right now (SAS/EAS currently discover faster per 1,000 people) but does carry one of the two largest absolute undetected pools by Chao2 (with EUR).
-- AFR-vs-rest tested by bootstrap difference at equal N (MID excluded, degenerate band); p-values reported as `<1/n_bootstrap`, never a literal `0.0000`.
+- No ancestry is saturated: every curve is still rising; extrapolation uses two non-parametric estimators (equal-N discovery slope over [0.9*N\*, N\*], Chao incidence extrapolation to 2N), Clench kept only as a supplementary, known-to-underfit column.
+- Discovery-rate ranking depends on comparing ancestries at the SAME N: the equal-N slope (primary, `equal_n_slope_comparison.tsv`) puts AFR *highest* among the five well-powered ancestries at N\*=1,236 (101.6/1,000) — supporting the call's original expectation — whereas each ancestry's own-N last-10%-of-curve slope (kept only as a secondary, non-comparable column) had suggested SAS/EAS climb fastest; the two disagree because own-N slopes are measured at different points on each curve.
+- MID's Chao2 estimate (f0_hat=351) is flagged low-power in the table itself — its curve stops at N=487, the smallest of any ancestry, so its extrapolation reaches furthest past the observed range.
+- At equal-N richness (distinct alleles observed, not slope), AMR leads (not AFR) — plausibly admixture (allele-pool union across AMR's continental source populations), not necessarily higher per-source diversity; AMR still leads AFR under strict (>=0.95) ancestry assignment, so admixture doesn't fully explain it. AFR does carry one of the two largest absolute undetected pools by Chao2 (with EUR).
+- AFR-vs-rest tested by bootstrap difference at equal N (MID excluded, degenerate band); p-values reported as `<1/n_bootstrap` in both the README and the underlying `afr_vs_rest_bootstrap_test.tsv`, never a literal `0.0000`/`0.0`.
 - IPD-IMGT allele-space-explored caveat: catalogue itself is EUR-biased.

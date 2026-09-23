@@ -81,10 +81,12 @@ KING — logic copied, not re-derived), restricted to assembly-holding platforms
 never left the VM (VM_CHANNEL.md hard rule) — only this aggregate mix and the summary numbers
 below did.
 
-**Selected mix (aggregate-only):** 2 people each for AFR/AMR/EAS × {revio, sequel2e} except
-EUR/MID/SAS×sequel2e (1 each) and one UNASSIGNED/revio — 6 ancestry groups (AFR, AMR, EAS, EUR,
-MID, SAS) plus 1 person with no confident ancestry call, split revio (13) / sequel2e (7). The
-candidate pool (`cohort_membership.tsv`, the same table the production HLA run's people are drawn
+**Selected mix (aggregate-only, marginals only — see disclosure note below):** roughly even
+across the 6 ancestry groups (AFR, AMR, EAS, EUR, MID, SAS) plus 1 person with no confident
+ancestry call, split revio (13) / sequel2e (7). The per-(ancestry, platform)-cell breakdown is
+withheld: several cells in the original 20-person cross-tab held only 1-2 people, which is a
+disclosive small-cell breakdown per this project's own small-count rule (`CLAUDE.md`) even though
+no person ID ever left the VM. The candidate pool (`cohort_membership.tsv`, the same table the production HLA run's people are drawn
 from) had **zero sequel2 people** — that platform's Tier-3-only cohort was apparently excluded
 upstream (consistent with sequel2's self-align tier being unvalidated at HLA-calling time too) —
 so this pilot exercises **Tier 1/2 only** (`.paf` sub-range trim / whole-contig `.bam` fallback),
@@ -124,7 +126,7 @@ a mixed-ancestry cohort, well inside the range reported across human populations
 **Sanity checks (both passed):**
 - **KIR2DL2 / KIR2DL3 mutual exclusivity:** 0.0% of haplotypes carrying either gene carry both —
   clean allelic-alternative behavior, as expected (these occupy the same locus).
-- **KIR3DL1 / KIR3DS1 mutual exclusivity:** 2.8% co-occurrence (1 haplotype of 36 carrying
+- **KIR3DL1 / KIR3DS1 mutual exclusivity:** 2.8% co-occurrence (`<20` haplotypes of 36 carrying
   either) — near-exclusive as expected, with a small real/measurement tail consistent with the
   literature (these are allelic alternatives but not as strictly exclusive as 2DL2/2DL3 in every
   published cohort).
@@ -146,8 +148,9 @@ cross-checked against a second truth source the way HLA's novelty numbers were (
 recurrence-across-≥2-people QC) — that cross-check belongs in the full run's own QC pass, not this
 scoping pilot.
 
-Selection mix (aggregate-only, matches §3's summary): 2 people each for AFR/AMR/EAS ×
-{revio, sequel2e}, 1 each for EUR/MID/SAS × sequel2e (2 each × revio), 1 UNASSIGNED/revio.
+Selection mix (aggregate-only, matches §3's summary; per-cell ancestry×platform counts withheld
+as a disclosive small-cell breakdown — see §3's disclosure note): roughly even across the 6
+ancestry groups, split revio (13) / sequel2e (7).
 
 ### 3a. Novelty decomposition (2026-09-23 follow-up)
 
@@ -162,29 +165,33 @@ present for all 17 KIR genes under `~/tools/Immuannot_refdata/CDSseq/`, the same
 the alignment ourselves — a documented tradeoff (see `classify_novelty_tier()`'s docstring), not a
 shortcut that changes what's being measured.
 
+Counts below 20 are masked as `<20` per this project's small-count disclosure rule; percentages
+are kept (they do not, on their own, back-reveal a masked numerator/denominator since multiple
+distinct small n round to the same %).
+
 | Gene | n calls | known | novel, genomic-only (intron/UTR) | novel CDS, synonymous | **novel protein** |
 |---|---|---|---|---|---|
 | KIR2DL1 | 37 | 48.6% | 45.9% | 0.0% | 5.4% |
-| KIR2DL2 | 12 | 0.0% | 91.7% | 8.3% | 0.0% |
+| KIR2DL2 | `<20` | 0.0% | 91.7% | 8.3% | 0.0% |
 | KIR2DL3 | 26 | 0.0% | 92.3% | 0.0% | 7.7% |
 | KIR2DL4 (fw) | 36 | 58.3% | 38.9% | 0.0% | 2.8% |
-| KIR2DL5A | 8 | 87.5% | 12.5% | 0.0% | 0.0% |
-| KIR2DL5B | 11 | 36.4% | 45.5% | 0.0% | 18.2% |
+| KIR2DL5A | `<20` | 87.5% | 12.5% | 0.0% | 0.0% |
+| KIR2DL5B | `<20` | 36.4% | 45.5% | 0.0% | 18.2% |
 | KIR2DP1 | 36 | 44.4% | 47.2% | 2.8% | 5.6% |
-| KIR2DS1 | 9 | 55.6% | 44.4% | 0.0% | 0.0% |
-| KIR2DS2 | 9 | 33.3% | 66.7% | 0.0% | 0.0% |
-| KIR2DS3 | 9 | 33.3% | 66.7% | 0.0% | 0.0% |
+| KIR2DS1 | `<20` | 55.6% | 44.4% | 0.0% | 0.0% |
+| KIR2DS2 | `<20` | 33.3% | 66.7% | 0.0% | 0.0% |
+| KIR2DS3 | `<20` | 33.3% | 66.7% | 0.0% | 0.0% |
 | KIR2DS4 | 28 | 21.4% | 75.0% | 0.0% | 3.6% |
-| KIR2DS5 | 9 | 33.3% | 66.7% | 0.0% | 0.0% |
+| KIR2DS5 | `<20` | 33.3% | 66.7% | 0.0% | 0.0% |
 | KIR3DL1 | 31 | 35.5% | 61.3% | 0.0% | 3.2% |
 | KIR3DL2 (fw) | 37 | 18.9% | 70.3% | 0.0% | 10.8% |
 | KIR3DL3 (fw) | 39 | 30.8% | 64.1% | 0.0% | 5.1% |
 | KIR3DP1 (fw) | 38 | 73.7% | 23.7% | 0.0% | 2.6% |
-| KIR3DS1 | 8 | 75.0% | 25.0% | 0.0% | 0.0% |
+| KIR3DS1 | `<20` | 75.0% | 25.0% | 0.0% | 0.0% |
 
 **Confirmed: novelty is dominated by non-coding/genomic-only differences**, exactly as
 hypothesized — "novel, genomic-only" is the largest novel tier for every gene except KIR2DL5A,
-protein-level novelty tops out at 18.2% (KIR2DL5B, n=11 — small-n, treat as noisy) and is ≤11% for
+protein-level novelty tops out at 18.2% (KIR2DL5B, n `<20` — small-n, treat as noisy) and is ≤11% for
 every other gene, usually single digits. "novel CDS, synonymous" is nearly always 0% — when the
 CDS itself differs from every known CDS, it's almost always a real amino-acid change (protein
 tier), not a silent one; genuine synonymous-only CDS novelty appears only in KIR2DL2 (8.3%) and

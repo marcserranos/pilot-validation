@@ -66,9 +66,17 @@ carriers/non-carriers with an SR genotype; Fisher exact carrier vs. non-carrier 
 | DPA1 | no | 1.09 | 45.1 (n=246) | 50.5 | 0.107 |
 | DPB1 | no | 1.00 | 58.2 (n=225) | 81.1 | 8.1e-15 |
 | DRB1 | no | 1.65 | 83.3 (n=360) | 93.2 | 4.1e-10 |
-| DRB3 | **yes** | 49.3 | **0.82** (n=3777) | 54.4 | 0.0 |
+| DRB3 | **yes** | 49.3 | **0.82** (n=3777) | 54.4 | <1e-300 |
 | DRB4 | **yes** | 69.6 | 0.0 (n<20) | 0.0 (n<20) | 1.0 (thin) |
 | DRB5 | **yes** | 83.1 | **0.33** (n=2425) | 37.7 | 1.96e-104 |
+
+**Multiple-testing correction:** 12 Fisher exact tests are reported in this panel (one per
+script-30 control gene). Bonferroni-correcting across all 12 (alpha=0.05/12=0.00417): every
+reported test still clears the corrected threshold **except DPA1** (raw p=0.107, already
+non-significant uncorrected) and, trivially, the two uninformative rows (DRA and DRB4, both
+Fisher P=1.0 -- see caveats below). This does not change the calibration story: HLA-A (p=4.2e-08)
+and every other negative-control gene tested remain significant after correction, as do all three
+positive controls.
 
 **This is the calibration Cole asked for.** The three positive controls (DRB3/4/5 -- textbook,
 DRB1-haplotype-group-determined absences) are SR-contradicted **<1%** of the time: short reads
