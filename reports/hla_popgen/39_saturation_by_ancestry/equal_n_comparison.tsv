@@ -1,0 +1,7 @@
+ancestry	n_min	n_available	mean_distinct_at_n_min	lo2_5	hi97_5	scheme
+AFR	487	3020	286.67	269.975	301.05	pred
+AMR	487	2655	320.49	306.95	335.025	pred
+EAS	487	1460	283.52	269.95	298.025	pred
+EUR	487	2974	256.405	240.975	270.025	pred
+MID	487	487	277.0	277.0	277.0	pred
+SAS	487	1236	259.15	247.925	274.0	pred

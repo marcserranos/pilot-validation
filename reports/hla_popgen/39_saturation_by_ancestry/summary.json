@@ -1,0 +1,26 @@
+{
+  "n_people_unrelated": "11856",
+  "n_people_removed_relatedness": 377,
+  "n_permutations": 25,
+  "n_bootstrap_test": 200,
+  "strict_threshold": 0.95,
+  "classical_genes": [
+    "A",
+    "B",
+    "C",
+    "DRB1",
+    "DQA1",
+    "DQB1",
+    "DPA1",
+    "DPB1"
+  ],
+  "min_people_per_ancestry": 100,
+  "match_stats": {
+    "n_novel_table1_rows": 108306,
+    "n_matched": 108247,
+    "n_ambiguous_copy": 58,
+    "n_missing_cds": 1,
+    "n_join_ambiguous": 3715
+  },
+  "elapsed_sec": 611.2
+}
