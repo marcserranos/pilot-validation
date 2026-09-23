@@ -298,6 +298,8 @@ def build_vj_kmer_features(person_clone_tables, max_kmers=4000):
     per_person_rows = {}
     v_vocab, j_vocab, kmer_vocab = set(), set(), set()
     raw = {}
+    kmer_global_count = {}  # cheap document-frequency-ish proxy, used to pre-trim the
+                            # vocabulary BEFORE the dense matrix is built (see note below)
     for pid, df in person_clone_tables.items():
         if df.empty:
             raw[pid] = {"v": {}, "j": {}, "kmer": {}}
@@ -318,8 +320,21 @@ def build_vj_kmer_features(person_clone_tables, max_kmers=4000):
         v_vocab.update(v_freq)
         j_vocab.update(j_freq)
         kmer_vocab.update(kmer_freq)
+        for k, c in kmer_counter.items():
+            kmer_global_count[k] = kmer_global_count.get(k, 0) + c
 
     v_vocab, j_vocab = sorted(v_vocab), sorted(j_vocab)
+    # Pre-trim the kmer vocabulary BEFORE building the dense matrix -- with real cohorts the
+    # raw kmer alphabet (4-mers + 4 gapped variants) can reach tens of thousands of distinct
+    # strings, and materializing a dense (n_people x |vocab|) matrix via nested Python list
+    # comprehensions at that width is the actual bottleneck (confirmed on the VM 2026-09-23:
+    # a real 1200-2 person run stalled for 10+ minutes with no error at exactly this step).
+    # Rank by total raw count across the cohort (cheap, label-blind, computed during the same
+    # per-person pass above) and keep at most 3x max_kmers here; the variance-based final cut
+    # below still runs, but on an already-small matrix.
+    if len(kmer_vocab) > max_kmers * 3:
+        top_by_count = sorted(kmer_global_count, key=kmer_global_count.get, reverse=True)
+        kmer_vocab = set(top_by_count[:max_kmers * 3])
     kmer_vocab = sorted(kmer_vocab)
 
     pids = sorted(raw)
@@ -1201,6 +1216,9 @@ def main():
                     help="Real mode: rich HLA calls table, for the HLA-carriage positive control.")
     ap.add_argument("--skip-unrelated", action="store_true",
                     help="Cohort auto-build: skip the greedy-unrelated filter (local/test only).")
+    ap.add_argument("--max-people", type=int, default=None,
+                    help="Real mode: fixed-seed random subsample of the cohort, applied before "
+                         "any BigQuery/report.tsv I/O -- for a tractable run on a shared VM.")
     args = ap.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
@@ -1221,6 +1239,11 @@ def main():
                                          args.cohort_membership, args.relatedness,
                                          skip_unrelated=args.skip_unrelated)
         ids = sorted(set(cohort["research_id"].dropna()))
+        if args.max_people and len(ids) > args.max_people:
+            rng = np.random.default_rng(args.seed)
+            ids = sorted(rng.choice(ids, size=args.max_people, replace=False).tolist())
+            print(f"  --max-people {args.max_people}: subsampled to {len(ids)} (fixed seed "
+                  f"{args.seed})", file=sys.stderr)
         cdr = get_cdr(args.cdr)
         print(f"Cohort: {len(ids)} people. CDR: {cdr}", file=sys.stderr)
         covariates, labels = fetch_phenotypes_and_covariates(ids, cdr, args.project)

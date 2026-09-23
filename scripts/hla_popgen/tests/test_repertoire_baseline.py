@@ -110,17 +110,36 @@ def test_features_identical_regardless_of_label_permutation():
 
 
 def test_kmer_cap_is_variance_based_not_label_based():
+    """build_vj_kmer_features caps the kmer vocabulary in two stages for tractability on real
+    cohorts (2026-09-23 perf fix): a cheap cohort-wide-count pre-trim to max_kmers*3 BEFORE the
+    dense matrix is built (avoids materializing a matrix as wide as the raw kmer alphabet, which
+    stalled a real ~1200-person VM run for 10+ minutes), then the existing variance-based cut
+    down to max_kmers on that smaller matrix. Below max_kmers*3 raw kmers the pre-trim is a
+    no-op, so the capped set is still an exact top-variance selection in that regime."""
     tables, _, _ = rb.make_synthetic_cohort(30, seed=2)
     X_full, _ = rb.build_vj_kmer_features(tables, max_kmers=10_000_000)  # effectively uncapped
-    X_capped, _ = rb.build_vj_kmer_features(tables, max_kmers=50)
     kmer_cols_full = [c for c in X_full.columns if c.startswith("KMER__")]
-    kmer_cols_capped = [c for c in X_capped.columns if c.startswith("KMER__")]
-    if kmer_cols_full:
-        expected = X_full[kmer_cols_full].var(axis=0).sort_values(ascending=False).index[:50]
-        check("kmer cap keeps the highest-variance columns",
-             set(kmer_cols_capped) == set(expected))
-    else:
+    if not kmer_cols_full:
         check("kmer cap test skipped (no kmer columns in synthetic fixture)", True)
+        return
+    # Use a max_kmers large enough that max_kmers*3 exceeds the full raw vocabulary, so the
+    # count pre-trim is a no-op and this stays an exact variance-selection check.
+    cap = max(50, len(kmer_cols_full) // 2)
+    X_capped, _ = rb.build_vj_kmer_features(tables, max_kmers=cap)
+    kmer_cols_capped = [c for c in X_capped.columns if c.startswith("KMER__")]
+    check("kmer cap pre-trim is a no-op when max_kmers*3 exceeds the raw vocabulary",
+         cap * 3 > len(kmer_cols_full))
+    expected = X_full[kmer_cols_full].var(axis=0).sort_values(ascending=False).index[:cap]
+    check("kmer cap keeps the highest-variance columns (no-pre-trim regime)",
+         set(kmer_cols_capped) == set(expected))
+
+    # Small max_kmers: pre-trim is active, so the result must be a SUBSET of the top-(3*cap)
+    # columns by raw cohort-wide count (not necessarily the exact top-variance set anymore --
+    # that's the documented tradeoff).
+    small_cap = 5
+    X_small, _ = rb.build_vj_kmer_features(tables, max_kmers=small_cap)
+    check("kmer cap with pre-trim active returns exactly max_kmers columns",
+         len([c for c in X_small.columns if c.startswith("KMER__")]) == min(small_cap, len(kmer_cols_full)))
 
 
 # ---------------------------------------------------------------------------
