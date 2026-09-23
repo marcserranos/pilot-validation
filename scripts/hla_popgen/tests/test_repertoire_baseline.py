@@ -255,6 +255,33 @@ def test_load_report_tsv_filters_and_restricts_chains(tmp_path=None):
          set(loaded["chain"]) == {"TRB", "IGH"})
 
 
+def test_load_report_tsv_accepts_real_trust4_column_aliases():
+    """The real report.tsv files on the VM use `#count`/`CDR3aa`/`CDR3nt`, not the
+    `read_count`/`CDR3_amino_acids`/`CDR3_dna` names the protocol doc assumed (found 2026-09-23
+    when the first real run died with a FATAL missing-column error) -- lock in the alias map."""
+    import tempfile
+    rows = pd.DataFrame({
+        "#count": ["5", "3", "2"],
+        "frequency": ["0.5", "0.3", "0.2"],
+        "CDR3nt": ["N" * 30] * 3,
+        "CDR3aa": ["CASSLGQAYEQYF", "CASS_YF", "CARDGY"],
+        "V": ["TRBV1", "TRBV2", "IGHV1"],
+        "D": [".", ".", "."],
+        "J": ["TRBJ1", "TRBJ1", "IGHJ1"],
+        "C": [".", ".", "."],
+        "cid": ["1", "2", "3"],
+        "cid_full_length": ["1", "1", "0"],
+    })
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "p_report.tsv")
+        rows.to_csv(path, sep="\t", index=False)
+        loaded = rb.load_report_tsv(path, chains=("TRB", "IGH"))
+    check("load_report_tsv maps #count -> read_count (non-productive TRBV2 row dropped)",
+         sorted(loaded["read_count"].tolist()) == [2, 5])
+    check("load_report_tsv maps CDR3aa -> CDR3_amino_acids",
+         set(loaded["CDR3_amino_acids"]) == {"CASSLGQAYEQYF", "CARDGY"})
+
+
 def main():
     test_productive_filter()
     test_trim_cdr3()
@@ -268,6 +295,7 @@ def main():
     test_rarefy_never_exceeds_target_and_is_nested()
     test_rarefy_deterministic_for_fixed_seed()
     test_load_report_tsv_filters_and_restricts_chains()
+    test_load_report_tsv_accepts_real_trust4_column_aliases()
 
     print()
     if FAILURES:
