@@ -19,7 +19,7 @@ Orchestrator log (schematic, source for the PI report): [`LOG.md`](LOG.md). VM r
 | WS2 | 38_hla_a_deletion_validation | Is HLA-A deletion real? homozygote expectation test; short-read contradiction test; simplified deletion colours (§4) | yes | todo |
 | WS3 | 39_saturation_by_ancestry | Per-ancestry equal-N discovery/saturation curves (Pakistan Fig 3e style); % allele space explored vs IPD-IMGT (§6) | yes (uncensored counts) | todo |
 | WS4 | 40_figure1_v5 | Figure 1 per panel feedback (§6) — Nature-grade | yes (panels a/b) | todo |
-| WS5 | 41_kir_* | KIR chr19 scoping: coordinates, Immuannot KIR support, pilot runtime/cost, full run if pilot clean (§7) | yes | todo |
+| WS5 | 41_kir_pilot | KIR chr19 scoping: coordinates, Immuannot KIR support, pilot runtime/cost, full run if pilot clean (§7) | yes | done -- GO, conditional (orchestrator flags + framework-gene spot check); see LOG.md and reports/hla_popgen/41_kir_scoping/README.md |
 | WS6 | 42_repertoire_baseline | BenchRep-T-style VJ-k-mer baseline (L1-LR, XGBoost; 3-fold stratified CV; AUROC/AUPRC) on autoimmune/chronic phenotypes, repertoire-only (§9–10) | yes | todo |
 | WS7 | — | Critic passes (fresh-context) on each figure/claim | no | todo |
 
