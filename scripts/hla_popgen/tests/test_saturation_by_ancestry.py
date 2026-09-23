@@ -130,12 +130,67 @@ def test_fit_and_extrapolate_runs_on_synthetic_saturating_data():
               out["expected_new_per_1000"] < 1.0, str(out["expected_new_per_1000"]))
 
 
+def test_nonparametric_extrapolation_is_nonnegative_and_agrees_with_curve_direction():
+    # Orchestrator review 2026-09-23: the Clench fit produced NEGATIVE "expected new alleles"
+    # on real data, which is impossible -- the replacement non-parametric estimators must never
+    # do that on a still-rising curve, and the empirical rate must reflect the curve's own slope.
+    import pandas as pd
+    rows = []
+    for n in range(1, 101):
+        rows.append({"scheme": "pred", "ancestry": "AFR", "gene_group": "classical_pooled",
+                     "category": "all", "n": n, "mean_distinct": 5 * np.sqrt(n),
+                     "lo2_5": 5 * np.sqrt(n) - 1, "hi97_5": 5 * np.sqrt(n) + 1})
+        rows.append({"scheme": "pred", "ancestry": "AFR", "gene_group": "classical_pooled",
+                     "category": "carriers_ge_1", "n": n, "mean_distinct": 5 * np.sqrt(n),
+                     "lo2_5": 0, "hi97_5": 0})
+        rows.append({"scheme": "pred", "ancestry": "AFR", "gene_group": "classical_pooled",
+                     "category": "carriers_ge_2", "n": n, "mean_distinct": 4 * np.sqrt(n),
+                     "lo2_5": 0, "hi97_5": 0})
+    curve_df = pd.DataFrame(rows)
+    fit_df = pd.DataFrame([{"scheme": "pred", "ancestry": "AFR", "gene_group": "classical_pooled",
+                            "category": "all", "n_now": 100, "s_obs_now": 50.0,
+                            "chao2_richness": 80.0, "expected_new_per_1000": -5.0,
+                            "clench_s_max": 60.0}])
+    out = sat.nonparametric_extrapolation(curve_df, fit_df, scheme="pred")
+    row = out[out["ancestry"] == "AFR"].iloc[0]
+    check("empirical_rate_per_1000 is positive for a still-rising curve",
+          row["empirical_rate_per_1000"] > 0, str(row["empirical_rate_per_1000"]))
+    check("chao_new_alleles_by_2n is non-negative (never a negative 'discovery')",
+          row["chao_new_alleles_by_2n"] >= 0, str(row["chao_new_alleles_by_2n"]))
+    check("Clench value is preserved verbatim as the supplementary column, not silently dropped",
+          row["clench_expected_new_per_1000_supplementary"] == -5.0,
+          str(row["clench_expected_new_per_1000_supplementary"]))
+
+
+def test_equal_n_descriptive_excludes_requested_ancestries():
+    import pandas as pd
+    curve_df = pd.DataFrame([
+        {"scheme": "pred", "ancestry": "AFR", "gene_group": "classical_pooled", "category": "all",
+         "n": 500, "mean_distinct": 300.0, "lo2_5": 290.0, "hi97_5": 310.0},
+        {"scheme": "pred", "ancestry": "MID", "gene_group": "classical_pooled", "category": "all",
+         "n": 500, "mean_distinct": 277.0, "lo2_5": 277.0, "hi97_5": 277.0},
+    ])
+    out = sat.equal_n_descriptive(curve_df, 500, exclude=("MID",), scheme="pred")
+    check("MID is excluded when requested", "MID" not in set(out["ancestry"]), str(out))
+    check("AFR is still present", "AFR" in set(out["ancestry"]), str(out))
+
+
+def test_format_p_never_prints_a_literal_zero():
+    check("a zero bootstrap p-value is reported as a resolution bound, not '0.0000'",
+          sat.format_p(0.0, 200) == "<0.005", sat.format_p(0.0, 200))
+    check("a nonzero p-value above the resolution floor prints normally",
+          sat.format_p(0.24, 200) == "0.2400", sat.format_p(0.24, 200))
+
+
 def main():
     test_rarefaction_final_step_matches_true_counts()
     test_distinct_curve_is_monotone_nondecreasing()
     test_summarize_curve_bounds()
     test_equal_n_comparison_detects_a_real_difference()
     test_fit_and_extrapolate_runs_on_synthetic_saturating_data()
+    test_nonparametric_extrapolation_is_nonnegative_and_agrees_with_curve_direction()
+    test_equal_n_descriptive_excludes_requested_ancestries()
+    test_format_p_never_prints_a_literal_zero()
     print()
     if FAILURES:
         print(f"{len(FAILURES)} FAILURE(S): {FAILURES}")

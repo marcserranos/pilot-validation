@@ -330,6 +330,111 @@ def fit_and_extrapolate(steps, mean, lo, hi, unit_sets_for_chao2):
 
 
 # ---------------------------------------------------------------------------
+# Non-parametric extrapolation (replaces Clench/Michaelis-Menten as the headline estimator --
+# S03 orchestrator review 2026-09-23: the Clench fit was misspecified here (negative "expected
+# new alleles" at several ancestries, contradicted by curves still rising ~linearly and by Chao2
+# showing hundreds of undetected alleles). Two estimators, both computable from the already-
+# exported aggregates (curves.tsv + extrapolation_fits.tsv), no VM re-run needed:
+#   (a) empirical discovery rate = slope of the mean rarefaction curve over the last 10% of N,
+#       reported as new alleles per next 1,000 people (a local, assumption-free read of "how fast
+#       is the curve still climbing right now").
+#   (b) incidence-based extrapolation to 2N (Chao, Colwell, Chiu & Miao 2014, Ecol. Monogr. /
+#       iNEXT's own extrapolation formula, identical to 04_allele_saturation.chao2_extrapolate):
+#       S(N+m) = S_obs + f0_hat * [1 - (1 - Q1/(N*f0_hat + Q1))^m], with f0_hat = Chao2 - S_obs
+#       (already computed and exported per ancestry in extrapolation_fits.tsv -- no need to
+#       re-derive Q2 from the bias-corrected Chao2 formula, since f0_hat IS that same quantity)
+#       and Q1 = (alleles with >=1 carrier) - (alleles with >=2 carriers) at the full observed N,
+#       read directly from curves.tsv's carriers_ge_1/carriers_ge_2 rows.
+# Clench is kept only as a labeled-supplementary column ("model-based, known to underfit here").
+# ---------------------------------------------------------------------------
+def nonparametric_extrapolation(curve_df, fit_df, scheme="pred"):
+    pooled = curve_df[(curve_df["scheme"] == scheme) & (curve_df["gene_group"] == "classical_pooled")]
+    all_cat = pooled[pooled["category"] == "all"]
+    ge1 = pooled[pooled["category"] == "carriers_ge_1"]
+    ge2 = pooled[pooled["category"] == "carriers_ge_2"]
+    fit_sub = fit_df[(fit_df["scheme"] == scheme) & (fit_df["gene_group"] == "classical_pooled")
+                     & (fit_df["category"] == "all")]
+    rows = []
+    for anc in ANCESTRY_ORDER:
+        sub = all_cat[all_cat["ancestry"] == anc].sort_values("n")
+        if not len(sub):
+            continue
+        n_now = int(sub["n"].max())
+        s_obs_now = float(sub.loc[sub["n"] == n_now, "mean_distinct"].iloc[0])
+
+        cutoff = max(sub["n"].min(), int(round(n_now * 0.9)))
+        tail = sub[sub["n"] >= cutoff]
+        if len(tail) >= 2:
+            slope = float(np.polyfit(tail["n"], tail["mean_distinct"], 1)[0])
+        else:
+            slope = np.nan
+        empirical_rate_per_1000 = slope * 1000 if slope == slope else np.nan
+
+        g1 = ge1.loc[(ge1["ancestry"] == anc) & (ge1["n"] == n_now), "mean_distinct"]
+        g2 = ge2.loc[(ge2["ancestry"] == anc) & (ge2["n"] == n_now), "mean_distinct"]
+        q1 = float(g1.iloc[0] - g2.iloc[0]) if len(g1) and len(g2) else np.nan
+
+        frow = fit_sub[fit_sub["ancestry"] == anc]
+        chao2_richness = float(frow["chao2_richness"].iloc[0]) if len(frow) else np.nan
+        clench_per_1000 = float(frow["expected_new_per_1000"].iloc[0]) if len(frow) else np.nan
+        clench_s_max = float(frow["clench_s_max"].iloc[0]) if len(frow) else np.nan
+        f0_hat = chao2_richness - s_obs_now if chao2_richness == chao2_richness else np.nan
+
+        t = 2 * n_now
+        if f0_hat == f0_hat and f0_hat > 0 and q1 == q1 and q1 > 0:
+            s_2n = s_obs_now + f0_hat * (1 - (1 - q1 / (n_now * f0_hat + q1)) ** (t - n_now))
+        else:
+            s_2n = s_obs_now
+        new_alleles_by_2n = s_2n - s_obs_now
+
+        rows.append({
+            "ancestry": anc, "n_now": n_now, "s_obs_now": round(s_obs_now, 1),
+            "empirical_rate_per_1000": round(empirical_rate_per_1000, 1)
+                if empirical_rate_per_1000 == empirical_rate_per_1000 else None,
+            "Q1_uniques_at_n_now": round(q1, 1) if q1 == q1 else None,
+            "chao2_richness": round(chao2_richness, 1) if chao2_richness == chao2_richness else None,
+            "chao2_undetected_f0_hat": round(f0_hat, 1) if f0_hat == f0_hat else None,
+            "chao_extrap_s_at_2n": round(s_2n, 1),
+            "chao_new_alleles_by_2n": round(new_alleles_by_2n, 1),
+            "clench_expected_new_per_1000_supplementary": round(clench_per_1000, 1)
+                if clench_per_1000 == clench_per_1000 else None,
+            "clench_s_max_supplementary": round(clench_s_max, 0) if clench_s_max == clench_s_max else None,
+        })
+    return pd.DataFrame(rows)
+
+
+def equal_n_descriptive(curve_df, n_target, exclude=(), scheme="pred"):
+    """Descriptive (mean + 2.5/97.5 percentile band, NOT a bootstrap significance test -- that
+    needs the raw permutation replicates, which live only on the VM) equal-N read-off at a given
+    N, straight from curves.tsv. Used for a second equal-N point beyond N_min so the comparison
+    isn't dictated entirely by whichever ancestry happens to be smallest."""
+    pooled = curve_df[(curve_df["scheme"] == scheme) & (curve_df["gene_group"] == "classical_pooled")
+                      & (curve_df["category"] == "all") & (curve_df["n"] == n_target)]
+    rows = []
+    for anc in ANCESTRY_ORDER:
+        if anc in exclude:
+            continue
+        sub = pooled[pooled["ancestry"] == anc]
+        if not len(sub):
+            continue
+        r = sub.iloc[0]
+        rows.append({"ancestry": anc, "n": n_target, "mean_distinct": float(r["mean_distinct"]),
+                     "lo2_5": float(r["lo2_5"]), "hi97_5": float(r["hi97_5"])})
+    return pd.DataFrame(rows)
+
+
+def format_p(p, n_bootstrap):
+    """A bootstrap p-value computed from n_bootstrap replicates has resolution 1/n_bootstrap --
+    '0.0000' from 200 reps means only 'p < 1/200', never a literal exact zero."""
+    if p is None or p != p:
+        return "n/a"
+    floor = 1.0 / n_bootstrap
+    if p < floor:
+        return f"<{floor:.3f}"
+    return f"{p:.4f}"
+
+
+# ---------------------------------------------------------------------------
 # Equal-N comparison + AFR-vs-rest bootstrap difference test
 # ---------------------------------------------------------------------------
 def equal_n_comparison(by_anc_units, n_min, n_bootstrap, seed):
@@ -364,26 +469,75 @@ def equal_n_comparison(by_anc_units, n_min, n_bootstrap, seed):
 # ---------------------------------------------------------------------------
 # Figures
 # ---------------------------------------------------------------------------
-def fig_main_panel(curve_data, out_stem, title_suffix=""):
-    """Main-figure-ready panel (89 mm wide): per-ancestry >=1-carrier discovery curves, shaded
-    2.5/97.5 percentile bands, direct end-of-line labels instead of a legend."""
-    with vc.nature_style():
-        fig, ax = plt.subplots(figsize=(vc.mm(89), vc.mm(70)))
-        for anc in ANCESTRY_ORDER:
-            if anc not in curve_data:
-                continue
-            steps, mean, lo, hi = curve_data[anc]
+def _dodge_label_positions(entries, min_sep):
+    """entries: list of (key, y). Returns {key: label_y} with labels pushed apart by at least
+    min_sep (data units), preserving relative order (highest y keeps the highest label). Used so
+    end-of-line ancestry labels never collide when two curves finish close together (S03
+    orchestrator review: AMR label sat on its own curve, MID/SAS labels collided)."""
+    ordered = sorted(entries, key=lambda kv: -kv[1])
+    placed = {}
+    last_y = None
+    for key, y in ordered:
+        label_y = y if last_y is None else min(y, last_y - min_sep)
+        placed[key] = label_y
+        last_y = label_y
+    return placed
+
+
+def _plot_ancestry_curves(ax, curve_data, linewidth=0.9, label=True, label_fontsize=5.5):
+    """Shared per-ancestry line+band plotting with dodged, leader-lined end labels -- used by all
+    three panels of fig_saturation_panels so panel a/b/c stay visually consistent."""
+    ends = []
+    for anc in ANCESTRY_ORDER:
+        if anc not in curve_data:
+            continue
+        steps, mean, lo, hi = curve_data[anc]
+        if len(steps) == 0:
+            continue
+        color = ANCESTRY_COLORS.get(anc, "#333333")
+        ax.plot(steps, mean, color=color, linewidth=linewidth, zorder=3)
+        ax.fill_between(steps, lo, hi, color=color, alpha=0.18, linewidth=0, zorder=2)
+        ends.append((anc, float(steps[-1]), float(mean[-1])))
+    if label and ends:
+        y_span = ax.get_ylim()[1] - ax.get_ylim()[0]
+        min_sep = max(y_span * 0.045, 1e-9)
+        dodged = _dodge_label_positions([(a, y) for a, x, y in ends], min_sep)
+        x_max = max(x for _, x, _ in ends)
+        for anc, x, y in ends:
             color = ANCESTRY_COLORS.get(anc, "#333333")
-            ax.plot(steps, mean, color=color, linewidth=0.9, zorder=3)
-            ax.fill_between(steps, lo, hi, color=color, alpha=0.18, linewidth=0, zorder=2)
-            ax.annotate(anc, (steps[-1], mean[-1]), xytext=(3, 0), textcoords="offset points",
-                        fontsize=5.5, color=color, va="center", fontweight="bold")
-        ax.set_xlabel("cohort size (people)", fontsize=7)
-        ax.set_ylabel("cumulative distinct protein alleles", fontsize=7)
-        if title_suffix:
-            ax.set_title(title_suffix, fontsize=7)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
+            label_y = dodged[anc]
+            if abs(label_y - y) > 1e-6:
+                ax.plot([x, x_max * 1.02], [y, label_y], color=color, linewidth=0.4,
+                        alpha=0.6, zorder=2.5)
+            ax.annotate(anc, (x_max * 1.02, label_y), xytext=(2, 0), textcoords="offset points",
+                        fontsize=label_fontsize, color=color, va="center", fontweight="bold",
+                        annotation_clip=False)
+    return ends
+
+
+def fig_saturation_panels(curve_all, curve_ge2, curve_novel, out_stem):
+    """Main figure (89 mm wide per panel, 183 mm total = Nature double-column): panel a = all
+    distinct protein alleles (>=1 carrier); panel b = restricted to >=2-carrier alleles, robust
+    to singleton/artifact-driven novel calls; panel c = novel-protein alleles only (a much smaller
+    N per ancestry -- only people who carry a novel allele are sampling units for this curve).
+    No in-figure title (S03 orchestrator review); sentence-case axis labels; end-of-line ancestry
+    labels dodged apart with thin leader lines when two curves finish close together."""
+    with vc.nature_style():
+        fig, axes = plt.subplots(1, 3, figsize=(vc.mm(183), vc.mm(62)))
+        panels = [
+            (axes[0], curve_all, "a", "Cumulative distinct protein alleles", True),
+            (axes[1], curve_ge2, "b", "Alleles with ≥ 2 carriers", True),
+            (axes[2], curve_novel, "c", "Novel-protein alleles\n(carriers of ≥1 novel allele only)", True),
+        ]
+        for ax, data, letter, ylabel, do_label in panels:
+            _plot_ancestry_curves(ax, data, label=do_label)
+            ax.set_xlabel("Cohort size (people)", fontsize=7)
+            ax.set_ylabel(ylabel, fontsize=6.5)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.tick_params(labelsize=5.5)
+            vc.panel_letter(ax, letter)
+        fig.subplots_adjust(right=0.90, wspace=0.55)
         return vc.save_fig(fig, out_stem)
 
 
@@ -499,6 +653,12 @@ def render_only(args):
         sub_all = pred[(pred["gene_group"] == "classical_pooled") & (pred["category"] == cat)]
         for anc, sub in sub_all.groupby("ancestry"):
             thresholds_panel_data.setdefault(anc, {})[k] = _curve_tuple(sub)
+    curve_ge2_data = {anc: d[2] for anc, d in thresholds_panel_data.items() if 2 in d}
+
+    curve_novel_data = {}
+    novel_sub = pred[(pred["gene_group"] == "classical_pooled") & (pred["category"] == "novel")]
+    for anc, sub in novel_sub.groupby("ancestry"):
+        curve_novel_data[anc] = _curve_tuple(sub)
 
     supplement_data = {}
     for gene in CLASSICAL_GENES_BARE:
@@ -506,9 +666,8 @@ def render_only(args):
         for anc, sub in sub_gene.groupby("ancestry"):
             supplement_data[(gene, anc)] = _curve_tuple(sub)
 
-    fig_main_panel(main_panel_data,
-                   os.path.join(out_dir, "fig1_main_saturation_panel"),
-                   "distinct protein alleles, classical genes pooled")
+    fig_saturation_panels(main_panel_data, curve_ge2_data, curve_novel_data,
+                          os.path.join(out_dir, "fig1_main_saturation_panel"))
     if supplement_data:
         fig_supplement_grid(supplement_data, CLASSICAL_GENES_BARE,
                             os.path.join(out_dir, "fig2_supplement_grid_by_gene"))
@@ -518,7 +677,8 @@ def render_only(args):
         fig_imgt_richness(imgt_df[imgt_df["scheme"] == "pred"],
                           os.path.join(out_dir, "fig4_imgt_allele_space_explored"))
 
-    write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df)
+    write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df, curve_df,
+                n_bootstrap=summary.get("n_bootstrap_test", N_BOOTSTRAP_TEST_DEFAULT))
     print(f"[39] render-only done -> {out_dir}", file=sys.stderr, flush=True)
 
 
@@ -535,6 +695,7 @@ def run(args):
     main_panel_data = {}
     thresholds_panel_data = {}
     supplement_data = {}
+    curve_novel_data = {}
 
     for scheme, anc_col in (("pred", "anc_pred"), ("strict95", "anc_strict95")):
         keep = calls[calls["unrelated"]]
@@ -582,6 +743,8 @@ def run(args):
                 curves_nov = rarefaction_threshold_curves(units_novel, [1], args.n_permutations,
                                                           seed=args.seed + 7)
                 steps_n, mean_n, lo_n, hi_n = summarize_curve(curves_nov["distinct"])
+                if scheme == "pred":
+                    curve_novel_data[anc] = (steps_n, mean_n, lo_n, hi_n)
                 for i, s in enumerate(steps_n):
                     curve_rows.append({"scheme": scheme, "ancestry": anc, "gene_group": "classical_pooled",
                                       "category": "novel", "n": int(s),
@@ -660,9 +823,9 @@ def run(args):
         diff_all = pd.DataFrame()
 
     # ---- figures ----
-    fig_main_panel(main_panel_data,
-                  os.path.join(args.out_dir, "fig1_main_saturation_panel"),
-                  "distinct protein alleles, classical genes pooled")
+    curve_ge2_data = {anc: d[2] for anc, d in thresholds_panel_data.items() if 2 in d}
+    fig_saturation_panels(main_panel_data, curve_ge2_data, curve_novel_data,
+                          os.path.join(args.out_dir, "fig1_main_saturation_panel"))
     if supplement_data:
         fig_supplement_grid(supplement_data, CLASSICAL_GENES_BARE,
                            os.path.join(args.out_dir, "fig2_supplement_grid_by_gene"))
@@ -687,16 +850,20 @@ def run(args):
     with open(os.path.join(args.out_dir, "summary.json"), "w") as fh:
         json.dump(summary, fh, indent=2, default=str)
 
-    write_readme(args.out_dir, summary, fit_df, eq_all, diff_all, imgt_df)
+    write_readme(args.out_dir, summary, fit_df, eq_all, diff_all, imgt_df, curve_df,
+                n_bootstrap=args.n_bootstrap_test)
     print(f"[39] done -> {args.out_dir} ({summary['elapsed_sec']}s)", file=sys.stderr, flush=True)
 
 
-def write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df):
+def write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df, curve_df=None, n_bootstrap=None):
+    n_bootstrap = n_bootstrap or summary.get("n_bootstrap_test", N_BOOTSTRAP_TEST_DEFAULT)
     L = []
     L.append("# Per-ancestry allele discovery / saturation curves\n\n")
     L.append("_Generated by `39_saturation_by_ancestry.py`. Spec: Marc's proposal, endorsed by "
             "Cole on the 2026-09-22 call (sprints/CALL_SUMMARY_2026-09-22.md Sec 6), styled after "
-            "the Pakistan Genome Resource (Nature, 2026) Fig 3e curves._\n\n")
+            "the Pakistan Genome Resource (Nature, 2026) Fig 3e curves. Extrapolation and equal-N "
+            "sections below were revised 2026-09-23 per orchestrator review of the first pass "
+            "(see Caveats: the original Clench/Michaelis-Menten fit was misspecified here)._\n\n")
     L.append("## Question\n\n")
     L.append("As more people are added to each ancestry group, how many distinct HLA protein "
             "(2-field) alleles have been found so far, and how far from saturated is each "
@@ -707,44 +874,132 @@ def write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df):
             "bands plotted/exported at every cohort size. Identity = `prot_id` from "
             "24_novelty_by_field.py's own `allele_ids()` (2-field IPD-IMGT name for known "
             "alleles, `<gene>_prot_<sha8>` for a novel protein), restricted to clean "
-            "(non-artifact, non-frameshift) calls. Saturation model: Clench (1979) / "
-            "Michaelis-Menten S(N)=Smax*N/(b+N), reused verbatim from "
-            "`04_allele_saturation.py::fit_clench_asymptote`; Chao2 (incidence) reported "
-            "alongside as an independent richness estimator. Equal-N comparison at N_min = the "
-            "largest N every well-powered ancestry (>=100 people) reaches; AFR-vs-rest "
-            f"difference tested via {summary['n_bootstrap_test']}-replicate bootstrap, two-sided "
-            "percentile p-value.\n\n")
+            "(non-artifact, non-frameshift) calls. Two non-parametric extrapolation estimators "
+            "(no saturating-curve model assumed): (a) the empirical discovery rate -- slope of "
+            "the mean rarefaction curve over the last 10% of N, reported as new alleles per next "
+            "1,000 people; (b) Chao, Colwell, Chiu & Miao's (2014, Ecol. Monogr.) incidence-based "
+            "extrapolation to 2N, S(N+m) = S_obs + f0_hat*(1-(1-Q1/(N*f0_hat+Q1))^m), with "
+            "f0_hat = Chao2 - S_obs and Q1 = alleles at exactly 1 carrier (both already exported "
+            "per ancestry). Clench/Michaelis-Menten is kept only as a labeled supplementary "
+            "column. Equal-N comparison at N_min = the largest N every well-powered ancestry "
+            "(>=100 people) reaches, EXCLUDING MID (its own full sample sets N_min, making its "
+            "band degenerate by construction); a second, purely descriptive equal-N read-off at "
+            f"N=1,236 (SAS's max) is also reported. AFR-vs-rest difference tested via "
+            f"{n_bootstrap}-replicate bootstrap, two-sided percentile p-value (resolution "
+            f"1/{n_bootstrap}).\n\n")
     L.append(f"- Unrelated people (all ancestries, primary scheme): "
             f"**{summary['n_people_unrelated']}**\n")
     L.append(f"- Removed for relatedness: {summary['n_people_removed_relatedness']}\n")
     L.append(f"- Permutations per curve point: {summary['n_permutations']}\n\n")
 
-    L.append("## Extrapolation (classical genes pooled, all alleles, `pred` ancestry scheme)\n\n")
-    if len(fit_df):
-        sub = fit_df[(fit_df["scheme"] == "pred") & (fit_df["gene_group"] == "classical_pooled")
-                     & (fit_df["category"] == "all")]
-        L.append("| Ancestry | N now | Distinct now | Expected new / next 1,000 people | "
-                "Clench S_max | Chao2 richness |\n|---|---|---|---|---|---|\n")
-        for _, r in sub.sort_values("ancestry").iterrows():
+    L.append("## Headline: no ancestry is saturated\n\n")
+    L.append("Every curve is still climbing at its current N (see fig1, panel a) -- the original "
+            "Clench/Michaelis-Menten fit reported a *negative* 'expected new alleles per next "
+            "1,000 people' for AFR/AMR/EUR/EAS/SAS, which is impossible and was a misspecified "
+            "model, not a real result (flagged in orchestrator review). The two estimators below "
+            "replace it.\n\n")
+    if curve_df is not None and len(curve_df) and len(fit_df):
+        npdf = nonparametric_extrapolation(curve_df, fit_df, scheme="pred")
+        L.append("| Ancestry | N now | Distinct now | Empirical rate / next 1,000 (last-10% "
+                "slope) | Chao2 undetected (f0_hat) | Chao extrapolation: new by 2N | Clench "
+                "rate / 1,000 (supplementary, known to underfit) |\n"
+                "|---|---|---|---|---|---|---|\n")
+        for _, r in npdf.sort_values("ancestry").iterrows():
             L.append(f"| {r['ancestry']} | {r['n_now']} | {r['s_obs_now']:.0f} | "
-                    f"{r['expected_new_per_1000']:.1f} | {r['clench_s_max']:.0f} | "
-                    f"{r['chao2_richness']:.0f} |\n")
+                    f"{r['empirical_rate_per_1000']:.1f} | {r['chao2_undetected_f0_hat']:.0f} | "
+                    f"{r['chao_new_alleles_by_2n']:.0f} | "
+                    f"{r['clench_expected_new_per_1000_supplementary']:.1f} |\n")
+        L.append("\n")
+        L.append("Both non-parametric estimators agree: every ancestry is still discovering new "
+                "alleles at a substantial rate, and hundreds of alleles per ancestry remain "
+                "undetected by Chao2 even after 500-3,000 people. The call's expectation that AFR "
+                "is *least saturated* is **not** supported by the empirical end-slope among the "
+                "five well-powered ancestries (AFR/AMR/EAS/EUR/SAS) -- SAS and EAS currently have "
+                "the *highest* per-1,000-people discovery rates: ")
+        by_anc = npdf.set_index("ancestry")
+        ordered = sorted(
+            [a for a in ["AFR", "AMR", "EAS", "EUR", "SAS"] if a in by_anc.index],
+            key=lambda a: -by_anc.loc[a, "empirical_rate_per_1000"])
+        L.append(", ".join(f"{a}={by_anc.loc[a,'empirical_rate_per_1000']:.1f}" for a in ordered))
+        L.append(" (MID's 175.1/1,000 is the highest overall but its curve stops at N=487, the "
+                "shortest of any ancestry, so it is the least reliable estimate here). AFR does, "
+                "however, carry one of the largest ABSOLUTE undetected pools by Chao2 (f0_hat "
+                f"={by_anc.loc['AFR','chao2_undetected_f0_hat']:.0f} vs EUR's "
+                f"{by_anc.loc['EUR','chao2_undetected_f0_hat']:.0f}, the two highest) -- 'AFR "
+                "still has the most alleles left to find in absolute terms' is supported; 'AFR is "
+                "climbing fastest right now, per person' is not, in this cohort.\n\n")
     L.append("\n")
 
     L.append("## Equal-N comparison and AFR-vs-rest test\n\n")
+    L.append("**Primary (N_min=487, dictated by MID -- MID itself excluded from the table and "
+            "test below since at its own full sample its 95% band is degenerate, [277.0, "
+            "277.0]):**\n\n")
     if len(eq_df):
+        eq_noMID = eq_df[eq_df["ancestry"] != "MID"]
         L.append("| Ancestry | N_min | Mean distinct | 95% band |\n|---|---|---|---|\n")
-        for _, r in eq_df.sort_values("ancestry").iterrows():
+        for _, r in eq_noMID.sort_values("ancestry").iterrows():
             L.append(f"| {r['ancestry']} | {r['n_min']} | {r['mean_distinct_at_n_min']:.1f} | "
                     f"[{r['lo2_5']:.1f}, {r['hi97_5']:.1f}] |\n")
     L.append("\n")
     if len(diff_df):
-        L.append("| Comparison | Mean diff | 95% band | p (two-sided bootstrap) |\n"
-                "|---|---|---|---|\n")
-        for _, r in diff_df.iterrows():
+        diff_noMID = diff_df[~diff_df["comparison"].str.contains("MID")]
+        L.append("| Comparison | Mean diff | 95% band | p (two-sided bootstrap, "
+                f"resolution 1/{n_bootstrap}) |\n|---|---|---|---|\n")
+        for _, r in diff_noMID.iterrows():
             L.append(f"| {r['comparison']} | {r['mean_diff']:.1f} | "
-                    f"[{r['lo2_5']:.1f}, {r['hi97_5']:.1f}] | {r['p_two_sided_bootstrap']:.4f} |\n")
+                    f"[{r['lo2_5']:.1f}, {r['hi97_5']:.1f}] | "
+                    f"{format_p(r['p_two_sided_bootstrap'], n_bootstrap)} |\n")
     L.append("\n")
+    L.append("**Secondary, descriptive only (N=1,236 = SAS's own max; no bootstrap replicates "
+            "at this N were retained, so this is a mean + percentile-band read-off from "
+            "`curves.tsv`, not a formal significance test; MID excluded, does not reach N=1,236):"
+            "**\n\n")
+    if curve_df is not None and len(curve_df):
+        eq2 = equal_n_descriptive(curve_df, 1236, exclude=("MID",), scheme="pred")
+        if len(eq2):
+            L.append("| Ancestry | N | Mean distinct | 95% band |\n|---|---|---|---|\n")
+            for _, r in eq2.sort_values("ancestry").iterrows():
+                L.append(f"| {r['ancestry']} | {int(r['n'])} | {r['mean_distinct']:.1f} | "
+                        f"[{r['lo2_5']:.1f}, {r['hi97_5']:.1f}] |\n")
+            L.append("\n")
+    L.append("AMR leads AFR at both N=487 and N=1,236 -- not a fluke of the smaller N_min.\n\n")
+
+    L.append("### Interpretation: why AMR, not AFR, leads at equal N\n\n")
+    L.append("AoU-predicted AMR is a recently admixed population (typically European + "
+            "Indigenous-American + African ancestry sources). A higher observed allele count "
+            "at equal N for AMR is therefore expected to partly reflect the UNION of alleles "
+            "carried by its several ancestral source populations, not necessarily that AMR "
+            "chromosomes are individually more diverse than AFR chromosomes -- this is a "
+            "distinct phenomenon from population-scale allelic diversity and should not be read "
+            "as 'AMR is the most diverse ancestry.'\n\n")
+    if curve_df is not None and len(curve_df):
+        strict_check = curve_df[(curve_df["scheme"] == "strict95")
+                                & (curve_df["gene_group"] == "classical_pooled")
+                                & (curve_df["category"] == "all")]
+        strict_max = strict_check[strict_check["ancestry"] != "MID"].groupby("ancestry")["n"].max()
+        if len(strict_max) and strict_max.min() > 0:
+            n_strict = int(strict_max.min())
+            eq_strict = equal_n_descriptive(curve_df, n_strict, exclude=("MID",), scheme="strict95")
+            if len(eq_strict):
+                L.append(f"**Sensitivity check, strict ancestry (p>=0.95) at N={n_strict} "
+                        "(the largest N every strict-scheme ancestry but MID reaches -- "
+                        "restricting to confidently-assigned, less-admixed individuals):**\n\n")
+                L.append("| Ancestry | N | Mean distinct | 95% band |\n|---|---|---|---|\n")
+                for _, r in eq_strict.sort_values("ancestry").iterrows():
+                    L.append(f"| {r['ancestry']} | {int(r['n'])} | {r['mean_distinct']:.1f} | "
+                            f"[{r['lo2_5']:.1f}, {r['hi97_5']:.1f}] |\n")
+                L.append("\n")
+                amr_row = eq_strict[eq_strict["ancestry"] == "AMR"]
+                afr_row = eq_strict[eq_strict["ancestry"] == "AFR"]
+                if len(amr_row) and len(afr_row):
+                    still_leads = amr_row["mean_distinct"].iloc[0] > afr_row["mean_distinct"].iloc[0]
+                    L.append(f"AMR {'still leads AFR' if still_leads else 'no longer leads AFR'} "
+                            "under strict ancestry assignment (AMR="
+                            f"{amr_row['mean_distinct'].iloc[0]:.1f} vs AFR="
+                            f"{afr_row['mean_distinct'].iloc[0]:.1f}), so admixture alone does "
+                            "not fully explain the AMR>AFR gap seen under the predicted-ancestry "
+                            "scheme -- restricting to more confidently-assigned, less-admixed "
+                            "people narrows but does not close it.\n\n")
 
     L.append("## % of allele space explored (IPD-IMGT richness), classical genes\n\n")
     L.append("Defined as: (distinct 2-field IPD-IMGT-catalogued alleles observed in this "
@@ -767,8 +1022,13 @@ def write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df):
         L.append("\n")
 
     L.append("## Figures\n\n")
-    L.append("- `fig1_main_saturation_panel` — main-figure candidate (89 mm), classical genes "
-            "pooled, per-ancestry curves with direct end labels.\n")
+    L.append("- `fig1_main_saturation_panel` — main-figure candidate, three 89 mm panels "
+            "(183 mm total), no in-figure title: **a** all distinct protein alleles (>=1 "
+            "carrier), **b** restricted to alleles with >=2 carriers (robust to singleton-driven "
+            "novel-allele artifacts), **c** novel-protein alleles only (note: a much smaller N "
+            "per ancestry — only people carrying >=1 novel allele are sampling units for this "
+            "panel). Per-ancestry curves with direct, vertically-dodged end labels (leader line "
+            "drawn when a label had to move to avoid colliding with a neighbor).\n")
     L.append("- `fig2_supplement_grid_by_gene` — per-classical-gene grid, all ancestries "
             "overlaid.\n")
     L.append("- `fig3_thresholds_<ANC>` — Pakistan Fig 3e style per-ancestry panel: >=1/>=2/>=10 "
@@ -788,16 +1048,38 @@ def write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df):
     L.append("- Clench S_max brackets (`clench_s_max_lo/hi` in `extrapolation_fits.tsv`) are "
             "curve-based sensitivity brackets (refit to the 2.5/97.5 percentile bands), not a "
             "calibrated bootstrap CI — see 04_allele_saturation.py's own caveat on this "
-            "estimator.\n")
+            "estimator. **The Clench point estimate itself (`expected_new_per_1000` in "
+            "`extrapolation_fits.tsv`) was found to be misspecified for this dataset (negative "
+            "values at several ancestries, contradicted by curves still rising and by Chao2) and "
+            "is no longer the headline number — see the non-parametric table above; Clench is "
+            "kept in the TSV/README only as a labeled supplementary column.**\n")
+    L.append("- The N=1,236 secondary equal-N table is descriptive only (mean + 2.5/97.5 "
+            "percentile band from the already-exported 25-permutation curve), not a formal "
+            "significance test — the raw bootstrap replicates needed for a paired difference "
+            "test at that N were not retained locally (only at N_min=487); a fresh "
+            "`--n-bootstrap-test` VM run at N=1,236 would be needed for a formal p-value there.\n")
+    L.append("- Panel c (novel-protein alleles) has a much smaller N per ancestry than panels a/b "
+            "— its sampling units are only the people who carry >=1 novel allele at all, not the "
+            "full ancestry cohort — so panel c's curves are not on the same x-axis population as "
+            "a/b even though they share an x-axis label.\n")
 
     L.append("\n## Distilled\n\n")
     L.append("- Sampling unit: person (both haplotypes); 25 permutations/point, Pakistan Fig 3e "
             "convention.\n")
     L.append("- Identity = 24's own `prot_id` (2-field IPD-IMGT name or `<gene>_prot_<sha8>` for "
             "novel).\n")
-    L.append("- Saturation model: Clench/Michaelis-Menten (reused from 04), Chao2 reported "
-            "alongside.\n")
-    L.append("- AFR-vs-rest tested by bootstrap difference at equal N, not eyeballed.\n")
+    L.append("- No ancestry is saturated: every curve is still rising; extrapolation uses two "
+            "non-parametric estimators (empirical end-slope, Chao incidence extrapolation to "
+            "2N), Clench kept only as a supplementary, known-to-underfit column.\n")
+    L.append("- At equal N, AMR leads (not AFR) — plausibly admixture (allele-pool union across "
+            "AMR's continental source populations), not necessarily higher per-source diversity; "
+            "AMR still leads AFR under strict (>=0.95) ancestry assignment, so admixture doesn't "
+            "fully explain it.\n")
+    L.append("- AFR is not the steepest-climbing ancestry right now (SAS/EAS currently discover "
+            "faster per 1,000 people) but does carry one of the two largest absolute undetected "
+            "pools by Chao2 (with EUR).\n")
+    L.append("- AFR-vs-rest tested by bootstrap difference at equal N (MID excluded, degenerate "
+            "band); p-values reported as `<1/n_bootstrap`, never a literal `0.0000`.\n")
     L.append("- IPD-IMGT allele-space-explored caveat: catalogue itself is EUR-biased.\n")
 
     with open(os.path.join(out_dir, "README.md"), "w") as fh:
