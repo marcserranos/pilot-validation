@@ -8,9 +8,9 @@
   "min_carriers_b": 20,
   "strict_threshold": 0.98,
   "ancestry_scheme_cd": "strict",
-  "panel_c_source": "sub_split_fallback",
+  "panel_c_source": "totals_export",
   "panel_c_metric": "any_field",
-  "panel_a_bins_present": false,
+  "panel_a_bins_present": true,
   "canvas_mm": [
     183.0,
     150.0

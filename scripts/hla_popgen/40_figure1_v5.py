@@ -404,9 +404,11 @@ def draw_panel_cd(ax_hm, ax_bar, grid, metric, dtab, cax=None):
     ax_bar.set_xlabel("novel protein alleles", fontsize=FS_TITLE)
     ax_bar.tick_params(axis="x", labelsize=FS_TICK)
     ax_bar.spines[["top", "right"]].set_visible(False)
-    # Legend inside d, tucked under the bars (orchestrator: not floating below the axis).
-    ax_bar.legend(frameon=False, fontsize=FS_LEG - 0.5, loc="lower right", handlelength=1.0,
-                 labelspacing=0.2, borderaxespad=0.2, bbox_to_anchor=(1.0, 0.02))
+    # Legend below the x-axis (outside the plotted bars): with real data the bottom two rows
+    # (HLA-B, HLA-A) both carry long bars, so an in-panel "lower right" legend sits directly on
+    # top of their labels -- moved fully below the axis instead, matching panel f's style.
+    ax_bar.legend(frameon=False, fontsize=FS_LEG - 0.5, loc="upper center", handlelength=1.0,
+                 labelspacing=0.2, borderaxespad=0.2, bbox_to_anchor=(0.5, -0.16), ncol=1)
 
 
 # ---- panel e: discovery curves --------------------------------------------------------------

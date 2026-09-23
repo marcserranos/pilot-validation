@@ -11,21 +11,21 @@ The censoring fix above made panel c *correct* but revealed it is also mostly ha
 committed `24_novelty_by_field` table splits each gene x ancestry cell into several
 independently-censored sub-cells (by field class and artifact label), so even a well-powered
 combined total often has *some* sub-cell below 20. **`scripts/hla_popgen/40b_novelty_rate_export.py`**
-(written this session, not yet run) fixes this the right way: it recomputes the combined totals
-directly from Table 1 on the VM and applies the `<20` rule exactly once, to the number actually
-written out, with Wilson 95% CIs from the true counts. `40_figure1_v5.py compose` now prefers
-`panel_c_novelty_totals.tsv` when present (falls back to the heavier-censored rendering
-otherwise — that fallback is what's in the current `figure1_v5.png`) and auto-selects the most
-specific metric (protein > CDS > any-field) that clears 20 in at least half of the 48 cells
-(`--c-metric` to override). Next step: run `40a_admixture_bins.py` and `40b_novelty_rate_export.py`
-on the VM, then re-run `compose`.
+fixes this the right way: it recomputes the combined totals directly from Table 1 on the VM and
+applies the `<20` rule exactly once, to the number actually written out, with Wilson 95% CIs from
+the true counts. `40_figure1_v5.py compose` prefers `panel_c_novelty_totals.tsv` when present
+(falls back to the heavier-censored rendering otherwise) and auto-selects the most specific metric
+(protein > CDS > any-field) that clears 20 in at least half of the 48 cells (`--c-metric` to
+override). **2026-09-24: this VM export has now landed** (`panel_c_novelty_totals.tsv`, see
+"Panels a and c: what they show now" below) — panel c is composed from it.
 
-## Status: panels b/c/d/e/f complete and real; panel a still pending a VM run
+## 2026-09-24: panels a and c are no longer placeholders
 
-Panel **a** needs a fresh VM aggregation (`40a_admixture_bins.py`, written this session, not yet
-run — see "Open issues"). Every other panel is built from genuine, already-committed,
-disclosure-safe aggregate tables. The figure ships with an honest placeholder box in panel a's
-position.
+Both VM exports panel a and c were waiting on now exist locally
+(`panel_a_admixture_bins.tsv`, `panel_c_novelty_totals.tsv`), already aggregate-only and
+disclosure-checked. `compose` was re-run against them (see "Panels a and c: what they show now"
+below for exact thresholds and the panel-d legend overlap fix that came out of reviewing the
+result). **All six panels (a-f) are now real, populated data** — no placeholder boxes remain.
 
 ## The 2026-09-22 correctness bug and how it's fixed
 
@@ -75,6 +75,40 @@ cells) and is literally the panel Cole endorsed. Panel (d), immediately adjacent
 rows, carries the protein-level claim instead — so both metrics are on the figure, each where it is
 legible. The full three-way field breakdown remains in `33_figure1_v3/` and `24_novelty_by_field/`.
 
+## Panels a and c: what they show now, and the exact thresholds used
+
+**Panel a** (`panel_a_admixture_bins.tsv`): 11,833 unrelated participants, binned into **589
+consecutive bins of >=20 people each**, sorted by predicted genetic ancestry then by
+dominant-ancestry-component probability (descending) within ancestry. Each bin's plotted value is
+the **mean** of the six admixture proportions (`p_afr` ... `p_sas`) across its >=20 members —
+disclosure-safe by construction, since no bin can be smaller than the AoU small-cell floor and no
+individual's proportions are ever exported. This uses **predicted** ancestry (soft assignment,
+continuous probability), distinct from the **strict** threshold panel c uses below.
+
+**Panel c** (`panel_c_novelty_totals.tsv`): 48 gene x ancestry cells (8 classical genes x 6
+ancestries), restricted to participants at **strict ancestry >=0.9** (a single dominant-ancestry
+posterior probability threshold — looser than panel b's 0.98, see "Open issues" #2). Per cell,
+`n_novel_*` counts 1-19 are written as the string `"<20"` and never resolved to a point value;
+rates and Wilson 95% CIs are computed only where both the numerator and denominator clear 20. Of
+the 48 cells, only **1 (HLA-A x MID, n_total=590) has a censored numerator** at the any-field
+level, and it renders hatched with the label `<20` — never as `0`. At the protein-coding level
+only **1/48 cells clears >=20 novel-protein carriers**, so `compose`'s auto metric-selection
+(protein > CDS > any-field, first to clear >=50% of cells) correctly falls through to **any-field**
+for the main heatmap — the same choice documented above under "which metric was chosen," now
+confirmed by the real counts rather than assumed.
+
+**Headline numbers from the real data:** HLA-DRB1 has by far the highest any-field novelty rate in
+every ancestry (46-71%, driven by non-coding diversity in a gene that is itself hypervariable), and
+the highest single cell is **HLA-DRB1 x EAS at 70.9%** (95% CI 69.1-72.7%, n=2,431). Among the
+7 non-DRB1 genes, HLA-DPB1 is highest, peaking at **HLA-DPB1 x EAS = 27.2%** (n=2,438). The
+lowest rates are at HLA-A (2.3-4.4% across the 5 uncensored ancestries).
+
+**One rendering bug found and fixed this round**: panel d's recurrence-class legend
+(`seen once` / `2-19 unrelated people`) was originally anchored inside the axes at
+`loc="lower right"`, which — once real data replaced the placeholder — landed directly on top of
+the HLA-B and HLA-A bars (both long, bottom two rows). Moved the legend fully below the x-axis
+(`bbox_to_anchor=(0.5, -0.16)`, `loc="upper center"`); no more overlap with any bar or its label.
+
 ## Layout: fixed 183 x 150 mm canvas, orchestrator's row spec
 
 - Row 1 (~25 mm): panel a, full width.
@@ -103,16 +137,16 @@ was the clear choice on data availability alone.
 
 **Figure 1 | Long-read HLA typing across the All of Us cohort: cohort structure, reference
 catalogue gaps, and allele-discovery saturation by ancestry.**
-**(a)** Genetic-ancestry composition of unrelated long-read participants, binned into consecutive
-groups of ≥20 people (sorted by predicted ancestry, then by dominant-ancestry probability
-descending) — mean admixture proportion per bin *(pending VM run of `40a_admixture_bins.py`)*.
+**(a)** Genetic-ancestry composition of unrelated long-read participants (n=11,833), binned into
+589 consecutive groups of ≥20 people (sorted by predicted ancestry, then by dominant-ancestry
+probability descending) — mean admixture proportion per bin.
 **(b)** HLA-B alleles (≥20 carriers, strict ancestry probability ≥0.98) on the AFR/EUR/AMR simplex
 at the mean renormalised ancestry composition of their carriers; point area/opacity ~ carrier
 count (log). Triangles: alleles first observed in this cohort. **(c)** Percentage of called
 haplotypes carrying sequence, at any IPD-IMGT/HLA nomenclature field, absent from the catalogue
-(mostly non-coding), per classical gene (rows) x ancestry (columns). Hatched, "≤x"-labelled cells:
-the numerator has a censored (<20) contribution, so only an upper bound is shown, never a point
-value; "n/a": denominator <20 called haplotypes. **(d)** Distinct protein alleles not in
+(mostly non-coding), per classical gene (rows) x ancestry (columns), strict ancestry ≥0.9. Hatched
+cells: the numerator is censored (<20), so only the "<20" label is shown, never a point value or a
+bare "0" (1/48 cells: HLA-A x MID). **(d)** Distinct protein alleles not in
 IPD-IMGT/HLA, same gene rows as c, ancestry-pooled, stacked by unrelated-carrier recurrence (seen
 once / 2-19 / ≥20); ancestry-split version in `34_novel_recurrence/`. **(e)** Per-ancestry
 allele-discovery curves (8 classical genes pooled), mean ± 95% band over 25 random orderings per
@@ -123,38 +157,47 @@ non-functional heterodimer.
 
 ## N per panel
 
-- a: pending VM run (bin size ≥20; ~500 bins over ~11,800 unrelated people expected).
+- a: 589 bins of ≥20 unrelated people each, 11,833 people total, predicted-ancestry scheme.
 - b: 53 HLA-B alleles, strict ancestry ≥0.98, ≥20 carriers.
-- c/d: 8 classical genes x 6 ancestries; d's per-gene novel-protein-allele totals: HLA-A 34,
-  HLA-B 60, HLA-C 51, HLA-DPA1 21, HLA-DPB1 32, HLA-DQA1 38, HLA-DQB1 30, HLA-DRB1 35.
+- c/d: 8 classical genes x 6 ancestries, strict ancestry ≥0.9 for c; per-cell n_total 580-4,504.
+  d's per-gene novel-protein-allele totals: HLA-A 34, HLA-B 60, HLA-C 51, HLA-DPA1 21, HLA-DPB1 32,
+  HLA-DQA1 38, HLA-DQB1 30, HLA-DRB1 35.
 - e: 6 ancestries, 25 permutations/point, N from 487 (MID) to 3,020 (AFR).
 - f: 6 ancestries, 563-4,146 DQA1~DQB1 cis-haplotypes each.
 
+## Distilled
+
+- All six panels (a-f) are now real, aggregate, disclosure-checked data — no placeholders remain.
+- Panel a: 589 bins (≥20 people each) x 11,833 unrelated people, predicted-ancestry scheme, mean
+  admixture proportions only.
+- Panel c: strict ancestry ≥0.9, any-field novelty rate (auto-selected because protein/CDS are
+  almost entirely <20-censored); only 1/48 cells (HLA-A x MID) is itself censored, hatched and
+  labelled `<20`, never drawn as `0`.
+- Headline: HLA-DRB1 x EAS has the highest any-field novelty rate on the figure, 70.9%
+  (n=2,431); HLA-DPB1 x EAS is highest among the 7 non-DRB1 genes, 27.2% (n=2,438).
+- One bug fixed this round: panel d's legend overlapped the HLA-B/HLA-A bars once real data
+  replaced the placeholder — moved below the axis.
+- Open: panel b (0.98) and panel c/d (0.9) use different strict-ancestry thresholds — not unified,
+  out of scope for this figure (would need a script-24 rerun at 0.98).
+
 ## Open issues
 
-1. **Panel a not rendered** — `40a_admixture_bins.py` is written (bins unrelated people into
-   ≥20-person groups sorted by ancestry then dominant probability, exports per-bin means only —
-   disclosure-safe by construction) but has not been run on the VM this session. VM Chrome tools
-   were refused by the auto-mode permission classifier in the prior iteration of this task; this
-   iteration was explicitly local-only per the orchestrator's instruction. Next step:
-   ```
-   python3 scripts/hla_popgen/40a_admixture_bins.py --out reports/hla_popgen/40_figure1_v5/panel_a_admixture_bins.tsv
-   python3 scripts/hla_popgen/40_figure1_v5.py vm-panels --out-dir ~/s03/results/40   # panel b, if re-pulling
-   python3 scripts/hla_popgen/40_figure1_v5.py compose --pick A
-   ```
-2. Panel c/d's ancestry scheme (24's own "strict" default threshold) is not unified with panels
-   b's 0.98 — would need a VM rerun of script 24 at 0.98, out of scope for this figure.
-3. Panel e's Clench extrapolation is being corrected concurrently elsewhere; this script only
+1. Panel b (strict ancestry ≥0.98) and panel c/d (strict ancestry ≥0.9, from
+   `panel_c_novelty_totals.tsv`) use different thresholds — not unified across the figure; would
+   need a VM rerun of script 24 at 0.98, out of scope for this pass.
+2. Panel e's Clench extrapolation is being corrected concurrently elsewhere; this script only
    plots raw curve points, which are unaffected, but a final diff against
    `39_saturation_by_ancestry/README.md` is worth doing before submission.
-4. AFR/AMR end labels in panel e sit close together (both curves converge near N=3,000) — legible
+3. AFR/AMR end labels in panel e sit close together (both curves converge near N=3,000) — legible
    but tight; could use a leader line if a reviewer flags it.
-5. A/B layout choice was a visual call at 100% zoom, not quantitative.
+4. A/B layout choice was a visual call at 100% zoom, not quantitative.
 
 ## Files
 
 - `40_figure1_v5.py` — compose script (`vm-panels` / `compose` modes).
-- `40a_admixture_bins.py` — VM-side panel (a) binning script (not yet run).
+- `40a_admixture_bins.py` — VM-side panel (a) binning script.
+- `panel_a_admixture_bins.tsv`, `panel_c_novelty_totals.tsv` — the two VM exports this round
+  composed against (aggregate-only, disclosure-checked).
 - `layout_A.png/.pdf`, `layout_B.png/.pdf` — both variants.
-- `figure1_v5.png/.pdf` — chosen layout (A), current state (panel a pending).
+- `figure1_v5.png/.pdf` — chosen layout (A), all six panels populated.
 - `compose_summary.json` — parameters used for this compose run.
