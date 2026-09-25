@@ -166,8 +166,19 @@ def panel_b_novelty(ax, gene_summary, y):
 # ---------------------------------------------------------------------------
 # Panels c/d: gene x ancestry heatmaps.
 # ---------------------------------------------------------------------------
-def _heatmap(ax, mat, y, cmap, norm, censored_mask, cbar_label, title, fmt="{:.0f}",
-             cbar_fraction=0.055, cbar_pad=0.08):
+def _signed_cell_label(value):
+    """Round-then-format a signed statistic for a heatmap cell: zero (after rounding, from either
+    side) prints as a plain "0" with no sign; anything else keeps an explicit +/- prefix. Fixes
+    "+0"/"0"/"-0" all appearing in the same panel (orchestrator review, pass 3) -- the previous
+    version formatted the RAW float with "{:+.0f}" and then string-patched the one "-0.0" spelling
+    it happened to notice, which still left an unsigned "0" (from a value that happened to round
+    to +0 in a way "-0.0" didn't match) sitting next to signed "+0"s elsewhere in the same row."""
+    rounded = int(round(value))
+    return "0" if rounded == 0 else f"{rounded:+d}"
+
+
+def _heatmap(ax, mat, y, cmap, norm, censored_mask, cbar_label, title, fmt="{:.0f}", signed=False,
+             cbar=True, cbar_fraction=0.055, cbar_pad=0.08):
     cmap = plt.get_cmap(cmap) if isinstance(cmap, str) else cmap
     im = ax.imshow(mat, aspect="auto", cmap=cmap, norm=norm,
                     extent=[-0.5, mat.shape[1] - 0.5, len(GENE_ORDER) - 0.5, -0.5])
@@ -184,10 +195,7 @@ def _heatmap(ax, mat, y, cmap, norm, censored_mask, cbar_label, title, fmt="{:.0
                 # review (full-size pass) also caught it failing on viridis's/OrRd's darkest cells
                 # under the old assumption. See `_text_color_for_rgba()`.
                 rgba = cmap(norm(mat[gi, ai]))
-                label = fmt.format(mat[gi, ai])
-                if label in ("-0", "-0.0"):  # signed format's "-0" for a value that rounds to
-                    label = label[1:]        # zero from the negative side -- not a real signed
-                                              # zero, just noise; drop the confusing minus sign.
+                label = _signed_cell_label(mat[gi, ai]) if signed else fmt.format(mat[gi, ai])
                 ax.text(ai, gi, label, ha="center", va="center",
                         fontsize=5.0, color=_text_color_for_rgba(rgba))
     ax.set_xticks(np.arange(mat.shape[1]))
@@ -197,12 +205,16 @@ def _heatmap(ax, mat, y, cmap, norm, censored_mask, cbar_label, title, fmt="{:.0
     ax.set_title(title, fontsize=7, pad=3)
     ax.tick_params(axis="y", length=0)
     ax.tick_params(axis="x", length=2, pad=1)
-    # Slimmer, closer-fitted colorbar (orchestrator review: "colourbar must not crowd the
-    # heatmap" -- previously a large fraction/shrink pairing left an oversized colorbar column
-    # relative to a now-wider heatmap; a slimmer fraction + modest pad keeps a clean, even gap).
-    cbar = plt.colorbar(im, ax=ax, fraction=cbar_fraction, pad=cbar_pad, shrink=0.82, aspect=22)
-    cbar.set_label(cbar_label, fontsize=5.3)
-    cbar.ax.tick_params(labelsize=5.0, length=1.5)
+    if cbar:
+        # Slimmer, closer-fitted colorbar (orchestrator review: "colourbar must not crowd the
+        # heatmap" -- previously a large fraction/shrink pairing left an oversized colorbar
+        # column relative to a now-wider heatmap; a slimmer fraction + modest pad keeps a clean,
+        # even gap). Panel c instead passes cbar=False and gets its own thin HORIZONTAL colorbar
+        # in a reserved row below it (see build_figure) -- a vertical one here was still visually
+        # crowding panel d's own column (orchestrator review, pass 3).
+        cb = plt.colorbar(im, ax=ax, fraction=cbar_fraction, pad=cbar_pad, shrink=0.82, aspect=22)
+        cb.set_label(cbar_label, fontsize=5.3)
+        cb.ax.tick_params(labelsize=5.0, length=1.5)
     return im
 
 
@@ -220,19 +232,25 @@ def panel_c_deviation_heatmap(ax, gene_by_ancestry, gene_summary, y):
     project's one signed-statistic colormap, already used for signed LD elsewhere) -- a cell near
     white means "this ancestry looks like the pooled average for this gene"; blue/red means
     under-/over-represented relative to pooled, which is the actually informative comparison once
-    panel a already establishes the pooled value itself."""
+    panel a already establishes the pooled value itself.
+
+    Returns the `im` (AxesImage) so the caller can draw its OWN thin horizontal colorbar in a
+    reserved row below this panel, rather than a vertical one wedged between panels c and d
+    (orchestrator review, pass 3: "nudge c's colourbar so it doesn't crowd d")."""
     mat_pct = _pivot_num(gene_by_ancestry, "presence_pct")
     pooled = to_num(gene_summary.set_index("gene").reindex(GENE_ORDER)["presence_pct"]).values
     mat = mat_pct - pooled[:, None]
     censored = np.isnan(mat_pct)  # a censored ancestry cell has no presence_pct to begin with
     vmax = np.nanmax(np.abs(mat)) if np.isfinite(np.nanmax(np.abs(mat))) else 20.0
     vmax = max(5.0, np.ceil(vmax / 5.0) * 5.0)  # round up to a clean bracket for the colorbar
-    _heatmap(ax, mat, y, diverging_cmap(), diverging_norm(-vmax, vmax), censored,
-             "deviation from\npooled (pct pts)", "Presence: deviation from pooled", fmt="{:+.0f}")
+    im = _heatmap(ax, mat, y, diverging_cmap(), diverging_norm(-vmax, vmax), censored,
+                  "deviation from pooled (pct pts)", "Presence: deviation from pooled",
+                  signed=True, cbar=False)
     ax.set_yticklabels([GENE_SHORT[g] for g in GENE_ORDER], fontsize=5.3)
     for lbl, g in zip(ax.get_yticklabels(), GENE_ORDER):
         if g in FRAMEWORK_GENES:
             lbl.set_fontweight("bold")
+    return im
 
 
 def panel_d_novelty_heatmap(ax, gene_by_ancestry, y):
@@ -307,57 +325,82 @@ def panel_f_qc(ax, qc):
 
 def build_figure(tables, out_stem):
     with nature_style():
-        fig = plt.figure(figsize=(mm(NATURE_DOUBLE_COL_MM), mm(190)))
-        # Row heights/gap and panel-b legend redesigned per orchestrator review (full-size pass,
-        # 2026-09-25): (1) hspace tightened 0.38->0.22 now that nothing needs to live in the gap
-        # between rows (the figure-wide caption lines below were removed -- they belong in the
-        # README/FIGURES_INDEX caption, not baked into the raster); (2) the novelty-tier legend
-        # used to be a `fig.legend()` centred across the WHOLE figure width sitting in that gap --
-        # it is panel b's own legend (it labels panel b's 4 stacked-bar colors, nothing else), so
-        # it now anchors directly under panel b's own axes via `bbox_transform=ax_b.transAxes`,
-        # 2 columns x 2 rows to stay narrow enough to fit under one panel rather than four.
-        gs = fig.add_gridspec(2, 4, height_ratios=[2.3, 1.0], width_ratios=[1.15, 1.0, 0.85, 0.95],
-                               hspace=0.22, wspace=0.75,
-                               left=0.085, right=0.905, top=0.96, bottom=0.085)
+        fig = plt.figure(figsize=(mm(NATURE_DOUBLE_COL_MM), mm(183)))
+        # Pass 3 (orchestrator review, 2026-09-26): passes 1-2 anchored the panel-b legend by a
+        # computed figure-fraction y-offset below panel b's axes. At thumbnail scale that looked
+        # clear of row 2; at full resolution it actually overlapped panel e's title ("cA/cB
+        # content by ancestry") -- a real overlap `check_layout()` did NOT catch (see this
+        # script's module docstring note / FIGURES_INDEX.md for why: legend Text objects ARE
+        # scanned by check_layout()'s Text-vs-Text pass, so the likely explanation is that the
+        # offset math put the legend just outside the `tol_overlap_px` slack at whatever dpi the
+        # linter drew at, while the final 600dpi raster's own text metrics differ by enough to
+        # cross the actual pixel gap -- a computed offset is fundamentally fragile this way.
+        # Fixed for real by giving the legend and panel c's colorbar their OWN reserved GridSpec
+        # row (row 1, thin) between the main row and the e/f row -- a real Axes with real height
+        # can never be "computed to just barely miss" the row below it, because GridSpec itself
+        # guarantees non-overlapping rows.
+        gs = fig.add_gridspec(3, 4, height_ratios=[2.3, 0.26, 1.0],
+                               width_ratios=[1.15, 1.0, 0.85, 0.95],
+                               hspace=0.30, wspace=0.75,
+                               left=0.085, right=0.905, top=0.965, bottom=0.075)
 
         ax_a = fig.add_subplot(gs[0, 0])
         ax_b = fig.add_subplot(gs[0, 1])
         ax_c = fig.add_subplot(gs[0, 2])
         ax_d = fig.add_subplot(gs[0, 3])
-        ax_e = fig.add_subplot(gs[1, 0:2])
-        ax_f = fig.add_subplot(gs[1, 2:4])
+        ax_legend = fig.add_subplot(gs[1, 1])
+        ax_cbar_c = fig.add_subplot(gs[1, 2])
+        ax_e = fig.add_subplot(gs[2, 0:2])
+        ax_f = fig.add_subplot(gs[2, 2:4])
 
         y = panel_a_presence(ax_a, tables["kir_gene_summary"])
         panel_letter(ax_a, "a", dx=-0.42, dy=1.03)
         legend_handles = panel_b_novelty(ax_b, tables["kir_gene_summary"], y)
         panel_letter(ax_b, "b", dx=-0.10, dy=1.03)
-        panel_c_deviation_heatmap(ax_c, tables["kir_gene_by_ancestry"], tables["kir_gene_summary"], y)
-        panel_letter(ax_c, "c", dx=-0.12, dy=1.03)
+        im_c = panel_c_deviation_heatmap(ax_c, tables["kir_gene_by_ancestry"],
+                                          tables["kir_gene_summary"], y)
+        panel_letter(ax_c, "c", dx=-0.12, dy=1.07)
         panel_d_novelty_heatmap(ax_d, tables["kir_gene_by_ancestry"], y)
-        panel_letter(ax_d, "d", dx=-0.05, dy=1.03)
+        panel_letter(ax_d, "d", dx=-0.05, dy=1.07)
         panel_e_content(ax_e, tables["kir_content_by_ancestry"])
         panel_letter(ax_e, "e", dx=-0.10, dy=1.06)
         panel_f_qc(ax_f, tables["kir_qc"])
         panel_letter(ax_f, "f", dx=-0.12, dy=1.06)
 
-        # Anchored in FIGURE-fraction coordinates (not ax_b.transAxes): a `loc="upper center"`
-        # legend anchored via an Axes' own transAxes measures its anchor point correctly, but a
-        # wide multi-column legend can still be laid out asymmetrically around that point (found
-        # empirically -- the legend's own bbox center did not sit at the anchor x), so a stray
-        # long label ("novel CDS, synonymous") reached sideways into panel f's y-axis label.
-        # Figure-fraction placement, using panel b's own position, is unambiguous: the legend's
-        # horizontal center is pinned to panel b's own horizontal center, directly below it.
-        ax_b_pos = ax_b.get_position()
-        legend_x = (ax_b_pos.x0 + ax_b_pos.x1) / 2.0
-        # Below the x-axis label's own row, not just below the axes spine -- the xlabel
-        # ("allele calls (%)") occupies a fixed band right under the spine; anchoring the legend
-        # only 0.025 below the spine put it directly on top of that xlabel (found by re-running
-        # check_layout(), not just eyeballing).
-        legend_y = ax_b_pos.y0 - 0.075
-        fig.legend(legend_handles, [NOVELTY_LABEL[t] for t in NOVELTY_ORDER],
-                   loc="upper center", bbox_to_anchor=(legend_x, legend_y),
-                   bbox_transform=fig.transFigure, ncol=2, fontsize=5.3, frameon=False,
-                   handlelength=1.0, handleheight=0.9, columnspacing=1.0, labelspacing=0.3)
+        # Panel b's own legend, in its reserved row directly under it -- a real Axes (blanked to
+        # a bare rectangle, no ticks/spines) rather than a floated `fig.legend()`, so its vertical
+        # extent is accounted for by GridSpec like any other panel and cannot drift into row 2.
+        # `axis("off")` alone leaves this Axes' default-view (0-1) tick-label Text objects
+        # in existence with get_visible()==True -- matplotlib skips drawing them at draw time
+        # (via the axes' own `axison=False`, a separate mechanism from a Text's own visibility
+        # flag), so nothing is ever actually rendered, but `check_layout()`'s Text-vs-Text check
+        # only looks at `get_visible()` and doesn't know about `axison` -- exactly the same class
+        # of "phantom Text that never renders" false positive as the off-view-tick issue elsewhere
+        # in this sprint (see 39_saturation_by_ancestry.py's `_prune_offview_ticklabels()`), just
+        # via a different matplotlib mechanism. Found here as a real, reproducible check_layout()
+        # false positive ('0.50' -- this Axes' default-view tick at the midpoint -- overlapping
+        # the legend's own "novel, genomic-only" text). Fixed properly by removing the tick
+        # Artists outright (`set_xticks([])`/`set_yticks([])`) instead of only hiding them.
+        ax_legend.axis("off")
+        ax_legend.set_xticks([])
+        ax_legend.set_yticks([])
+        ax_legend.legend(legend_handles, [NOVELTY_LABEL[t] for t in NOVELTY_ORDER],
+                          loc="center", ncol=2, fontsize=5.3, frameon=False, handlelength=1.0,
+                          handleheight=0.9, columnspacing=1.0, labelspacing=0.5,
+                          bbox_to_anchor=(0.5, 0.5))
+
+        # Panel c's colorbar: thin and HORIZONTAL, in its own reserved-row cell directly under
+        # panel c, rather than a vertical bar squeezed into the c/d gutter (orchestrator review,
+        # pass 3: "nudge c's colourbar so it doesn't crowd d"). `ax_cbar_c` fills its whole
+        # GridSpec cell by default -- shrink it to an actual thin band (top-aligned, ~28% of the
+        # cell's own height) with its own position override, or "thin" ends up meaning "as tall
+        # as a normal small panel" just because the reserved row itself has that much height.
+        cell_pos = ax_cbar_c.get_position()
+        ax_cbar_c.set_position([cell_pos.x0, cell_pos.y0 + cell_pos.height * 0.62,
+                                 cell_pos.width, cell_pos.height * 0.28])
+        cbar_c = fig.colorbar(im_c, cax=ax_cbar_c, orientation="horizontal")
+        cbar_c.set_label("deviation from pooled (pct pts)", fontsize=5.3, labelpad=2)
+        cbar_c.ax.tick_params(labelsize=5.0, length=1.5)
 
         return save_fig(fig, out_stem)
 

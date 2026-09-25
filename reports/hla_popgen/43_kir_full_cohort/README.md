@@ -134,7 +134,14 @@ the choice).
   review, 2026-09-25: right-aligning `n=` at a fixed x let a long string like "n=23,142" extend
   leftward far enough to sit on top of the bar itself — inadmissible text-over-data. Left-aligned
   at a fixed start, past the rule, a label can only grow away from the data.) The legend for the
-  4 novelty-tier colors sits directly under this panel (it labels panel b's own bars only).
+  4 novelty-tier colors sits directly under this panel, in its own reserved row between the main
+  panels and panels e/f (it labels panel b's own bars only). A pass-2 version floated this legend
+  at a computed offset below panel b's axes, which looked fine at thumbnail scale but at full
+  resolution overlapped panel e's title (orchestrator review, 2026-09-26) — a real overlap
+  `check_layout()` did not catch (an `axis("off")` legend-holder axes' own default-view tick
+  labels exist as Text objects matplotlib never actually draws, invisible to the linter's
+  visibility check; see FIGURES_INDEX.md). Fixed by giving the legend a real reserved GridSpec
+  row, which cannot be computed to just barely miss the row below it.
 - **c — Presence: deviation from pooled**: heatmap, each ancestry's haplotype-presence % MINUS
   the pooled (panel a) value for that gene, diverging colormap centered at 0 (`_viz_common`'s
   signed-statistic blue-white-red map, the same one used for signed LD elsewhere in this project).
@@ -144,7 +151,9 @@ the choice).
   gene relative to the pooled rate; red means over-represented. Text color is chosen per cell from
   its own rendered luminance (dark text on light cells, white on dark blue/red), not a fixed
   vmin/vmax-midpoint rule, which previously left some numbers unreadable against the darkest
-  cells.
+  cells. Zero cells print as a plain "0" (never "+0" or "-0" — rounded first, then signed only if
+  actually nonzero). The colorbar is a thin horizontal bar directly under this panel, in the same
+  reserved row as panel b's legend, rather than a vertical bar wedged into the c/d gutter.
 - **d — Protein novelty × ancestry**: heatmap, integer % of each gene's calls that are
   novel-protein-tier, by ancestry (same luminance-aware text-color rule as panel c). **Hatched
   cells** are the 7 gene×MID cells where the underlying numerator is <20 — censored per this
