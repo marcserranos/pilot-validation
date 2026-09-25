@@ -1,0 +1,12 @@
+metric	item	n	d	pct	ci_lo	ci_hi
+framework_gene_presence	KIR3DL3	22798	23637	96.5	96.2	96.7
+framework_gene_presence	KIR2DL4	22151	23637	93.7	93.4	94.0
+framework_gene_presence	KIR3DP1	22299	23637	94.3	94.0	94.6
+framework_gene_presence	KIR3DL2	22254	23637	94.1	93.8	94.4
+framework_miss_classification	flanked	4301				
+framework_miss_classification	ambiguous_partial_flank	693				
+framework_miss_classification	edge_fragmented	52				
+cooccurrence	KIR2DL2_and_KIR2DL3	178	22409	0.8	0.7	0.9
+cooccurrence	KIR3DL1_and_KIR3DS1	390	21890	1.8	1.6	2.0
+haplotypes_zero_kir_calls		118	23755	0.5	0.4	0.6
+people_missing_or_corrupt_gtf		0	12261	0.0	0.0	0.0
