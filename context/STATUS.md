@@ -4,6 +4,11 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-09-26 — Sprint S04 opened (not started)
+
+Next orchestrator: read [`sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md`](../sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md)
+first. Branch `s04-kir-recurrence-style-share` (off S03 @ 5d5ef99), not pushed. S03 state below.
+
 ## As of 2026-09-25 — Sprint S03 (call #8) complete; KIR called on the full cohort
 
 Board: [`sprints/S03_call8_figures_kir_prediction/SPRINT.md`](../sprints/S03_call8_figures_kir_prediction/SPRINT.md);

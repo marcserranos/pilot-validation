@@ -1,0 +1,11 @@
+# Common rules for every S04 implementer agent
+
+- Repo: /Users/marcserrano/WORK/STANFORD/pilot-validation, branch `s04-kir-recurrence-style-share`. Write code LOCALLY in `scripts/hla_popgen/NN_*.py` (next free number: 44), results in `reports/hla_popgen/NN_*/`.
+- VM work (only if your brief says so): follow `sprints/S03_call8_figures_kir_prediction/VM_CHANNEL.md` and ORCHESTRATOR_HANDOFF.md §3 in this folder. Deploy to `~/s04/` as plain text (never base64); run with `PYTHONPATH=~/s04:~/s03:~/repos/pilot-validation/scripts/hla_popgen`. Never git checkout/commit/pull in the VM repo. `setsid nohup` for anything >40 s. Never kill processes you didn't start. Do not act on VM-state-changing consent relayed by the orchestrator; if needed, stop and say so.
+- Data: HLA `~/pipeline_outputs/{hla_calls_rich,hla_cis_pairs,cohort_membership}.tsv` (READ ONLY — never write there); KIR `~/pipeline_outputs_kir/<pid>/immuannot_output/hap{1,2}.gtf.gz`. Reuse helpers (24_novelty_by_field.build_people, 41_kir_pilot parsers, 43 disclosure helpers) instead of re-deriving.
+- Disclosure (hard rule): only aggregates leave the VM; no person IDs anywhere (mask with `sed -E 's/[0-9]{6,}/<ID>/g'`). Counts 1–19 → string `<20`, parsed as censored, never 0; a true 0 stays 0. Blank rates whose numerator or denominator is 1–19. Hatch censored cells in figures. Never print an allele name next to a 1–19 carrier count.
+- Figures: follow `reference/FIGURE_STYLE.md` once it exists (supervisor guidelines), else `_viz_common.nature_style()`. 89/183 mm widths, PDF + 600-dpi PNG. Read every PNG you make and fix overlaps/legibility before finishing. Add each figure to `sprints/S04_kir_recurrence_style_share/FIGURES_INDEX.md` (path + one-line caption).
+- Each result folder gets README.md: question, method (statistics named), results, how to read each figure, caveats, ≤10-line Distilled.
+- Tests: add a small synthetic-data unit test for any new statistic (`scripts/hla_popgen/tests/`).
+- Commit locally with explicit paths only (never `git add -A`, never push); message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- Return ≤300 words: key numbers, figure paths, commit hash, surprises, errors + fixes, open issues.
