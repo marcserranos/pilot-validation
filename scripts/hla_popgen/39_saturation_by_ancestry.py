@@ -425,9 +425,26 @@ def equal_n_descriptive(curve_df, n_target, exclude=(), scheme="pred"):
 
 def format_p(p, n_bootstrap):
     """A bootstrap p-value computed from n_bootstrap replicates has resolution 1/n_bootstrap --
-    '0.0000' from 200 reps means only 'p < 1/200', never a literal exact zero."""
-    if p is None or p != p:
+    '0.0000' from 200 reps means only 'p < 1/200', never a literal exact zero.
+
+    Robust to already-formatted string sentinels: `render_only()` re-reads a previously committed
+    `afr_vs_rest_bootstrap_test.tsv` whose `p_two_sided_bootstrap` column may already contain the
+    literal string '<0.005' (written by a prior `write_readme()` pass, or by hand). pandas then
+    loads that whole column as object/str dtype (mixed numeric + '<...' strings coerce to str), so
+    a naive `p < floor` comparison on a string raises TypeError. Pass any already-formatted string
+    straight through unchanged; only bare floats/ints get re-floored and re-formatted here."""
+    if p is None or (isinstance(p, float) and p != p):
         return "n/a"
+    if isinstance(p, str):
+        s = p.strip()
+        if s.upper() in ("N/A", "NAN", "NA", ""):
+            return "n/a"
+        if s.startswith("<"):
+            return s
+        try:
+            p = float(s)
+        except ValueError:
+            return s
     floor = 1.0 / n_bootstrap
     if p < floor:
         return f"<{floor:.3f}"
@@ -564,7 +581,8 @@ def fig_supplement_grid(curve_by_gene_anc, genes_bare, out_stem):
     with vc.nature_style():
         ncols = 4
         nrows = int(np.ceil(len(genes_bare) / ncols))
-        fig, axes = plt.subplots(nrows, ncols, figsize=(vc.mm(183), vc.mm(45 * nrows)))
+        fig, axes = plt.subplots(nrows, ncols, figsize=(vc.mm(183), vc.mm(50 * nrows)),
+                                 gridspec_kw={"hspace": 0.55, "wspace": 0.35})
         axes = np.atleast_1d(axes).ravel()
         for ax, gene in zip(axes, genes_bare):
             for anc in ANCESTRY_ORDER:
