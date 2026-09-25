@@ -1,0 +1,1 @@
+done n_people=11845 n_features=303 n_hla_features=286 n_kir_features=17 n_dropped_rare_hla_alleles=620 n_tasks_run=9

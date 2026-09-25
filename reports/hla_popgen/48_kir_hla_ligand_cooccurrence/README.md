@@ -1,11 +1,11 @@
 # 48 — KIR-HLA ligand co-occurrence by ancestry
 
-*Status: script + synthetic tests done locally (S04 WS-D, 2026-09-25/26). Epitope-group assignment
-is now sequence-derived (translated from IPD-IMGT/HLA CDSseq reference CDS, `--cds-dir`), with the
-former two-field lookup table kept only as a fallback (missing CDS file, novel call, unmapped
-allele) and a cross-check. Not yet run on real AoU data — needs a VM session with
-`~/tools/Immuannot_refdata/CDSseq/` present to exercise the sequence path end-to-end (see
-Caveats).*
+*Status: run on the full cohort 2026-09-25/26 (S04 WS-D VM session), after fixing a
+`GENE_CDS_FILENAME` mismatch (commit `d84348a`): the VM's CDSseq files are named
+`HLA-A.fa.gz`/`HLA-B.fa.gz`/`HLA-C.fa.gz`, not `A.fa.gz`/etc. as first assumed, which had been
+silently falling back to the lookup table for every call. Verified fixed on the VM: md5 of the
+deployed script matches the commit, and the QC counters below show sequence resolution
+dominating. Figures are not in this pass.*
 
 ## Question
 
@@ -59,8 +59,66 @@ same person, which is otherwise hard to get at scale.
 
 ## Result
 
-*(fill in after the VM run: `kir_hla_ligand_cooccurrence.tsv`, `epitope_freq_by_ancestry.tsv`,
-`ligand_lookup_qc.tsv`)*
+Full cohort: 11,845 people, 30 (ancestry x KIR-gene x ligand) pairs tested (5 pairs x 6
+ancestries). `n_unclassified_C=1,093`, `n_unclassified_Bw=1,451` (calls resolved by neither
+sequence nor lookup — mostly novel/unmatched alleles, counted not guessed).
+
+**Sequence vs. lookup-fallback source mix** (`ligand_lookup_qc.tsv`) — sequence resolution
+dominates, confirming the `GENE_CDS_FILENAME` fix took effect: HLA-C 20,671 sequence-resolved vs.
+2,533 lookup-fallback; HLA-B/A (Bw) 41,910 sequence-resolved vs. 4,481 lookup-fallback. Bw4
+sub-type split: 9,298 Bw4-80I (higher avidity) vs. 3,016 Bw4-80T. Two-field-group cross-check:
+235 groups compared, 228 agree, 7 disagree between the sequence-derived and lookup-table labels.
+
+**Epitope carrier frequency by ancestry** (`epitope_freq_by_ancestry.tsv`):
+
+| ancestry | n | C1 | C2 | Bw4 |
+|---|---|---|---|---|
+| AFR | 3,009 | 68.8% | 71.9% | 74.0% |
+| AMR | 2,656 | 79.0% | 62.3% | 71.7% |
+| EAS | 1,460 | 89.5% | 38.0% | 75.5% |
+| EUR | 2,974 | 79.1% | 62.8% | 74.6% |
+| MID | 487 | 62.0% | 76.6% | 80.3% |
+| SAS | 1,236 | 76.1% | 65.5% | 83.3% |
+
+EAS stands out with the lowest C2 frequency (38.0%) and highest C1 (89.5%) — the expected
+ancestry-stratified pattern for these epitope groups.
+
+**Receptor-ligand odds ratios by ancestry** (`kir_hla_ligand_cooccurrence.tsv`; `perm_p` from
+1,000 shuffles; blank OR/CI/p = a 2x2 cell was <20 and masked):
+
+| ancestry | pair | OR | 95% CI | perm_p |
+|---|---|---|---|---|
+| AFR | 2DL1xC2 | 1.50 | 0.99-2.29 | 0.098 |
+| AFR | 2DL2xC1 | 1.07 | 0.92-1.25 | 0.427 |
+| AFR | 2DL3xC1 | 1.12 | 0.90-1.39 | 0.339 |
+| AFR | 3DL1xBw4 | 1.38 | 0.83-2.28 | 0.245 |
+| AFR | 3DS1xBw4 | 1.00 | 0.80-1.26 | 1.000 |
+| AMR | 2DL1xC2 | 1.18 | 0.81-1.72 | 0.432 |
+| AMR | 2DL2xC1 | 0.99 | 0.82-1.19 | 0.916 |
+| AMR | 2DL3xC1 | 0.76 | 0.55-1.05 | 0.088 |
+| AMR | 3DL1xBw4 | 1.32 | 0.96-1.80 | 0.109 |
+| AMR | 3DS1xBw4 | 0.99 | 0.83-1.18 | 0.895 |
+| EAS | 2DL1xC2 | — (masked, <20 cell) | — | — |
+| EAS | 2DL2xC1 | 0.62 | 0.44-0.88 | 0.011 |
+| EAS | 2DL3xC1 | — (masked, <20 cell) | — | — |
+| EAS | 3DL1xBw4 | 0.97 | 0.60-1.57 | 0.909 |
+| EAS | 3DS1xBw4 | 1.01 | 0.79-1.29 | 1.000 |
+| EUR | 2DL1xC2 | 1.08 | 0.78-1.48 | 0.654 |
+| EUR | 2DL2xC1 | 0.87 | 0.73-1.04 | 0.142 |
+| EUR | 2DL3xC1 | 1.43 | 1.12-1.83 | 0.013 |
+| EUR | 3DL1xBw4 | 1.01 | 0.73-1.38 | 1.000 |
+| EUR | 3DS1xBw4 | 1.12 | 0.95-1.34 | 0.199 |
+| MID/SAS | (all 5 pairs) | mostly 0.8-1.2, none significant | — | — (2 pairs masked in MID) |
+
+No pair shows a strong, ancestry-consistent enrichment or depletion. The two nominal signals —
+EAS 2DL2xC1 depleted (OR 0.62, perm_p 0.011) and EUR 2DL3xC1 enriched (OR 1.43, perm_p 0.013) —
+are each seen in only one ancestry, not replicated across ancestries, and not Bonferroni-corrected
+for the 30 pairs tested (0.05/30 ≈ 0.0017, which neither clears); per the script's own framing,
+these are leads to look into (possible real LD-with-a-third-factor, selection, or assay artifact),
+not a finding to publish as-is.
+
+Full per-ancestry, per-pair table (masked cells included) is in
+`kir_hla_ligand_cooccurrence.tsv`.
 
 ## How to read each output file
 
@@ -88,10 +146,9 @@ same person, which is otherwise hard to get at scale.
   (but countably, via `ligand_lookup_qc.tsv`) falls back to the two-field lookup table — check
   `n_{C,Bw}_source_sequence` is non-zero before trusting the run used real sequence, not just the
   fallback.
-  - Not yet run on the VM with the real CDSseq directory present — local testing used only
-    synthetic FASTA fixtures (`scripts/hla_popgen/tests/test_48_kir_hla_ligand_cooccurrence.py`),
-    so the parsing/translation logic is verified but not yet exercised against the real IPD-IMGT/
-    HLA 3.55.0 release files.
+  - Now run against the real `~/tools/Immuannot_refdata/CDSseq/` directory (IPD-IMGT/HLA 3.55.0,
+    per ENVIRONMENT.md quirk #38) — file names on the VM are `HLA-A.fa.gz`/`HLA-B.fa.gz`/
+    `HLA-C.fa.gz` (not `A.fa.gz`/etc., the original assumption; fixed in commit `d84348a`).
 - **Novel alleles (Table 1's spliced `new` field) cannot be sequence-resolved** — their protein at
   77-83 isn't guaranteed to match the reference two-field group's — and fall back to the lookup
   table on their two-field prefix, counted in the source-mix QC.
@@ -106,14 +163,12 @@ same person, which is otherwise hard to get at scale.
 
 ## Distilled
 
-- Not yet run on real data. Epitope-group assignment is now sequence-derived (CDS translation +
-  leader-peptide stripping + residue 77-83 rules), with the former lookup table kept as a fallback
-  + cross-check. Script + 44 synthetic unit tests pass locally
-  (`scripts/hla_popgen/tests/test_48_kir_hla_ligand_cooccurrence.py`), including translation/frame
-  handling, leader stripping, the C1/C2 and Bw4/Bw6 residue rules pinned to known reference
-  alleles, exact/two-field-fallback/unresolved CDS mapping, novel-call handling, seq-vs-lookup
-  agreement/disagreement, disclosure masking (a 1-19 cell blanks OR/CI/p but never blanks the
-  masked count itself, and a true zero cell is never treated as disclosive), and a
-  planted-enrichment detection test.
-- Next step: a VM run with the real `~/tools/Immuannot_refdata/CDSseq/` directory present, so the
-  Result section and the seq-vs-lookup cross-check can be filled in with real numbers.
+- Run on the full cohort (11,845 people) after fixing a `GENE_CDS_FILENAME` mismatch that had
+  been silently forcing every call through the lookup-table fallback (commit `d84348a`). Sequence
+  resolution now dominates (20,671/23,204 HLA-C calls, 41,910/46,391 HLA-B/A calls resolved by
+  sequence, not lookup).
+- No receptor-ligand pair shows an ancestry-consistent enrichment/depletion; the two nominal
+  single-ancestry signals (EAS 2DL2xC1 depleted, EUR 2DL3xC1 enriched) don't survive a multiple-
+  testing correction for the 30 pairs tested — leads, not findings.
+- Next step: figures, and a closer look at the 7 two-field groups where the sequence-derived and
+  lookup-table labels disagree (`ligand_seq_vs_lookup_crosscheck.tsv`).

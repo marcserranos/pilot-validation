@@ -1,8 +1,8 @@
 # 47 — Naive ML / simple tests on allele-carriage matrices
 
-*Status: script + synthetic tests done locally (S04 WS-D, 2026-09-25/26). Not yet run on real
-AoU data — needs a VM session. This README is a skeleton to be filled with real numbers once
-that run happens; see `STATUS.txt`/the metrics TSVs in this folder for what actually shipped.*
+*Status: run on the full cohort 2026-09-25/26 (S04 WS-D VM session). `--platform-col platform`
+verified against `cohort_membership.tsv` (values `revio`/`sequel2e`/`sequel2`, counts 11,042/
+1,219/991). See "Result" below for the real numbers; figures are not in this pass.*
 
 ## Question
 
@@ -36,8 +36,34 @@ plain-language framing and why each expected result matters).
 
 ## Result
 
-*(fill in after the VM run: `naive_ml_metrics.tsv`, `naive_ml_top_features.tsv`,
-`pca_group_centroids.tsv`, `pca_density_grid.tsv`)*
+Full cohort: 11,845 people, 303 features (286 HLA two-field alleles with >=20 carriers, 17 KIR
+genes), 620 rare HLA alleles dropped before modeling, 9 tasks run, 20 permutations/task.
+
+| task | n_total | n_pos | LR AUROC | tree AUROC | perm null mean | perm p |
+|---|---|---|---|---|---|---|
+| ancestry_AFR | 11,845 | 3,009 | 0.950 | 0.782 | 0.499 | 0.048 |
+| ancestry_AMR | 11,845 | 2,656 | 0.810 | 0.652 | 0.500 | 0.048 |
+| ancestry_EAS | 11,845 | 1,460 | 0.981 | 0.813 | 0.500 | 0.048 |
+| ancestry_EUR | 11,845 | 2,974 | 0.897 | 0.712 | 0.499 | 0.048 |
+| ancestry_MID | 11,845 | 487 | 0.897 | 0.628 | 0.504 | 0.048 |
+| ancestry_SAS | 11,845 | 1,236 | 0.966 | 0.671 | 0.496 | 0.048 |
+| platform_revio | 11,845 | 10,710 | 0.573 | 0.507 | 0.501 | 0.048 |
+| platform_sequel2e | 11,845 | 1,135 | 0.573 | 0.507 | 0.501 | 0.048 |
+| cB_from_HLA | 11,845 | 7,978 | 0.550 | 0.526 | 0.501 | 0.048 |
+
+All permutation p-values sit at the 20-shuffle floor (`1/21 ≈ 0.048`) for every task, including
+the near-chance ones — a real effect size, not just "distinguishable from the null", is what
+separates ancestry (AUROC 0.81-0.98) from platform/cB_from_HLA (AUROC 0.55-0.57): those two are
+well above 0.5 but far from the ancestry tier, consistent with a modest real signal (platform: a
+technical/batch correlate riding on the calls; cB_from_HLA: plausibly an ancestry-mediated
+correlation rather than direct HLA-KIR linkage, since chr6/chr19 have no known direct linkage) —
+not proof of a confound-free result. Top AFR-ancestry-informative alleles (L1 coefficients):
+HLA-B\*07:05, HLA-C\*16:02, HLA-B\*38:02 (negative), HLA-DPB1\*18:01, HLA-A\*80:01 (positive) — see
+`naive_ml_top_features.tsv` for every task's full list.
+
+`pca_group_centroids.tsv`: per-(ancestry x platform) PC1/PC2 means, all groups n>=20 (one
+ancestry=<NA>/revio group at n=23). `pca_density_grid.tsv`: 20x20 binned density grid, 126/400
+cells suppressed to `<20`, 0 cells stayed `0` (never conflated).
 
 ## How to read each output file
 
@@ -65,8 +91,10 @@ plain-language framing and why each expected result matters).
 
 ## Distilled
 
-- Not yet run on real data. Script + 13 synthetic unit tests pass locally
-  (`scripts/hla_popgen/tests/test_47_naive_ml_tests.py`), including a planted-signal test (AUROC
-  clears its own permutation null) and an underpowered-class guard (n<20 skips the task).
-- Next step: one VM run with `--platform-col` verified against `cohort_membership.tsv`'s actual
-  columns, then fill this README's Result section.
+- Run on the full cohort (11,845 people). Ancestry is strongly predictable (AUROC 0.81-0.98,
+  well above the permutation null) — a confound warning for future disease-carriage work, not a
+  finding. Platform (AUROC 0.57) and cB_from_HLA (AUROC 0.55) show a modest but real lift above
+  chance, worth a closer look but far below the ancestry tier.
+- Next step: figures (`45`-style rendering is out of scope for this pass) and a closer look at
+  why platform shows any lift at all, before using HLA/KIR carriage in a downstream disease model
+  without an ancestry (and possibly platform) covariate.
