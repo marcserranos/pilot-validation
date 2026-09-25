@@ -198,14 +198,17 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label=""):
         ax_heat.axhline(n_a2 - 0.5, color="black", lw=0.8, zorder=5)
         ax_heat.axvline(n_b2 - 0.5, color="black", lw=0.8, zorder=5)
 
+        # Direct label, no decorative box (FIGURE_STYLE.md de-AI checklist item 12) -- plain white
+        # text reads cleanly against the solid dark-blue D'=-1 fill it always sits on here, so a
+        # background chip adds nothing but clutter.
         if n_b2 < len(b_alleles) and n_a2 > 0:
             ax_heat.text((n_b2 + len(b_alleles)) / 2 - 0.5, n_a2 / 2 - 0.5,
-                         "Predicted\nincompatible", ha="center", va="center", fontsize=5.5,
-                         zorder=10, bbox=dict(boxstyle="round", fc="white", ec="none", alpha=0.85))
+                         "predicted incompatible", ha="center", va="center", fontsize=5.5,
+                         color="white", zorder=10)
         if n_b2 > 0 and n_a2 < len(a_alleles):
             ax_heat.text(n_b2 / 2 - 0.5, (n_a2 + len(a_alleles)) / 2 - 0.5,
-                         "Predicted\nincompatible", ha="center", va="center", fontsize=5.5,
-                         zorder=10, bbox=dict(boxstyle="round", fc="white", ec="none", alpha=0.85))
+                         "predicted incompatible", ha="center", va="center", fontsize=5.5,
+                         color="white", zorder=10)
 
         # Group-block axis labels (G1/G2), per orchestrator review. Pushed well clear of the
         # (variable-width) allele tick labels -- bbox_inches='tight' in save_fig expands the

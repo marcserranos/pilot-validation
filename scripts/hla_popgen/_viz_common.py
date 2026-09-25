@@ -491,26 +491,100 @@ def n_flag(n, min_cell_n):
 # dict has the identical six hex values, so this is the one place that dict should ever live;
 # nothing here redefines it.
 # ---------------------------------------------------------------------------
+## ---------------------------------------------------------------------------
+## cnsplots port (reference/FIGURE_STYLE.md, WS-C, S04). "Port, don't depend" --
+## github.com/faridrashidi/cnsplots commit 634482c (v0.7.0), BSD-3-Clause, values only (rcParam
+## defaults + palette hex), no runtime dependency added. What was ADOPTED vs where we deviate,
+## with reasons, is spelled out here so a reader never has to diff against the upstream repo:
+##
+## Adopted verbatim (cnsplots `_settings.py` defaults):
+##   - legend.frameon=False, legend's small unobtrusive glyphs (handled via LEGEND_KW below,
+##     since matplotlib's rcParams has no direct markerscale/handlelength/handletextpad keys
+##     that apply globally the way cnsplots' own legend() wrapper does -- see LEGEND_KW).
+##   - axes.grid=False made EXPLICIT (was already true by matplotlib default + our own
+##     nature_style unsetting nothing that turns it on -- cnsplots states it as a hard rule, so
+##     we now pin it rather than rely on inherited default).
+##   - axes.spines.top/right=False (already ours, unchanged).
+##   - xtick.major.size / ytick.major.size = 2 (cnsplots: xtick_major_size=2) -- we previously
+##     left tick length at matplotlib's default (3.5); shortened to match.
+##   - mathtext.fontset="custom" (cnsplots) -- avoids matplotlib's default "dejavusans" mathtext
+##     clashing visually with a Helvetica body font when a panel has a math expression.
+##   - font.sans-serif extended with "Helvetica Neue", "Nimbus Sans", "Liberation Sans" (cnsplots'
+##     fallback list) for cross-platform parity -- Linux CI boxes without Helvetica/Arial
+##     installed now fall through to Nimbus Sans / Liberation Sans (metric-compatible clones)
+##     before DejaVu Sans, rather than jumping straight to DejaVu.
+##
+## Deliberate DEVIATIONS from cnsplots (and why):
+##   - savefig.dpi: we keep 600, not cnsplots' 288 (72x4). Nature's OWN artwork guidelines ask
+##     for >= 300 dpi combination art and we've already shipped 600-dpi PNGs project-wide
+##     (S03 CRITIC_2 checked figures at "native resolution" assuming 600 dpi); lowering to 288
+##     now would be a visible regression for reviewers already looking at 600-dpi PNGs, for no
+##     benefit (PDF vector export is unaffected either way -- dpi only touches the raster PNG).
+##   - savefig.transparent: cnsplots defaults to True; we deliberately keep opaque white
+##     backgrounds (save_fig() below does not set transparent=True) because these figures are
+##     shared as flat PNGs in reports/Slack, where a transparent PNG on a dark viewer background
+##     becomes illegible -- that's a distribution-context call, not a style disagreement.
+##   - legend.fontsize stays 6 (already close to cnsplots' 7; unchanged rather than bumped, to
+##     avoid a second silent change riding along on this port -- 6 vs 7 pt is not the thing
+##     CRITIC_2 flagged, panel text sizes below the 5-7pt floor was).
+##   - We do not adopt cnsplots' own plotting functions (barplot/heatmapplot/lineplot/...) or its
+##     pvalue-star/forest/venn helpers -- FIGURE_STYLE.md's "port, don't depend" recommendation
+##     covers rcParams + palette values only; our figures are hand-built matplotlib, not built on
+##     cnsplots' API.
+## ---------------------------------------------------------------------------
 NATURE_RC = {
     "font.family": "sans-serif",
-    "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
+    "font.sans-serif": ["Helvetica", "Arial", "Helvetica Neue", "Nimbus Sans",
+                         "Liberation Sans", "DejaVu Sans"],
     "font.size": 7,
     "axes.titlesize": 7,
     "axes.labelsize": 7,
     "xtick.labelsize": 5,
     "ytick.labelsize": 5,
     "legend.fontsize": 6,
+    "legend.frameon": False,     # cnsplots: legend_frameon=False -- no legend box, ever
     "axes.linewidth": 0.5,
+    "axes.grid": False,          # cnsplots: axes_grid=False, made explicit (see note above)
     "xtick.major.width": 0.5,
     "ytick.major.width": 0.5,
+    "xtick.major.size": 2,       # cnsplots: xtick_major_size=2 (was matplotlib default 3.5)
+    "ytick.major.size": 2,
     "xtick.minor.width": 0.35,
     "ytick.minor.width": 0.35,
     "axes.spines.top": False,
     "axes.spines.right": False,
+    "mathtext.fontset": "custom",  # cnsplots: mathtext_fontset="custom"
     "pdf.fonttype": 42,   # embed as TrueType (Type 42), not Type 3 -- journals require this
     "ps.fonttype": 42,
-    "savefig.dpi": 600,
+    "savefig.dpi": 600,   # deviation from cnsplots' 288 -- see note above (we keep our 600 dpi)
 }
+
+# cnsplots legend_markerscale=0.5 / legend_handlelength=0.7 / legend_handletextpad=0.3 -- not
+# global rcParams keys, so exposed as a kwargs dict callers can splat into ax.legend(**LEGEND_KW)
+# (or fig.legend(**LEGEND_KW)) for the "small unobtrusive legend glyph" look, when a legend is
+# unavoidable (prefer direct labelling first -- FIGURE_STYLE.md de-AI checklist item 8).
+LEGEND_KW = {"frameon": False, "markerscale": 0.5, "handlelength": 0.7, "handletextpad": 0.3}
+
+# Journal qualitative palettes (hex), via cnsplots `_palettes.py` (BSD-3-Clause, values only --
+# not copyrightable expression, cited per FIGURE_STYLE.md). For any figure needing an alternate
+# qualitative palette OTHER than ancestry -- e.g. distinguishing gene groups, cohorts, methods.
+# Do NOT reuse these for ancestry: ANCESTRY_COLORS (Okabe-Ito, above) is the one true ancestry
+# palette project-wide and must not be replaced by "Nature"/"Cell"/etc per FIGURE_STYLE.md.
+JOURNAL_PALETTES = {
+    "nature": ["#E64B35", "#4DBBD5", "#00A087", "#3C5488", "#F39B7F", "#8491B4", "#91D1C2",
+               "#DC0000", "#7E6148", "#B09C85"],
+    "science": ["#3B4992", "#EE0000", "#008B45", "#631879", "#008280", "#BB0021", "#5F559B",
+                "#A20056", "#808180", "#1B1919"],
+    "lancet": ["#00468B", "#ED0000", "#42B540", "#0099B4", "#925E9F", "#FDAF91", "#AD002A",
+               "#ADB6B6", "#1B1919"],
+    "nejm": ["#BC3C29", "#0072B5", "#E18727", "#20854E", "#7876B1", "#6F99AD", "#FFDC91"],
+    "cell": ["#C84C3A", "#2F7E8F", "#E1A22E", "#4E5A8A", "#5F9862", "#D07A6A", "#8B6FA8",
+             "#7B8C9E", "#B85F7A", "#6B6B6B"],
+}
+# A restrained default accent for "one comparison, one hue" figures (de-AI checklist item 9) --
+# picked from JOURNAL_PALETTES["nature"], not from ANCESTRY_COLORS, so it never gets confused
+# with an ancestry encoding.
+ACCENT_COLOR = JOURNAL_PALETTES["nature"][3]   # "#3C5488", a restrained slate blue
 
 # Nature spec: panel letters are bold, lowercase, 8pt -- distinct from body text (5-7pt above).
 PANEL_LETTER_FONTSIZE = 8

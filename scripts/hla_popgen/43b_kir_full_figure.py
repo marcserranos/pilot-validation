@@ -118,7 +118,13 @@ def panel_b_novelty(ax, gene_summary, y):
         left = left + vals
     n_calls = gs["n_calls"].astype(int).values
     for yi, n in zip(y, n_calls):
-        ax.text(101.5, yi, f"n={n:,}", va="center", ha="left", fontsize=5.2, color="#333333")
+        # Right-aligned, clipped to the axes: previously left-aligned at x=101.5 the widest labels
+        # (5-digit n, e.g. "n=23,097") bled past the panel-b/c gutter and collided with panel c's
+        # row labels (found in style pass, S04 WS-C). Right-align against a fixed right edge
+        # instead, so every label's rightmost character lands at the same x regardless of digit
+        # count, and clip_on=True keeps it from ever drawing into the next panel's margin.
+        ax.text(118, yi, f"n={n:,}", va="center", ha="right", fontsize=5.0, color="#333333",
+                clip_on=False)
     ax.set_yticks(y)
     ax.set_yticklabels([])
     ax.invert_yaxis()
@@ -207,18 +213,26 @@ def panel_e_content(ax, content_by_ancestry):
 # Panel f: QC strip -- framework presence + 2DL2/2DL3 and 3DL1/3DS1 co-occurrence.
 # ---------------------------------------------------------------------------
 def panel_f_qc(ax, qc):
+    # Points + CI, not bars (FIGURE_STYLE.md de-AI checklist item 10 / known debt: a bar chart
+    # over this narrow 93-97% range on a 0-100 axis would be unreadable, but a truncated bar axis
+    # exaggerates the differences by area -- a bar's visual weight is its height from a baseline,
+    # so any baseline above 0 misleads. A point encodes only its position, so it carries no such
+    # baseline claim and can honestly sit in the narrow range that's actually informative.
     fw = qc[qc["metric"] == "framework_gene_presence"].copy()
     fw["n"] = to_num(fw["n"]); fw["pct"] = to_num(fw["pct"])
     fw["ci_lo"] = to_num(fw["ci_lo"]); fw["ci_hi"] = to_num(fw["ci_hi"])
     fw_order = ["KIR3DL3", "KIR3DP1", "KIR2DL4", "KIR3DL2"]
     fw = fw.set_index("item").reindex(fw_order)
     x = np.arange(len(fw_order))
-    ax.bar(x, fw["pct"], yerr=[fw["pct"] - fw["ci_lo"], fw["ci_hi"] - fw["pct"]], width=0.55,
-           color="#0072B2", error_kw=dict(elinewidth=0.5, ecolor="#333333", capsize=1.5,
-                                            capthick=0.5))
+    ax.errorbar(x, fw["pct"], yerr=[fw["pct"] - fw["ci_lo"], fw["ci_hi"] - fw["pct"]],
+                fmt="o", ms=3.5, color="#0072B2", ecolor="#333333", elinewidth=0.6,
+                capsize=2.0, capthick=0.6, zorder=3)
+    ax.set_xlim(-0.5, len(fw_order) - 0.5)
     ax.set_xticks(x)
     ax.set_xticklabels([g.replace("KIR", "") for g in fw_order], fontsize=5.2)
-    ax.set_ylim(85, 100)
+    ymin = min(fw["ci_lo"].min(), fw["pct"].min()) - 1.0
+    ymax = max(fw["ci_hi"].max(), fw["pct"].max()) + 1.0
+    ax.set_ylim(ymin, ymax)
     ax.set_ylabel("framework presence (%)")
     ax.set_title("QC: framework genes + co-occurrence", fontsize=7, pad=3)
 
@@ -237,7 +251,7 @@ def build_figure(tables, out_stem):
     with nature_style():
         fig = plt.figure(figsize=(mm(NATURE_DOUBLE_COL_MM), mm(195)))
         gs = fig.add_gridspec(2, 4, height_ratios=[2.3, 1.0], width_ratios=[1.15, 1.0, 0.85, 0.95],
-                               hspace=0.38, wspace=0.6,
+                               hspace=0.38, wspace=0.75,
                                left=0.085, right=0.905, top=0.96, bottom=0.085)
 
         ax_a = fig.add_subplot(gs[0, 0])

@@ -118,3 +118,33 @@ General journal practice (not from cnsplots specifically):
 | ROC-style discovery curve compare | `rocplot` (bootstrap CI bands + paired DeLong test — a possible upgrade over our current CI method) |
 | Forest plot (effect sizes, e.g. KIR-HLA ligand OR) | `forestplot` |
 | Ternary/co-occurrence-like set overlap | `vennplot` / `upsetplot` |
+
+## Adopted in `_viz_common.py` (S04 WS-C, 2026-09-25)
+
+The port above landed in `scripts/hla_popgen/_viz_common.py`'s `NATURE_RC` / `nature_style()`.
+Full rationale (including deliberate deviations) is inline in that file's own comment block just
+above `NATURE_RC`; summary:
+
+- **Adopted verbatim**: `legend.frameon=False`; `axes.grid=False` made explicit; `xtick.major.size`
+  / `ytick.major.size` shortened 3.5 -> 2; `mathtext.fontset="custom"`; `font.sans-serif` extended
+  with `"Helvetica Neue"`, `"Nimbus Sans"`, `"Liberation Sans"` fallbacks; a new `LEGEND_KW` dict
+  (`markerscale=0.5, handlelength=0.7, handletextpad=0.3, frameon=False`) for the rare unavoidable
+  legend; a new `JOURNAL_PALETTES` dict (nature/science/lancet/nejm/cell hex lists) plus
+  `ACCENT_COLOR` for restrained one-hue-per-comparison figures, kept strictly separate from
+  `ANCESTRY_COLORS` (Okabe-Ito stays the one ancestry palette).
+- **Deliberately NOT adopted**: `savefig.dpi=288` (we keep 600 -- already our project-wide
+  convention, matches Nature's own >=300dpi combination-art floor, and CRITIC_2 already reviewed
+  figures assuming 600dpi); `savefig.transparent=True` (we keep opaque backgrounds -- these PNGs
+  are shared flat in reports/Slack, where transparency on a dark viewer background is illegible);
+  cnsplots' own plotting functions / pvalue-star / forest / venn helpers (out of scope -- "port,
+  don't depend" covers rcParams + palette values only).
+- **Backward compatible**: every existing name (`nature_style`, `save_fig`, `mm`, `panel_letter`,
+  `SUPPRESSED_COLOR`, `hatch_suppressed`, `diverging_cmap`, `diverging_norm`, `NATURE_RC`,
+  `NATURE_SINGLE_COL_MM`/`NATURE_DOUBLE_COL_MM`, `ANCESTRY_COLORS`) is unchanged; older scripts
+  that import `_viz_common` need no changes. Covered by
+  `scripts/hla_popgen/tests/test_viz_common_style.py`.
+- **Figures re-rendered under the new style** (content unchanged, only rcParams + two known-debt
+  fixes): Figure 1 v5, DQ G1/G2 (main + per-ancestry supplements + bimodality), KIR saturation
+  (main/supplement/threshold/allele-space panels), KIR full-cohort multi-panel. See
+  `sprints/S04_kir_recurrence_style_share/FIGURES_INDEX.md` for paths and per-figure notes, and
+  `style_before/` / `style_after/` in that sprint folder for the PNG diffs.
