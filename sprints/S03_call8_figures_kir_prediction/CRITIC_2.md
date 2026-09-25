@@ -128,3 +128,10 @@ no person_id anywhere). Arithmetic and figure-correctness spot-checks did turn u
 - Finding 7 (gene physical order citations) — needs a human with literature access to confirm
   Kulkarni 2008 Fig 1 / Middleton & Gonzalez 2010 Table 1 actually place the duplicated loci
   (2DS3/2DS5 especially) where `GENE_ORDER` puts them.
+
+## Orchestrator resolution (2026-09-26)
+- Finding 2 (104) — **resolved.** Source is the orchestrator itself: `person_done()` in
+  `scripts/production_orchestrator/run_production_orchestrator.py` requires both hap GTFs to exist
+  AND contain ≥1 call; final log line `DONE: 12157/12261`. 9 missing + 123 zero-call haplotypes =
+  132 bad haplotypes over 104 people (≈28 with both bad). README corrected (the earlier "produced
+  only one haplotype" wording was the orchestrator's imprecision, not the aggregation's).

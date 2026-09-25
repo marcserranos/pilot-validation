@@ -1,5 +1,7 @@
 # VM handoff — for Marc, run in a JupyterLab terminal
 
+> **Status 2026-09-25:** (a) done (0ec28ff), (b) done earlier (59fef06), (c) done (170-person summary in `41_kir_scoping/`), (d) done — full-cohort KIR run, see `KIR_FULL_RUN.md` and `reports/hla_popgen/43_kir_full_cohort/`. (e) partially: 1,500-person run pulled (b9ff562); the full 7,640-person run remains.
+
 Auto-mode VM automation was refused by the permission classifier repeatedly this session
 ("Auto-Mode Bypass" at the websocket-terminal step). Everything computable locally is done;
 these five steps need a human hand on the VM. Start each terminal session with:

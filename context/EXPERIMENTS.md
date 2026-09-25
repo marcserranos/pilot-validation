@@ -739,3 +739,10 @@ Pointer entry; details in `sprints/S03_call8_figures_kir_prediction/{LOG.md,FIND
 - 40 Figure 1 v5: b/d/e/f done; a/c await VM exports 40a/40b.
 - 41 KIR pilot: 20/20 people OK, chr19:54.60–54.92 Mb, protein novelty 0–18%/gene; full run ~15 h/$45 at 96 cores.
 - 42 repertoire baseline: n=1,200 subsample; ancestry AUROC 0.64–0.81, sex 0.50; no disease ≥100 cases.
+
+## 2026-09-24/25 — S03: KIR full-cohort run (43), Figure 1 v5 complete, WS6 n=1,500
+Pointer entry; details in `sprints/S03_call8_figures_kir_prediction/{LOG.md,KIR_FULL_RUN.md,FINDINGS_FOR_MARC.md}`.
+- 43 KIR full cohort: Immuannot on chr19:54.60–54.92 Mb for 12,261 main-tier people (991 sequel2 excluded), n2-highcpu-80, 20×4, 31.1 h (+0.6 h benchmark, +0.16 h retry), ~390 people/h, ~$95. 12,157 complete, 104 with ≥1 empty haplotype (deterministic). Unrelated 11,882: 9.23 genes/hap, 58.9% novel, framework 93.7–96.5%, cA 41–67% by ancestry, 2DL2/2DL3 co-occurrence 0.8% (open). HLA tables md5-identical before/after.
+- 41 extended pilot (170 people): 100% haps, 9.06 genes/hap, 61.0% novel.
+- 40 Figure 1 v5: 40a (589 bins ≥20) + 40b (48 cells) exported; all six panels composed.
+- 42 repertoire baseline: n=1,500 subsample, AFR AUROC 0.82, EUR 0.67, sex 0.55; no disease ≥100 cases.

@@ -47,17 +47,18 @@ figure).
   concurrency 20 × 4 threads/person, wall time **31.1 h** (+0.58 h benchmark, +0.16 h retry pass),
   ~$2.98/h → **~$95 compute total**.
 - **Attempted**: 12,261 people (paf_region tier). **991 Tier-3/self_align_needed sequel2 people
-  excluded** upstream (see Caveats). 12,157 people (99.15%) produced both haplotypes; 104 people
-  (0.85%) produced only one haplotype (deterministic — the retry pass reproduced the exact same
-  104, plausibly a real assembly that doesn't span KIR on one haplotype, not a transient failure);
-  **0 people produced no output at all**. **Open item (Critic #2, not reconciled here):** this
-  "104" is not directly reproducible from the six committed TSVs -- the closest derivable
-  quantities are 9 haplotype-level parse failures (`kir_run_summary.tsv`'s "all" row:
-  24,522 attempted vs 24,513 parsed valid) and 123 zero-KIR-call haplotypes in that same "all"
-  bundle (24,513 valid vs 24,390 with ≥1 call), neither of which is 104. If "104" comes from a
-  different source (e.g. the orchestrator's own per-person completion log, external to this
-  aggregation script), cite that source here; otherwise reconcile the number against the TSVs
-  before treating it as a QC fact.
+  excluded** upstream (see Caveats). 12,157 people (99.15%) passed the orchestrator's completion
+  check; 104 people (0.85%) did not. **Reconciled (Critic #2 open item, resolved by the
+  orchestrator):** the orchestrator's `person_done()` (source:
+  `scripts/production_orchestrator/run_production_orchestrator.py`, and its final log line
+  `DONE: 12157/12261`) requires BOTH haplotype GTFs to exist AND each to contain ≥1 call. The
+  TSVs show 132 such "bad" haplotypes in the "all" bundle — 9 missing/unparseable GTFs (24,522
+  attempted vs 24,513 parsed) plus 123 parsed haplotypes with zero KIR calls (24,513 vs 24,390) —
+  spread over the 104 people, so roughly 28 people have both haplotypes bad and ~76 have one.
+  Deterministic: a retry pass reproduced the same 104 (2 then reached the 3-attempt give-up
+  limit), so these are assemblies with no KIR-region contig on that haplotype (or an Immuannot
+  non-call), not transient failures. Every person has ≥1 parseable GTF; the aggregation keeps
+  all valid haplotypes, including the good haplotype of the 104.
 - **HLA outputs verified untouched**: md5 of all 14 HLA production tables identical before and
   after this run.
 - **Unrelated set**: 11,882 people (379 dropped, KING kin ≥ 0.0442) → 23,764 haplotypes attempted,

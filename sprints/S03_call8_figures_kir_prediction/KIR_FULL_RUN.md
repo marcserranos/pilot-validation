@@ -21,3 +21,7 @@ separate `--outroot ~/pipeline_outputs_kir` (never the HLA outroot).
 - 09-25 01:40 Marc reprovisioned to n2-highcpu-80 ($2.98/h). Run: conc 20 × 4 threads.
 - 09-25 02:15 Benchmark: ~390 people/h, 0.7% fail, 6.5 MB/person. Projection ~31 h / ~$93. Waiter armed to launch full run when bench exits.
 - 09-25 02:30 Bench done 198/200 (0.58 h). FULL RUN started 06:57:30 UTC, log ~/s03/kir_full/full_run.log.
+- 09-25 14:03 UTC FULL RUN DONE 12,157/12,261, 31.10 h. HLA md5 OK. 14:15 retry pass for 104 launched.
+- 09-25 14:24 UTC retry pass done (104 = deterministic one-haplotype outputs). Final aggregation OK; HLA md5 OK twice.
+- 09-25 ~14:40 UTC Stopped; **restored n2-highmem-4 / 2000 GB / autostop 1 h** (verified by re-reading the Edit form). App left Stopped.
+- Total ≈ 32.4 h at $2.98/h ≈ $97.
