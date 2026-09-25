@@ -31,24 +31,77 @@ actually run on `~/pipeline_outputs_kir` + `~/pipeline_outputs/hla_calls_rich.ts
   pooled as `ALL` plus each of AFR/AMR/EAS/EUR/MID/SAS — same scheme as 39/43.
 - **Sampling unit**: person (both haplotypes pooled), matching 39's convention (not haplotype, as
   in 04/29).
-- **Novelty levels** (three tracks per gene × ancestry, both species):
-  - `all` — every clean call (baseline).
-  - `any_novel` — any sequence difference from the reference catalogue at all. KIR:
-    `classify_novelty_tier(row) != "known"` (excludes `undetermined`). HLA: `field_class !=
-    "known"` (excludes `uncalled`) — pools 24_novelty_by_field.py's f2_protein/f3_synonymous/
-    f4_noncoding tiers.
-  - `protein_novel` — a real amino-acid-level novel protein. KIR: `novelty_tier ==
-    "novel_protein"`. HLA: `field_class == "f2_protein" AND seq_class == "novel_protein"` —
-    exactly 39's own "novel" category.
-- **Allele identity (documented granularity mismatch, flagged not hidden)**: KIR uses the
-  Immuannot `consensus` string (genomic-consensus granularity, matching
-  `43_kir_full_aggregate.py`'s own convention) at all three levels. HLA uses `cds_id` (CDS-level)
-  for `all`/`any_novel` and `prot_id` (2-field protein-level) for `protein_novel` — both already
-  computed by `24_novelty_by_field.allele_ids()`, reused via `39_saturation_by_ancestry`'s
-  `build_labeled_calls()`. KIR's identity is a finer granularity than HLA's `cds_id`; this is the
-  finest identity each existing pipeline already computes without building new sequence-matching
-  machinery for either species. **WS-B must repeat this caveat, not read raw novelty-%/recurrence
-  numbers across species as strictly like-for-like.**
+- **Five tracks per gene × ancestry, both species** — three MATCHED identity granularities
+  (baseline, no novelty filter) plus the two novelty-filtered tracks, resolved 2026-09-26 after
+  the S04 coordinator flagged the original design's KIR-genomic-vs-HLA-CDS identity mismatch as a
+  blocker before the VM run (see "Allele identity" below for the fix):
+  - `genomic` — every clean call, genomic-level identity (baseline).
+  - `cds` — every clean call, CDS-level identity (baseline).
+  - `protein` — every clean call, protein-level identity (baseline).
+  - `any_novel` — any sequence difference from the reference catalogue at all (novel at the
+    GENOMIC level). KIR: `classify_novelty_tier(row) != "known"` (excludes `undetermined`). HLA:
+    `field_class != "known"` (excludes `uncalled`) — pools 24_novelty_by_field.py's
+    f2_protein/f3_synonymous/f4_noncoding tiers. Identity = `genomic`.
+  - `protein_novel` — a real amino-acid-level novel protein (novel at the PROTEIN level). KIR:
+    `novelty_tier == "novel_protein"`. HLA: `field_class == "f2_protein" AND seq_class ==
+    "novel_protein"` — exactly 39's own "novel" category. Identity = `protein`.
+- **Allele identity — three granularities, the SAME definition for both species** (fixed from an
+  earlier, mismatched design — see "Resolved: KIR/HLA identity mismatch" below):
+  - `genomic` — the full called allele, including non-coding differences. HLA: the untruncated
+    normalized consensus name (`normalize_allele_name(consensus)`, e.g.
+    `"HLA-A*01:01:01:new"` — every colon field kept, not truncated to 2 or 3 fields). KIR: the raw
+    Immuannot `consensus` string (unchanged from the original design).
+  - `cds` — coding-sequence identity. HLA: `cds_id` (already computed by
+    `24_novelty_by_field.allele_ids()`). KIR: `<gene>_cds_<sha8>`, a hash of the observed CDS
+    nucleotide sequence extracted from `<hap>/cds.fa.gz` and joined to the GTF call by
+    `(contig, gene)` — NEW, see "KIR identity extraction" below.
+  - `protein` — translated-protein identity. HLA: `prot_id` (already computed). KIR:
+    `<gene>_prot_<sha8>`, a hash of `24_novelty_by_field.protein_info(cds_seq)["protein"]`
+    (translate + strip terminal stop, reused verbatim) from the SAME `cds.fa.gz`-extracted
+    sequence — NEW.
+
+### Resolved: KIR/HLA identity mismatch (2026-09-26)
+
+The first version of this script used KIR's raw `consensus` string (genomic-level) for its
+`all`/`any_novel` tracks but HLA's CDS-level `cds_id` for the SAME tracks — an unmatched footing
+the S04 coordinator flagged before authorizing a VM run. Fixed by defining three identity
+granularities symmetrically (above) and switching KIR's `cds`/`protein`/`protein_novel` tracks
+from name-based to sequence-hash-based identity, extracted from `<pid>/immuannot_output/
+hap{1,2}/cds.fa.gz` — the same Immuannot-written file HLA's own `03_novel_alleles.py` already
+depends on for its novel-allele sequence matching, reused verbatim (`parse_cds_fasta`) for KIR.
+
+**What was checked, what could not be verified:** `41_kir_pilot.py` and
+`43_kir_full_aggregate.py` were re-read in full and confirmed to read ONLY
+`<pid>/immuannot_output/hap{1,2}.gtf.gz` — neither has ever referenced `cds.fa.gz`. Per
+`reference/IMMUANNOT_GTF_SPEC.md` parts D/E (a static read of Immuannot's upstream source, done
+for a prior sprint, NOT independently re-verified against the real VM filesystem — no VM access
+from this local-only task), Immuannot's `searchTemplate.py` writes
+`<pid>/immuannot_output/hap{1,2}/cds.fa.gz` for EVERY haplotype it processes and
+`annot.combine.sh`'s cleanup does not delete it; this project's `run_immuannot_person.py` runs
+the unmodified upstream tool identically for the HLA run (chr6 region) and the KIR run (chr19
+region, same script, only `--region`/`--pad` differ), and never deletes the `<outpref>` folder.
+**This is an argument from a shared code path, not an empirical check of `~/pipeline_outputs_kir`
+itself.** `44`'s own code therefore checks for `cds.fa.gz` at runtime rather than assuming it:
+- If found for at least one haplotype anywhere in the cohort, `cds`/`protein`/`protein_novel` are
+  computed normally for KIR.
+- **If found for ZERO haplotypes across the entire run**, `cds`/`protein`/`protein_novel` are
+  exported as the literal string `"NA"` for every KIR row (never blank, never `0`, never `<20` —
+  a fourth, distinct value from "true zero"/"masked small count") and a loud warning is logged.
+  `genomic`/`any_novel` are computed normally regardless (they only need `hap{1,2}.gtf.gz`,
+  already confirmed to exist by 41/43's own successful full-cohort run).
+
+Ambiguity (a gene detected in >1 copy on the same contig): the `(contig, gene)` join against
+`cds.fa.gz` is inherently ambiguous for such calls (reference/IMMUANNOT_GTF_SPEC.md part D's own
+documented caveat about the detection-order index not reliably mapping onto the final
+coordinate-sorted GTF for >1 copy) — excluded from `cds`/`protein`/`protein_novel`, counted in
+`kir_cds_match_qc.tsv`, never guessed, following `03_novel_alleles.match_novel_rows()`'s own
+precedent exactly.
+
+**Remaining, honestly-stated limitation**: this fix has not been run against real
+`~/pipeline_outputs_kir` data (no VM access from this task) — the `cds_available=True` path is
+unit-tested against synthetic gzip'd fixtures only. The VM run itself is the first real test of
+whether `cds.fa.gz` exists at the claimed path for the actual KIR cohort; if it does not, the
+script degrades to the documented `"NA"` fallback rather than crashing or fabricating a number.
 - **Recurrence classes** (allele counts, not mutually exclusive by design): `eq1` (exactly 1
   unrelated carrier), `eq2` (exactly 2), `gt2` (>=3, a superset that INCLUDES `ge20`), `ge20`
   (>=20 — called out separately because 20 is this project's own disclosure floor).
@@ -89,14 +142,22 @@ actually run on `~/pipeline_outputs_kir` + `~/pipeline_outputs/hla_calls_rich.ts
   disclosive about those specific people's rare genotype regardless of whether the number is
   labeled "alleles" or "people", so `eq1`/`eq2`/`gt2`/`ge20`/`n_distinct_alleles` are all masked
   the same way as any participant-count column elsewhere in this project.
-- No allele name/string (KIR consensus, HLA `prot_id`/`cds_id`) is ever written next to a carrier
-  count < 20.
+- No allele name/string (KIR consensus/hash, HLA `prot_id`/`cds_id`/genomic name) is ever written
+  next to a carrier count < 20.
 - Any rate whose numerator or denominator is 1-19 is blanked (point estimate AND CI).
 - `Q1`/`Q2` (the raw f1/f2 incidence-frequency counts Good-Turing/Chao2 are computed from) are
   exported ONLY when both are >= 20; otherwise both are blanked together (never one alone, which
   could back-reveal the other via the exported coverage/Chao2 point estimate). The coverage/Chao2
   point estimates and SEs themselves are always exported (computed on the VM from the full,
   unmasked f1/f2 as the brief allows, then only the derived estimate leaves).
+- The literal string `"NA"` (a level that could not be matched for a species — see "Resolved:
+  KIR/HLA identity mismatch" above) is a FOURTH, distinct value from `"0"` (true zero) and `"<20"`
+  (masked small count) and must never be conflated with either downstream. `45`'s figure script
+  reads TSVs with pandas' default `na_values` (which already treats the literal `"NA"` as missing
+  for numeric columns), so `"NA"` rows simply do not plot rather than being misread as `0` —
+  correct behavior, but means an `"NA"` row is silently ABSENT from a figure rather than visibly
+  flagged; anyone building a further figure from these TSVs should check `kir_cds_match_qc.tsv`'s
+  `cds_available` column first.
 
 ## Planned outputs
 
@@ -110,6 +171,10 @@ actually run on `~/pipeline_outputs_kir` + `~/pipeline_outputs/hla_calls_rich.ts
 - `coverage_chao2.tsv` — gene × ancestry × level × species: `n_people`, `s_obs`,
   `good_turing_coverage`, `chao2`, `chao2_se`, `chao2_undetected_f0hat`, `chao_new_by_2n`, `q1`,
   `q2` (blanked together below 20).
+- `kir_cds_match_qc.tsv` — ONE row, aggregate-only `cds.fa.gz` join QC: `n_join_rows`, `n_matched`,
+  `n_ambiguous_copy`, `n_missing_cds_record`, `n_cds_fasta_missing`, `n_hap_seen`,
+  `n_hap_cds_fasta_present`, `cds_available` (bool — read this before trusting any KIR
+  `cds`/`protein`/`protein_novel` row is real rather than `"NA"`).
 - Figures (`scripts/hla_popgen/45_kir_recurrence_figure.py`): `fig_saturation_paired` (KIR/HLA ×
   any-level/protein-level, ALL ancestry, rarefaction bands), `fig_recurrence_classes` (grouped
   bars, hatched where censored), `fig_coverage_chao2` (Good-Turing coverage by ancestry, points
@@ -128,29 +193,39 @@ cd ~/s04 && PYTHONPATH=~/s04:~/s03:~/repos/pilot-validation/scripts/hla_popgen \
     --out-dir ~/s04/results/44 --workers 4 2>&1 | tee -a ~/s04/results/44/run.log
 ```
 
-Pull back only the four `.tsv` files under `~/s04/results/44/` (never anything under
+Pull back the five `.tsv` files under `~/s04/results/44/` (never anything under
 `~/pipeline_outputs*`), disclosure-check locally (`grep`-scan for any bare integer < 20 outside a
-`<20` string), then run `45_kir_recurrence_figure.py` locally.
+`<20` string, and confirm no allele name/hash sits next to one), then run
+`45_kir_recurrence_figure.py` locally. Check `kir_cds_match_qc.tsv`'s `cds_available` column
+first — if `False`, the KIR `cds`/`protein`/`protein_novel` rows are `"NA"` by design (see
+"Resolved: KIR/HLA identity mismatch" above), not a bug.
 
 ## Estimated runtime / resources (n2-highmem-4, 4 vCPU)
 
-- KIR GTF parsing (`43_kir_full_aggregate.parse_all`, reused verbatim): 43's own full-cohort
-  aggregation (12,261 people, this exact same parse step, 64 workers) took **15 seconds**
-  end-to-end on `n2-highcpu-80`. At 4 workers instead of 64, scaling roughly linearly on this
-  I/O-light, CPU-cheap parse (each person's GTF is a few hundred lines of gzip'd text), expect
-  **on the order of a few minutes**, not hours.
+- KIR identity extraction (`build_kir_identity_sets`, NEW as of the 2026-09-26 identity-mismatch
+  fix): for every haplotype this now does TWO file reads instead of one — `hap{1,2}.gtf.gz`
+  (as before) PLUS `hap{1,2}/cds.fa.gz` (new, for the `cds`/`protein`/`protein_novel` tracks) —
+  and a `(contig, gene)` join against the latter. 43's own full-cohort GTF-only parse (12,261
+  people, single-file-read equivalent, 64 workers) took **15 seconds** on `n2-highcpu-80`; the
+  added `cds.fa.gz` read + join roughly doubles per-haplotype I/O and adds a small amount of
+  hashing/translation work per matched call. At 4 workers instead of 64, and generously budgeting
+  for the extra file, expect **on the order of 10-20 minutes**, not hours — still I/O-light
+  (region-limited files, a few hundred lines/records each).
 - HLA `build_labeled_calls()` (39's own pipeline: `load_table1`, `match_sequences` against
-  `outroot` FASTAs, `classify_sequence`) is the heavier piece — it re-derives sequence matching
-  for every depth-2/3 call, which 39's own full run needed noticeably longer for (39's README
-  doesn't give a standalone wall-time, but its scope — matching + classifying ~12K people's
-  depth-2/3 calls across 8 classical genes — is comparable to a full `24_novelty_by_field.py`
-  pass). **Budget 30-90 minutes** for this step at `--threads 4`.
+  `outroot` FASTAs, `classify_sequence`) is unchanged by this fix and remains the heavier piece —
+  it re-derives sequence matching for every depth-2/3 call (39's README doesn't give a standalone
+  wall-time, but its scope — matching + classifying ~12K people's depth-2/3 calls across 8
+  classical genes — is comparable to a full `24_novelty_by_field.py` pass). **Budget 30-90
+  minutes** for this step at `--threads 4`.
 - The permutation/curve/Chao2 computation itself (25 permutations × ~17 KIR genes + 8 HLA genes ×
-  7 ancestry groups × 3 levels) is pure in-memory numpy work over small integer arrays (at most a
-  few thousand elements per curve) — expect **well under 5 minutes** total.
-- **Overall estimate: 45-120 minutes wall time on a 4-vCPU VM**, dominated by the HLA sequence-
-  matching step, not by KIR parsing or the statistics themselves. This should be revised with the
-  actual observed wall time once run — flagged here as an estimate, not a measurement.
+  7 ancestry groups × 5 levels, up from 3) is pure in-memory numpy work over small integer arrays
+  (at most a few thousand elements per curve) — expect **well under 10 minutes** total even with
+  the added levels.
+- **Revised overall estimate: 50-130 minutes wall time on a 4-vCPU VM**, still dominated by the
+  HLA sequence-matching step, with a modest (roughly +10-20 min) addition from the new KIR
+  `cds.fa.gz` pass. This is still an ESTIMATE, not a measurement — the identity-mismatch fix has
+  not been run on real data (no VM access from this task); the actual wall time, and whether
+  `cds.fa.gz` is even present at the claimed path, are both first confirmed by the real run.
 
 ## Disclosure choices needing Marc's call
 
@@ -161,20 +236,30 @@ Pull back only the four `.tsv` files under `~/s04/results/44/` (never anything u
    as releasable, but that is a judgment call"). Flagged rather than silently adopting either
    convention — Marc/Aleix should confirm whether the stricter masking here should also be
    retrofit onto 36's already-committed output for consistency.
-2. **KIR identity granularity (raw genomic consensus string) vs. HLA identity granularity
-   (CDS-level `cds_id`)** — the `any_novel`/`all` recurrence and saturation numbers are not on a
-   perfectly equal footing between species because of this granularity gap (see Method above). No
-   existing script computes a genomic-consensus-level identity for HLA or a CDS/protein-level
-   clustering for KIR's genomic novelty; building either is out of this script's scope. Flagged
-   for WS-B and for whoever writes up the cross-species comparison.
+2. ~~KIR identity granularity (raw genomic consensus string) vs. HLA identity granularity
+   (CDS-level `cds_id`)~~ — **RESOLVED 2026-09-26**: three matched identity granularities
+   (`genomic`/`cds`/`protein`) are now defined and computed identically for both species (see
+   "Resolved: KIR/HLA identity mismatch" above). What still needs Marc's awareness, not a
+   decision: KIR's `cds`/`protein`/`protein_novel` tracks depend on `cds.fa.gz` existing per
+   haplotype, which is argued from Immuannot's shared source code (reference/
+   IMMUANNOT_GTF_SPEC.md) but has NOT been empirically confirmed against the real
+   `~/pipeline_outputs_kir` tree — the VM run is the first real test of this. If the file is
+   missing, the script exports `"NA"` rather than crashing or guessing (see Disclosure).
 3. **`q1`/`q2` export threshold** — exporting them only when both are >=20 (rather than, e.g.,
    >=20 individually) is the more conservative reading of "compute Chao on VM, export only the
    estimate if f1/f2 are small" — worth Marc's confirmation this is the intended strictness.
 
 ## Caveats
 
-- HLA and KIR allele identity are NOT the same granularity (see Method) — cross-species
-  comparisons of raw novel-allele counts must repeat this caveat.
+- KIR's `cds`/`protein`/`protein_novel` identity depends on `hap{1,2}/cds.fa.gz` existing per
+  haplotype in `~/pipeline_outputs_kir` — argued from Immuannot's shared source code and this
+  project's own `run_immuannot_person.py`, but not empirically confirmed without VM access (see
+  "Resolved: KIR/HLA identity mismatch"). The script degrades to an explicit `"NA"` export if
+  false, rather than crashing or fabricating a number, but this fallback itself is only
+  synthetic-fixture-tested, not real-data-tested.
+- A gene detected in >1 copy on the same contig is excluded from KIR's `cds`/`protein`/
+  `protein_novel` tracks (join ambiguity — see above); counted in `kir_cds_match_qc.tsv`, never
+  guessed. This is expected to be rare (KIR structural duplication on one contig) but not zero.
 - The unrelated-set-intersection-then-greedy_unrelated approach means this script's unrelated set
   size may differ slightly from both 39's own committed HLA unrelated set and 43's own committed
   KIR unrelated set (each computed on that species' own full pool) — by design, for WS-B's "same
@@ -185,6 +270,9 @@ Pull back only the four `.tsv` files under `~/s04/results/44/` (never anything u
   1987 / Colwell's EstimateS manual), unit-tested for the expected qualitative behavior (coverage
   in [0,1], SE >= 0, edge cases don't crash) but not cross-validated against a reference
   implementation (e.g. R's `iNEXT`) on real data — worth a spot-check once real numbers exist.
+- `45`'s figure functions read `"NA"` cells as missing (pandas' default `na_values`) and simply
+  don't plot them — correct, but means a species/level unavailable due to a missing `cds.fa.gz`
+  is silently ABSENT from a figure rather than visibly marked; check `kir_cds_match_qc.tsv` first.
 
 ## Distilled
 
@@ -192,8 +280,17 @@ Pull back only the four `.tsv` files under `~/s04/results/44/` (never anything u
   and re-runs the identical pipeline on HLA on the SAME unrelated people (KIR ∩ HLA, one
   `greedy_unrelated` pass), SAME ancestry scheme, SAME subsampling seeds per ancestry — so WS-B
   can compare KIR vs. HLA catalogue coverage without re-deriving methodology.
-- Three novelty levels tracked throughout (`all`/`any_novel`/`protein_novel`) so neither the
-  general neo-allele signal nor the protein-level signal gets dropped, per Marc's explicit ask.
+- **Three MATCHED allele-identity granularities** (`genomic`/`cds`/`protein`), defined and
+  computed identically for both species — fixed 2026-09-26 from an earlier design that mismatched
+  KIR's genomic-level identity against HLA's CDS-level identity for the same tracks (S04
+  coordinator's open item before the VM run). KIR's `cds`/`protein` now come from hashing the
+  observed CDS sequence in `hap{1,2}/cds.fa.gz` (same file HLA's own `03_novel_alleles.py` already
+  depends on) instead of the raw allele name.
+- Two novelty levels tracked throughout (`any_novel` = novel at the genomic level, `protein_novel`
+  = novel at the protein level) so neither the general neo-allele signal nor the protein-level
+  signal gets dropped, per Marc's explicit ask — now using the matched genomic/protein identities.
+- If `cds.fa.gz` turns out not to exist for KIR on the real VM tree (unverified — see above), KIR's
+  `cds`/`protein`/`protein_novel` export as the literal `"NA"`, never a silent 0 or a guess.
 - Recurrence classes `eq1`/`eq2`/`gt2`/`ge20` are allele counts, not mutually exclusive (`ge20`
   is a subset of `gt2`) — by design, `ge20` called out because 20 is this project's disclosure
   floor.
