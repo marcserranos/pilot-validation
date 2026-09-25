@@ -127,7 +127,7 @@ def test_end_to_end_writes_pdf_png_and_readme():
 
         pdf_path = os.path.join(out_dir, "supp_deletions.pdf")
         png_path = os.path.join(out_dir, "supp_deletions.png")
-        readme_path = os.path.join(out_dir, "README.md")
+        readme_path = os.path.join(out_dir, "README_38b_supplement.md")
         check("wrote supp_deletions.pdf",
               os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0)
         check("wrote supp_deletions.png",

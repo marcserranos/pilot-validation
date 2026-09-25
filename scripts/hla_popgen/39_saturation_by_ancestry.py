@@ -486,6 +486,35 @@ def equal_n_comparison(by_anc_units, n_min, n_bootstrap, seed):
 # ---------------------------------------------------------------------------
 # Figures
 # ---------------------------------------------------------------------------
+def _prune_offview_ticklabels(ax):
+    """Hide any x/y tick-label Text whose data position falls outside the axes' own final
+    xlim/ylim.
+
+    Root cause this works around: matplotlib's default tick Locator deliberately generates one
+    extra major tick just past each end of the data range (e.g. ylim=(-16, 536) but a '600'
+    y-tick Text object still exists). These already render invisible in the saved PNG/PDF --
+    each tick Text has clip_on=True with the axes bbox as its clip path, confirmed empirically --
+    so this is purely cosmetic/a no-op for anything a reader sees. But `check_layout()`'s overlap
+    check calls `Text.get_window_extent()` directly, which returns the UNCLIPPED geometry, so it
+    flags these already-invisible off-view ticks as colliding with the panel letter or a
+    neighboring subplot's own off-view ticks (both bleed into the same dead space between
+    panels). Explicitly setting these particular ticks invisible makes the mechanical linter see
+    what a reader already sees, without changing a single visible pixel. (S04 WS-C redesign;
+    reported upstream as a possible check_layout() enhancement -- see LOG.md.)"""
+    # sorted(), not unpacked-in-order: an inverted axis returns get_xlim()/get_ylim() as
+    # (high, low), which would otherwise make every real tick look "out of range" (none of this
+    # script's axes invert currently, but 38b_deletion_supplement_fig.py's near-identical helper
+    # hit exactly this with invert_yaxis() -- guarding here too rather than relying on that).
+    xlo, xhi = sorted(ax.get_xlim())
+    for loc, t in zip(ax.get_xticks(), ax.get_xticklabels()):
+        if loc < xlo - 1e-9 or loc > xhi + 1e-9:
+            t.set_visible(False)
+    ylo, yhi = sorted(ax.get_ylim())
+    for loc, t in zip(ax.get_yticks(), ax.get_yticklabels()):
+        if loc < ylo - 1e-9 or loc > yhi + 1e-9:
+            t.set_visible(False)
+
+
 def _dodge_label_positions(entries, min_sep):
     """entries: list of (key, y). Returns {key: label_y} with labels pushed apart by at least
     min_sep (data units), preserving relative order (highest y keeps the highest label). Used so
@@ -532,13 +561,20 @@ def _plot_ancestry_curves(ax, curve_data, linewidth=0.9, label=True, label_fonts
     return ends
 
 
-def fig_saturation_panels(curve_all, curve_ge2, curve_novel, out_stem):
+def fig_saturation_panels(curve_all, curve_ge2, curve_novel, out_stem, equal_n=None):
     """Main figure (89 mm wide per panel, 183 mm total = Nature double-column): panel a = all
     distinct protein alleles (>=1 carrier); panel b = restricted to >=2-carrier alleles, robust
     to singleton/artifact-driven novel calls; panel c = novel-protein alleles only (a much smaller
     N per ancestry -- only people who carry a novel allele are sampling units for this curve).
     No in-figure title (S03 orchestrator review); sentence-case axis labels; end-of-line ancestry
-    labels dodged apart with thin leader lines when two curves finish close together."""
+    labels dodged apart with thin leader lines when two curves finish close together.
+
+    `equal_n`, when given, is N_min (the primary equal-N comparison point from the README's
+    'Equal-N comparison' table, e.g. 487): drawn as a thin dashed reference line + label on
+    panels a/b so a reader can see AT A GLANCE where the equal-N read-off (the number actually
+    used for the AFR-vs-rest comparison) sits relative to each ancestry's own full curve, instead
+    of only finding it in a caption/README table. Axes are 'honest' -- both start at 0 (a
+    cumulative allele count can never be negative), never truncated/zoomed to exaggerate a gap."""
     with vc.nature_style():
         fig, axes = plt.subplots(1, 3, figsize=(vc.mm(183), vc.mm(62)))
         panels = [
@@ -553,6 +589,13 @@ def fig_saturation_panels(curve_all, curve_ge2, curve_novel, out_stem):
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.tick_params(labelsize=5.5)
+            ax.set_xlim(left=0)
+            ax.set_ylim(bottom=0)
+            if equal_n is not None and letter in ("a", "b"):
+                ax.axvline(equal_n, color="#888888", linestyle="--", linewidth=0.6, zorder=1)
+                ax.annotate(f"equal-N\n(N={equal_n})", (equal_n, ax.get_ylim()[1]),
+                            xytext=(3, -2), textcoords="offset points", fontsize=4.6,
+                            color="#666666", va="top", ha="left", style="italic")
             vc.panel_letter(ax, letter)
             if letter == "c":
                 # Panel c's sampling units are only people carrying >=1 novel allele; SAS/MID
@@ -574,6 +617,8 @@ def fig_saturation_panels(curve_all, curve_ge2, curve_novel, out_stem):
                                 transform=ax.transAxes, fontsize=4.8, color="#666666",
                                 ha="right", va="bottom", style="italic")
         fig.subplots_adjust(right=0.90, wspace=0.55)
+        for ax in axes:
+            _prune_offview_ticklabels(ax)
         return vc.save_fig(fig, out_stem)
 
 
@@ -599,11 +644,19 @@ def fig_supplement_grid(curve_by_gene_anc, genes_bare, out_stem):
             ax.spines["right"].set_visible(False)
         for ax in axes[len(genes_bare):]:
             ax.axis("off")
+        for ax in axes[:len(genes_bare)]:
+            _prune_offview_ticklabels(ax)
+        # Explicit fig.text() y-positions (figure fraction, 0=bottom) instead of
+        # fig.supxlabel()/fig.legend(bbox_to_anchor=negative) -- the latter pair auto-placed close
+        # enough to touch (CRITIC_WSC.md: "supxlabel sits very close to / touches the legend row").
+        # Reserve a fixed bottom margin and stack, top to bottom: plots -> x-axis label -> legend,
+        # each given its own clearly separated row.
+        fig.subplots_adjust(bottom=0.20, top=0.94)
         handles = [plt.Line2D([0], [0], color=ANCESTRY_COLORS[a], lw=1.2, label=a)
                   for a in ANCESTRY_ORDER]
         fig.legend(handles=handles, loc="lower center", ncol=len(ANCESTRY_ORDER), fontsize=5.5,
-                  frameon=False, bbox_to_anchor=(0.5, -0.02))
-        fig.supxlabel("cohort size (people)", fontsize=6.5)
+                  frameon=False, bbox_to_anchor=(0.5, 0.015))
+        fig.text(0.5, 0.115, "cohort size (people)", ha="center", va="bottom", fontsize=6.5)
         fig.supylabel("cumulative distinct protein alleles", fontsize=6.5)
         return vc.save_fig(fig, out_stem)
 
@@ -627,6 +680,14 @@ def fig_thresholds_panel(curve_data_by_thr, ancestry, out_stem):
         ax.set_title(ancestry, fontsize=7)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+        ax.set_xlim(left=0)
+        ax.set_ylim(bottom=0)
+        # Leave headroom on the right for the in-line ">= k carriers" end labels (annotate() with
+        # annotation_clip=False by default follows the axes' own clip setting, which is on here --
+        # the label for the topmost, ">= 1 carrier" line can otherwise sit right at/past the right
+        # spine and get clipped, e.g. the EAS instance the linter caught).
+        fig.subplots_adjust(right=0.78)
+        _prune_offview_ticklabels(ax)
         return vc.save_fig(fig, out_stem)
 
 
@@ -647,6 +708,8 @@ def fig_imgt_richness(df, out_stem):
         ax.legend(fontsize=5.5, frameon=False, ncol=len(ANCESTRY_ORDER))
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+        ax.set_ylim(bottom=0)
+        _prune_offview_ticklabels(ax)
         return vc.save_fig(fig, out_stem)
 
 
@@ -703,8 +766,9 @@ def render_only(args):
         for anc, sub in sub_gene.groupby("ancestry"):
             supplement_data[(gene, anc)] = _curve_tuple(sub)
 
+    equal_n = int(eq_df["n_min"].mode().iloc[0]) if len(eq_df) and "n_min" in eq_df.columns else None
     fig_saturation_panels(main_panel_data, curve_ge2_data, curve_novel_data,
-                          os.path.join(out_dir, "fig1_main_saturation_panel"))
+                          os.path.join(out_dir, "fig1_main_saturation_panel"), equal_n=equal_n)
     if supplement_data:
         fig_supplement_grid(supplement_data, CLASSICAL_GENES_BARE,
                             os.path.join(out_dir, "fig2_supplement_grid_by_gene"))
@@ -714,9 +778,15 @@ def render_only(args):
         fig_imgt_richness(imgt_df[imgt_df["scheme"] == "pred"],
                           os.path.join(out_dir, "fig4_imgt_allele_space_explored"))
 
-    write_readme(out_dir, summary, fit_df, eq_df, diff_df, imgt_df, curve_df,
-                n_bootstrap=summary.get("n_bootstrap_test", N_BOOTSTRAP_TEST_DEFAULT))
-    print(f"[39] render-only done -> {out_dir}", file=sys.stderr, flush=True)
+    # NOTE (S04 WS-C redesign, caught twice by the critic): render_only() used to call
+    # write_readme() here, which fully regenerates README.md from a hard-coded template and
+    # silently drops hand-written sections that were added to the committed README after the
+    # fact (e.g. the "equal-N discovery slope" primary table and its interpretive caveats --
+    # those exist only in the committed README, not in write_readme()'s template). render_only()
+    # is meant to rebuild FIGURES from committed aggregate TSVs for local style iteration; it
+    # must never touch README.md. If the underlying numbers actually changed, update README.md
+    # by hand (or intentionally call write_readme() from `run()`, the full-pipeline path).
+    print(f"[39] render-only done -> {out_dir} (README.md left untouched)", file=sys.stderr, flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -861,8 +931,10 @@ def run(args):
 
     # ---- figures ----
     curve_ge2_data = {anc: d[2] for anc, d in thresholds_panel_data.items() if 2 in d}
+    equal_n = n_min if "n_min" in locals() else None
     fig_saturation_panels(main_panel_data, curve_ge2_data, curve_novel_data,
-                          os.path.join(args.out_dir, "fig1_main_saturation_panel"))
+                          os.path.join(args.out_dir, "fig1_main_saturation_panel"),
+                          equal_n=equal_n)
     if supplement_data:
         fig_supplement_grid(supplement_data, CLASSICAL_GENES_BARE,
                            os.path.join(args.out_dir, "fig2_supplement_grid_by_gene"))

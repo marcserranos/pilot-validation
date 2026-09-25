@@ -96,8 +96,13 @@ def panel_a_presence(ax, gene_summary):
     ax.barh(y, pct, xerr=xerr, height=0.62, color=colors, edgecolor="none",
             error_kw=dict(elinewidth=0.5, ecolor="#333333", capsize=1.2, capthick=0.5))
     ax.set_yticks(y)
-    labels = [GENE_SHORT[g] + (" †" if g in FRAMEWORK_GENES else "") for g in GENE_ORDER]
-    ax.set_yticklabels(labels, fontsize=5)
+    ax.set_yticklabels([GENE_SHORT[g] for g in GENE_ORDER], fontsize=5)
+    # Framework genes are marked by weight (bold) + the darker bar color set above, not a "†"
+    # symbol (FIGURE_STYLE.md de-AI checklist item 12: no decorative symbols in labels) -- the
+    # figure-wide caption spells out what bold + dark-blue mean once.
+    for lbl, g in zip(ax.get_yticklabels(), GENE_ORDER):
+        if g in FRAMEWORK_GENES:
+            lbl.set_fontweight("bold")
     ax.invert_yaxis()
     ax.set_xlim(0, 105)
     ax.set_xlabel("haplotype presence (%)")
@@ -173,11 +178,19 @@ def _pivot_num(gene_by_ancestry, value_col):
 
 
 def panel_c_presence_heatmap(ax, gene_by_ancestry, y):
+    # Integer % here (values cluster 70-100, cell text at 1-decimal collided edge-to-edge in
+    # these narrow 6-ancestry-wide cells -- check_layout() caught it); panel d keeps 1 decimal,
+    # where the underlying values (mostly single digits) actually need it to be distinguishable.
+    # Each panel's own precision is fixed and stated once here + in the README, rather than
+    # forcing one shared decimal count that would either crowd panel c or hide real digits in d.
     mat = _pivot_num(gene_by_ancestry, "presence_pct")
     censored = np.isnan(mat)  # none expected for presence, but handled generically
-    _heatmap(ax, mat, y, "viridis", 0, 100, censored, "presence (%)", "Presence × ancestry")
-    labels = [GENE_SHORT[g] + (" †" if g in FRAMEWORK_GENES else "") for g in GENE_ORDER]
-    ax.set_yticklabels(labels, fontsize=5.3)
+    _heatmap(ax, mat, y, "viridis", 0, 100, censored, "presence (%)", "Presence × ancestry",
+             fmt="{:.0f}")
+    ax.set_yticklabels([GENE_SHORT[g] for g in GENE_ORDER], fontsize=5.3)
+    for lbl, g in zip(ax.get_yticklabels(), GENE_ORDER):
+        if g in FRAMEWORK_GENES:
+            lbl.set_fontweight("bold")
 
 
 def panel_d_novelty_heatmap(ax, gene_by_ancestry, y):
@@ -206,7 +219,7 @@ def panel_e_content(ax, content_by_ancestry):
     ax.set_xticklabels(ANCESTRY_ORDER, fontsize=5.5)
     ax.set_ylim(0, 80)
     ax.set_ylabel("haplotypes cA (%)")
-    ax.set_title("cA vs cB content by ancestry", fontsize=7, pad=3)
+    ax.set_title("cA/cB content by ancestry", fontsize=7, pad=3)
 
 
 # ---------------------------------------------------------------------------
@@ -234,17 +247,20 @@ def panel_f_qc(ax, qc):
     ymax = max(fw["ci_hi"].max(), fw["pct"].max()) + 1.0
     ax.set_ylim(ymin, ymax)
     ax.set_ylabel("framework presence (%)")
-    ax.set_title("QC: framework genes + co-occurrence", fontsize=7, pad=3)
+    ax.set_title("QC: framework gene presence", fontsize=7, pad=3)
 
+    # Co-occurrence numbers used to sit as free text just right of this axes (transform=
+    # ax.transAxes, x=1.03) -- with nothing to their right (this is the rightmost panel), that
+    # text ran straight off the figure's own bbox (check_layout() text_clipped, S04 WS-C
+    # redesign). Returned as plain strings instead and folded into the figure-wide caption below,
+    # which is centered and already sized to the full figure width.
     co = qc[qc["metric"] == "cooccurrence"].set_index("item")
     lines = []
-    for item, label in [("KIR2DL2_and_KIR2DL3", "2DL2 & 2DL3"),
-                         ("KIR3DL1_and_KIR3DS1", "3DL1 & 3DS1")]:
+    for item, label in [("KIR2DL2_and_KIR2DL3", "2DL2+2DL3"),
+                         ("KIR3DL1_and_KIR3DS1", "3DL1+3DS1")]:
         row = co.loc[item]
-        pct = row["pct"]
-        lines.append(f"{label} co-occur: {pct}%  (n={row['n']}/{row['d']})")
-    ax.text(1.03, 0.95, "\n".join(lines), transform=ax.transAxes, fontsize=5.3,
-            va="top", ha="left")
+        lines.append(f"{label} co-occurrence {to_num(row['pct']):.1f}% (n={int(to_num(row['n']))})")
+    return lines
 
 
 def build_figure(tables, out_stem):
@@ -271,7 +287,7 @@ def build_figure(tables, out_stem):
         panel_letter(ax_d, "d", dx=-0.05, dy=1.03)
         panel_e_content(ax_e, tables["kir_content_by_ancestry"])
         panel_letter(ax_e, "e", dx=-0.10, dy=1.06)
-        panel_f_qc(ax_f, tables["kir_qc"])
+        cooccur_lines = panel_f_qc(ax_f, tables["kir_qc"])
         panel_letter(ax_f, "f", dx=-0.12, dy=1.06)
 
         bottoms, tops, _lefts, _rights = gs.get_grid_positions(fig)
@@ -280,11 +296,13 @@ def build_figure(tables, out_stem):
                    loc="center", bbox_to_anchor=(0.5, row_gap_y), ncol=4, fontsize=5.3,
                    frameon=False, handlelength=1.0, handleheight=0.9, columnspacing=1.2)
 
-        fig.text(0.085, 0.015,
-                  "† framework gene (expected on ~all haplotypes).  "
-                  "Hatched cells: <20 calls, censored per disclosure rule.  "
+        fig.text(0.5, 0.035, "  |  ".join(cooccur_lines), fontsize=5.3, color="#444444",
+                  ha="center")
+        fig.text(0.5, 0.012,
+                  "Bold gene label / darker bar (a): framework gene (expected on ~all "
+                  "haplotypes). Hatched cells: <20 calls, censored per disclosure rule. "
                   "Ancestry = predicted; unrelated subset (KING kin ≥ 0.0442 removed).",
-                  fontsize=5.3, color="#444444")
+                  fontsize=5.3, color="#444444", ha="center")
 
         return save_fig(fig, out_stem)
 

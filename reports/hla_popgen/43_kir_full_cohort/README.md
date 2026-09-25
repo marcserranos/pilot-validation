@@ -116,14 +116,17 @@ exclusivity for the two allelic-alternative gene pairs — all replicate at full
 ## How to read the figure (`fig_kir_full_cohort.png`/`.pdf`)
 
 Genes in panels a–d are ordered centromeric → telomeric per the standard published KIR gene map
-(framework genes marked with **†**); this ordering is for panel layout only (see the figure
-script's docstring for why it differs cosmetically from `41_kir_pilot.py`'s internal
-`FRAMEWORK_GENES` adjacency list, which is used for a different purpose and unaffected by the
-choice).
+(framework genes marked by **bold gene label + darker bar** in panel a, not a "†" symbol — S04
+WS-C redesign, 2026-09-25: a dagger is decorative-symbol clutter per `reference/FIGURE_STYLE.md`'s
+de-AI checklist item 12, and the color coding already existed); this ordering is for panel layout
+only (see the figure script's docstring for why it differs cosmetically from `41_kir_pilot.py`'s
+internal `FRAMEWORK_GENES` adjacency list, which is used for a different purpose and unaffected by
+the choice).
 
 - **a — Presence per gene**: % of haplotypes carrying each gene, Wilson 95% CI, unrelated set.
-  Framework genes (dark blue) sit near 94–97%; "B-content" genes (KIR2DS*, KIR2DL2, KIR2DL5A/B,
-  KIR3DS1) are the ones under ~30%, as expected from KIR's cA/cB haplotype-content biology.
+  Framework genes (**bold label**, dark blue bar) sit near 94–97%; "B-content" genes (KIR2DS*,
+  KIR2DL2, KIR2DL5A/B, KIR3DS1) are the ones under ~30%, as expected from KIR's cA/cB
+  haplotype-content biology.
 - **b — Novelty per gene**: stacked bar, % of that gene's allele calls in each of the 4 novelty
   tiers (known / novel genomic-only / novel CDS-synonymous / novel protein); `n=` at each bar's
   end is the total call count for that gene.
@@ -134,9 +137,14 @@ choice).
   censored per this project's disclosure rule, never plotted as 0 or omitted silently.
 - **e — cA vs cB content by ancestry**: % of haplotypes classified cA (fixed, inhibitory-dominated
   gene content) vs cB (carries ≥1 activating/variable gene), Wilson CI, dashed line at 50%.
-- **f — QC strip**: framework-gene presence % (left) and the two mutual-exclusivity sanity checks
-  (right, text annotation) — KIR2DL2/KIR2DL3 and KIR3DL1/KIR3DS1 are allelic alternatives at the
-  same locus and are expected to co-occur on a haplotype only rarely/never.
+- **f — QC strip**: framework-gene presence %, point + 95% CI (a zero-free axis, since these all
+  sit in a narrow 93–97% band — a bar chart here would need a truncated baseline, which visually
+  exaggerates small differences; a point's position alone carries no such claim). The two
+  mutual-exclusivity sanity checks (KIR2DL2/KIR2DL3 and KIR3DL1/KIR3DS1 — allelic alternatives at
+  the same locus, expected to co-occur on a haplotype only rarely/never) are no longer annotated
+  inside this panel — that text had nowhere to expand into (panel f is the rightmost panel) and ran
+  off the figure's own edge (a real `check_layout(strict=True)` clipping fault, fixed S04 WS-C,
+  2026-09-25). They are now in the figure's caption line, directly below panel e/f.
 
 ## Caveats
 

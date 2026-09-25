@@ -263,6 +263,34 @@ def draw_panel_ancestry(ax, anc_rates):
     return n_suppressed
 
 
+def _prune_offview_ticklabels(ax):
+    """Hide any x/y tick-label Text whose data position falls outside the axes' own final
+    xlim/ylim.
+
+    matplotlib's default tick Locator deliberately generates one extra major tick just past each
+    end of the data range (confirmed here: ax2's view is [5.8, 51.1] but tick Texts '0' and '60'
+    still exist). These already render invisible in the saved PNG/PDF -- each tick Text has
+    clip_on=True with the axes bbox as its clip path -- so hiding them changes no visible pixel.
+    But `check_layout()`'s clip check calls `Text.get_window_extent()` directly, which returns
+    the UNCLIPPED geometry, so an off-view tick whose nominal position lands far enough past the
+    axes (as here, where the view spans much less than one tick step) reads as extending past the
+    whole FIGURE bbox -- a real check_layout() failure for a tick nobody ever sees. (S04 WS-C
+    redesign; same fix applied in 39_saturation_by_ancestry.py -- see that module for the fuller
+    writeup; reported upstream as a possible check_layout() enhancement, LOG.md.)"""
+    # min/max, not unpacked-in-order: an inverted axis (panel b here uses invert_yaxis()) returns
+    # get_ylim() as (top_value, bottom_value) with lo > hi, which would otherwise make every real
+    # tick look "out of range" and blank the whole axis (caught visually -- panel b's gene labels
+    # vanished on first pass).
+    xlo, xhi = sorted(ax.get_xlim())
+    for loc, t in zip(ax.get_xticks(), ax.get_xticklabels()):
+        if loc < xlo - 1e-9 or loc > xhi + 1e-9:
+            t.set_visible(False)
+    ylo, yhi = sorted(ax.get_ylim())
+    for loc, t in zip(ax.get_yticks(), ax.get_yticklabels()):
+        if loc < ylo - 1e-9 or loc > yhi + 1e-9:
+            t.set_visible(False)
+
+
 def make_figure(gene_rates, anc_rates, out_stem):
     with vc.nature_style():
         import matplotlib.pyplot as plt
@@ -274,6 +302,8 @@ def make_figure(gene_rates, anc_rates, out_stem):
         n_suppressed = draw_panel_ancestry(ax2, anc_rates)
         vc.panel_letter(ax2, "b")
         fig.subplots_adjust(left=0.09, right=0.98, top=0.96, bottom=0.14)
+        _prune_offview_ticklabels(ax1)
+        _prune_offview_ticklabels(ax2)
     pdf_path, png_path = vc.save_fig(fig, out_stem)
     return pdf_path, png_path, dropped, n_suppressed
 
@@ -337,13 +367,27 @@ dot means the (gene, ancestry) bridged-haplotype count itself was `<20` in the c
 
 
 def write_readme(out_dir, gene_rates, dropped, n_suppressed):
+    """Writes a STANDALONE reference doc, never `README.md` directly.
+
+    `out_dir` defaults to 30_hla_sv/38's own shared report folder (the figure genuinely belongs
+    there), but that folder's `README.md` is script 38's own hand-written writeup, into which a
+    human previously merged a condensed version of this script's content by hand (see its
+    "Supplement: restyled deletion-rate figure (script 38b)" section -- note it does NOT match
+    this template verbatim, confirming it was hand-edited, not machine-overwritable). An earlier
+    version of this function wrote straight to `README.md` and silently destroyed that
+    hand-written file the moment this script was re-run for a style pass (caught in S04 WS-C
+    redesign, the exact "render_only() drops hand-written content" failure mode also hit in
+    39_saturation_by_ancestry.py -- see that script's own fix). Writing a separate file here means
+    a re-run can never clobber the shared README; merging any updated numbers into README.md
+    remains a deliberate, reviewed human/agent step, same as it evidently was originally."""
     text = README_TEMPLATE.format(
         pos=", ".join(POSITIVE_CONTROL_GENES), neg=", ".join(NEGATIVE_CONTROL_GENES),
         cnv=", ".join(CNV_GENES), n_dropped=len(dropped), n_suppressed=n_suppressed)
-    path = os.path.join(out_dir, "README.md")
+    path = os.path.join(out_dir, "README_38b_supplement.md")
     with open(path, "w") as f:
         f.write(text)
-    print(f"  wrote {path}", file=sys.stderr)
+    print(f"  wrote {path} (standalone -- README.md is hand-maintained, not overwritten; merge "
+          f"manually if these numbers changed)", file=sys.stderr)
 
 
 def main():
@@ -363,7 +407,7 @@ def main():
     pdf_path, png_path, dropped, n_suppressed = make_figure(gene_rates, anc_rates, out_stem)
     write_readme(args.out_dir, gene_rates, dropped, n_suppressed)
 
-    print(f"[38b] wrote {pdf_path}, {png_path}, and README.md to {args.out_dir}")
+    print(f"[38b] wrote {pdf_path}, {png_path}, and README_38b_supplement.md to {args.out_dir}")
 
 
 if __name__ == "__main__":

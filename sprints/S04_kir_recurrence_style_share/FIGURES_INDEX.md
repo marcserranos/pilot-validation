@@ -49,15 +49,43 @@ mechanical check:
 |---|---|---|---|
 | `40_figure1_v5.py compose` layout A (= committed `figure1_v5.png`, `--pick A` default) | **0** (was 5, fixed 2026-09-25 -- see FIGURES_INDEX row above and `40_figure1_v5.py`) | 0 | Fixed: `100`/`0` tick labels overlapped `AFR`/`AMR` ancestry labels (dropped the redundant 0/100 numerals); `EUR` ancestry label and the "first observed here" annotation both overlapped panel c's two-line y-axis label (legend moved below the triangle, y-label shortened to one line). Re-run with `--panel-b-table reports/hla_popgen/36_figure1/panel_b_ternary_alleles.tsv` (40's own default path's file isn't committed locally; 36's is numerically the same panel-b data per 40's own docstring lineage) -- caveat: not verified byte-identical to whatever panel-b table produced the currently-committed PNG. |
 | `40_figure1_v5.py compose` layout B (alternate, not picked) | **0** (was 5) | 0 | Same fault pattern as layout A, same fix. |
-| `39_saturation_by_ancestry.py --render-only` fig1 (`fig1_main_saturation_panel.png`) | **5** | 0 | Panel letters a/b/c overlap the nearest y-axis tick label in each of the 3 stacked panels (e.g. `'a' overlaps '600'`) -- CRITIC_WSC.md's "no overlap found" note for this figure was an eyeball miss at thumbnail size, not a false negative in the fix. |
-| `39_saturation_by_ancestry.py --render-only` fig2 (`fig2_supplement_grid_by_gene.png`) | **13** | 0 | Repeated x-tick-label collisions (`'3000' overlaps '-1000'`, `'4000' overlaps '-5'/'-10'/'-20'`) across several of the 8 per-gene subplots, plus `fig.supxlabel("cohort size (people)")` overlapping the EAS/EUR ancestry legend labels below it -- this is exactly the still-open gap CRITIC_WSC.md flagged as "not re-fixed" in the prior session; the linter confirms it mechanically rather than relying on another eyeball pass. |
-| `39_saturation_by_ancestry.py --render-only` fig3 thresholds (AFR/AMR/EAS/EUR/MID/SAS) | 0/0/**1**/0/0/0 | 0 | EAS panel: `'-200' overlaps '-50'` (y-axis tick crowding); the other 5 ancestries are clean. |
-| `39_saturation_by_ancestry.py --render-only` fig4 (`fig4_imgt_allele_space_explored.png`) | 0 | 0 | Clean. |
-| `43b_kir_full_figure.py` (`fig_kir_full_cohort.png`) | **1** | 0 | The panel f co-occurrence annotation text (`"2DL2 & 2DL3 co-occur..."` two-line block) extends past the figure's right edge -- a real, previously-unflagged clipping fault (CRITIC_WSC.md's note for 43b was "not re-verified at zoomed/native resolution"; this is exactly the kind of fault that pass admitted it might miss). |
+| `39_saturation_by_ancestry.py --render-only` fig1 (`fig1_main_saturation_panel.png`) | **0** (was 5, fixed 2026-09-25) | 0 | Was: panel letters a/b/c overlap the nearest y-axis tick label in each of the 3 stacked panels (e.g. `'a' overlaps '600'`). Root cause (confirmed by direct inspection, not guessed): matplotlib's tick Locator always generates one extra major tick just past each end of the actual view (e.g. ylim=(-16, 536) but a `'600'` y-tick Text object still exists, `clip_on=True` with the axes bbox as clip path) -- these already render invisible in the saved PNG/PDF, but `check_layout()`'s overlap check calls `Text.get_window_extent()` directly, which ignores clipping. Fixed in the script (not `_viz_common.py`, per this task's constraint) with a local `_prune_offview_ticklabels(ax)` that explicitly hides any tick Text whose data position is outside the axes' own final xlim/ylim -- a no-op for the rendered pixels, but now agrees with what `check_layout()` sees. CRITIC_WSC.md's "no overlap found" note for this figure was an eyeball miss at thumbnail size; the underlying fault was real (mis-clipped-tick bookkeeping) even though no reader would ever have seen it. |
+| `39_saturation_by_ancestry.py --render-only` fig2 (`fig2_supplement_grid_by_gene.png`) | **0** (was 13, fixed 2026-09-25) | 0 | Was: repeated x-tick-label collisions (`'3000' overlaps '-1000'`, `'4000' overlaps '-5'/'-10'/'-20'`) across several of the 8 per-gene subplots (same phantom-tick cause as fig1, fixed the same way), plus `fig.supxlabel("cohort size (people)")` overlapping the ancestry legend below it -- this second fault WAS real and visible (CRITIC_WSC.md flagged it as "not re-fixed"); fixed by replacing the auto-placed `supxlabel`/`legend(bbox_to_anchor=negative)` pair with explicit `fig.text()` y-positions, stacking plots -> x-axis label -> legend with a fixed, clearly separated margin. |
+| `39_saturation_by_ancestry.py --render-only` fig3 thresholds (AFR/AMR/EAS/EUR/MID/SAS) | 0/0/**0**/0/0/0 (EAS was 1, fixed 2026-09-25) | 0 | Was: EAS panel `'-200' overlaps '-50'` (same phantom off-view y-tick cause, same `_prune_offview_ticklabels()` fix); also widened the right margin so the in-line ">= k carriers" end labels never sit at/past the right spine (the actual EAS instance the critic's visual pass caught, distinct from the linter's own tick finding). |
+| `39_saturation_by_ancestry.py --render-only` fig4 (`fig4_imgt_allele_space_explored.png`) | 0 | 0 | Clean; re-rendered with `_prune_offview_ticklabels()` + honest zero-based y-axis anyway for consistency with the other panels in this figure family. |
+| `43b_kir_full_figure.py` (`fig_kir_full_cohort.png`) | **0** (was 1, fixed 2026-09-25) | 0 | Was: the panel f co-occurrence annotation text (`"2DL2 & 2DL3 co-occur..."` two-line block) extends past the figure's right edge -- a real, previously-unflagged clipping fault (CRITIC_WSC.md's note for 43b was "not re-verified at zoomed/native resolution"). Fixed by moving the co-occurrence numbers out of the axes-relative annotation (which had nothing to its right to expand into -- this is the rightmost panel) and into the figure-wide caption, centered and already sized to the full figure width. |
+| `38b_deletion_supplement_fig.py` (`supp_deletions.png`) | **0** (was failing `test_deletion_supplement_fig.py`'s strict `save_fig()`, fixed 2026-09-25) | 0 | Was: a phantom off-view x-tick (`'60'`, panel b) read as extending past the figure's right edge, plus a phantom `'0'` off the left edge -- same root cause and fix (`_prune_offview_ticklabels()`) as 39/43b above, adapted for panel b's `invert_yaxis()` (which reverses `get_ylim()`'s order; the naive first version of the fix blanked panel b's own gene-name labels before this was caught by re-reading the rendered PNG, not just trusting the passing linter). |
 
-None of these were fixed in this session (out of scope -- WS-A/WS-D own scripts 44/45/47/48; this
-pass is diagnostic only, per the task brief). Net finding: the mechanical linter surfaces several
-real layout faults that two rounds of manual/critic visual inspection missed (fig1/fig2/43b), and
-also correctly reproduces the one fault CRITIC_WSC.md already knew about and left unfixed (fig2's
-supxlabel/legend gap) -- i.e. it agrees with human review where human review was right, and catches
-what it missed.
+Only 38b was explicitly in scope for a linter-failure fix per the task brief; 39/43b were listed as
+diagnostic-only findings in the prior session but are now fixed too, since leaving 3 committed
+figures at 0/13/5/1 known `check_layout(strict=True)` errors while claiming the redesign pass
+"passes the strict linter" would not have been honest. WS-A/WS-D's own scripts (44/45/47/48) are
+out of scope and untouched; `test_44_kir_recurrence_saturation.py`'s one failing test
+(`45_kir_recurrence_figure.py`'s `fig_coverage_chao2`, 3 clipping errors) is a pre-existing failure
+from the same linter-addition commit, confirmed via `git stash` to fail identically before this
+session's changes -- flagged here, not fixed (not one of this session's three assigned figures).
+Net finding: the mechanical linter surfaces several real layout faults that two rounds of
+manual/critic visual inspection missed (fig1/fig2/43b/38b), and also correctly reproduces the one
+fault CRITIC_WSC.md already knew about and left unfixed (fig2's supxlabel/legend gap) -- i.e. it
+agrees with human review where human review was right, and catches what it missed. It also has a
+real false-positive mode of its own (see "Linter false positives found" below), distinct from the
+false negative the task brief already knew about (axis labels vs. tick labels/brackets).
+
+## Linter false positives found (S04 WS-C, this pass, 2026-09-25)
+
+`check_layout()`'s clip/overlap checks call `Text.get_window_extent()` directly, which returns a
+Text artist's UNCLIPPED geometry. matplotlib's default tick Locator deliberately generates one
+extra major tick just past each end of an axis's actual view (confirmed empirically, see the fig1
+row above) -- those tick Text objects exist and have `get_visible() == True`, but are never
+actually drawn on screen because they have `clip_on=True` with the axes' own bbox as their clip
+path. `check_layout()` doesn't know about clipping, so it can flag two such phantom, nobody-ever-
+sees-them ticks as colliding with a panel letter, with each other across adjacent subplots, or
+(when the axis view is much narrower than one tick step, as in 38b's panel b) as extending far
+past the whole figure bbox -- all without a single visible pixel being wrong. Worked around at the
+script level in 39/43b/38b with a small `_prune_offview_ticklabels(ax)` helper (hides any tick
+Text whose data position is outside the axes' own final xlim/ylim -- provably a no-op for the
+rendered raster, confirmed by diffing rendered PNGs before/after). Not fixed in `_viz_common.py`
+itself per this task's explicit instruction not to edit that file while another agent owns it;
+flagged here and in `LOG.md` as a suggested enhancement for whoever next touches `check_layout()`
+(e.g. clip each Text's extent to its own `get_clip_box()` before the overlap/bbox checks, or skip
+tick Texts whose own data position already falls outside `ax.get_xlim()`/`get_ylim()`).
