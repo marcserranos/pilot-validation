@@ -128,23 +128,41 @@ the choice).
   KIR2DL2, KIR2DL5A/B, KIR3DS1) are the ones under ~30%, as expected from KIR's cA/cB
   haplotype-content biology.
 - **b — Novelty per gene**: stacked bar, % of that gene's allele calls in each of the 4 novelty
-  tiers (known / novel genomic-only / novel CDS-synonymous / novel protein); `n=` at each bar's
-  end is the total call count for that gene.
-- **c — Presence × ancestry**: heatmap, % of haplotypes carrying each gene, split by predicted
-  ancestry (unrelated set). Row order matches panel a/b.
-- **d — Protein novelty × ancestry**: heatmap, % of each gene's calls that are novel-protein-tier,
-  by ancestry. **Hatched cells** are the 7 gene×MID cells where the underlying numerator is <20 —
-  censored per this project's disclosure rule, never plotted as 0 or omitted silently.
+  tiers (known / novel genomic-only / novel CDS-synonymous / novel protein). `n=` (total call
+  count for that gene) is a separate right-hand text column, not a label floated at the bar's own
+  end — a thin grey rule marks where the 100% bar ends and the label column begins. (Orchestrator
+  review, 2026-09-25: right-aligning `n=` at a fixed x let a long string like "n=23,142" extend
+  leftward far enough to sit on top of the bar itself — inadmissible text-over-data. Left-aligned
+  at a fixed start, past the rule, a label can only grow away from the data.) The legend for the
+  4 novelty-tier colors sits directly under this panel (it labels panel b's own bars only).
+- **c — Presence: deviation from pooled**: heatmap, each ancestry's haplotype-presence % MINUS
+  the pooled (panel a) value for that gene, diverging colormap centered at 0 (`_viz_common`'s
+  signed-statistic blue-white-red map, the same one used for signed LD elsewhere in this project).
+  Redesigned 2026-09-25 (orchestrator review) from a flat per-ancestry presence heatmap, which was
+  largely redundant with panel a (panel a already shows the pooled value per gene) — the deviation
+  is the actually new information. A blue cell means that ancestry is under-represented for that
+  gene relative to the pooled rate; red means over-represented. Text color is chosen per cell from
+  its own rendered luminance (dark text on light cells, white on dark blue/red), not a fixed
+  vmin/vmax-midpoint rule, which previously left some numbers unreadable against the darkest
+  cells.
+- **d — Protein novelty × ancestry**: heatmap, integer % of each gene's calls that are
+  novel-protein-tier, by ancestry (same luminance-aware text-color rule as panel c). **Hatched
+  cells** are the 7 gene×MID cells where the underlying numerator is <20 — censored per this
+  project's disclosure rule, never plotted as 0 or omitted silently.
 - **e — cA vs cB content by ancestry**: % of haplotypes classified cA (fixed, inhibitory-dominated
-  gene content) vs cB (carries ≥1 activating/variable gene), Wilson CI, dashed line at 50%.
+  gene content) vs cB (carries ≥1 activating/variable gene), Wilson CI. No reference line (a
+  previous dashed 50% line was removed, 2026-09-25 — an unexplained reference line invites a "why
+  50?" this caption didn't answer; the bar chart's own zero baseline is reference enough).
 - **f — QC strip**: framework-gene presence %, point + 95% CI (a zero-free axis, since these all
   sit in a narrow 93–97% band — a bar chart here would need a truncated baseline, which visually
   exaggerates small differences; a point's position alone carries no such claim). The two
   mutual-exclusivity sanity checks (KIR2DL2/KIR2DL3 and KIR3DL1/KIR3DS1 — allelic alternatives at
-  the same locus, expected to co-occur on a haplotype only rarely/never) are no longer annotated
-  inside this panel — that text had nowhere to expand into (panel f is the rightmost panel) and ran
-  off the figure's own edge (a real `check_layout(strict=True)` clipping fault, fixed S04 WS-C,
-  2026-09-25). They are now in the figure's caption line, directly below panel e/f.
+  the same locus, expected to co-occur on a haplotype only rarely/never) are not drawn inside this
+  panel at all. They first sat as free text right of this axes and ran off the figure's own edge (a
+  real `check_layout(strict=True)` clipping fault); a following pass moved them into an in-figure
+  caption line instead; orchestrator review (2026-09-25, full-size pass) removed that caption line
+  too — in-figure caption text belongs in this README/the FIGURES_INDEX caption, not baked into
+  the raster. The numbers themselves are unchanged and are reported above in "QC sanity checks".
 
 ## Caveats
 
