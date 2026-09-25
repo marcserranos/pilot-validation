@@ -30,36 +30,48 @@ acting on specific KIR-HLA combinations (a real, published phenomenon -- e.g. HI
 literature), or (c) an assay/miscall artifact. This script cannot distinguish those on its own; it
 flags what is worth a closer look.
 
-## Epitope group definitions used here (READ BEFORE TRUSTING NUMBERS)
+## Epitope group assignment -- sequence-derived, lookup table as fallback + cross-check
 
-**HLA-C1/C2** is determined by the residue at *mature-protein* position 80: Asn80 = C2,
-Lys80 = C1 (Colonna et al. 1993; Winter & Long 1997). This script does NOT have access to
-per-person amino-acid sequence at position 80 (Table 1's `consensus` is a nomenclature string,
-not a translated sequence) -- so C1/C2 group is assigned via a **documented two-field allele-name
-lookup table** (`C1C2_TABLE` below), built from the well-established HLA-C two-field group
-assignments summarised in the IPD-KIR ligand-motif reference pages and in review tables (e.g.
-Middleton & Gonzalez 2010 Immunology; Norman et al. 2016 Nat Genet supplementary tables). This
-lookup is **not exhaustive** -- alleles not in the table are reported as `unclassified` (never
-silently folded into C1 or C2), and the script prints the count and % of HLA-C calls that fell
-into `unclassified` so a VM operator can judge coverage before trusting downstream numbers.
-**This table needs a VM-side cross-check against IPD-IMGT/HLA's own C1/C2 assignment file (or a
-position-80 translation from the cohort's own CDS sequences, which 24_novelty_by_field.py's
-RefIndex machinery could in principle supply) before any of this script's HLA-C-ligand numbers
-are treated as final** -- flagged here explicitly rather than assumed correct.
+**HLA-C1/C2** is determined by the residue at *mature-protein* (leader-peptide-stripped) position
+80, together with position 77 (Colonna et al. 1993 PNAS; Winter & Long 1997 J Immunol): **C1 =
+Asn80 with Ser77**, **C2 = Lys80**. Verified against known reference alleles: C*01:02, C*03:04,
+C*07:01 are C1 (mature residue 80 = Asn/N); C*02:02, C*04:01, C*05:01, C*06:02 are C2 (mature
+residue 80 = Lys/K) -- see `TestClassifyC1C2Seq` in the test file for synthetic-sequence
+assertions pinned to exactly this rule.
 
-**HLA-Bw4/Bw6** is likewise assigned via a documented two-field-group-level lookup
-(`BW4_B_GROUPS`, `BW4_A_GROUPS`) based on the standard Bw4-bearing allele-group list reproduced
-in multiple KIR-ligand studies (Bw4: B*13, B*27, B*37, B*38, B*44, B*47, B*49, B*51, B*52, B*53,
-B*57, B*58, B*59, B*63, B*77; Bw4 at the A locus: A*23, A*24, A*32). **Known exception, flagged
-not silently absorbed:** most B*15 alleles are Bw6, but a documented subset (B*15:13, B*15:16,
-B*15:17, B*15:24 and a few others) are Bw4 -- this script does NOT special-case B*15 by
-four-digit allele (would need the full IPD-IMGT/HLA Bw4/Bw6 exception list, not reproduced from
-memory here) and instead reports ALL B*15 as Bw6 by default, flagged via `--b15-as-bw4-list` (a
-CLI-supplied comma list of exception 2-field alleles, empty by default) so a VM operator can
-supply the authoritative exception list once looked up. Bw4-80I/80T sub-stratification is **not**
-implemented in this delivery (would need position-80 translation, same limitation as C1/C2) --
-the `n_persons_with_c1c2_or_bw_unclassified` QC row in the output flags exactly how much of the
-cohort this affects.
+**HLA-Bw4/Bw6** is determined from the alpha-1-helix residues 77-83 of the mature protein (Gumperz
+et al. 1995 J Exp Med; Cella et al. 1994; Parham reviews, e.g. Parham 2005 Nat Rev Immunol): the
+**Bw6** reference pattern is Ser77-Asn80-Leu81-Arg82-Gly83; **Bw4** is defined by **Arg83 together
+with Ile80 or Thr80** (the Bw4-80I/80T avidity dimorphism that KIR3DL1/3DS1 binding strength
+tracks -- 80I = higher avidity). Both sub-types are reported (`n_bw4_80I` / `n_bw4_80T` in
+`ligand_lookup_qc.tsv`).
+
+**How the sequence assignment works (`--cds-dir`, default `~/tools/Immuannot_refdata/CDSseq`):**
+each `<gene>.fa.gz` (IPD-IMGT/HLA CDSseq, headers like
+`>HLA-A*01:01:01:01 HLA00001 frame=1 1098bp`) holds one nucleotide CDS per reference allele. For
+each Table 1 allele call this script (1) maps the call to a reference CDS record -- an exact match
+at the call's own field resolution, else the alphabetically-first reference allele sharing the
+call's two-field prefix (`mapping_level` = `exact` / `two_field_fallback`; recorded per call); (2)
+translates the CDS respecting the header's `frame=` offset, stopping at the first in-frame stop
+codon; (3) strips the 24-aa class-I leader peptide (HLA-A/B/C signal peptide length) to get the
+mature protein; (4) reads residues 77-83 directly. **Novel calls** (Table 1's spliced `new` field
+token) cannot be resolved this way -- their protein at 77-83 is not guaranteed to match any
+reference allele's -- and are reported `unresolved` (counted, never guessed).
+
+**The two-field lookup tables below (`C1C2_TABLE`, `BW4_B_GROUPS`, `BW4_A_GROUPS`) are now a
+fallback (used only when sequence resolution fails: missing CDS file, novel call, or no reference
+allele shares the two-field prefix) and a cross-check** (`ligand_seq_vs_lookup_crosscheck.tsv`
+compares the sequence-derived label against the lookup-table label for every two-field group where
+sequence *did* resolve, at the two-field-group level -- catalogue facts, not per-person data, so
+this table is never suppressed, but per instruction is never printed next to a person-level carrier
+count). `ligand_lookup_qc.tsv` reports `n_two_field_groups_seq_vs_lookup_{compared,agree,disagree}`
+and lists disagreeing two-field group names (no counts) in the crosscheck TSV.
+
+**Known Bw4 exception not applied by default:** most B*15 alleles are Bw6, but a documented subset
+(B*15:13, B*15:16, B*15:17, B*15:24 and a few others) are Bw4. The *lookup fallback* treats all
+B*15 as Bw6 unless `--b15-as-bw4-list` supplies the exception 2-field alleles; the *sequence path*
+is unaffected by this (it reads the actual mature-protein residues, so a true Bw4 B*15 allele is
+called correctly whenever its CDS record is available and resolvable).
 
 ## KIR receptor definitions
 
@@ -87,6 +99,7 @@ row (the raw masked cell counts are still reported as `<20`, never blank, never 
         --relatedness-table ~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv \\
         --kir-outroot ~/pipeline_outputs_kir \\
         --kir-pilot-script ~/s03/41_kir_pilot.py \\
+        --cds-dir ~/tools/Immuannot_refdata/CDSseq \\
         --n-perms 1000 \\
         --out-dir ~/s04/results/48
 
@@ -96,6 +109,7 @@ row (the raw masked cell counts are still reported as `<20`, never blank, never 
         --out-dir /tmp/ligand_synthetic
 """
 import argparse
+import gzip
 import importlib.util
 import os
 import sys
@@ -111,22 +125,35 @@ SUPPRESS_BELOW = 20
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 
 # ---------------------------------------------------------------------------
-# Ligand-group lookup tables -- see module docstring for citations and caveats.
+# Ligand-group lookup tables -- FALLBACK + cross-check only now (see module docstring). Used
+# when sequence resolution fails: missing CDS file, novel call, or no reference allele shares the
+# called allele's two-field prefix.
 # ---------------------------------------------------------------------------
 # HLA-C two-field groups -> C1/C2, per the position-80 dimorphism (documented, common
-# low-resolution assignment reproduced in KIR-ligand review tables; NOT independently
-# re-derived from sequence in this script -- flagged for VM verification in the docstring).
+# low-resolution assignment reproduced in KIR-ligand review tables).
 C1C2_TABLE = {
-    # C2 group (Asn80)
+    # C2 group (Lys80)
     "02:02": "C2", "04:01": "C2", "05:01": "C2", "06:02": "C2", "07:04": "C2",
     "08:02": "C2", "12:03": "C2", "15:02": "C2", "16:02": "C2", "17:01": "C2", "18:01": "C2",
-    # C1 group (Lys80)
+    # C1 group (Asn80 + Ser77)
     "01:02": "C1", "03:02": "C1", "03:03": "C1", "03:04": "C1", "07:01": "C1", "07:02": "C1",
     "08:01": "C1", "12:02": "C1", "14:02": "C1", "16:01": "C1",
 }
 BW4_B_GROUPS = {"13", "27", "37", "38", "44", "47", "49", "51", "52", "53", "57", "58", "59",
                 "63", "77"}
 BW4_A_GROUPS = {"23", "24", "32"}
+
+# ---------------------------------------------------------------------------
+# Sequence-derived assignment: translation + class-I leader stripping + residue rules.
+# ---------------------------------------------------------------------------
+CLASS_I_LEADER_LEN = 24  # HLA-A/B/C signal peptide length.
+
+_BASES = "TCAG"
+_CODONS = [a + b + c for a in _BASES for b in _BASES for c in _BASES]
+_AMINO_ACIDS = "FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"
+CODON_TABLE = dict(zip(_CODONS, _AMINO_ACIDS))
+
+GENE_CDS_FILENAME = {"HLA-A": "A.fa.gz", "HLA-B": "B.fa.gz", "HLA-C": "C.fa.gz"}
 
 
 def log(msg):
@@ -161,10 +188,12 @@ def hla_two_field(consensus):
 
 
 def classify_c1c2(two_field):
+    """Lookup-table fallback (see module docstring) -- NOT the primary classification anymore."""
     return C1C2_TABLE.get(two_field, "unclassified")
 
 
 def classify_bw4(gene, two_field, b15_as_bw4=frozenset()):
+    """Lookup-table fallback (see module docstring) -- NOT the primary classification anymore."""
     if two_field is None:
         return "unclassified"
     group = two_field.split(":", 1)[0]
@@ -185,46 +214,327 @@ def load_kir_module(script_path):
 
 
 # ---------------------------------------------------------------------------
+# CDS translation + mature-protein residue rules.
+# ---------------------------------------------------------------------------
+def translate_cds(nt_seq, frame=1):
+    """Translate a nucleotide CDS starting at the 1-based reading frame given by the IPD-IMGT/HLA
+    CDSseq FASTA header's `frame=` field, stopping at the first in-frame stop codon (or end of
+    sequence, whichever comes first). Non-ACGT/ambiguous codons translate to 'X' (never silently
+    dropped or guessed)."""
+    seq = nt_seq.upper().replace("U", "T")
+    start = (frame - 1) if frame in (1, 2, 3) else 0
+    protein = []
+    for i in range(start, len(seq) - 2, 3):
+        codon = seq[i:i + 3]
+        aa = CODON_TABLE.get(codon, "X")
+        if aa == "*":
+            break
+        protein.append(aa)
+    return "".join(protein)
+
+
+def mature_protein_from_cds(nt_seq, frame, leader_len=CLASS_I_LEADER_LEN):
+    """Translate + strip the class-I leader peptide. None if the translated protein doesn't even
+    reach past the leader (malformed/truncated record -- never silently returns a wrong protein)."""
+    protein = translate_cds(nt_seq, frame)
+    if len(protein) <= leader_len:
+        return None
+    return protein[leader_len:]
+
+
+def classify_c1c2_seq(mature_protein):
+    """HLA-C ligand group from the mature (leader-stripped) protein, using the Ser77/Asn80 (C1)
+    vs Lys80 (C2) dimorphism (Colonna et al. 1993 PNAS; Winter & Long 1997 J Immunol). Verified
+    against known reference alleles: C*01:02, C*03:04, C*07:01 are C1 (mature residue 80 = Asn/N,
+    with Ser/S at 77); C*02:02, C*04:01, C*05:01, C*06:02 are C2 (mature residue 80 = Lys/K).
+    1-based mature-protein numbering (positions 77/80 -> 0-based indices 76/79).
+    Returns 'C1' / 'C2' / 'other' (neither canonical pattern -- reported, never silently folded
+    into a group) / None if the sequence doesn't reach position 80."""
+    if mature_protein is None or len(mature_protein) < 80:
+        return None
+    r77, r80 = mature_protein[76], mature_protein[79]
+    if r80 == "K":
+        return "C2"
+    if r80 == "N" and r77 == "S":
+        return "C1"
+    return "other"
+
+
+def classify_bw4_seq(mature_protein):
+    """Bw4/Bw6 public epitope from the mature protein's alpha-1-helix residues 77-83 (Gumperz
+    et al. 1995 J Exp Med; Cella et al. 1994; Parham reviews, e.g. Parham 2005 Nat Rev Immunol).
+    Bw6 reference pattern: Ser77-Asn80-Leu81-Arg82-Gly83. Bw4 is defined by Arg83 together with
+    Ile80 or Thr80 (the Bw4-80I/80T avidity dimorphism KIR3DL1/3DS1 binding strength tracks; 80I
+    = higher avidity, 80T = lower -- Cella et al. 1994; Gumperz et al. 1995).
+    Returns (label, subtype) with label in {'Bw4','Bw6','other',None} and subtype in
+    {'80I','80T',None}; None label if the sequence doesn't reach position 83."""
+    if mature_protein is None or len(mature_protein) < 83:
+        return None, None
+    r77, r80, r81, r82, r83 = (mature_protein[76], mature_protein[79], mature_protein[80],
+                               mature_protein[81], mature_protein[82])
+    if r83 == "R" and r80 in ("I", "T"):
+        return "Bw4", ("80I" if r80 == "I" else "80T")
+    if r77 == "S" and r80 == "N" and r81 == "L" and r82 == "R" and r83 == "G":
+        return "Bw6", None
+    return "other", None
+
+
+# ---------------------------------------------------------------------------
+# CDSseq reference loading + allele-to-reference mapping.
+# ---------------------------------------------------------------------------
+def parse_cds_header(line):
+    """'>HLA-A*01:01:01:01 HLA00001 frame=1 1098bp' -> ('HLA-A*01:01:01:01', 1)."""
+    parts = line[1:].strip().split()
+    allele = parts[0] if parts else ""
+    frame = 1
+    for p in parts[1:]:
+        if p.startswith("frame="):
+            try:
+                frame = int(p.split("=", 1)[1])
+            except ValueError:
+                frame = 1
+    return allele, frame
+
+
+def load_cds_fasta_gz(path):
+    """Parse one IPD-IMGT/HLA CDSseq reference FASTA (gzip or plain text): one nucleotide CDS per
+    allele. Returns {allele_full_name: (nt_seq, frame)}. Missing file -> {} (callers fall back to
+    the lookup table for that gene, never crash)."""
+    out = {}
+    if not path or not os.path.exists(path):
+        return out
+    opener = gzip.open if path.endswith(".gz") else open
+    header, frame, chunks = None, 1, []
+
+    def flush():
+        if header:
+            out[header] = ("".join(chunks).upper(), frame)
+
+    with opener(path, "rt") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line:
+                continue
+            if line.startswith(">"):
+                flush()
+                header, frame = parse_cds_header(line)
+                chunks = []
+            else:
+                chunks.append(line.strip())
+    flush()
+    return out
+
+
+def load_all_cds(cds_dir):
+    """{gene: {allele_full_name: (nt_seq, frame)}} for HLA-A/B/C; empty per-gene dict if the file
+    is missing or cds_dir is falsy (falls back to the lookup table for that gene)."""
+    out = {}
+    cds_dir = os.path.expanduser(cds_dir) if cds_dir else ""
+    for gene, fname in GENE_CDS_FILENAME.items():
+        out[gene] = load_cds_fasta_gz(os.path.join(cds_dir, fname)) if cds_dir else {}
+    return out
+
+
+def two_field_from_full(full_allele_name):
+    """'HLA-A*01:01:01:01' -> '01:01' (same field-cleaning rule as hla_two_field())."""
+    return hla_two_field(full_allele_name)
+
+
+def build_cds_two_field_index(cds_index):
+    """Group a gene's CDS allele names by two-field prefix: {twofield: [sorted allele names]}.
+    The mapping fallback for a called allele whose own field resolution isn't present in the
+    reference verbatim uses the alphabetically-first member of the matching group as the
+    representative reference sequence -- documented here rather than picked silently."""
+    groups = defaultdict(list)
+    for allele in cds_index:
+        tf = two_field_from_full(allele)
+        if tf:
+            groups[tf].append(allele)
+    return {tf: sorted(v) for tf, v in groups.items()}
+
+
+def normalize_full_allele(consensus):
+    """Table1 'consensus' -> the resolved-fields-only allele string ('HLA-A*01:01:01:01'),
+    truncated before any spliced 'new' token (novel-call encoding, SCHEMA.md). None if
+    unresolvable (missing/undetermined/no '*')."""
+    if consensus is None or (isinstance(consensus, float) and pd.isna(consensus)):
+        return None
+    s = str(consensus).strip()
+    if not s or s.upper() in {"UNDETERMINED", "NA", ""} or "*" not in s:
+        return None
+    prefix, rest = s.split("*", 1)
+    fields = []
+    for f in rest.split(":"):
+        if f == "":
+            continue
+        if f.strip().lower() == "new":
+            break
+        fields.append(f)
+    if not fields:
+        return None
+    return f"{prefix}*{':'.join(fields)}"
+
+
+def is_novel_consensus(consensus):
+    """True iff consensus has a spliced 'new' token at any field depth (SCHEMA.md novelty
+    encoding) -- such a call's protein at 77-83 is not guaranteed to match any reference allele,
+    so it cannot be resolved from the reference alone."""
+    if consensus is None or (isinstance(consensus, float) and pd.isna(consensus)):
+        return False
+    s = str(consensus).strip()
+    if "*" not in s:
+        return False
+    rest = s.split("*", 1)[1]
+    return any(f.strip().lower() == "new" for f in rest.split(":"))
+
+
+def map_called_allele_to_cds(consensus, cds_index, cds_twofield_index):
+    """Map a Table1 allele call to a reference CDS record. Returns (mature_protein_or_None,
+    mapping_level) with mapping_level in:
+      - 'exact'             : the call's resolved fields matched a CDSseq header verbatim.
+      - 'two_field_fallback': no exact match -- fell back to the alphabetically-first reference
+                              allele sharing the call's two-field prefix.
+      - 'unresolved'        : novel call, no CDS file for this gene, or no reference allele shares
+                              the two-field prefix at all.
+    """
+    if not cds_index:
+        return None, "unresolved"
+    if is_novel_consensus(consensus):
+        return None, "unresolved"
+    full = normalize_full_allele(consensus)
+    if full is None:
+        return None, "unresolved"
+    if full in cds_index:
+        nt_seq, frame = cds_index[full]
+        return mature_protein_from_cds(nt_seq, frame), "exact"
+    tf = hla_two_field(consensus)
+    reps = cds_twofield_index.get(tf) if tf else None
+    if reps:
+        nt_seq, frame = cds_index[reps[0]]
+        return mature_protein_from_cds(nt_seq, frame), "two_field_fallback"
+    return None, "unresolved"
+
+
+def classify_c1c2_with_crosscheck(consensus, cds_index, cds_twofield_index):
+    """Sequence-derived C1/C2 first; lookup table as fallback + cross-check. Returns dict:
+    label ('C1'/'C2'/'other'/'unclassified'), source ('sequence'/'lookup_fallback'),
+    mapping_level, lookup_label (always computed, for the cross-check table even when sequence
+    resolves), two_field."""
+    tf = hla_two_field(consensus)
+    lookup_label = classify_c1c2(tf) if tf else "unclassified"
+    mature, level = map_called_allele_to_cds(consensus, cds_index, cds_twofield_index)
+    seq_label = classify_c1c2_seq(mature) if mature is not None else None
+    if seq_label in ("C1", "C2", "other"):
+        return {"label": seq_label, "source": "sequence", "mapping_level": level,
+                "lookup_label": lookup_label, "two_field": tf}
+    return {"label": lookup_label, "source": "lookup_fallback", "mapping_level": level,
+            "lookup_label": lookup_label, "two_field": tf}
+
+
+def classify_bw4_with_crosscheck(gene, consensus, cds_index, cds_twofield_index,
+                                 b15_as_bw4=frozenset()):
+    """Sequence-derived Bw4/Bw6 (+80I/80T subtype) first; lookup table as fallback + cross-check.
+    Returns dict: label ('Bw4'/'Bw6'/'other'/'unclassified'/'not_bw4_locus_A'), subtype
+    ('80I'/'80T'/None), source, mapping_level, lookup_label, two_field."""
+    tf = hla_two_field(consensus)
+    lookup_label = classify_bw4(gene, tf, b15_as_bw4) if tf else "unclassified"
+    mature, level = map_called_allele_to_cds(consensus, cds_index, cds_twofield_index)
+    seq_label, seq_subtype = (None, None)
+    if mature is not None:
+        seq_label, seq_subtype = classify_bw4_seq(mature)
+    if seq_label in ("Bw4", "Bw6", "other"):
+        return {"label": seq_label, "subtype": seq_subtype, "source": "sequence",
+                "mapping_level": level, "lookup_label": lookup_label, "two_field": tf}
+    return {"label": lookup_label, "subtype": None, "source": "lookup_fallback",
+            "mapping_level": level, "lookup_label": lookup_label, "two_field": tf}
+
+
+# ---------------------------------------------------------------------------
 # Per-person epitope + receptor carriage.
 # ---------------------------------------------------------------------------
-def build_person_epitopes(table1_df, b15_as_bw4=frozenset()):
-    """Returns DataFrame indexed by person_id: has_C1, has_C2, has_Bw4 (B or A locus),
-    n_unclassified_C, n_unclassified_Bw (QC counters, not person-level flags)."""
+def build_person_epitopes(table1_df, b15_as_bw4=frozenset(), cds_by_gene=None):
+    """Returns (epitopes_df, qc, crosscheck_rows).
+    epitopes_df: indexed by person_id, columns has_C1, has_C2, has_Bw4 (sequence-derived when a
+    reference CDS record resolves, lookup-table fallback otherwise).
+    qc: dict of QC counters (n_unclassified_{C,Bw}_allele_calls, n_other_{C,Bw}_seq_pattern,
+    n_{C,Bw}_source_{sequence,lookup_fallback}, n_bw4_80I, n_bw4_80T).
+    crosscheck_rows: one row per distinct (gene, two_field) allele group where sequence actually
+    resolved, comparing the sequence-derived label against the lookup-table label -- aggregate/
+    catalogue-level (allele-group names, not person data), deduped so no per-person counts are
+    attached."""
+    cds_by_gene = cds_by_gene or {}
+    cds_idx = {g: cds_by_gene.get(g, {}) for g in ("HLA-A", "HLA-B", "HLA-C")}
+    cds_2f = {g: build_cds_two_field_index(cds_idx[g]) for g in cds_idx}
+
     df = table1_df[table1_df["gene"].isin(["HLA-B", "HLA-C", "HLA-A"])].copy()
-    df["allele2"] = df["consensus"].map(hla_two_field)
 
     people = sorted(table1_df["person_id"].unique())
     has_c1 = pd.Series(False, index=people)
     has_c2 = pd.Series(False, index=people)
     has_bw4 = pd.Series(False, index=people)
-    n_unclass_c = 0
-    n_unclass_bw = 0
+
+    qc = defaultdict(int)
+    # Always-present metrics (0 is a real, reportable value here -- never omit the key just
+    # because this run/synthetic-cohort happened not to hit that path).
+    for _k in ("n_unclassified_C_allele_calls", "n_other_C_seq_pattern",
+              "n_C_source_sequence", "n_C_source_lookup_fallback",
+              "n_unclassified_Bw_allele_calls", "n_other_Bw_seq_pattern",
+              "n_Bw_source_sequence", "n_Bw_source_lookup_fallback",
+              "n_bw4_80I", "n_bw4_80T"):
+        qc[_k] = 0
+    seen_groups = {}  # (gene, two_field) -> last classification dict seen (catalogue-level dedupe)
 
     c_rows = df[df["gene"] == "HLA-C"]
     for pid, grp in c_rows.groupby("person_id"):
-        for a2 in grp["allele2"].dropna():
-            grp_label = classify_c1c2(a2)
-            if grp_label == "C1":
+        for consensus in grp["consensus"].dropna():
+            r = classify_c1c2_with_crosscheck(consensus, cds_idx["HLA-C"], cds_2f["HLA-C"])
+            if r["label"] == "C1":
                 has_c1.loc[pid] = True
-            elif grp_label == "C2":
+            elif r["label"] == "C2":
                 has_c2.loc[pid] = True
+            elif r["label"] == "other":
+                qc["n_other_C_seq_pattern"] += 1
             else:
-                n_unclass_c += 1
+                qc["n_unclassified_C_allele_calls"] += 1
+            qc["n_C_source_%s" % r["source"]] += 1
+            if r["two_field"]:
+                seen_groups[("HLA-C", r["two_field"])] = r
 
     b_rows = df[df["gene"].isin(["HLA-B", "HLA-A"])]
     for pid, grp in b_rows.groupby("person_id"):
-        for gene, a2 in zip(grp["gene"], grp["allele2"]):
-            if a2 is None:
+        for gene, consensus in zip(grp["gene"], grp["consensus"]):
+            if consensus is None or (isinstance(consensus, float) and pd.isna(consensus)):
                 continue
-            label = classify_bw4(gene, a2, b15_as_bw4)
-            if label == "Bw4":
+            r = classify_bw4_with_crosscheck(gene, consensus, cds_idx[gene], cds_2f[gene],
+                                             b15_as_bw4)
+            if r["label"] == "Bw4":
                 has_bw4.loc[pid] = True
-            elif label == "unclassified":
-                n_unclass_bw += 1
+                if r["subtype"]:
+                    qc["n_bw4_%s" % r["subtype"]] += 1
+            elif r["label"] == "unclassified":
+                qc["n_unclassified_Bw_allele_calls"] += 1
+            elif r["label"] == "other":
+                qc["n_other_Bw_seq_pattern"] += 1
+            qc["n_Bw_source_%s" % r["source"]] += 1
+            if r["two_field"]:
+                seen_groups[(gene, r["two_field"])] = r
+
+    crosscheck_rows = []
+    for (gene, tf), r in sorted(seen_groups.items()):
+        if r["source"] != "sequence":
+            continue  # cross-check is only meaningful where sequence actually resolved
+        seq_label, lookup_label = r["label"], r["lookup_label"]
+        comparable = seq_label != "other" and lookup_label not in ("unclassified",
+                                                                    "not_bw4_locus_A")
+        crosscheck_rows.append({
+            "gene": gene, "two_field": tf, "seq_label": seq_label, "lookup_label": lookup_label,
+            "mapping_level": r["mapping_level"],
+            "agree": (seq_label == lookup_label) if comparable else "",
+        })
 
     out = pd.DataFrame({"has_C1": has_c1, "has_C2": has_c2, "has_Bw4": has_bw4})
     out.index.name = "person_id"
-    return out, n_unclass_c, n_unclass_bw
+    return out, dict(qc), crosscheck_rows
 
 
 def build_kir_receptor_carriage(pids, kir_outroot, kir_mod, receptor_genes):
@@ -325,8 +635,10 @@ RECEPTOR_GENES = sorted({p[0] for p in PAIRS})
 
 
 def run_pipeline(table1_df, epitopes_df, kir_presence_df, ancestry_of, out_dir, n_perms,
-                 b15_as_bw4, status_path, n_unclass_c=0, n_unclass_bw=0):
+                 b15_as_bw4, status_path, qc=None, crosscheck_rows=None):
     os.makedirs(out_dir, exist_ok=True)
+    qc = qc or {}
+    crosscheck_rows = crosscheck_rows or []
     people = sorted(set(epitopes_df.index) & set(kir_presence_df.index))
     epitopes_df = epitopes_df.loc[people]
     kir_presence_df = kir_presence_df.loc[people]
@@ -371,28 +683,40 @@ def run_pipeline(table1_df, epitopes_df, kir_presence_df, ancestry_of, out_dir, 
     pd.DataFrame(freq_rows).to_csv(
         os.path.join(out_dir, "epitope_freq_by_ancestry.tsv"), sep="\t", index=False)
 
-    # QC: unclassified-allele coverage flag.
-    qc_rows = [
-        {"metric": "n_unclassified_C_allele_calls", "value": suppressed(n_unclass_c)},
-        {"metric": "n_unclassified_Bw_allele_calls", "value": suppressed(n_unclass_bw)},
+    # QC: unclassified-allele coverage + sequence-vs-lookup source mix.
+    n_agree = sum(1 for r in crosscheck_rows if r["agree"] is True)
+    n_disagree = sum(1 for r in crosscheck_rows if r["agree"] is False)
+    qc_rows = [{"metric": k, "value": suppressed(v)} for k, v in sorted(qc.items())]
+    qc_rows += [
         {"metric": "n_people_in_analysis", "value": len(people)},
         {"metric": "c1c2_table_size", "value": len(C1C2_TABLE)},
         {"metric": "bw4_b_groups_size", "value": len(BW4_B_GROUPS)},
         {"metric": "b15_as_bw4_exceptions_supplied", "value": len(b15_as_bw4)},
+        {"metric": "n_two_field_groups_seq_vs_lookup_compared", "value": n_agree + n_disagree},
+        {"metric": "n_two_field_groups_seq_vs_lookup_agree", "value": n_agree},
+        {"metric": "n_two_field_groups_seq_vs_lookup_disagree", "value": n_disagree},
     ]
     pd.DataFrame(qc_rows).to_csv(os.path.join(out_dir, "ligand_lookup_qc.tsv"),
                                  sep="\t", index=False)
 
+    # Cross-check table: catalogue-level (allele two-field group names), never paired with a
+    # person-level carrier count -- see module docstring.
+    pd.DataFrame(crosscheck_rows,
+                columns=["gene", "two_field", "seq_label", "lookup_label", "mapping_level",
+                         "agree"]).to_csv(
+        os.path.join(out_dir, "ligand_seq_vs_lookup_crosscheck.tsv"), sep="\t", index=False)
+
     with open(status_path, "w") as f:
         f.write(f"done n_people={len(people)} n_pairs_tested={len(rows)} "
-                f"n_unclassified_C={n_unclass_c} n_unclassified_Bw={n_unclass_bw}\n")
+                f"n_unclassified_C={qc.get('n_unclassified_C_allele_calls', 0)} "
+                f"n_unclassified_Bw={qc.get('n_unclassified_Bw_allele_calls', 0)}\n")
     log(f"[48] wrote {len(rows)} pair x ancestry rows -> {out_dir}")
 
 
 # ---------------------------------------------------------------------------
 # Synthetic cohort generator.
 # ---------------------------------------------------------------------------
-def make_synthetic(n_people=400, seed=20260926, planted_enrichment=True):
+def make_synthetic(n_people=400, seed=20260926, planted_enrichment=True, cds_by_gene=None):
     rng = np.random.default_rng(seed)
     pids = [f"synthP{i:05d}" for i in range(n_people)]
     ancestries = rng.choice(ANCESTRY_ORDER, size=n_people, p=[0.2, 0.15, 0.15, 0.3, 0.1, 0.1])
@@ -412,7 +736,7 @@ def make_synthetic(n_people=400, seed=20260926, planted_enrichment=True):
                                 "consensus": f"HLA-B*{b_allele}"})
     table1_df = pd.DataFrame(table1_rows)
 
-    epitopes_df, n_unclass_c, n_unclass_bw = build_person_epitopes(table1_df)
+    epitopes_df, qc, crosscheck_rows = build_person_epitopes(table1_df, cds_by_gene=cds_by_gene)
 
     kir_presence = pd.DataFrame(False, index=pids, columns=RECEPTOR_GENES)
     for pid in pids:
@@ -428,7 +752,7 @@ def make_synthetic(n_people=400, seed=20260926, planted_enrichment=True):
             kir_presence.at[pid, gene] = rng.random() < base_p
     kir_presence.index.name = "person_id"
 
-    return table1_df, epitopes_df, kir_presence, ancestry_of, n_unclass_c, n_unclass_bw
+    return table1_df, epitopes_df, kir_presence, ancestry_of, qc, crosscheck_rows
 
 
 def main():
@@ -443,13 +767,19 @@ def main():
                         "aux/relatedness/samples_relatedness.tsv"))
     ap.add_argument("--kir-outroot", default=os.path.expanduser("~/pipeline_outputs_kir"))
     ap.add_argument("--kir-pilot-script", default=os.path.expanduser("~/s03/41_kir_pilot.py"))
+    ap.add_argument("--cds-dir", default=os.path.expanduser("~/tools/Immuannot_refdata/CDSseq"),
+                    help="Directory with IPD-IMGT/HLA CDSseq <gene>.fa.gz reference files "
+                         "(A.fa.gz, B.fa.gz, C.fa.gz). Used for sequence-derived C1/C2/Bw4/Bw6 "
+                         "assignment; missing files fall back to the two-field lookup table.")
     ap.add_argument("--out-dir", default=os.path.expanduser("~/s04/results/48"))
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--n-perms", type=int, default=100)
     ap.add_argument("--b15-as-bw4-list", default="",
-                    help="Comma-separated 2-field B*15 alleles to treat as Bw4 (documented "
-                         "exceptions to the default B*15=Bw6 rule; empty until a VM operator "
-                         "supplies the authoritative IPD-IMGT/HLA exception list).")
+                    help="Comma-separated 2-field B*15 alleles to treat as Bw4 in the LOOKUP "
+                         "FALLBACK only (documented exceptions to the default B*15=Bw6 rule; "
+                         "the sequence path is unaffected -- it reads the real residues). Empty "
+                         "until a VM operator supplies the authoritative IPD-IMGT/HLA exception "
+                         "list.")
     ap.add_argument("--synthetic", action="store_true")
     ap.add_argument("--n-people", type=int, default=400)
     ap.add_argument("--seed", type=int, default=20260926)
@@ -462,9 +792,9 @@ def main():
 
     if args.synthetic:
         (table1_df, epitopes_df, kir_presence, ancestry_of,
-         n_unclass_c, n_unclass_bw) = make_synthetic(args.n_people, args.seed)
+         qc, crosscheck_rows) = make_synthetic(args.n_people, args.seed)
         run_pipeline(table1_df, epitopes_df, kir_presence, ancestry_of, args.out_dir,
-                    args.n_perms, b15_as_bw4, status_path, n_unclass_c, n_unclass_bw)
+                    args.n_perms, b15_as_bw4, status_path, qc, crosscheck_rows)
         log(f"[48] synthetic run done in {time.perf_counter()-t0:.0f}s")
         return
 
@@ -484,14 +814,21 @@ def main():
     log(f"[48] unrelated subset: {len(kept)}/{len(all_pids)} ({len(removed)} relatives dropped)")
     table1_df = table1_df[table1_df["person_id"].isin(kept)]
 
-    epitopes_df, n_unclass_c, n_unclass_bw = build_person_epitopes(table1_df, b15_as_bw4)
-    log(f"[48] unclassified HLA-C calls: {n_unclass_c}; unclassified Bw calls: {n_unclass_bw}")
+    cds_by_gene = load_all_cds(args.cds_dir)
+    for gene, idx in cds_by_gene.items():
+        log(f"[48] CDS reference loaded for {gene}: {len(idx)} alleles"
+            if idx else f"[48] CDS reference NOT FOUND for {gene} (--cds-dir={args.cds_dir}) "
+                        f"-- falling back to the two-field lookup table for this gene")
+
+    epitopes_df, qc, crosscheck_rows = build_person_epitopes(table1_df, b15_as_bw4, cds_by_gene)
+    log(f"[48] unclassified HLA-C calls: {qc.get('n_unclassified_C_allele_calls', 0)}; "
+        f"unclassified Bw calls: {qc.get('n_unclassified_Bw_allele_calls', 0)}")
     unrelated_pids = sorted(kept & set(table1_df["person_id"]))
     kir_presence = build_kir_receptor_carriage(unrelated_pids, args.kir_outroot, kir_mod,
                                                RECEPTOR_GENES)
 
     run_pipeline(table1_df, epitopes_df, kir_presence, ancestry_of, args.out_dir, args.n_perms,
-                b15_as_bw4, status_path, n_unclass_c, n_unclass_bw)
+                b15_as_bw4, status_path, qc, crosscheck_rows)
     log(f"[48] done in {time.perf_counter()-t0:.0f}s")
 
 
