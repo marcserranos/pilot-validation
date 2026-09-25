@@ -20,8 +20,7 @@ sub-agents**, not by you.
 2. Ask Marc to paste the **authorization block** in §7 (or his own wording). VM state changes need
    consent given to you directly, in chat. Sub-agents will not act on consent you relay, and that
    refusal is correct.
-3. Ask Marc for the **figure-style guidelines document** (§2, WS-C) if it is not already at
-   `reference/figure_style_guidelines.*`. It was mentioned but never arrived in the S03 session.
+3. Read `reference/FIGURE_STYLE.md`'s summary (have a sub-agent apply it) (§2, WS-C).
 4. Fill in `SPRINT.md` (board) and start `LOG.md` (template in §6). Then launch work.
 
 ---
@@ -104,9 +103,9 @@ What Marc asked to see:
 - Candidate Figure 1/2 panel for the paper. Coordinate its style with WS-C.
 
 ### WS-C: figure style pass (local)
-- **Input:** the supervisor's guidelines document (ask Marc; store it at
-  `reference/figure_style_guidelines.*`; if it is a PDF, have a sub-agent read it and distil it
-  into `reference/FIGURE_STYLE.md` as ≤60 lines of concrete, checkable rules).
+- **Input:** the guideline is the `cnsplots` library (github.com/faridrashidi/cnsplots), distilled
+  into `reference/FIGURE_STYLE.md` (rcParam-equivalent values, journal palettes, de-AI checklist,
+  port-vs-depend recommendation).
 - **Then:**
   - Encode the rules in `scripts/hla_popgen/_viz_common.py` (`nature_style()`, palette, fonts,
     `save_fig`) so every figure inherits them.

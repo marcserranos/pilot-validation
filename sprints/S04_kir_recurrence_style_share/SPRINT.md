@@ -9,7 +9,7 @@ Orchestrator brief: [`ORCHESTRATOR_HANDOFF.md`](ORCHESTRATOR_HANDOFF.md). Log: [
 |---|---|---|---|---|
 | WS-A | 44/45 | KIR recurrence + saturation (overall, per ancestry, by recurrence class; any vs protein novelty) | yes | not started |
 | WS-B | 46 | KIR vs HLA catalogue coverage comparison | export from A | not started |
-| WS-C | — | Figure style pass per supervisor guidelines (waiting for the document) | no | blocked: guidelines doc |
+| WS-C | — | Figure style pass per supervisor guidelines | no | ready: guideline = cnsplots (reference/FIGURE_STYLE.md) |
 | WS-D | — | WS6 plain-language explainer; ranked experiment ideas; naive ML/simple tests | optional | not started |
 | WS-E | — | Data package for Cole in share bucket + bucket README/SCHEMA | yes (consent) | not started |
 | WS-F | — | VM declutter (after E), repo reorganisation, branch unification | yes (consent) | not started |
