@@ -322,9 +322,36 @@ for hard disclosure censorship, `vc.SUPPRESSED_COLOR`) or swapping the colormap 
 recolor confidently-estimated cells too, misleadingly), thin cells (`EXPECTED_THIN_THRESHOLD = 5`)
 get a translucent white overlay (alpha 0.55) on top of the same D'-scale color: nothing is hidden or
 altered, a confidently-estimated D'=-1/+1 simply reads visually darker/more salient than a
-thin-evidence one. A small "faded: E<5" caption sits under the colorbar whenever >=1 cell in the
-panel is faded. This does not change any number in any TSV -- it is a rendering-only visual weight,
-exactly like the pre-existing censored-cell dot marker.
+thin-evidence one. This does not change any number in any TSV -- it is a rendering-only visual
+weight, exactly like the pre-existing censored-cell dot marker.
+
+## Redesign pass 3 (S04 WS-C, 2026-09-26) -- orchestrator full-size review
+
+Three more things were fixed after a full-size (not thumbnail) review:
+- **Marginal tick steps didn't match between the two axes**: `_nice_ceiling()` picked a step
+  independently for each marginal, so a real max just over a round number (e.g. DQA1's pooled max
+  0.193, `*1.05` padding = 0.203) rounded UP to the next step (0.25, ticks 0/0.125/0.25) while the
+  other marginal's max rounded to a smaller step (0.2, ticks 0/0.1/0.2) -- two different-looking
+  scales side by side on the same figure. Replaced by `_nice_axis_ticks()`, which picks the
+  smallest step for which *2 steps* already cover the padded max (and uses a tighter 1.02 pad, not
+  1.05), so both marginals land on 0/0.1/0.2 whenever their real maxima are this close.
+- **The "faded: E<5" caption was dropped** from the panel entirely -- at the size it had to be to
+  fit under the narrow colorbar column, it read as a tiny, orphaned fragment rather than a legend.
+  The fading itself is unchanged; its explanation lives only in the "Encoding change" section above
+  now, which is where a reader who notices the visual difference and wants to know why would look.
+- **The dead band above the top marginal, still visible after pass 2's partial fix**, was closed
+  further: gridspec top-row height ratio 1.5->1.05, `top=` 0.91->0.965, corner label pulled from
+  y=0.985 to y=0.995.
+
+Re-running after these fixes surfaced a genuinely new (not cosmetic) layout bug the linter had
+never been able to see: `ax.axis("off")` on the G1/G2 bracket axes (`ax_brk_y`/`ax_brk_x`) does not
+survive a SECOND `fig.canvas.draw()` in this matplotlib version -- `check_layout()`'s own draw (or
+`save_fig()`'s) could regenerate that axis's default numeric tick labels ("1", "1.0", ...) from its
+raw 0-1 range, rendered right at the seam between the bracket axes and the heatmap, colliding with
+each other. Fixed with an explicit private `NullLocator` on both axes' otherwise-unused private
+axis (their SHARED axis, with the heatmap, was already fixed the same way in pass 2's Ticker-
+replacement code) -- see the script's own comments for the full writeup, since this bug class also
+hit Figure 1 v5 independently (documented there too).
 
 ## Caveats (from-committed mode)
 

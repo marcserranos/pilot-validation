@@ -218,6 +218,64 @@ tick loop, none of the data-loading/aggregation functions.
 `check_layout(strict=True)` (the `save_fig()` default) now passes both composed layouts (A and B)
 with **0 errors, 0 warnings**.
 
+## Redesign round 2 (orchestrator full-size review, 2026-09-26)
+
+Reviewed at full size rather than thumbnail, several more faults surfaced:
+
+- **Panel e**: "AMR" sat directly on top of AFR's curve (AFR's cohort is larger, so its line is
+  still rising, near its own eventual plateau, at AMR's shorter endpoint x), and AFR's own label
+  -- pushed up by the old repulsion pass to clear AMR's -- landed just above the autoscaled ylim
+  and was silently clipped off (**no AFR label rendered at all**). A second pass that repelled
+  labels from every OTHER curve's line, not just other labels, still failed for MID specifically:
+  MID's cohort is the smallest (N=487), so its curve ends very early, in the region where all six
+  discovery curves are still close together -- there is no y position near MID's own endpoint that
+  clears three other lines simultaneously; this is a structural fact about the data, not a tuning
+  problem. **Fix**: all six ancestries are now labelled at a single shared column just past the
+  longest curve's (AFR's) endpoint, ordered/spaced by final value, each with a short dotted leader
+  line back to its own curve's true end. No line is ever drawn past its own last data point, so a
+  shared column past the rightmost one guarantees zero line collisions by construction. Mechanically
+  enforced going forward by `_viz_common.mark_label()` / `check_layout()`'s new (a4) check.
+- **Panel c**: the y-axis label ("any-field novelty (%)") was removed -- the axis's ticks are gene
+  names, so a y-axis label there describes the wrong thing (what varies down the axis, not what the
+  color encodes). The colorbar now carries the quantity directly: "any-field novelty, % of calls"
+  (was the unlabelled-unit "% (exact)").
+- **Panel c colorbar position**: moved from after panel d (with a wide, "floating" empty-looking
+  gap, since panel d's bars don't fill their own column) to directly beside panel c, which is what
+  it actually describes.
+- **Panel d row alignment**: `ax_d` is now created with `sharey=ax_c` (a structural tie, not just
+  matching `ylim`/`invert_yaxis()` calls independently on both), checked mechanically via
+  `vc.mark_marginal(ax_bar, ax_hm, axis="y")`.
+- **Panel d legend**: moved from a crowded below-axis position -- which, on measurement, turned out
+  to not physically fit: the row-to-row gap is ~7.5% of figure height, and a 2-line legend plus the
+  xlabel above it needed ~9% -- into the panel's own empty bottom-right corner (HLA-A's row, the
+  shortest bar, given the inverted y-axis).
+- **Panel f**: dropped the "observed" legend swatch (every observed bar renders at ~0.6% of its
+  expected bar's height -- effectively invisible, so a legend color for it is one a reader could
+  never actually match against the plot) in favor of a legend title stating "observed = 0 in all
+  ancestries" directly; the coloured "0" annotations on each bar are unchanged. Y-axis label
+  shortened from "DQA1~DQB1 cis haplotypes\nin G1xG2 cross-group cells" to "cross-group DQA1xDQB1
+  haplotypes".
+- **Row/column whitespace and alignment**: `hspace` between the three main rows tightened
+  0.42->0.30; panel b's and panel e's left edges, and panel d's and panel f's right edges, are now
+  read from their actual drawn positions post-layout and explicitly matched (two independent
+  subgridspecs per row otherwise have no structural reason to share a column boundary, even when
+  their fractional widths look similar).
+
+**Two more layout-linter false negatives were found and fixed centrally** (in `_viz_common.py`,
+shared with `37c_dq_g1g2_from_committed.py` -- see that report's own "Redesign pass 3" section for
+the DQ-figure instance of the same bug class): `ax.axis("off")` on an axes (panel b's ternary here)
+does not survive a SECOND `fig.canvas.draw()` in this matplotlib version -- a later draw
+(`check_layout()`'s own, or `save_fig()`'s) can regenerate that axis's default-formatted ticks
+("0.0", "1.0", ...) from its raw xlim/ylim, on top of unrelated text (here, panel b's own
+"catalogued"/"first observed here" legend); and `sharex=`/`sharey=` make the two axes' shared
+`major` Ticker (locator+formatter) the literal same object (confirmed empirically), so labelling
+one axes (panel c's gene names) could silently relabel or blank its sharing partner (panel d) on a
+later draw. Both fixed with a private `NullLocator`/`NullFormatter` (a fresh `Ticker` first, where
+the object was shared) on every axes that doesn't need its own tick text.
+
+No panel-content or number changed in this round either. `check_layout(strict=True)` passes both
+composed layouts with **0 errors, 0 warnings**.
+
 ## Open issues
 
 1. Panel b (strict ancestry ≥0.98) and panel c/d (strict ancestry ≥0.9, from

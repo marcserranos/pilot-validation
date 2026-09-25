@@ -745,6 +745,27 @@ def mark_decoration(artist):
     artist._layout_decoration = True
 
 
+def mark_label(text_artist):
+    """Mark a Text artist as a direct data-series label (e.g. an end-of-line ancestry label on a
+    saturation curve, placed via `ax.annotate`/`ax.text`) so `check_layout()`'s (a4) check verifies
+    it does not sit on top of any Line2D *data* series in its OWN axes.
+
+    Why this exists (Figure 1 v5 panel e, S04 WS-C, 2026-09-25): direct end-of-line labels were
+    placed at each curve's own endpoint with a small vertical-repulsion pass against each OTHER
+    LABEL, but never checked against the actual drawn LINES -- when one ancestry's curve (e.g.
+    AFR) is plotted well past another ancestry's endpoint (e.g. AMR's line stops earlier in x),
+    the still-rising AFR line can pass directly through where AMR's label was placed. Two check
+    categories already existed (`mark_decoration()` for "this Line2D/Patch must never be covered
+    by text" and the plain text-vs-text check) but neither covers "this Text must never be covered
+    by an ORDINARY plotted data line" -- opting the label in explicitly (rather than checking every
+    Text in every axes against every line, which would flag ordinary in-line annotations, e.g. a
+    value printed inside its own bar) keeps this scoped to the direct-labeling use case it exists
+    for.
+
+    Usage: `t = ax.annotate("AFR", (x, y), ...); vc.mark_label(t)`."""
+    text_artist._layout_direct_label = True
+
+
 def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
                   whitespace_warn_frac=0.55, grid_n=48):
     """Mechanical layout linter, run against a fully-drawn figure. Returns a list of violation
@@ -763,6 +784,13 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
         e.g. a panel's title or label creeping into the neighboring panel's frame. A spine is
         exempted against Text that belongs to its OWN Axes (tick/axis labels are expected to sit
         right at their own axes' edge; that's normal, not a fault).
+    (a4) any Text registered via `mark_label()` (a direct end-of-line data-series label) that sits
+        on top of a plotted Line2D data series in its OWN axes -- catches a direct label placed at
+        its own curve's endpoint that lands on top of a DIFFERENT series' line still passing
+        through that region (e.g. two converging discovery curves where one series' line extends
+        well past another's endpoint). Segment-vs-bbox intersection, not just endpoint/vertex
+        containment, so a label sitting mid-segment between two vertices is still caught. See
+        `mark_label()`'s docstring.
     (b) any text or Axes extending far beyond the figure's own (nominal, pre-`bbox_inches=
         "tight"`) bbox -- tolerance is `tol_clip_frac` of the figure's width/height (default 5%),
         not a fixed pixel count, since an ordinary axis label dipping a few px past the nominal
@@ -784,7 +812,7 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
         `whitespace_warn_frac` this is a WARNING only (large gaps aren't automatically wrong --
         e.g. a deliberately spacious legend column -- but worth a human glance), never an error.
 
-    All of (a), (a2), (a3), (b), (c) are "error" severity; (d) is "warning" only. Call via `save_fig()`, which
+    All of (a), (a2), (a3), (a4), (b), (c) are "error" severity; (d) is "warning" only. Call via `save_fig()`, which
     raises on any error-severity violation by default (see its `strict`/`reason` kwargs).
     """
     import matplotlib.text as mtext
@@ -808,10 +836,37 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
         fig_bbox = fig.bbox
         violations = []
 
+        # ---- tick-label Text objects sitting outside their own axis's view limits ----
+        # matplotlib's default tick Locator deliberately places one extra major (and sometimes
+        # minor) tick just past each end of the data range -- that tick's Text is already
+        # invisible in the rendered PNG/PDF (clip_on=True, clipped to the axes bbox) but
+        # `get_window_extent()` returns its UNCLIPPED geometry, so treating every Text with
+        # `get_visible()==True` as "on-canvas" made these phantom off-view labels collide with a
+        # panel letter or a neighboring subplot's own off-view label sharing the same dead space
+        # -- a linter false positive, not a real visual fault (found by a concurrent S04 WS-C
+        # session against 39/43b/38b, worked around per-script there with a local
+        # `_prune_offview_ticklabels()` helper before this fix centralized it here). `sorted()`,
+        # not unpacked-in-order: an inverted axis returns get_xlim()/get_ylim() as (high, low).
+        offview_tick_ids = set()
+        for ax in fig.axes:
+            for axis_obj, get_lim in ((ax.xaxis, ax.get_xlim), (ax.yaxis, ax.get_ylim)):
+                lo, hi = sorted(get_lim())
+                for minor in (False, True):
+                    try:
+                        locs = axis_obj.get_ticklocs(minor=minor)
+                        labels = axis_obj.get_ticklabels(minor=minor)
+                    except Exception:
+                        continue
+                    for loc, t in zip(locs, labels):
+                        if loc < lo - 1e-9 or loc > hi + 1e-9:
+                            offview_tick_ids.add(id(t))
+
         # ---- collect visible, non-empty Text artists with a real on-canvas extent ----
         texts = []
         for t in fig.findobj(mtext.Text):
             if not t.get_visible():
+                continue
+            if id(t) in offview_tick_ids:
                 continue
             s = t.get_text()
             if s is None or s.strip() == "":
@@ -894,6 +949,55 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
                                       "(overlap area=%.1fpx^2)"
                                       % (t.get_text(), side, inter.width * inter.height),
                         })
+
+        # ---- (a4) direct-label text (mark_label()) vs plotted data Line2D in the SAME axes ----
+        def _seg_intersects_bbox(x0, y0, x1, y1, bb):
+            # Liang-Barsky-lite: clip the segment parametrically against the box's 4 half-planes;
+            # if any parametric range survives, the segment crosses (or starts/ends inside) bb.
+            dx, dy = x1 - x0, y1 - y0
+            tmin, tmax = 0.0, 1.0
+            for p, q in ((-dx, x0 - bb.x0), (dx, bb.x1 - x0),
+                        (-dy, y0 - bb.y0), (dy, bb.y1 - y0)):
+                if p == 0:
+                    if q < 0:
+                        return False
+                    continue
+                r = q / p
+                if p < 0:
+                    tmin = max(tmin, r)
+                else:
+                    tmax = min(tmax, r)
+                if tmin > tmax:
+                    return False
+            return True
+
+        for t, tb in texts:
+            if not getattr(t, "_layout_direct_label", False):
+                continue
+            ax = getattr(t, "axes", None)
+            if ax is None:
+                continue
+            tbp = tb.padded(pad)
+            for ln in ax.get_lines():
+                if getattr(ln, "_layout_decoration", False):
+                    continue  # a bracket/divider line -- (a2) already governs this one
+                try:
+                    verts = ln.get_transform().transform(ln.get_path().vertices)
+                except Exception:
+                    continue
+                if len(verts) < 2:
+                    continue
+                hit = False
+                for (x0, y0), (x1, y1) in zip(verts[:-1], verts[1:]):
+                    if _seg_intersects_bbox(x0, y0, x1, y1, tbp):
+                        hit = True
+                        break
+                if hit:
+                    violations.append({
+                        "type": "label_over_line_data", "severity": "error",
+                        "detail": "direct label %r sits on top of a plotted data line %r"
+                                  % (t.get_text(), ln.get_label()),
+                    })
 
         # ---- (b) clipped beyond figure bbox ----
         pad_x = max(2.0, tol_clip_frac * fig_bbox.width)

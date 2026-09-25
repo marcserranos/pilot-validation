@@ -195,6 +195,29 @@ def _nice_ceiling(x, steps=(0.02, 0.05, 0.1, 0.2, 0.25, 0.5)):
     return round(top, 4)
 
 
+def _nice_axis_ticks(data_max, pad=1.02, step_candidates=(0.05, 0.1, 0.2, 0.25, 0.5, 1.0)):
+    """Returns (ticks, axis_max) as an even 0/step/2*step 3-tick scale (S04 WS-C round 2 fix,
+    2026-09-25): `_nice_ceiling()` alone still produced an uneven pair of panels -- the top
+    marginal's own max (0.16) rounded to a 0.2 ceiling (ticks 0/0.1/0.2) while the right
+    marginal's max (0.193) rounded to a 0.25 ceiling one step up (ticks 0/0.125/0.25), just
+    because 0.193*1.05 = 0.2027 nudged past the 0.2 step -- Marc/the orchestrator flagged
+    0/0.125/0.25 as not the clean round numbers the redesign asked for. This picks the smallest
+    `step` for which 2 steps already cover `data_max*pad` (a tighter 1.02 pad, not 1.05, so a
+    max just under a round step doesn't spill into the next one), so both marginals land on the
+    same familiar 0/0.1/0.2-style scale whenever their real maxima are this close."""
+    target = data_max * pad
+    for step in step_candidates:
+        if target <= 2 * step:
+            axis_max = 2 * step
+            return [0, step, axis_max], axis_max
+    step = step_candidates[-1]
+    n = 2
+    while n * step < target:
+        n += 1
+    axis_max = n * step
+    return [round(i * step, 3) for i in range(n + 1)], axis_max
+
+
 # A cell's D' is only as trustworthy as the number of haplotypes it's built from. Every row in the
 # committed table already cleared MIN_ALLELE_HAPS=20 on each allele's own marginal (29's floor),
 # but the JOINT cell count can still be tiny if the two alleles rarely co-occur -- Marc's redesign
@@ -295,12 +318,15 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
         # Top row (corner label + top marginal) sized close to what it actually needs -- was
         # height_ratios[0]=1.9 with a large top= margin, leaving a visible dead band between the
         # bold corner label and the bar chart underneath it (Marc's redesign brief, item 2).
+        # Round 2 (orchestrator, same day): the first fix (1.9->1.5, top=0.95->0.91) still left a
+        # visible gap -- tightened further (1.5->1.05, top=0.91->0.965 with the label pulled in to
+        # y=0.995) so the corner label sits right above the marginal bars with no dead band.
         gs = fig.add_gridspec(
             3, 4,
             width_ratios=[2.8, n_b, 1.9, 0.42],
-            height_ratios=[1.5, n_a, 2.3],
+            height_ratios=[1.05, n_a, 2.3],
             wspace=0.08, hspace=0.08,
-            left=0.10, right=0.90, top=0.91, bottom=0.05)
+            left=0.10, right=0.90, top=0.965, bottom=0.05)
         ax_heat = fig.add_subplot(gs[1, 1])
         ax_top = fig.add_subplot(gs[0, 1], sharex=ax_heat)
         ax_right = fig.add_subplot(gs[1, 2], sharey=ax_heat)
@@ -309,6 +335,35 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
         ax_brk_x = fig.add_subplot(gs[2, 1], sharex=ax_heat)
         vc.mark_marginal(ax_top, ax_heat, axis="x")
         vc.mark_marginal(ax_right, ax_heat, axis="y")
+
+        # `sharex=`/`sharey=` make the CHILD axes' shared-axis `major` Ticker (locator+formatter)
+        # the LITERAL SAME OBJECT as ax_heat's (confirmed empirically: `ax_top.xaxis.major is
+        # ax_heat.xaxis.major` -> True; this is matplotlib's actual, if under-documented, sharex/
+        # sharey behavior) -- harmless as long as each axes' own tick-label VISIBILITY never
+        # changes after `tick_params(labelbottom=False, ...)` is applied. It is NOT harmless here:
+        # `ax_heat.set_xticklabels(b_alleles, ...)` (below) installs a FixedLocator/FixedFormatter
+        # carrying all 16 DQB1 allele strings onto that SHARED Ticker object; a later
+        # `fig.canvas.draw()` (e.g. `check_layout()`'s own, or `save_fig()`'s) grows
+        # `ax_top.xaxis.majorTicks` from 1 to 16 to match the shared locator, and the newly
+        # created Tick objects on ax_top do NOT inherit the earlier `tick_params(labelbottom=
+        # False)` call -- their `label1` comes back VISIBLE, at ax_top's own (unrotated, wrong)
+        # position, rendering "DQB1*05:01" etc a second time, each one overlapping its neighbor
+        # (found by the orchestrator's re-review of the "fixed" figure -- `check_layout()`'s (a)
+        # text_overlap check was correctly reporting a REAL second copy, not a false positive).
+        # Fix: give these never-labelled axes their OWN private `Ticker` (locator+formatter pair)
+        # on the shared axis, detaching them from ax_heat's Ticker entirely -- merely calling
+        # `set_major_locator()` is not enough, since that mutates the SHARED Ticker's `.locator`
+        # attribute in place and would blank out ax_heat's own ticks too (confirmed by direct
+        # test). `mark_marginal()`'s alignment check only reads xlim/ylim (still genuinely shared
+        # via the Grouper), not the Ticker, so this detachment doesn't weaken that guarantee.
+        from matplotlib.axis import Ticker
+        from matplotlib.ticker import NullLocator, NullFormatter
+        for _ax, _attr in ((ax_top, "xaxis"), (ax_brk_x, "xaxis"),
+                          (ax_right, "yaxis"), (ax_brk_y, "yaxis")):
+            _axis = getattr(_ax, _attr)
+            _axis.major = Ticker()
+            _axis.set_major_locator(NullLocator())
+            _axis.set_major_formatter(NullFormatter())
 
         cmap = vc.diverging_cmap()
         norm = vc.diverging_norm(-1.0, 1.0)
@@ -388,15 +443,29 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
             _bracket_h(ax_brk_x, -0.5, n_b2 - 0.5, "G2", y=0.26, cap=0.14)
         if n_b2 < n_b:
             _bracket_h(ax_brk_x, n_b2 - 0.5, n_b - 0.5, "G1", y=0.26, cap=0.14)
+        # Defensive re-assertion (same root cause as the Ticker-replacement fix above, different
+        # axis): `ax_brk_y`'s own PRIVATE x-axis (0-1, never touched elsewhere) and `ax_brk_x`'s
+        # own private y-axis (0-1) still carried a live default Locator/Formatter even after
+        # `set_axis_off()` -- a later `fig.canvas.draw()` (again, `check_layout()`'s or
+        # `save_fig()`'s) populated real "0.0"/"0.5"/"1.0"-style tick labels just outside these
+        # axes' boxes, one of which (a plain "1"/"1.0" pair) collided. `set_axis_off()` alone did
+        # not reliably suppress this once `set_xlim`/`set_ylim` were called afterward; explicitly
+        # nulling the locator on the un-shared axis is the same fix pattern as above, belt-and-
+        # braces alongside `set_axis_off()`.
+        from matplotlib.ticker import NullLocator as _NullLocator
+        ax_brk_y.xaxis.set_major_locator(_NullLocator())
+        ax_brk_x.yaxis.set_major_locator(_NullLocator())
 
         ax_top.bar(range(n_b), [marg_b[b] for b in b_alleles], color="#AAAAAA",
                   width=0.7, linewidth=0)
         ax_top.set_ylabel("carrier\nfreq.", fontsize=4.5)
-        # Round, human-readable ticks (was max(observed)*1.05 rounded to 2dp -- e.g. 0/0.155/0.31)
-        # -- _nice_ceiling() picks the smallest clean step (0.02/0.05/0.1/0.2/0.25/0.5, ...) that
-        # covers the observed max (Marc's redesign brief, item 3).
-        top_max = _nice_ceiling(max(marg_b.values()) * 1.05)
-        ax_top.set_yticks([0, round(top_max / 2, 3), top_max])
+        # Round, human-readable, MATCHED ticks (was max(observed)*1.05 rounded to 2dp -- e.g.
+        # 0/0.155/0.31). Round 2 (orchestrator, same day): `_nice_ceiling()` alone still let the
+        # two marginals land on different step sizes (0/0.1/0.2 vs 0/0.125/0.25) whenever one
+        # panel's max was just a hair over a round step -- `_nice_axis_ticks()` fixes that (see
+        # its own docstring) so both marginals in a well-behaved case share the same scale.
+        top_ticks, top_max = _nice_axis_ticks(max(marg_b.values()))
+        ax_top.set_yticks(top_ticks)
         ax_top.set_ylim(0, top_max)
         ax_top.tick_params(labelbottom=False, bottom=False, labelsize=4)
         ax_top.spines[["top", "right"]].set_visible(False)
@@ -404,8 +473,8 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
         ax_right.barh(range(n_a), [marg_a[a] for a in a_alleles], color="#AAAAAA",
                      height=0.7, linewidth=0)
         ax_right.set_xlabel("carrier\nfreq.", fontsize=4.5)
-        right_max = _nice_ceiling(max(marg_a.values()) * 1.05)
-        ax_right.set_xticks([0, round(right_max / 2, 3), right_max])
+        right_ticks, right_max = _nice_axis_ticks(max(marg_a.values()))
+        ax_right.set_xticks(right_ticks)
         ax_right.set_xlim(0, right_max)
         ax_right.tick_params(labelleft=False, left=False, labelsize=4)
         ax_right.spines[["top", "right"]].set_visible(False)
@@ -414,17 +483,18 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
         cbar = fig.colorbar(sm, cax=ax_cbar)
         cbar.set_label("Signed phased D′", fontsize=5.5)
         cbar.ax.tick_params(labelsize=4.5, length=2)
-        if n_thin:
-            cbar.ax.text(0.5, -0.045, "faded: E<%g" % EXPECTED_THIN_THRESHOLD,
-                        transform=cbar.ax.transAxes, ha="center", va="top", fontsize=4,
-                        color="#555555")
+        # The "faded: E<5" note used to live here as a small orphaned caption under the colorbar
+        # (orchestrator: too tiny, not anchored to anything legend-like) -- dropped from the panel
+        # entirely; the fade is explained at length in this report's README "how to read" section
+        # instead (Encoding change -- fading thin-evidence cells), which is where a reader who
+        # notices the visual difference and wants to know why would look anyway.
 
         # Short panel label (not a sentence) -- N and full context live in the report README.
-        # Placed just above the gridspec's own top= margin (0.91) rather than at the figure's
-        # extreme edge (0.995) -- that large a gap above a comparatively short top-row axes was
-        # the "dead band" Marc's redesign brief flagged (item 2).
+        # Round 2 (orchestrator, same day): first fix (0.995->0.985, top=0.95->0.91) still left a
+        # visible dead band above the marginal -- pulled in further, paired with the gridspec's
+        # own top=0.965 above.
         if corner_label:
-            fig.text(0.01, 0.985, corner_label, ha="left", va="top", fontsize=6,
+            fig.text(0.01, 0.995, corner_label, ha="left", va="top", fontsize=6,
                      fontweight="bold")
     return vc.save_fig(fig, path_stem)
 

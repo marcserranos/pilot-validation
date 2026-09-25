@@ -253,6 +253,19 @@ def draw_panel_b(ax, pb, gene_b, min_carriers, strict):
     ax.set_xlim(-0.16, 1.16)
     ax.set_ylim(-0.16, np.sqrt(3) / 2 + 0.12)
     ax.axis("off")
+    # `axis("off")` hides the CURRENT axis decorations but does not survive a later
+    # `fig.canvas.draw()` in this matplotlib version -- a redraw (e.g. `check_layout()`'s or
+    # `save_fig()`'s) can still invoke this axes' default Locator/Formatter and grow its x/y
+    # majorTicks from 1 to several, rendering plain default-formatted numbers ("0.0", "1.0", ...)
+    # from its raw xlim/ylim (-0.16 to ~1.16) directly on top of this panel's own "catalogued"/
+    # "first observed here" legend text (found by the orchestrator's re-review; same bug class as
+    # `37c_dq_g1g2_from_committed.py`'s Ticker-replacement fix and Figure 1 v5's own ax_d fix --
+    # see either docstring for the full writeup). Null out both axes explicitly so there is
+    # nothing for a later draw to (re)populate.
+    from matplotlib.ticker import NullLocator, NullFormatter
+    for _axis in (ax.xaxis, ax.yaxis):
+        _axis.set_major_locator(NullLocator())
+        _axis.set_major_formatter(NullFormatter())
     from matplotlib.lines import Line2D
     # Marker legend anchored INSIDE the panel's own axes-fraction box (S04 WS-C phase 2 fix: the
     # previous bbox_to_anchor=(1.14, -0.08) sat outside the axes entirely, in the gap toward panel
@@ -282,10 +295,14 @@ def draw_panel_b(ax, pb, gene_b, min_carriers, strict):
 # extra horizontal thickness is exactly what reached left into panel b's space and collided with
 # the "EUR" corner label and the ternary legend (`check_layout()` text_overlap). A single line has
 # no second line to add that width.
-_METRIC_LABEL = {
-    "any_field": "any-field novelty (%)",
-    "cds": "novel CDS (%)",
-    "protein": "novel protein allele (%)",
+# Colorbar label (orchestrator review, 2026-09-26: panel c's y-axis label was removed -- its ticks
+# are gene names, not a "novelty" scale -- and the quantity the heatmap color encodes moved onto
+# the colorbar itself, which used to just say "% (exact)", not naming what was 100% of). One clear
+# line, unit stated.
+_METRIC_CBAR_LABEL = {
+    "any_field": "any-field novelty, % of calls",
+    "cds": "novel CDS, % of calls",
+    "protein": "novel protein allele, % of calls",
 }
 
 
@@ -397,13 +414,16 @@ def draw_panel_cd(ax_hm, ax_bar, grid, metric, dtab, cax=None):
         tick.set_fontweight("bold")
     ax_hm.set_yticks(range(len(genes)))
     ax_hm.set_yticklabels([g.replace("HLA-", "") for g in genes], fontsize=FS_TICK)
-    ax_hm.set_ylabel(_METRIC_LABEL.get(metric, metric), fontsize=FS_TITLE)
+    # No y-axis label: the previous "any-field novelty (%)" label described the COLOR, not the
+    # axis (whose ticks are gene names) -- a reader reads a y-axis label as "what varies down this
+    # axis", which here is just "gene". The quantity the color encodes belongs on the colorbar,
+    # which now carries it directly (orchestrator review, 2026-09-26).
     for sp in ax_hm.spines.values():
         sp.set_visible(False)
     if cax is not None:
         cb = ax_hm.figure.colorbar(im, cax=cax, orientation="vertical")
         cb.ax.tick_params(labelsize=FS_ANNOT, length=2)
-        cb.set_label("% (exact)", fontsize=FS_ANNOT, labelpad=2)
+        cb.set_label(_METRIC_CBAR_LABEL.get(metric, metric), fontsize=FS_ANNOT, labelpad=2)
 
     cols_all = [("seen once", "#C9CFD6"), ("2–19 unrelated people", "#5B8FBF"),
                ("≥20 unrelated people", "#B4472E")]
@@ -416,27 +436,60 @@ def draw_panel_cd(ax_hm, ax_bar, grid, metric, dtab, cax=None):
         ax_bar.barh(y, v, left=left, height=0.72, color=col, label=key, edgecolor="white",
                    linewidth=0.3, zorder=3)
         left += v
-    ax_bar.set_yticks(y)
-    ax_bar.set_yticklabels([])
+    # No set_yticks/set_yticklabels([]) here: ax_bar's y-axis Ticker is a PRIVATE NullLocator/
+    # NullFormatter (set at creation in compose_layout(), since sharey= makes the Ticker object
+    # shared with ax_hm otherwise) -- calling set_yticklabels([]) on it would be a no-op for
+    # display but would also needlessly reinstall a FixedFormatter, undoing that protection.
+    ax_bar.tick_params(axis="y", left=False, labelleft=False)
     ax_bar.set_ylim(-0.5, len(genes) - 0.5)
     ax_bar.invert_yaxis()
     ax_hm.invert_yaxis()
-    ax_bar.set_xlabel("novel protein alleles", fontsize=FS_TITLE)
+    # Structural row alignment (orchestrator review, 2026-09-26: "make it visibly aligned to c's
+    # rows") -- `ax_bar` is created with `sharey=ax_hm` in `compose_layout()`, which ties the two
+    # axes' y data-to-display mapping exactly; `mark_marginal()` makes that guarantee mechanically
+    # checked by `check_layout()` rather than merely asserted in a comment.
+    vc.mark_marginal(ax_bar, ax_hm, axis="y")
+    ax_bar.set_xlabel("novel protein alleles", fontsize=FS_TITLE, labelpad=2)
     ax_bar.tick_params(axis="x", labelsize=FS_TICK)
     ax_bar.spines[["top", "right"]].set_visible(False)
-    # Legend below the x-axis (outside the plotted bars): with real data the bottom two rows
-    # (HLA-B, HLA-A) both carry long bars, so an in-panel "lower right" legend sits directly on
-    # top of their labels -- moved fully below the axis instead, matching panel f's style.
-    ax_bar.legend(frameon=False, fontsize=FS_LEG - 0.5, loc="upper center", handlelength=1.0,
-                 labelspacing=0.2, borderaxespad=0.2, bbox_to_anchor=(0.5, -0.16), ncol=1)
+    # In-panel legend, bottom-right corner (orchestrator review, 2026-09-26, 3rd attempt): below-
+    # axis placement kept failing because the physical gap between this row and the next is
+    # smaller than a 2-line legend needs once the xlabel above it is accounted for too (measured
+    # directly: ~7.5% of figure height available, ~9% needed) -- any axes- or figure-fraction
+    # offset large enough to clear the xlabel also reached into panel f's row below. Moved inside
+    # the axes instead, tucked into the bottom-right corner (HLA-A's row, inverted y-axis --
+    # genes are ordered by descending row position, so this is the last/bottom row, whose bar is
+    # short enough to leave that corner clear).
+    ax_bar.legend(frameon=False, fontsize=FS_LEG - 0.5, loc="lower right", handlelength=1.0,
+                 labelspacing=0.2, borderaxespad=0.3, ncol=1)
 
 
 # ---- panel e: discovery curves --------------------------------------------------------------
 def draw_panel_e(ax, curves_path, scheme="pred"):
+    """Redesigned (orchestrator review, 2026-09-26, two passes):
+
+    Pass 1 fixed a naive other-label-only repulsion (labels never checked against the actual
+    LINES): "AMR" landed on top of AFR's still-rising curve (AFR extends further in x, so its line
+    is still there, near its own plateau, at AMR's shorter endpoint), and AFR's own label, pushed
+    up to clear AMR's, cleared the autoscaled ylim top and was silently clipped (no AFR label at
+    all -- autoscale only ever saw the DATA, never the text).
+
+    Pass 2: even with per-curve, line-aware repulsion, MID's label still landed on EAS/EUR/SAS's
+    lines. Root cause is structural, not a tuning problem: MID's cohort is the smallest (N=487),
+    so its curve ends VERY early in x, in the region where all six discovery curves are still
+    close together (early cohort growth looks similar across ancestries before they diverge at
+    larger N) -- there is no y position near MID's own endpoint x that clears 3 other lines at
+    once. Fix: label all six at a SHARED x just past the LONGEST curve's endpoint (here AFR, the
+    largest cohort) rather than each at its own endpoint -- no line is drawn beyond its own last
+    point, so a shared x past the rightmost one guarantees zero line collisions by construction,
+    at the cost of a short implicit "leader" gap between a shorter curve's true end and its label
+    (standard practice for this style of chart, e.g. an Economist-style end-of-line legend
+    column). Labels are still ordered/spaced by each curve's own final value.
+    """
     df = pd.read_csv(curves_path, sep="\t")
     d = df[(df["scheme"] == scheme) & (df["gene_group"] == "classical_pooled")
           & (df["category"] == "all")].copy()
-    ends = {}
+    curves_xy, ends = {}, {}
     xmax = 0.0
     for a in ANC:
         sub = d[d["ancestry"] == a].sort_values("n")
@@ -446,26 +499,54 @@ def draw_panel_e(ax, curves_path, scheme="pred"):
         y = sub["mean_distinct"].to_numpy(dtype=float)
         lo_ = sub["lo2_5"].to_numpy(dtype=float)
         hi_ = sub["hi97_5"].to_numpy(dtype=float)
-        ax.plot(x, y, color=ANC_COLORS[a], lw=0.9, zorder=3)
+        ax.plot(x, y, color=ANC_COLORS[a], lw=0.9, zorder=3, label=a)
         ax.fill_between(x, lo_, hi_, color=ANC_COLORS[a], alpha=0.15, linewidth=0, zorder=2)
+        curves_xy[a] = (x, y)
         ends[a] = (x[-1], y[-1])
         xmax = max(xmax, x[-1])
     if ends:
-        ymin_data = min(v[1] for v in ends.values())
-        ymax_data = max(v[1] for v in ends.values())
-        min_gap = max(1.0, (ymax_data - ymin_data) * 0.15) if ymax_data > ymin_data else 1.0
-        order = sorted(ends, key=lambda a: ends[a][1])
+        label_x_shared = xmax * 1.03  # past every curve's own last point -- no line reaches here
+        label_y = {a: ends[a][1] for a in ends}
+        yrange = max(v[1] for v in ends.values()) - min(v[1] for v in ends.values())
+        min_gap = max(1.0, yrange * 0.12)
+
+        order = sorted(ends, key=lambda a: label_y[a])
         placed = []
         for a in order:
-            y = ends[a][1]
+            y = label_y[a]
             if placed and y - placed[-1] < min_gap:
                 y = placed[-1] + min_gap
             placed.append(y)
-        for a, y_lab in zip(order, placed):
+        for a, y in zip(order, placed):
+            label_y[a] = y
+
+        for a in ends:
+            t = ax.annotate(a, (label_x_shared, label_y[a]), fontsize=FS_ANNOT,
+                           color=ANC_COLORS[a], fontweight="bold", va="center", ha="left")
+            vc.mark_label(t)
+            # Short leader dash from the curve's true endpoint to the shared label column, for any
+            # ancestry whose own end sits noticeably left of it (else the label would otherwise
+            # look unconnected to its curve) -- a plain thin line, not requiring its own label, so
+            # it is registered as a decoration rather than data the (a4) check would compare labels
+            # against.
             x0, y0 = ends[a]
-            ax.annotate(a, (x0, y_lab), xytext=(3, 0), textcoords="offset points",
-                       fontsize=FS_ANNOT, color=ANC_COLORS[a], fontweight="bold", va="center")
-        ax.set_xlim(0, xmax * 1.14)
+            leader_x_end = label_x_shared - 0.01 * xmax  # stop short of the label's own text bbox
+            if leader_x_end - x0 > 0.01 * xmax:
+                ln, = ax.plot([x0, leader_x_end], [y0, label_y[a]], color=ANC_COLORS[a],
+                             lw=0.5, ls=(0, (1, 1)), zorder=2.5, clip_on=False)
+                vc.mark_decoration(ln)
+
+        # Extend the view to fit both the longest curve's x and every placed label -- autoscale
+        # only ever accounted for the DATA (curves/fill_between), never these text annotations, so
+        # a label pushed up by repulsion could land above the autoscaled top and be clipped
+        # invisibly (the actual root cause of the very first pass's missing AFR label).
+        y_lo_data = 0.0
+        y_hi_data = max(v[1] for v in ends.values())
+        y_lo = min([y_lo_data] + list(label_y.values()))
+        y_hi = max([y_hi_data] + list(label_y.values()))
+        pad = max(1.0, (y_hi - y_lo) * 0.04)
+        ax.set_ylim(y_lo - pad * 0.3, y_hi + pad)
+        ax.set_xlim(0, label_x_shared * 1.14)
     ax.set_xlabel("people sampled (both haplotypes)", fontsize=FS_TITLE)
     ax.set_ylabel("distinct HLA protein alleles\n(8 classical genes, pooled)", fontsize=FS_TITLE)
     ax.tick_params(labelsize=FS_TICK)
@@ -484,8 +565,14 @@ def draw_panel_f(ax, oe_path):
     # throughout -- see 37_dq_g1g2_signed_ld/oe_purge_committed.tsv) -- this is an EXACT zero,
     # not a suppressed/upper-bound one, so it is labelled and coloured accordingly.
     ax.bar(x - w / 2, exp_v, width=w, color="#B0B0B0", label="expected", zorder=3)
+    # No legend entry for the "observed" bars (orchestrator review, 2026-09-26): every observed
+    # bar is ~0.6% of its expected bar's height -- visually indistinguishable from "invisible" at
+    # this scale -- so a legend swatch for it is a color a reader can never actually match against
+    # the plot. The per-ancestry coloured "0" already states observed=0 directly, once per bar;
+    # `label="_nolegend_"` keeps the bars themselves (needed for the "0" annotations' x-position
+    # and as a visual placeholder next to "expected") without a matching, unreadable legend key.
     ax.bar(x + w / 2, np.maximum(obs_hi, exp_v * 0.006), width=w, color="#DDDDDD",
-          edgecolor="#999999", linewidth=0.4, label="observed", zorder=3)
+          edgecolor="#999999", linewidth=0.4, label="_nolegend_", zorder=3)
     for i, a in enumerate(ANC):
         ax.text(i + w / 2, max(exp_v) * 0.02, "0", ha="center", va="bottom",
                fontsize=FS_ANNOT, color=ANC_COLORS[a], fontweight="bold")
@@ -494,10 +581,14 @@ def draw_panel_f(ax, oe_path):
     for tick, a in zip(ax.get_xticklabels(), ANC):
         tick.set_color(ANC_COLORS[a])
         tick.set_fontweight("bold")
-    ax.set_ylabel("DQA1~DQB1 cis haplotypes\nin G1×G2 cross-group cells", fontsize=FS_TITLE)
+    # Shortened from "DQA1~DQB1 cis haplotypes\nin G1x G2 cross-group cells" (orchestrator review,
+    # 2026-09-26) -- full definition stays in the report README.
+    ax.set_ylabel("cross-group DQA1×DQB1\nhaplotypes", fontsize=FS_TITLE)
     ax.tick_params(axis="y", labelsize=FS_TICK)
     ax.spines[["top", "right"]].set_visible(False)
-    ax.legend(frameon=False, fontsize=FS_LEG, loc="upper right", handlelength=1.0)
+    ax.legend(frameon=False, fontsize=FS_LEG, loc="upper right", handlelength=1.0,
+             title="observed = 0 in all ancestries", title_fontsize=FS_LEG - 0.5,
+             alignment="left")
 
 
 def compose_layout(layout, bins_path, pb, cd_data, curves_path, oe_path, gene_b, min_carriers,
@@ -511,24 +602,47 @@ def compose_layout(layout, bins_path, pb, cd_data, curves_path, oe_path, gene_b,
         W, H = mm(CANVAS_W_MM), mm(CANVAS_H_MM)
         fig = plt.figure(figsize=(W, H))
         # Reduced from 0.85 -- most of that gap was pure whitespace below panel a's thin strip
-        # (orchestrator: reduce whitespace between rows 1 and 2).
-        outer = GridSpec(3, 1, height_ratios=[22, 60, 55], hspace=0.42, left=0.050, right=0.985,
+        # (orchestrator: reduce whitespace between rows 1 and 2). Round 2 (orchestrator,
+        # 2026-09-26): "tighten whitespace between the rows" -- 0.42 -> 0.30.
+        outer = GridSpec(3, 1, height_ratios=[22, 60, 55], hspace=0.30, left=0.050, right=0.985,
                          top=0.98, bottom=0.075, figure=fig)
 
         ax_a = fig.add_subplot(outer[0])
         draw_panel_a(ax_a, bins_path)
         vc.panel_letter(ax_a, "a", dx=-0.028, dy=1.12)
 
+        # Column order b / c / colorbar / d (was b / c / d / colorbar): orchestrator review,
+        # 2026-09-26 -- the colorbar describes panel c's heatmap, but sitting AFTER panel d put it
+        # far from c with a wide, empty-looking gap (d's own bars don't fill their whole column,
+        # so the visual gap between d's plotted bars and the colorbar's thin column read as
+        # "floating"). Placing it directly against c's right edge removes that gap and reads as
+        # what it is -- c's colorbar, not d's.
         if layout == "A":
-            gs2 = outer[1].subgridspec(1, 4, width_ratios=[55, 78, 32, 4], wspace=0.55)
+            gs2 = outer[1].subgridspec(1, 4, width_ratios=[55, 78, 4, 32], wspace=0.55)
         else:
             # layout B: swap b/c+d emphasis -- give the heatmap a touch more width and the
             # ternary a touch less, to see whether it reads better with 8 gene rows.
-            gs2 = outer[1].subgridspec(1, 4, width_ratios=[50, 84, 32, 4], wspace=0.55)
+            gs2 = outer[1].subgridspec(1, 4, width_ratios=[50, 84, 4, 32], wspace=0.55)
         ax_b = fig.add_subplot(gs2[0, 0])
         ax_c = fig.add_subplot(gs2[0, 1])
-        ax_d = fig.add_subplot(gs2[0, 2])
-        cax = fig.add_subplot(gs2[0, 3])
+        cax = fig.add_subplot(gs2[0, 2])
+        # sharey=ax_c: structural row alignment for panel d (orchestrator: "make it visibly
+        # aligned to c's rows") -- ties the y data-to-display mapping exactly, rather than relying
+        # on both axes independently being told the same ylim/invert calls to stay in sync.
+        ax_d = fig.add_subplot(gs2[0, 3], sharey=ax_c)
+        # `sharey=` makes ax_d.yaxis.major (locator+formatter) the SAME OBJECT as ax_c.yaxis.major
+        # (matplotlib's actual sharex/sharey behavior -- see _viz_common.mark_decoration()'s
+        # docstring and 37c_dq_g1g2_from_committed.py's Ticker-replacement fix for the full
+        # writeup of the bug class this avoids): ax_d never needs its own y tick labels (the gene
+        # names live on ax_c only), so give it a private NullLocator/NullFormatter on the shared
+        # axis right away -- this keeps the alignment (which only depends on shared ylim via the
+        # Grouper, not on the Locator) while preventing a later `fig.canvas.draw()` from growing
+        # ax_d's own tick-label objects and rendering a stray duplicate copy of the gene names.
+        from matplotlib.axis import Ticker as _Ticker
+        from matplotlib.ticker import NullLocator as _NullLocator, NullFormatter as _NullFormatter
+        ax_d.yaxis.major = _Ticker()
+        ax_d.yaxis.set_major_locator(_NullLocator())
+        ax_d.yaxis.set_major_formatter(_NullFormatter())
 
         draw_panel_b(ax_b, pb, gene_b, min_carriers, strict)
         vc.panel_letter(ax_b, "b", dx=-0.10, dy=1.06)
@@ -553,6 +667,21 @@ def compose_layout(layout, bins_path, pb, cd_data, curves_path, oe_path, gene_b,
         vc.panel_letter(ax_e, "e", dx=-0.15, dy=1.05)
         draw_panel_f(ax_f, oe_path)
         vc.panel_letter(ax_f, "f", dx=-0.16, dy=1.05)
+
+        # Explicit edge alignment (orchestrator: "align the left edges of b/e and right edges of
+        # d/f") -- b/c/d/cax and e/f come from two INDEPENDENT subgridspecs (gs2, gs3), each
+        # spanning the outer row's full width on its own, so their fractional column widths need
+        # not put a shared boundary at the same physical x. Read the actual drawn positions and
+        # nudge e's left edge to match b's, and f's right edge to match d's, preserving each axes'
+        # own width (same pattern already used above to reposition the colorbar).
+        fig.canvas.draw()
+        pb_, pe_ = ax_b.get_position(), ax_e.get_position()
+        if abs(pe_.x0 - pb_.x0) > 1e-6:
+            ax_e.set_position([pb_.x0, pe_.y0, pe_.width, pe_.height])
+        pd_, pf_ = ax_d.get_position(), ax_f.get_position()
+        target_right = pd_.x1
+        if abs(pf_.x1 - target_right) > 1e-6:
+            ax_f.set_position([target_right - pf_.width, pf_.y0, pf_.width, pf_.height])
 
         return fig
 
