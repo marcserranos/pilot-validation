@@ -153,7 +153,7 @@ _CODONS = [a + b + c for a in _BASES for b in _BASES for c in _BASES]
 _AMINO_ACIDS = "FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"
 CODON_TABLE = dict(zip(_CODONS, _AMINO_ACIDS))
 
-GENE_CDS_FILENAME = {"HLA-A": "A.fa.gz", "HLA-B": "B.fa.gz", "HLA-C": "C.fa.gz"}
+GENE_CDS_FILENAME = {"HLA-A": "HLA-A.fa.gz", "HLA-B": "HLA-B.fa.gz", "HLA-C": "HLA-C.fa.gz"}
 
 
 def log(msg):
