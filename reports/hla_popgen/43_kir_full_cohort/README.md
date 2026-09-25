@@ -50,7 +50,14 @@ figure).
   excluded** upstream (see Caveats). 12,157 people (99.15%) produced both haplotypes; 104 people
   (0.85%) produced only one haplotype (deterministic — the retry pass reproduced the exact same
   104, plausibly a real assembly that doesn't span KIR on one haplotype, not a transient failure);
-  **0 people produced no output at all**.
+  **0 people produced no output at all**. **Open item (Critic #2, not reconciled here):** this
+  "104" is not directly reproducible from the six committed TSVs -- the closest derivable
+  quantities are 9 haplotype-level parse failures (`kir_run_summary.tsv`'s "all" row:
+  24,522 attempted vs 24,513 parsed valid) and 123 zero-KIR-call haplotypes in that same "all"
+  bundle (24,513 valid vs 24,390 with ≥1 call), neither of which is 104. If "104" comes from a
+  different source (e.g. the orchestrator's own per-person completion log, external to this
+  aggregation script), cite that source here; otherwise reconcile the number against the TSVs
+  before treating it as a QC fact.
 - **HLA outputs verified untouched**: md5 of all 14 HLA production tables identical before and
   after this run.
 - **Unrelated set**: 11,882 people (379 dropped, KING kin ≥ 0.0442) → 23,764 haplotypes attempted,
@@ -67,13 +74,15 @@ figure).
 
 - **9.23 mean KIR genes called per haplotype** (unrelated set, 23,637 haplotypes with ≥1 call),
   **58.9% of the 222,771 total allele calls are novel** (no exact IPD-KIR match; Wilson CI
-  58.7–59.1%), 0.02% undetermined.
+  58.7–59.1%), 0.02% undetermined (40/222,771 -- `kir_run_summary.tsv`'s own 1-decimal
+  `pct_undetermined` column rounds this to "0.0"; both are the same underlying count, just
+  different display precision).
 - **Novelty is still overwhelmingly non-coding**: pooling across genes, the "novel, genomic-only"
   tier dominates every gene's novel calls; "novel protein" tops out at **22.5% (KIR2DL5B)** and is
   ≤10% for every other gene (see `kir_gene_summary.tsv`, Figure panel b).
 - **Presence per gene** ranges from 15.3% (KIR2DS3, a "B-content" variable gene) to 96.5%
   (KIR3DL3, the centromeric-most framework gene) — panel a.
-- **cA/cB haplotype content**: 13,196 cA (55.7%) vs 10,441 cB (44.3%) overall, with real ancestry
+- **cA/cB haplotype content**: 13,196 cA (55.8%) vs 10,441 cB (44.2%) overall, with real ancestry
   structure: EAS highest cA (66.7%, CI 65.0–68.4%), SAS lowest (41.4%, CI 39.4–43.3%) — panel e.
 - **QC sanity checks**: KIR2DL2/KIR2DL3 co-occurrence 0.8% (178/22,409) and KIR3DL1/KIR3DS1
   co-occurrence 1.8% (390/21,890) — both low as expected for allelic-alternative gene pairs, but
@@ -88,6 +97,13 @@ figure).
 |---|---|---|---|
 | Mean KIR genes/haplotype | 9.32 | 9.06 | **9.23** |
 | % novel alleles | 60.8% | 61.0% | **58.9%** |
+
+20-person figures per `41_kir_scoping/README.md`. The 170-person figures are **not** in that
+README (it only describes launching the extended run, never got a results update after it
+finished) -- they are traceable to `sprints/S03_call8_figures_kir_prediction/LOG.md`
+(`[09-24 ~23:40]` entry: "170/170 people, 340/340 haps, 9.06 genes/hap, 61.0% novel") and to
+`reports/hla_popgen/41_kir_scoping/41_kir_pilot_summary.kir41.tsv`
+(`q_mean_kir_genes_per_hap`/`q_pct_novel` columns), which this table reproduces exactly.
 
 The full-cohort numbers land squarely between the two pilots for gene count and just a couple of
 points below both pilots for novelty — directionally consistent, not a surprise given the extra

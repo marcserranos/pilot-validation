@@ -118,7 +118,7 @@ def panel_b_novelty(ax, gene_summary, y):
         left = left + vals
     n_calls = gs["n_calls"].astype(int).values
     for yi, n in zip(y, n_calls):
-        ax.text(101.5, yi, f"n={n:,}", va="center", ha="left", fontsize=4.3, color="#333333")
+        ax.text(101.5, yi, f"n={n:,}", va="center", ha="left", fontsize=5.2, color="#333333")
     ax.set_yticks(y)
     ax.set_yticklabels([])
     ax.invert_yaxis()
@@ -145,18 +145,18 @@ def _heatmap(ax, mat, y, cmap, vmin, vmax, censored_mask, cbar_label, title, fmt
                                         zorder=4))
             elif not np.isnan(mat[gi, ai]):
                 ax.text(ai, gi, fmt.format(mat[gi, ai]), ha="center", va="center",
-                        fontsize=3.6, color="white" if mat[gi, ai] > (vmin + vmax) / 2
+                        fontsize=5.0, color="white" if mat[gi, ai] > (vmin + vmax) / 2
                         else "#222222")
     ax.set_xticks(np.arange(mat.shape[1]))
-    ax.set_xticklabels(ANCESTRY_ORDER, fontsize=4.6, rotation=90)
+    ax.set_xticklabels(ANCESTRY_ORDER, fontsize=5.3, rotation=90)
     ax.set_yticks(y)
     ax.set_yticklabels([])
     ax.set_title(title, fontsize=7, pad=3)
     ax.tick_params(axis="y", length=0)
     ax.tick_params(axis="x", length=2, pad=1)
     cbar = plt.colorbar(im, ax=ax, fraction=0.05, pad=0.04, shrink=0.85)
-    cbar.set_label(cbar_label, fontsize=4.6)
-    cbar.ax.tick_params(labelsize=4.2, length=1.5)
+    cbar.set_label(cbar_label, fontsize=5.3)
+    cbar.ax.tick_params(labelsize=5.0, length=1.5)
     return im
 
 
@@ -171,7 +171,7 @@ def panel_c_presence_heatmap(ax, gene_by_ancestry, y):
     censored = np.isnan(mat)  # none expected for presence, but handled generically
     _heatmap(ax, mat, y, "viridis", 0, 100, censored, "presence (%)", "Presence × ancestry")
     labels = [GENE_SHORT[g] + (" †" if g in FRAMEWORK_GENES else "") for g in GENE_ORDER]
-    ax.set_yticklabels(labels, fontsize=4.6)
+    ax.set_yticklabels(labels, fontsize=5.3)
 
 
 def panel_d_novelty_heatmap(ax, gene_by_ancestry, y):
@@ -229,7 +229,7 @@ def panel_f_qc(ax, qc):
         row = co.loc[item]
         pct = row["pct"]
         lines.append(f"{label} co-occur: {pct}%  (n={row['n']}/{row['d']})")
-    ax.text(1.03, 0.95, "\n".join(lines), transform=ax.transAxes, fontsize=4.6,
+    ax.text(1.03, 0.95, "\n".join(lines), transform=ax.transAxes, fontsize=5.3,
             va="top", ha="left")
 
 
@@ -263,14 +263,14 @@ def build_figure(tables, out_stem):
         bottoms, tops, _lefts, _rights = gs.get_grid_positions(fig)
         row_gap_y = (bottoms[0] + tops[1]) / 2.0  # (row0 bottom + row1 top) / 2
         fig.legend(legend_handles, [NOVELTY_LABEL[t] for t in NOVELTY_ORDER],
-                   loc="center", bbox_to_anchor=(0.5, row_gap_y), ncol=4, fontsize=4.8,
+                   loc="center", bbox_to_anchor=(0.5, row_gap_y), ncol=4, fontsize=5.3,
                    frameon=False, handlelength=1.0, handleheight=0.9, columnspacing=1.2)
 
         fig.text(0.085, 0.015,
                   "† framework gene (expected on ~all haplotypes).  "
                   "Hatched cells: <20 calls, censored per disclosure rule.  "
                   "Ancestry = predicted; unrelated subset (KING kin ≥ 0.0442 removed).",
-                  fontsize=4.6, color="#444444")
+                  fontsize=5.3, color="#444444")
 
         return save_fig(fig, out_stem)
 
