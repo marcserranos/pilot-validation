@@ -130,7 +130,61 @@ def estimate_n_haplotypes(df_anc):
 # own dense grid). A `suppressed_lt20` cell IS coloured by its real D' but gets a small dot marker
 # so the reader knows its count is disclosed only as "<20", not as an exact integer.
 # ---------------------------------------------------------------------------
-def fig_g1g2_from_table(df_anc, path_stem, corner_label=""):
+# Fill for the "predicted incompatible" quadrants (S04 WS-C phase 2 redesign). Distinct from
+# vc.SUPPRESSED_COLOR ("#D9D9D9", always hatched, means "disclosure-censored data") -- this is a
+# plain, unhatched, slightly lighter grey meaning "structurally uniform, nothing to see here": the
+# data (recurrent_cross_group_pairs.tsv / oe_purge_committed.tsv) show D'=-1 (0 haplotypes
+# observed) for every cross-group cell in every ancestry, so painting this quadrant on the same
+# red-white-blue scale as the informative G1/G1, G2/G2 blocks wastes ink and a reader's attention
+# on a foregone, uniform result. A pair that's absent from the table entirely still gets the usual
+# hatched SUPPRESSED_COLOR treatment, drawn on top of this fill, so the two "nothing here" reasons
+# (confirmed-zero vs never-cleared-the-disclosure-floor) stay visually distinct.
+NEUTRAL_INCOMPAT_COLOR = "#EDEDED"
+
+
+def _bracket_v(ax, y0, y1, label, x=0.30, cap=0.14, fontsize=5.5):
+    """Vertical G1/G2 group bracket (a plain square-bracket '[' shape) spanning data-y range
+    [y0, y1] on `ax`, with `label` set just to its left, rotated 90. Used for the DQA1 (row) axis,
+    placed in a narrow dedicated axes to the LEFT of the heatmap so it sits directly adjacent to
+    the row tick labels instead of floating off in a large negative-axes-fraction offset (the
+    fault CRITIC_WSC.md flagged: 'sit far outside the plot'). `x` is deliberately on the FAR side
+    of this axes (away from the heatmap, small x) -- the heatmap's own y tick labels hug the
+    heatmap's left edge (large x in this axes' 0-1 coordinate space) and need the x>0.3 region of
+    this column clear to render into without colliding with the bracket."""
+    ax.plot([x, x], [y0, y1], color="black", lw=0.6, clip_on=False, solid_capstyle="butt")
+    ax.plot([x, x - cap], [y0, y0], color="black", lw=0.6, clip_on=False)
+    ax.plot([x, x - cap], [y1, y1], color="black", lw=0.6, clip_on=False)
+    ax.text(x - cap - 0.10, (y0 + y1) / 2.0, label, ha="right", va="center", fontsize=fontsize,
+            rotation=90)
+
+
+def _bracket_h(ax, x0, x1, label, y=0.55, cap=0.16, fontsize=5.5):
+    """Horizontal G1/G2 group bracket for the DQB1 (column) axis, in a narrow dedicated axes
+    BELOW the heatmap (below the rotated column tick labels). `y` is on the FAR side of this
+    axes (away from the heatmap, small-ish y after leaving headroom above for the tick labels
+    that hug the heatmap's bottom edge, i.e. large y in this axes) -- same rationale as
+    `_bracket_v`."""
+    ax.plot([x0, x1], [y, y], color="black", lw=0.6, clip_on=False, solid_capstyle="butt")
+    ax.plot([x0, x0], [y, y - cap], color="black", lw=0.6, clip_on=False)
+    ax.plot([x1, x1], [y, y - cap], color="black", lw=0.6, clip_on=False)
+    ax.text((x0 + x1) / 2.0, y - cap - 0.12, label, ha="center", va="top", fontsize=fontsize)
+
+
+def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=None):
+    """Redesigned S04 WS-C phase 2 layout (was: independently-sized marginal axes that didn't
+    line up with the heatmap columns/rows, a colorbar floating far to the right with large empty
+    gaps, G1/G2 labels pushed to a large negative-axes-fraction offset outside the panel, a
+    sentence-length corner label, and two solid dark-blue 'predicted incompatible' blocks that
+    dominate the figure's ink despite carrying zero information -- see CRITIC_WSC.md).
+
+    Fix: one GridSpec, sharex/sharey between the heatmap and both marginals (so alignment is
+    structural, not a matched-width/height coincidence), a compact same-row colorbar axes, G1/G2
+    brackets in dedicated thin axes adjacent to the tick labels, and the incompatible quadrants
+    flattened to a plain neutral fill (see NEUTRAL_INCOMPAT_COLOR) so the eye goes to the
+    informative G1/G1, G2/G2 blocks. `check_layout()` (via `save_fig`, strict=True) is the
+    acceptance test for the layout fixes; visual encoding choices were iterated by re-reading the
+    rendered PNG.
+    """
     import matplotlib.pyplot as plt
 
     m37mod = m37()
@@ -148,10 +202,11 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label=""):
         have["allele_b"].unique(),
         key=lambda b: (dq_group("DQB1", b) != "G2",
                         -have.loc[have["allele_b"] == b, "freq_b"].max()))
+    n_a, n_b = len(a_alleles), len(b_alleles)
     n_a2 = sum(1 for a in a_alleles if dq_group("DQA1", a) == "G2")
     n_b2 = sum(1 for b in b_alleles if dq_group("DQB1", b) == "G2")
 
-    M = np.full((len(a_alleles), len(b_alleles)), np.nan)
+    M = np.full((n_a, n_b), np.nan)
     censored_dot = np.zeros_like(M, dtype=bool)
     look = {(r["allele_a"], r["allele_b"]): r["signed_Dprime"] for _, r in have.iterrows()}
     status_look = {(r["allele_a"], r["allele_b"]): r.get("status") for _, r in df_anc.iterrows()}
@@ -164,93 +219,120 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label=""):
                     censored_dot[i, j] = True
             # else: genuinely absent from the table for this ancestry -- stays NaN -> hatched.
 
+    # Incompatible-quadrant mask: (G2-alpha row, G1-beta col) or (G1-alpha row, G2-beta col).
+    incompat = np.zeros_like(M, dtype=bool)
+    incompat[:n_a2, n_b2:] = True
+    incompat[n_a2:, :n_b2] = True
+    Mdisplay = np.where(incompat, np.nan, M)  # incompatible cells never get D'-scale color
+
     marg_a = {a: have.loc[have["allele_a"] == a, "freq_a"].max() for a in a_alleles}
     marg_b = {b: have.loc[have["allele_b"] == b, "freq_b"].max() for b in b_alleles}
 
+    width_mm = vc.NATURE_DOUBLE_COL_MM  # 183mm -- many alleles need the double-column width
+    height_mm = float(np.clip(58 + 6.2 * n_a, 95, 165))
+
     with vc.nature_style():
-        fig = plt.figure(figsize=(vc.mm(120), vc.mm(112)))
-        gs = fig.add_gridspec(2, 2, width_ratios=[len(b_alleles), 5],
-                               height_ratios=[3.5, len(a_alleles)], wspace=0.02, hspace=0.02)
-        ax_heat = fig.add_subplot(gs[1, 0])
-        ax_top = fig.add_subplot(gs[0, 0], sharex=ax_heat)
-        ax_right = fig.add_subplot(gs[1, 1], sharey=ax_heat)
+        fig = plt.figure(figsize=(vc.mm(width_mm), vc.mm(height_mm)))
+        gs = fig.add_gridspec(
+            3, 4,
+            width_ratios=[2.8, n_b, 1.9, 0.42],
+            height_ratios=[1.9, n_a, 2.3],
+            wspace=0.08, hspace=0.10,
+            left=0.10, right=0.90, top=0.95, bottom=0.05)
+        ax_heat = fig.add_subplot(gs[1, 1])
+        ax_top = fig.add_subplot(gs[0, 1], sharex=ax_heat)
+        ax_right = fig.add_subplot(gs[1, 2], sharey=ax_heat)
+        ax_cbar = fig.add_subplot(gs[1, 3])
+        ax_brk_y = fig.add_subplot(gs[1, 0], sharey=ax_heat)
+        ax_brk_x = fig.add_subplot(gs[2, 1], sharex=ax_heat)
+        vc.mark_marginal(ax_top, ax_heat, axis="x")
+        vc.mark_marginal(ax_right, ax_heat, axis="y")
 
         cmap = vc.diverging_cmap()
         norm = vc.diverging_norm(-1.0, 1.0)
-        ax_heat.imshow(M, cmap=cmap, norm=norm, aspect="auto", interpolation="none")
-        for i in range(len(a_alleles)):
-            for j in range(len(b_alleles)):
+
+        # Neutral fill for the two incompatible quadrants FIRST (plain rectangles, not imshow --
+        # a flat single patch per quadrant is less ink than per-cell color for a uniform result).
+        if n_b2 < n_b and n_a2 > 0:
+            ax_heat.add_patch(plt.Rectangle((n_b2 - 0.5, -0.5), n_b - n_b2, n_a2,
+                                             facecolor=NEUTRAL_INCOMPAT_COLOR, edgecolor="none",
+                                             zorder=1))
+        if n_b2 > 0 and n_a2 < n_a:
+            ax_heat.add_patch(plt.Rectangle((-0.5, n_a2 - 0.5), n_b2, n_a - n_a2,
+                                             facecolor=NEUTRAL_INCOMPAT_COLOR, edgecolor="none",
+                                             zorder=1))
+        ax_heat.imshow(Mdisplay, cmap=cmap, norm=norm, aspect="auto", interpolation="none",
+                       zorder=2)
+        for i in range(n_a):
+            for j in range(n_b):
                 if np.isnan(M[i, j]):
-                    vc.hatch_suppressed(ax_heat, j - 0.5, i - 0.5, 1, 1)
+                    vc.hatch_suppressed(ax_heat, j - 0.5, i - 0.5, 1, 1, zorder=3)
                 elif censored_dot[i, j]:
                     ax_heat.plot(j, i, marker="o", markersize=1.3, color="black", zorder=6)
 
-        ax_heat.set_xticks(range(len(b_alleles)))
+        ax_heat.set_xticks(range(n_b))
         ax_heat.set_xticklabels(b_alleles, rotation=90, fontsize=5)
-        ax_heat.set_yticks(range(len(a_alleles)))
+        ax_heat.set_yticks(range(n_a))
         ax_heat.set_yticklabels(a_alleles, fontsize=5)
         ax_heat.tick_params(length=2)
         ax_heat.set_xlabel("DQB1", fontsize=6)
         ax_heat.set_ylabel("DQA1", fontsize=6)
-        ax_heat.set_xlim(-0.5, len(b_alleles) - 0.5)
-        ax_heat.set_ylim(len(a_alleles) - 0.5, -0.5)
-
+        ax_heat.set_xlim(-0.5, n_b - 0.5)
+        ax_heat.set_ylim(n_a - 0.5, -0.5)
         ax_heat.axhline(n_a2 - 0.5, color="black", lw=0.8, zorder=5)
         ax_heat.axvline(n_b2 - 0.5, color="black", lw=0.8, zorder=5)
 
-        # Direct label, no decorative box (FIGURE_STYLE.md de-AI checklist item 12) -- plain white
-        # text reads cleanly against the solid dark-blue D'=-1 fill it always sits on here, so a
-        # background chip adds nothing but clutter.
-        if n_b2 < len(b_alleles) and n_a2 > 0:
-            ax_heat.text((n_b2 + len(b_alleles)) / 2 - 0.5, n_a2 / 2 - 0.5,
-                         "predicted incompatible", ha="center", va="center", fontsize=5.5,
-                         color="white", zorder=10)
-        if n_b2 > 0 and n_a2 < len(a_alleles):
-            ax_heat.text(n_b2 / 2 - 0.5, (n_a2 + len(a_alleles)) / 2 - 0.5,
-                         "predicted incompatible", ha="center", va="center", fontsize=5.5,
-                         color="white", zorder=10)
+        # One small annotation carries the headline (de-AI checklist item 8: direct label, no
+        # legend) instead of duplicating "predicted incompatible" text across both quadrants.
+        note = incompatible_note or "predicted incompatible\n(D′≈−1)"
+        if n_b2 < n_b and n_a2 > 0:
+            ax_heat.text((n_b2 + n_b) / 2 - 0.5, n_a2 / 2 - 0.5, note, ha="center", va="center",
+                         fontsize=5, color="#555555", zorder=4)
+        elif n_b2 > 0 and n_a2 < n_a:
+            ax_heat.text(n_b2 / 2 - 0.5, (n_a2 + n_a) / 2 - 0.5, note, ha="center", va="center",
+                         fontsize=5, color="#555555", zorder=4)
 
-        # Group-block axis labels (G1/G2), per orchestrator review. Pushed well clear of the
-        # (variable-width) allele tick labels -- bbox_inches='tight' in save_fig expands the
-        # canvas to fit, so a large negative offset costs nothing.
-        label_x = -0.62
-        ax_heat.text(label_x, (n_a2 - 1) / 2 if n_a2 else 0, "G2 α (DQA1*01)",
-                    transform=ax_heat.get_yaxis_transform(), ha="center", va="center", fontsize=5,
-                    rotation=90)
-        if n_a2 < len(a_alleles):
-            ax_heat.text(label_x, n_a2 + (len(a_alleles) - n_a2 - 1) / 2, "G1 α (DQA1*02–06)",
-                        transform=ax_heat.get_yaxis_transform(), ha="center", va="center",
-                        fontsize=5, rotation=90)
-        ax_top.text((n_b2 - 1) / 2 if n_b2 else 0, 1.35, "G2 β (DQB1*05/06)",
-                   transform=ax_top.get_xaxis_transform(), ha="center", va="bottom", fontsize=4.5)
-        if n_b2 < len(b_alleles):
-            ax_top.text(n_b2 + (len(b_alleles) - n_b2 - 1) / 2, 1.35, "G1 β (DQB1*02/03/04)",
-                       transform=ax_top.get_xaxis_transform(), ha="center", va="bottom", fontsize=4.5)
+        # G1/G2 brackets, adjacent to the tick labels (dedicated thin axes, not a large offset).
+        for a in (ax_brk_y, ax_brk_x):
+            a.set_axis_off()
+        ax_brk_y.set_xlim(0, 1)
+        if n_a2 > 0:
+            _bracket_v(ax_brk_y, -0.5, n_a2 - 0.5, "G2")
+        if n_a2 < n_a:
+            _bracket_v(ax_brk_y, n_a2 - 0.5, n_a - 0.5, "G1")
+        ax_brk_x.set_ylim(0, 1)
+        if n_b2 > 0:
+            _bracket_h(ax_brk_x, -0.5, n_b2 - 0.5, "G2")
+        if n_b2 < n_b:
+            _bracket_h(ax_brk_x, n_b2 - 0.5, n_b - 0.5, "G1")
 
-        ax_top.bar(range(len(b_alleles)), [marg_b[b] for b in b_alleles], color="#AAAAAA",
-                  width=0.6, linewidth=0)
+        ax_top.bar(range(n_b), [marg_b[b] for b in b_alleles], color="#AAAAAA",
+                  width=0.7, linewidth=0)
         ax_top.set_ylabel("carrier\nfreq.", fontsize=4.5)
-        ax_top.set_yticks([0, 0.1, 0.2, 0.3])
-        ax_top.set_ylim(0, max(0.31, max(marg_b.values()) * 1.05))
+        top_max = max(0.31, max(marg_b.values()) * 1.05)
+        ax_top.set_yticks([0, round(top_max / 2, 2), round(top_max, 2)])
+        ax_top.set_ylim(0, top_max)
         ax_top.tick_params(labelbottom=False, bottom=False, labelsize=4)
         ax_top.spines[["top", "right"]].set_visible(False)
 
-        ax_right.barh(range(len(a_alleles)), [marg_a[a] for a in a_alleles], color="#AAAAAA",
-                     height=0.6, linewidth=0)
+        ax_right.barh(range(n_a), [marg_a[a] for a in a_alleles], color="#AAAAAA",
+                     height=0.7, linewidth=0)
         ax_right.set_xlabel("carrier\nfreq.", fontsize=4.5)
-        ax_right.set_xticks([0, 0.1, 0.2, 0.3])
-        ax_right.set_xlim(0, max(0.31, max(marg_a.values()) * 1.05))
+        right_max = max(0.31, max(marg_a.values()) * 1.05)
+        ax_right.set_xticks([0, round(right_max / 2, 2), round(right_max, 2)])
+        ax_right.set_xlim(0, right_max)
         ax_right.tick_params(labelleft=False, left=False, labelsize=4)
         ax_right.spines[["top", "right"]].set_visible(False)
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        cbar = fig.colorbar(sm, ax=[ax_heat, ax_right], location="right", fraction=0.05,
-                            pad=0.16, shrink=0.4, aspect=12)
-        cbar.set_label("Signed phased D'", fontsize=5.5)
-        cbar.ax.tick_params(labelsize=4.5)
+        cbar = fig.colorbar(sm, cax=ax_cbar)
+        cbar.set_label("Signed phased D′", fontsize=5.5)
+        cbar.ax.tick_params(labelsize=4.5, length=2)
 
+        # Short panel label (not a sentence) -- N and full context live in the report README.
         if corner_label:
-            fig.text(0.01, 0.99, corner_label, ha="left", va="top", fontsize=5.5)
+            fig.text(0.005, 0.995, corner_label, ha="left", va="top", fontsize=6,
+                     fontweight="bold")
     return vc.save_fig(fig, path_stem)
 
 
@@ -390,11 +472,16 @@ def fig_bimodality(df_all, path_stem, ancestries=SUPPLEMENT_ANCESTRIES):
             ax2.set_title("predicted\nincompatible\nn=0", fontsize=5.5)
         for ax in (ax1, ax2):
             ax.set_xlabel("Signed D'", fontsize=5.5)
+            # Fixed 3-tick scale (was matplotlib's auto ~7 ticks at 0.5 spacing, which crowded
+            # into overlapping labels at this panel's narrow single-column width -- CRITIC_WSC.md
+            # / S04 WS-C phase 2 fix, caught by check_layout()'s text_overlap check).
+            ax.set_xticks([-1, 0, 1])
             ax.tick_params(labelsize=4.5)
             ax.spines[["top", "right"]].set_visible(False)
-        fig.suptitle("Bimodality within compatible vs incompatible quadrants (pooled %s)"
-                     % ", ".join(ancestries), fontsize=6.5)
-        fig.subplots_adjust(top=0.78, wspace=0.15)
+        # Short panel label, not a sentence (de-AI checklist item 7) -- the full description
+        # ("pooled across AFR/AMR/EAS/EUR/SAS") lives in the report README/caption.
+        fig.suptitle("DQ G1/G2 bimodality", fontsize=6.5, fontweight="bold", y=0.99)
+        fig.subplots_adjust(top=0.74, wspace=0.15)
     return vc.save_fig(fig, path_stem), {
         "n_compatible": int(len(compatible)),
         "n_incompatible": int(len(incompatible)),
@@ -420,26 +507,9 @@ def run(args):
     print("[37c] most-haplotypes single ancestry: %s (N=%d)" % (main_anc, n_by_anc[main_anc]),
          flush=True)
 
-    pooled_df, pooled_N = pool_across_ancestries(df_all, ANCESTRY_ORDER, n_by_anc)
-    if not pooled_df.empty:
-        pooled_df["ancestry"] = "POOLED"
-        main_label = "POOLED (all 6 ancestries, N=%d haplotypes)" % pooled_N
-        main_stem = "fig_dq_g1g2_committed_MAIN_POOLED"
-        print("[37c] main panel: pooled reconstruction, N=%d haplotypes, %d pairs (%d absent "
-             "from every ancestry's own table -> hatched)"
-             % (pooled_N, len(pooled_df),
-                pooled_df["signed_Dprime"].isna().sum()), flush=True)
-        fig_g1g2_from_table(pooled_df, os.path.join(args.out_dir, main_stem), corner_label=main_label)
-    else:
-        fig_g1g2_from_table(df_all[df_all["ancestry"] == main_anc],
-                            os.path.join(args.out_dir, "fig_dq_g1g2_committed_MAIN_%s" % main_anc),
-                            corner_label="%s, N=%d haplotypes" % (main_anc, n_by_anc[main_anc]))
-
-    for anc in SUPPLEMENT_ANCESTRIES:
-        fig_g1g2_from_table(df_all[df_all["ancestry"] == anc],
-                            os.path.join(args.out_dir, "fig_dq_g1g2_committed_supp_%s" % anc),
-                            corner_label="%s, N=%d haplotypes" % (anc, n_by_anc.get(anc) or 0))
-
+    # Compute the O/E purge stats BEFORE the figures, so the pooled/per-ancestry headline
+    # ("0 of N predicted-incompatible pairs observed") can be printed directly on the panel
+    # instead of relying on a reader to cross-reference oe_purge_committed.tsv separately.
     oe_rows = []
     for anc in ANCESTRY_ORDER:
         res = oe_interval_from_table(df_all[df_all["ancestry"] == anc], n_by_anc.get(anc))
@@ -450,6 +520,40 @@ def run(args):
         ["ancestry", "n_haplotypes", "n_cross_group_cells", "n_cells_estimated",
         "n_cells_not_observed", "n_cells_censored_lt20", "observed_lower", "observed_upper",
         "expected", "oe_lower", "oe_upper"]]
+    total_estimated = int(oe_df["n_cells_estimated"].sum())
+    total_cross = int(oe_df["n_cross_group_cells"].sum())
+
+    pooled_df, pooled_N = pool_across_ancestries(df_all, ANCESTRY_ORDER, n_by_anc)
+    if not pooled_df.empty:
+        pooled_df["ancestry"] = "POOLED"
+        main_label = "DQ G1/G2, pooled"
+        main_stem = "fig_dq_g1g2_committed_MAIN_POOLED"
+        print("[37c] main panel: pooled reconstruction, N=%d haplotypes, %d pairs (%d absent "
+             "from every ancestry's own table -> hatched)"
+             % (pooled_N, len(pooled_df),
+                pooled_df["signed_Dprime"].isna().sum()), flush=True)
+        pooled_note = ("predicted incompatible\n0/%d observed\n(all 6 ancestries)" % total_cross
+                       if total_estimated == 0 else
+                       "predicted incompatible\n%d/%d observed" % (total_estimated, total_cross))
+        fig_g1g2_from_table(pooled_df, os.path.join(args.out_dir, main_stem),
+                            corner_label=main_label, incompatible_note=pooled_note)
+    else:
+        fig_g1g2_from_table(df_all[df_all["ancestry"] == main_anc],
+                            os.path.join(args.out_dir, "fig_dq_g1g2_committed_MAIN_%s" % main_anc),
+                            corner_label="DQ G1/G2, %s" % main_anc)
+
+    for anc in SUPPLEMENT_ANCESTRIES:
+        anc_row = oe_df[oe_df["ancestry"] == anc]
+        if not anc_row.empty:
+            est = int(anc_row["n_cells_estimated"].iloc[0])
+            cross = int(anc_row["n_cross_group_cells"].iloc[0])
+            anc_note = "predicted incompatible\n%d/%d observed" % (est, cross)
+        else:
+            anc_note = None
+        fig_g1g2_from_table(df_all[df_all["ancestry"] == anc],
+                            os.path.join(args.out_dir, "fig_dq_g1g2_committed_supp_%s" % anc),
+                            corner_label="DQ G1/G2, %s" % anc, incompatible_note=anc_note)
+
     oe_df.to_csv(os.path.join(args.out_dir, "oe_purge_committed.tsv"), sep="\t", index=False)
     print(oe_df.to_string(index=False), flush=True)
 

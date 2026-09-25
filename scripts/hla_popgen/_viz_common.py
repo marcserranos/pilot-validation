@@ -622,14 +622,44 @@ def panel_letter(ax, letter, dx=-0.12, dy=1.05, fontsize=PANEL_LETTER_FONTSIZE):
             fontweight="bold", va="bottom", ha="left")
 
 
-def save_fig(fig, path_stem, dpi=600):
+def save_fig(fig, path_stem, dpi=600, strict=True, reason=None):
     """Writes `<path_stem>.pdf` (vector, embedded TrueType/Type-42 fonts) and `<path_stem>.png`
     (raster, `dpi`, default 600 -- Nature's minimum for combination art), creating the parent
     directory if needed, then closes `fig`. Returns (pdf_path, png_path).
 
     Distinct from the plain `savefig()` above (which is PNG-only, 150 dpi, for the 05/06/07
     exploratory figures) -- this is the publication pair.
+
+    Runs `check_layout(fig)` first (S04 WS-C phase 2 layout linter). By default (`strict=True`)
+    any error-severity violation (text/text overlap, text or axes clipped beyond the figure bbox,
+    a `mark_marginal()`-registered axes misaligned with its main axes) raises `RuntimeError`
+    instead of writing a figure known to be broken. Warning-severity violations (excess
+    whitespace) are printed but never block the save.
+
+    Pass `strict=False` to save anyway despite error-severity violations -- this REQUIRES a
+    `reason=` string (raises `ValueError` otherwise) so a deliberate override is never silent;
+    the reason is printed alongside the suppressed violations.
     """
+    violations = check_layout(fig)
+    errors = [v for v in violations if v["severity"] == "error"]
+    warns = [v for v in violations if v["severity"] == "warning"]
+    for w in warns:
+        print("  [layout WARNING] %s: %s" % (w["type"], w["detail"]), file=sys.stderr)
+    if errors:
+        msg = "\n".join("  - %s: %s" % (e["type"], e["detail"]) for e in errors)
+        if strict:
+            raise RuntimeError(
+                "check_layout() found %d layout violation(s) for %r; refusing to save "
+                "(strict=True, the default). Fix the layout, or call save_fig(..., "
+                "strict=False, reason='...') to override deliberately:\n%s"
+                % (len(errors), path_stem, msg))
+        if not reason:
+            raise ValueError(
+                "save_fig(strict=False) requires a mandatory reason= string explaining why "
+                "these %d layout violation(s) are being saved anyway." % len(errors))
+        print("  [layout OVERRIDE] strict=False, reason=%r. %d violation(s) suppressed:\n%s"
+              % (reason, len(errors), msg), file=sys.stderr)
+
     path_stem = str(path_stem)
     parent = os.path.dirname(path_stem)
     if parent:
@@ -669,6 +699,206 @@ def diverging_norm(vmin=-1.0, vmax=1.0):
     actual data range; defaults to [-1, 1] for correlation-like statistics (e.g. signed D')."""
     from matplotlib.colors import TwoSlopeNorm
     return TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+
+
+# ---------------------------------------------------------------------------
+# Layout linter (S04 WS-C phase 2, reference/FIGURE_STYLE.md). CRITIC_WSC.md: the rcParam port
+# above never touched panel/subplot *layout* (spacing, alignment, sizing) -- the thing Marc
+# actually flagged ("overlapping text is clearly inadmissible", marginals not aligned to their
+# heatmap, colorbar floating with huge gaps). This section catches those mechanically, at
+# save_fig() time, instead of relying on a human eyeballing a thumbnail.
+# ---------------------------------------------------------------------------
+def mark_marginal(ax_margin, ax_main, axis="x"):
+    """Mark `ax_margin` as a marginal plot of `ax_main` along `axis` ('x' or 'y'), so
+    check_layout()'s alignment check (c) can verify the two axes' data-to-display mapping
+    actually coincides (i.e. the marginal's bars really do sit over/beside the main axes' cells)
+    rather than trusting that `sharex`/`sharey` (or matching gridspec widths) were set correctly.
+    Call once, after both axes' data limits are finalized (post-plotting, pre-save_fig)."""
+    ax_margin._layout_marginal_of = (ax_main, axis)
+
+
+def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
+                  whitespace_warn_frac=0.55, grid_n=48):
+    """Mechanical layout linter, run against a fully-drawn figure. Returns a list of violation
+    dicts `{"type": str, "severity": "error"|"warning", "detail": str}`. Checks:
+
+    (a) pairwise overlaps among all visible Text artists (titles, axis labels, tick labels,
+        legend text, annotations) -- small tolerance (`tol_overlap_px`) so touching-but-not-
+        overlapping text doesn't false-positive.
+    (b) any text or Axes extending far beyond the figure's own (nominal, pre-`bbox_inches=
+        "tight"`) bbox -- tolerance is `tol_clip_frac` of the figure's width/height (default 5%),
+        not a fixed pixel count, since an ordinary axis label dipping a few px past the nominal
+        canvas edge is normal matplotlib behavior that `save_fig()`'s `bbox_inches="tight"`
+        handles cleanly. What this catches is a label/axes placed with a large, layout-breaking
+        offset (e.g. a hardcoded negative-axes-fraction position well outside the panel; default
+        8% tolerance covers ordinary tick/axis-label overflow, confirmed empirically against a
+        plain `plt.subplots()` figure with default margins) that
+        forces `bbox_inches="tight"` to balloon the saved canvas with mostly-empty space --
+        exactly the "sits far outside the plot" / "floats with huge empty gaps" fault this linter
+        exists to catch, which (d)'s whitespace check corroborates independently.
+    (c) marginal alignment: for any axes registered with `mark_marginal()`, the data-to-display
+        mapping along the shared axis must coincide with the main axes' mapping within
+        `tol_margin_px` (default 0.5px) at the marginal's own xlim/ylim endpoints and midpoint --
+        catches a marginal whose bars don't actually line up with the main heatmap's columns/rows
+        even when nothing text-related overlaps.
+    (d) whitespace: fraction of the figure's area not covered by any Axes or Text bbox, on a
+        coarse `grid_n`x`grid_n` raster (cheap, no exact polygon union needed). Above
+        `whitespace_warn_frac` this is a WARNING only (large gaps aren't automatically wrong --
+        e.g. a deliberately spacious legend column -- but worth a human glance), never an error.
+
+    All of (a)-(c) are "error" severity; (d) is "warning" only. Call via `save_fig()`, which
+    raises on any error-severity violation by default (see its `strict`/`reason` kwargs).
+    """
+    import matplotlib.text as mtext
+    from matplotlib.transforms import Bbox
+
+    # Draw at (at least) save_fig()'s actual raster dpi, not whatever `fig.dpi` happens to be
+    # (matplotlib's figure default is 100 unless set at construction). Empirically, on at least
+    # one dev machine, rasterizing certain glyphs (e.g. a superscript/mathtext character) at
+    # dpi<=100 raises `RuntimeError: failed to load glyph` from freetype, while the exact same
+    # figure draws fine at dpi>=150 -- i.e. this is a font-rasterization floor, not a matplotlib
+    # API restriction. save_fig() always rasterizes the PNG at 600 dpi, so checking at a lower
+    # preview dpi would both risk that spurious crash AND measure pixel positions that don't match
+    # what's actually saved. Bump (never lower) fig.dpi for the duration of this check, restore
+    # after -- callers of check_layout() must never observe a mutated fig.dpi.
+    _orig_dpi = fig.dpi
+    try:
+        if fig.dpi < 150:
+            fig.dpi = 150
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        fig_bbox = fig.bbox
+        violations = []
+
+        # ---- collect visible, non-empty Text artists with a real on-canvas extent ----
+        texts = []
+        for t in fig.findobj(mtext.Text):
+            if not t.get_visible():
+                continue
+            s = t.get_text()
+            if s is None or s.strip() == "":
+                continue
+            try:
+                bb = t.get_window_extent(renderer=renderer)
+            except Exception:
+                continue
+            if bb.width <= 0 or bb.height <= 0:
+                continue
+            texts.append((t, bb))
+
+        # ---- (a) pairwise text/text overlap ----
+        pad = -tol_overlap_px / 2.0
+        for i in range(len(texts)):
+            t1, b1 = texts[i]
+            b1p = b1.padded(pad)
+            for j in range(i + 1, len(texts)):
+                t2, b2 = texts[j]
+                inter = Bbox.intersection(b1p, b2.padded(pad))
+                if inter is not None and inter.width > 0 and inter.height > 0:
+                    violations.append({
+                        "type": "text_overlap", "severity": "error",
+                        "detail": "%r overlaps %r (overlap area=%.1fpx^2)"
+                                  % (t1.get_text(), t2.get_text(), inter.width * inter.height),
+                    })
+
+        # ---- (b) clipped beyond figure bbox ----
+        pad_x = max(2.0, tol_clip_frac * fig_bbox.width)
+        pad_y = max(2.0, tol_clip_frac * fig_bbox.height)
+        fb = Bbox.from_extents(fig_bbox.x0 - pad_x, fig_bbox.y0 - pad_y,
+                                fig_bbox.x1 + pad_x, fig_bbox.y1 + pad_y)
+
+        def _within(bb):
+            return fb.x0 <= bb.x0 and bb.x1 <= fb.x1 and fb.y0 <= bb.y0 and bb.y1 <= fb.y1
+
+        for t, bb in texts:
+            if not _within(bb):
+                violations.append({
+                    "type": "text_clipped", "severity": "error",
+                    "detail": "%r extends beyond figure bbox (text=%s, fig=%s)"
+                              % (t.get_text(), tuple(round(v, 1) for v in bb.bounds),
+                                 tuple(round(v, 1) for v in fig_bbox.bounds)),
+                })
+        for ax in fig.axes:
+            try:
+                abb = ax.get_window_extent(renderer=renderer)
+            except Exception:
+                continue
+            if not _within(abb):
+                violations.append({
+                    "type": "axes_clipped", "severity": "error",
+                    "detail": "axes %r extends beyond figure bbox" % (ax.get_label() or ax,),
+                })
+
+        # ---- (c) marginal alignment ----
+        for ax in fig.axes:
+            info = getattr(ax, "_layout_marginal_of", None)
+            if info is None:
+                continue
+            ax_main, axis = info
+            if axis == "x":
+                lo, hi = ax.get_xlim()
+                for d in (lo, (lo + hi) / 2.0, hi):
+                    p_margin = ax.transData.transform((d, 0))[0]
+                    p_main = ax_main.transData.transform((d, 0))[0]
+                    delta = abs(p_margin - p_main)
+                    if delta > tol_margin_px:
+                        violations.append({
+                            "type": "marginal_misaligned", "severity": "error",
+                            "detail": "x=%.4g: marginal axes px=%.2f vs main axes px=%.2f "
+                                      "(delta=%.2fpx > tol=%.2fpx)"
+                                      % (d, p_margin, p_main, delta, tol_margin_px),
+                        })
+            elif axis == "y":
+                lo, hi = ax.get_ylim()
+                for d in (lo, (lo + hi) / 2.0, hi):
+                    p_margin = ax.transData.transform((0, d))[1]
+                    p_main = ax_main.transData.transform((0, d))[1]
+                    delta = abs(p_margin - p_main)
+                    if delta > tol_margin_px:
+                        violations.append({
+                            "type": "marginal_misaligned", "severity": "error",
+                            "detail": "y=%.4g: marginal axes px=%.2f vs main axes px=%.2f "
+                                      "(delta=%.2fpx > tol=%.2fpx)"
+                                      % (d, p_margin, p_main, delta, tol_margin_px),
+                        })
+            else:
+                raise ValueError("mark_marginal axis must be 'x' or 'y', got %r" % (axis,))
+
+        # ---- (d) whitespace (coarse raster coverage, warning only) ----
+        fx0, fy0, fx1, fy1 = fig_bbox.x0, fig_bbox.y0, fig_bbox.x1, fig_bbox.y1
+        fw, fh = max(fx1 - fx0, 1e-9), max(fy1 - fy0, 1e-9)
+        covered = np.zeros((grid_n, grid_n), dtype=bool)
+
+        def _mark(bb):
+            x0 = int(np.clip((bb.x0 - fx0) / fw * grid_n, 0, grid_n))
+            x1 = int(np.clip(np.ceil((bb.x1 - fx0) / fw * grid_n), 0, grid_n))
+            y0 = int(np.clip((bb.y0 - fy0) / fh * grid_n, 0, grid_n))
+            y1 = int(np.clip(np.ceil((bb.y1 - fy0) / fh * grid_n), 0, grid_n))
+            if x1 > x0 and y1 > y0:
+                covered[y0:y1, x0:x1] = True
+
+        for ax in fig.axes:
+            try:
+                _mark(ax.get_window_extent(renderer=renderer))
+            except Exception:
+                pass
+        for _t, bb in texts:
+            _mark(bb)
+        frac_white = 1.0 - covered.mean()
+        if frac_white > whitespace_warn_frac:
+            violations.append({
+                "type": "excess_whitespace", "severity": "warning",
+                "detail": "%.1f%% of figure area not covered by any axes/text (warn threshold "
+                          "%.0f%%)" % (frac_white * 100, whitespace_warn_frac * 100),
+            })
+
+        return violations
+    finally:
+        # Never let callers observe a mutated fig.dpi -- restore it even though (unusually for
+        # this codebase) `save_fig()`'s own subsequent `fig.savefig(..., dpi=600)` calls pass
+        # dpi explicitly and wouldn't be affected either way; the invariant is still worth holding
+        # since `check_layout()` is also called standalone (report-only mode, this session).
+        fig.dpi = _orig_dpi
 
 
 def hatch_suppressed(ax, x, y, width, height, **kwargs):

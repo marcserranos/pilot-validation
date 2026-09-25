@@ -167,14 +167,34 @@ only happens in the pooled reconstruction -- see below).*
   excluded per the task's own named list -- only 563 haplotypes).
 - N (haplotypes) per ancestry, recovered exactly from `n_hap_ij / freq_hap` on uncensored rows:
   **AFR 4146, AMR 2913, EAS 2377, EUR 2383, MID 563, SAS 2147** (sum 14,529).
-- Nature-style polish per orchestrator review: no in-figure title (ancestry + N in a small corner
-  label instead), 120mm width, 4.5-6pt text, thin light-grey marginal bars with fixed 0/0.1/0.2/0.3
-  ticks, a short colourbar labelled "Signed phased D'", and G1/G2 group-block axis labels ("G2 α
-  (DQA1\*01)" / "G1 α (DQA1\*02-06)", "G2 β (DQB1\*05/06)" / "G1 β (DQB1\*02/03/04)"). Iterated
-  twice after reading the PNGs: (1) the "Predicted incompatible" text was drawn under the hatch
-  pattern (zorder 3 vs 4) -- fixed by bumping text to zorder 10; (2) the group-block labels
-  initially overlapped the allele tick labels -- fixed by pushing them to axes-fraction x=-0.62
-  (free, since `save_fig`'s `bbox_inches="tight"` expands the canvas to fit).
+- **Layout redesigned S04 WS-C phase 2 (2026-09-25)**, replacing the version above after Marc
+  rejected the first style pass ("I am not seeing nearly any difference"; overlapping text
+  "clearly inadmissible" -- see `sprints/S04_kir_recurrence_style_share/CRITIC_WSC.md`). The old
+  layout had independently-sized marginal axes that didn't line up with the heatmap's own
+  columns/rows, a colourbar floating far to the right with large empty gaps, and G1/G2 labels
+  pushed to a large negative-axes-fraction offset well outside the panel. Fix: one `GridSpec` with
+  `sharex`/`sharey` between the heatmap and both marginal bar charts (alignment is now structural,
+  guaranteed by matplotlib, not a matched-width/height coincidence to maintain by hand), a compact
+  colourbar in its own thin column immediately beside the right marginal, and G1/G2 group brackets
+  drawn as plain square brackets in dedicated thin axes directly adjacent to the row/column tick
+  labels (`_bracket_v`/`_bracket_h` in `37c_dq_g1g2_from_committed.py`) instead of a large offset.
+  183mm width (was 120mm -- needed for the wider bracket + colourbar columns), a short bold panel
+  label ("DQ G1/G2, pooled" / ", AFR" / etc., N moved to this README/the corner-note stats below)
+  replaces the old sentence-length corner label. New `_viz_common.check_layout()`/`mark_marginal()`
+  linter (added the same session) runs on every `save_fig()` call by default (`strict=True`) and
+  is the acceptance test for this redesign -- all pooled + per-ancestry DQ figures and the
+  bimodality figure pass with zero layout violations.
+- **Encoding change**: the two "predicted incompatible" quadrants are no longer painted on the
+  same D' colour scale as the informative G1/G1, G2/G2 blocks (previously a solid dark-blue block
+  duplicated across both quadrants, most of the figure's ink for zero information). They are now a
+  single flat light-grey fill (`NEUTRAL_INCOMPAT_COLOR`, distinct from and unhatched vs. the
+  disclosure-censored grey/hatch) with one small annotation giving the actual headline number
+  directly, e.g. **"0/469 observed (all 6 ancestries)"** for the pooled panel, or "0/77 observed"
+  per ancestry -- read straight from `oe_purge_committed.tsv`'s `n_cells_estimated`/
+  `n_cross_group_cells`. A pair genuinely absent from an ancestry's table (never clearing the
+  20-haplotype floor for either allele) still gets the usual hatched `SUPPRESSED_COLOR` treatment,
+  drawn on top of the neutral fill, so "confirmed zero" and "never disclosable" stay visually
+  distinct. Alleles are still ordered by descending carrier frequency within each G1/G2 group.
 
 ### Key finding: complete purge, and it reads correctly now (uniform deep blue, per Cole's own figure)
 
@@ -220,6 +240,12 @@ censored `<20` one) in any ancestry at 2-field. This list will only be non-empty
 the 4-field VM run.
 
 ## 3. Bimodality -- `fig_bimodality_committed.png/.pdf`, `bimodality_stats.json`
+
+*S04 WS-C phase 2: title shortened from a sentence ("Bimodality within compatible vs incompatible
+quadrants (pooled AFR, AMR, EAS, EUR, SAS)") to "DQ G1/G2 bimodality" (the pooled-ancestry list
+lives here instead), and the x-axis switched from matplotlib's automatic ~7-tick scale (which
+crowded into overlapping tick labels at this panel's 89mm single-column width) to a fixed
+[-1, 0, 1] scale -- caught by the new layout linter's text_overlap check.*
 
 *Corrected alongside the figure fix: now built from every disclosed cell (not just `>=20` ones),
 pooled over AFR/AMR/EAS/EUR/SAS. Two side-by-side panels (compatible / incompatible) rather than
