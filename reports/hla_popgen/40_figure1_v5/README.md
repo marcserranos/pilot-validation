@@ -180,6 +180,44 @@ non-functional heterodimer.
 - Open: panel b (0.98) and panel c/d (0.9) use different strict-ancestry thresholds — not unified,
   out of scope for this figure (would need a script-24 rerun at 0.98).
 
+## S04 WS-C phase 2 redesign (2026-09-25) -- 5 layout-linter errors fixed
+
+The S04 diagnostic `check_layout()` pass (`sprints/S04_kir_recurrence_style_share/FIGURES_INDEX.md`)
+found 5 error-severity layout violations in both composed layouts (A and B) of this figure:
+- `'100'`/`'0'` ternary tick numerals in panel b overlapping the bold `AFR`/`AMR` vertex labels
+  (the tick sits exactly at the vertex, same place the vertex's own name is anchored).
+- Panel b's marker legend (`bbox_to_anchor=(1.14, -0.08)`, placed outside the axes toward panel c)
+  overlapping panel c's rotated two-line y-axis label, and separately the `EUR` vertex label also
+  overlapping that same y-axis label.
+
+**Fixes** (`draw_ternary_grid`, `draw_panel_b`, `_METRIC_LABEL` in `40_figure1_v5.py`):
+- Ternary tick numerals: only the midpoint ("50") is labelled per edge now. The 0/100 endpoints are
+  already unambiguous from the bold vertex name; the numeral added nothing but a collision surface.
+- Panel c/d y-axis label shortened from a two-line sentence ("% called haplotypes with sequence
+  (any field) absent from IPD-IMGT/HLA -- mostly non-coding") to one direct line ("any-field
+  novelty (%)"). The second line was the actual cause of the cross-panel collision: a rotated
+  (90°) matplotlib Text with an embedded newline lays its second line out WIDTH-wise (perpendicular
+  to the vertical reading direction), so a 2-line rotated label is measurably wider, not taller --
+  that extra width is what reached left into panel b's space. The full metric definition (why
+  any-field vs CDS vs protein, what "mostly non-coding" means) stays in this README's "What
+  'absent from IPD-IMGT/HLA' means" section above -- a direct label states the unit, the caveat
+  belongs in prose, not on the axis (de-AI checklist item 7/13).
+- Panel b's marker legend moved from outside the axes (`(1.14, -0.08)`) to below the triangle's own
+  base edge (`loc="upper center", bbox_to_anchor=(0.5, -0.02)`, `ncol=2`). The padding band below
+  the triangle's bottom edge is guaranteed free of both data points and other panels' artifacts by
+  construction (ternary data only ever falls inside the triangle), so this placement can't collide
+  with panel c regardless of exact figure sizing, and also stopped the legend from sitting on top
+  of scattered data markers (a fault the mechanical linter can't see, but a reviewer would).
+
+No panel content, statistic, or number changed -- every value in panels a-f still comes from the
+same committed TSVs (`panel_a_admixture_bins.tsv`, `panel_b_ternary_alleles.tsv`,
+`panel_c_novelty_totals.tsv`, `39_saturation_by_ancestry/curves.tsv`, `oe_purge_committed.tsv`);
+`git diff` on `40_figure1_v5.py` for this pass touches only the label text and the ternary-grid
+tick loop, none of the data-loading/aggregation functions.
+
+`check_layout(strict=True)` (the `save_fig()` default) now passes both composed layouts (A and B)
+with **0 errors, 0 warnings**.
+
 ## Open issues
 
 1. Panel b (strict ancestry ≥0.98) and panel c/d (strict ancestry ≥0.9, from

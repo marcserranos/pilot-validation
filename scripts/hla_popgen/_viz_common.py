@@ -717,6 +717,34 @@ def mark_marginal(ax_margin, ax_main, axis="x"):
     ax_margin._layout_marginal_of = (ax_main, axis)
 
 
+def mark_decoration(artist):
+    """Mark a Line2D/Patch (or any artist with `get_window_extent`) as a structural "decoration"
+    -- an annotation bracket, a group divider, a manually-drawn connector -- so check_layout()'s
+    text-vs-decoration check (a2) treats it as something text must never sit on top of, the same
+    way it already treats two Text artists.
+
+    Why this exists (S04 WS-C phase 2 linter false negative, `reports/hla_popgen/
+    37_dq_g1g2_signed_ld/fig_dq_g1g2_committed_MAIN_POOLED.png`): `check_layout()`'s original
+    overlap check (a) only ever compared Text against Text. The G1/G2 brackets in
+    `37c_dq_g1g2_from_committed.py` (`_bracket_v`/`_bracket_h`) are drawn as plain `ax.plot(...)`
+    Line2D segments in their own thin axes -- never Text -- so the rotated "DQA1" ylabel drawn
+    straight through the vertical bracket line, and the "DQB1" xlabel colliding with the bracket's
+    horizontal cap, were both structurally invisible to the linter: it had nothing in its `texts`
+    list to compare either collision against. `check_layout()` returned zero violations for a
+    figure Marc rejected on sight for exactly this overlap.
+
+    Callers opt in explicitly (rather than the linter guessing which Line2D/Patch objects are
+    "decorative") because most Line2D/Patch objects in a figure ARE the data -- a bar chart's
+    Rectangle patches, a scatter's markers, a line plot's series -- and text legitimately sits
+    near or on top of those (a bar's value label, a heatmap annotation) with no layout fault.
+    Blanket-flagging every Line2D/Patch against every Text would drown real faults in false
+    positives. A bracket/divider/connector is drawn purely to guide the eye, never to carry data
+    a text label would legitimately overlap, so it opts in.
+
+    Usage: `ln, = ax.plot(...); vc.mark_decoration(ln)`, or `mark_decoration(some_patch)`."""
+    artist._layout_decoration = True
+
+
 def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
                   whitespace_warn_frac=0.55, grid_n=48):
     """Mechanical layout linter, run against a fully-drawn figure. Returns a list of violation
@@ -725,6 +753,16 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
     (a) pairwise overlaps among all visible Text artists (titles, axis labels, tick labels,
         legend text, annotations) -- small tolerance (`tol_overlap_px`) so touching-but-not-
         overlapping text doesn't false-positive.
+    (a2) any visible Text overlapping an artist explicitly registered via `mark_decoration()`
+        (a Line2D/Patch that is a structural bracket/divider/connector, never plotted data) --
+        added in S04 WS-C phase 2 after check (a) alone missed a rotated axis label drawn
+        straight through a G1/G2 annotation bracket (a Line2D in a neighboring axes, so no Text
+        object existed for it to collide with under check (a)). See `mark_decoration()`'s
+        docstring for the full false-negative writeup.
+    (a3) any visible Text overlapping a visible spine of an Axes it does NOT itself belong to --
+        e.g. a panel's title or label creeping into the neighboring panel's frame. A spine is
+        exempted against Text that belongs to its OWN Axes (tick/axis labels are expected to sit
+        right at their own axes' edge; that's normal, not a fault).
     (b) any text or Axes extending far beyond the figure's own (nominal, pre-`bbox_inches=
         "tight"`) bbox -- tolerance is `tol_clip_frac` of the figure's width/height (default 5%),
         not a fixed pixel count, since an ordinary axis label dipping a few px past the nominal
@@ -746,7 +784,7 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
         `whitespace_warn_frac` this is a WARNING only (large gaps aren't automatically wrong --
         e.g. a deliberately spacious legend column -- but worth a human glance), never an error.
 
-    All of (a)-(c) are "error" severity; (d) is "warning" only. Call via `save_fig()`, which
+    All of (a), (a2), (a3), (b), (c) are "error" severity; (d) is "warning" only. Call via `save_fig()`, which
     raises on any error-severity violation by default (see its `strict`/`reason` kwargs).
     """
     import matplotlib.text as mtext
@@ -800,6 +838,62 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
                         "detail": "%r overlaps %r (overlap area=%.1fpx^2)"
                                   % (t1.get_text(), t2.get_text(), inter.width * inter.height),
                     })
+
+        # ---- (a2) text vs registered decoration (mark_decoration()) ----
+        decorations = []
+        for a in fig.findobj(lambda art: getattr(art, "_layout_decoration", False)):
+            if not a.get_visible():
+                continue
+            try:
+                dbb = a.get_window_extent(renderer=renderer)
+            except Exception:
+                continue
+            if dbb.width < 0 or dbb.height < 0:
+                continue
+            decorations.append((a, dbb))
+
+        for t, tb in texts:
+            tbp = tb.padded(pad)
+            for d, dbb in decorations:
+                # A zero-area bbox (e.g. a perfectly vertical/horizontal line segment) still
+                # needs a real overlap test -- pad it out to a hairline width/height first so
+                # Bbox.intersection can register a genuine crossing, not just touch it.
+                dbbp = Bbox.from_extents(
+                    dbb.x0 - max(tol_overlap_px, 0.5), dbb.y0 - max(tol_overlap_px, 0.5),
+                    dbb.x1 + max(tol_overlap_px, 0.5), dbb.y1 + max(tol_overlap_px, 0.5))
+                inter = Bbox.intersection(tbp, dbbp)
+                if inter is not None and inter.width > 0 and inter.height > 0:
+                    violations.append({
+                        "type": "text_decoration_overlap", "severity": "error",
+                        "detail": "text %r overlaps decoration artist %r (overlap area=%.1fpx^2)"
+                                  % (t.get_text(), d, inter.width * inter.height),
+                    })
+
+        # ---- (a3) text vs a visible spine of an Axes it does not belong to ----
+        for ax in fig.axes:
+            for side, spine in ax.spines.items():
+                if not spine.get_visible():
+                    continue
+                try:
+                    sbb = spine.get_window_extent(renderer=renderer)
+                except Exception:
+                    continue
+                if sbb.width < 0 or sbb.height < 0:
+                    continue
+                sbbp = Bbox.from_extents(
+                    sbb.x0 - max(tol_overlap_px, 0.5), sbb.y0 - max(tol_overlap_px, 0.5),
+                    sbb.x1 + max(tol_overlap_px, 0.5), sbb.y1 + max(tol_overlap_px, 0.5))
+                for t, tb in texts:
+                    if getattr(t, "axes", None) is ax:
+                        continue  # a spine touching its own tick/axis labels is normal
+                    inter = Bbox.intersection(tb.padded(pad), sbbp)
+                    if inter is not None and inter.width > 0 and inter.height > 0:
+                        violations.append({
+                            "type": "text_foreign_spine_overlap", "severity": "error",
+                            "detail": "text %r overlaps spine %r of a different axes "
+                                      "(overlap area=%.1fpx^2)"
+                                      % (t.get_text(), side, inter.width * inter.height),
+                        })
 
         # ---- (b) clipped beyond figure bbox ----
         pad_x = max(2.0, tol_clip_frac * fig_bbox.width)

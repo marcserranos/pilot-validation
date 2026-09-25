@@ -150,10 +150,18 @@ def _bracket_v(ax, y0, y1, label, x=0.30, cap=0.14, fontsize=5.5):
     fault CRITIC_WSC.md flagged: 'sit far outside the plot'). `x` is deliberately on the FAR side
     of this axes (away from the heatmap, small x) -- the heatmap's own y tick labels hug the
     heatmap's left edge (large x in this axes' 0-1 coordinate space) and need the x>0.3 region of
-    this column clear to render into without colliding with the bracket."""
-    ax.plot([x, x], [y0, y1], color="black", lw=0.6, clip_on=False, solid_capstyle="butt")
-    ax.plot([x, x - cap], [y0, y0], color="black", lw=0.6, clip_on=False)
-    ax.plot([x, x - cap], [y1, y1], color="black", lw=0.6, clip_on=False)
+    this column clear to render into without colliding with the bracket.
+
+    S04 WS-C phase 2 linter fix: the three `ax.plot(...)` segments below are registered with
+    `vc.mark_decoration()` so `check_layout()`'s (a2) check can catch a label drawn across them --
+    this is exactly what caught the redundant "DQA1" ylabel sitting on top of the bracket's
+    vertical stem in the previous render (see `_viz_common.mark_decoration()` docstring)."""
+    ln, = ax.plot([x, x], [y0, y1], color="black", lw=0.6, clip_on=False, solid_capstyle="butt")
+    vc.mark_decoration(ln)
+    ln, = ax.plot([x, x - cap], [y0, y0], color="black", lw=0.6, clip_on=False)
+    vc.mark_decoration(ln)
+    ln, = ax.plot([x, x - cap], [y1, y1], color="black", lw=0.6, clip_on=False)
+    vc.mark_decoration(ln)
     ax.text(x - cap - 0.10, (y0 + y1) / 2.0, label, ha="right", va="center", fontsize=fontsize,
             rotation=90)
 
@@ -163,14 +171,45 @@ def _bracket_h(ax, x0, x1, label, y=0.55, cap=0.16, fontsize=5.5):
     BELOW the heatmap (below the rotated column tick labels). `y` is on the FAR side of this
     axes (away from the heatmap, small-ish y after leaving headroom above for the tick labels
     that hug the heatmap's bottom edge, i.e. large y in this axes) -- same rationale as
-    `_bracket_v`."""
-    ax.plot([x0, x1], [y, y], color="black", lw=0.6, clip_on=False, solid_capstyle="butt")
-    ax.plot([x0, x0], [y, y - cap], color="black", lw=0.6, clip_on=False)
-    ax.plot([x1, x1], [y, y - cap], color="black", lw=0.6, clip_on=False)
+    `_bracket_v`. Segments registered with `vc.mark_decoration()`, see `_bracket_v`."""
+    ln, = ax.plot([x0, x1], [y, y], color="black", lw=0.6, clip_on=False, solid_capstyle="butt")
+    vc.mark_decoration(ln)
+    ln, = ax.plot([x0, x0], [y, y - cap], color="black", lw=0.6, clip_on=False)
+    vc.mark_decoration(ln)
+    ln, = ax.plot([x1, x1], [y, y - cap], color="black", lw=0.6, clip_on=False)
+    vc.mark_decoration(ln)
     ax.text((x0 + x1) / 2.0, y - cap - 0.12, label, ha="center", va="top", fontsize=fontsize)
 
 
-def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=None):
+def _nice_ceiling(x, steps=(0.02, 0.05, 0.1, 0.2, 0.25, 0.5)):
+    """Smallest value from `steps` (or a multiple of the largest step) that is >= x -- gives round,
+    human-readable marginal-axis tick values (0, 0.1, 0.2, ...) instead of an arbitrary
+    max(observed)*1.05 (previously produced ticks like 0.155/0.31 -- CRITIC_WSC.md / Marc's
+    redesign brief, item 'clean round ticks, not 0.31')."""
+    for s in steps:
+        if x <= s:
+            return s
+    top = steps[-1]
+    while top < x:
+        top += steps[-1]
+    return round(top, 4)
+
+
+# A cell's D' is only as trustworthy as the number of haplotypes it's built from. Every row in the
+# committed table already cleared MIN_ALLELE_HAPS=20 on each allele's own marginal (29's floor),
+# but the JOINT cell count can still be tiny if the two alleles rarely co-occur -- Marc's redesign
+# brief asked whether the "flood of D'=-1 blue" in the compatible quadrants should be masked or
+# otherwise honestly de-emphasized where the underlying evidence is thin. Rather than a hatch
+# (reserved for hard disclosure censorship, vc.SUPPRESSED_COLOR) or a different colormap (which
+# would recolor confidently-estimated cells too), thin cells are faded with a translucent white
+# overlay -- same D'-scale color underneath (nothing is hidden or altered), just visually
+# de-emphasized, so a confident D'=-1 (large expected count, truly excluded haplotype) reads
+# darker/more salient than a thin-evidence D'=-1 (small expected count, could easily be sampling
+# noise at these N). Justified at length in the 37_dq_g1g2_signed_ld README "how to read" section.
+EXPECTED_THIN_THRESHOLD = 5.0
+
+
+def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=None, n_haps=None):
     """Redesigned S04 WS-C phase 2 layout (was: independently-sized marginal axes that didn't
     line up with the heatmap columns/rows, a colorbar floating far to the right with large empty
     gaps, G1/G2 labels pushed to a large negative-axes-fraction offset outside the panel, a
@@ -184,8 +223,18 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
     informative G1/G1, G2/G2 blocks. `check_layout()` (via `save_fig`, strict=True) is the
     acceptance test for the layout fixes; visual encoding choices were iterated by re-reading the
     rendered PNG.
+
+    Redesign pass 2 (this session, after Marc rejected pass 1 for a real overlap `check_layout()`
+    missed -- see `_viz_common.mark_decoration()`): dropped the redundant "DQA1"/"DQB1" axes
+    labels (the tick labels already spell out the full allele name including gene, and the G1/G2
+    brackets already anchor which axis is which -- the axis label added nothing but a collision
+    surface for the G1/G2 bracket sitting right next to it), tightened the corner-label-to-marginal
+    dead band, switched the marginal ticks to `_nice_ceiling()`, and faded thin-evidence cells (see
+    `EXPECTED_THIN_THRESHOLD`). `n_haps` (total phased haplotypes for this ancestry/pooled
+    reconstruction) is required for the fade; pass None to skip it (fully backward compatible).
     """
     import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
 
     m37mod = m37()
     dq_group = m37mod.dq_group
@@ -228,17 +277,30 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
     marg_a = {a: have.loc[have["allele_a"] == a, "freq_a"].max() for a in a_alleles}
     marg_b = {b: have.loc[have["allele_b"] == b, "freq_b"].max() for b in b_alleles}
 
+    # Independence-expectation count per cell -- the fade mask (EXPECTED_THIN_THRESHOLD).
+    Efull = np.full((n_a, n_b), np.nan)
+    if n_haps:
+        for i, a in enumerate(a_alleles):
+            for j, b in enumerate(b_alleles):
+                if not np.isnan(M[i, j]):
+                    Efull[i, j] = marg_a[a] * marg_b[b] * n_haps
+    thin = (~np.isnan(Efull)) & (Efull < EXPECTED_THIN_THRESHOLD) & (~incompat)
+    n_thin = int(thin.sum())
+
     width_mm = vc.NATURE_DOUBLE_COL_MM  # 183mm -- many alleles need the double-column width
-    height_mm = float(np.clip(58 + 6.2 * n_a, 95, 165))
+    height_mm = float(np.clip(54 + 6.2 * n_a, 90, 160))
 
     with vc.nature_style():
         fig = plt.figure(figsize=(vc.mm(width_mm), vc.mm(height_mm)))
+        # Top row (corner label + top marginal) sized close to what it actually needs -- was
+        # height_ratios[0]=1.9 with a large top= margin, leaving a visible dead band between the
+        # bold corner label and the bar chart underneath it (Marc's redesign brief, item 2).
         gs = fig.add_gridspec(
             3, 4,
             width_ratios=[2.8, n_b, 1.9, 0.42],
-            height_ratios=[1.9, n_a, 2.3],
-            wspace=0.08, hspace=0.10,
-            left=0.10, right=0.90, top=0.95, bottom=0.05)
+            height_ratios=[1.5, n_a, 2.3],
+            wspace=0.08, hspace=0.08,
+            left=0.10, right=0.90, top=0.91, bottom=0.05)
         ax_heat = fig.add_subplot(gs[1, 1])
         ax_top = fig.add_subplot(gs[0, 1], sharex=ax_heat)
         ax_right = fig.add_subplot(gs[1, 2], sharey=ax_heat)
@@ -263,10 +325,20 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
                                              zorder=1))
         ax_heat.imshow(Mdisplay, cmap=cmap, norm=norm, aspect="auto", interpolation="none",
                        zorder=2)
+        # Fade cells whose independence-expectation count is < EXPECTED_THIN_THRESHOLD: a
+        # translucent white overlay on top of the same D'-scale color (nothing recolored, nothing
+        # hidden) so a confidently-estimated D'=-1/+1 reads darker than a thin-evidence one built
+        # from too few expected haplotypes to trust at face value -- see EXPECTED_THIN_THRESHOLD
+        # and the README "how to read" section for the full rationale.
+        for i in range(n_a):
+            for j in range(n_b):
+                if thin[i, j]:
+                    ax_heat.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, facecolor="white",
+                                                 alpha=0.55, edgecolor="none", zorder=3.5))
         for i in range(n_a):
             for j in range(n_b):
                 if np.isnan(M[i, j]):
-                    vc.hatch_suppressed(ax_heat, j - 0.5, i - 0.5, 1, 1, zorder=3)
+                    vc.hatch_suppressed(ax_heat, j - 0.5, i - 0.5, 1, 1, zorder=4)
                 elif censored_dot[i, j]:
                     ax_heat.plot(j, i, marker="o", markersize=1.3, color="black", zorder=6)
 
@@ -275,12 +347,17 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
         ax_heat.set_yticks(range(n_a))
         ax_heat.set_yticklabels(a_alleles, fontsize=5)
         ax_heat.tick_params(length=2)
-        ax_heat.set_xlabel("DQB1", fontsize=6)
-        ax_heat.set_ylabel("DQA1", fontsize=6)
+        # No "DQA1"/"DQB1" axis labels: the tick labels already spell out the full allele name
+        # including gene (e.g. "DQA1*01:02"), and the G1/G2 brackets already anchor which axis is
+        # which -- an axis label here added no information, only a collision surface right next to
+        # the bracket (the fault `check_layout()`'s new (a2) check now catches; see
+        # `_viz_common.mark_decoration()`).
         ax_heat.set_xlim(-0.5, n_b - 0.5)
         ax_heat.set_ylim(n_a - 0.5, -0.5)
-        ax_heat.axhline(n_a2 - 0.5, color="black", lw=0.8, zorder=5)
-        ax_heat.axvline(n_b2 - 0.5, color="black", lw=0.8, zorder=5)
+        ln = ax_heat.axhline(n_a2 - 0.5, color="black", lw=0.8, zorder=5)
+        vc.mark_decoration(ln)
+        ln = ax_heat.axvline(n_b2 - 0.5, color="black", lw=0.8, zorder=5)
+        vc.mark_decoration(ln)
 
         # One small annotation carries the headline (de-AI checklist item 8: direct label, no
         # legend) instead of duplicating "predicted incompatible" text across both quadrants.
@@ -300,17 +377,26 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
             _bracket_v(ax_brk_y, -0.5, n_a2 - 0.5, "G2")
         if n_a2 < n_a:
             _bracket_v(ax_brk_y, n_a2 - 0.5, n_a - 0.5, "G1")
+        # y is lower than _bracket_h's default (0.55 -> 0.26): the rotated DQB1 tick labels below
+        # the heatmap are long ("DQB1*05:01", 90deg) and, at this panel's row-height ratios, their
+        # rendered extent reaches further down into this axes than the default headroom allowed --
+        # `check_layout()`'s new (a2) check (this session) caught the resulting
+        # text_decoration_overlap against the bracket's own top rail, invisible before
+        # `mark_decoration()` existed. Lowering the rail leaves clearance under the longest label.
         ax_brk_x.set_ylim(0, 1)
         if n_b2 > 0:
-            _bracket_h(ax_brk_x, -0.5, n_b2 - 0.5, "G2")
+            _bracket_h(ax_brk_x, -0.5, n_b2 - 0.5, "G2", y=0.26, cap=0.14)
         if n_b2 < n_b:
-            _bracket_h(ax_brk_x, n_b2 - 0.5, n_b - 0.5, "G1")
+            _bracket_h(ax_brk_x, n_b2 - 0.5, n_b - 0.5, "G1", y=0.26, cap=0.14)
 
         ax_top.bar(range(n_b), [marg_b[b] for b in b_alleles], color="#AAAAAA",
                   width=0.7, linewidth=0)
         ax_top.set_ylabel("carrier\nfreq.", fontsize=4.5)
-        top_max = max(0.31, max(marg_b.values()) * 1.05)
-        ax_top.set_yticks([0, round(top_max / 2, 2), round(top_max, 2)])
+        # Round, human-readable ticks (was max(observed)*1.05 rounded to 2dp -- e.g. 0/0.155/0.31)
+        # -- _nice_ceiling() picks the smallest clean step (0.02/0.05/0.1/0.2/0.25/0.5, ...) that
+        # covers the observed max (Marc's redesign brief, item 3).
+        top_max = _nice_ceiling(max(marg_b.values()) * 1.05)
+        ax_top.set_yticks([0, round(top_max / 2, 3), top_max])
         ax_top.set_ylim(0, top_max)
         ax_top.tick_params(labelbottom=False, bottom=False, labelsize=4)
         ax_top.spines[["top", "right"]].set_visible(False)
@@ -318,8 +404,8 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
         ax_right.barh(range(n_a), [marg_a[a] for a in a_alleles], color="#AAAAAA",
                      height=0.7, linewidth=0)
         ax_right.set_xlabel("carrier\nfreq.", fontsize=4.5)
-        right_max = max(0.31, max(marg_a.values()) * 1.05)
-        ax_right.set_xticks([0, round(right_max / 2, 2), round(right_max, 2)])
+        right_max = _nice_ceiling(max(marg_a.values()) * 1.05)
+        ax_right.set_xticks([0, round(right_max / 2, 3), right_max])
         ax_right.set_xlim(0, right_max)
         ax_right.tick_params(labelleft=False, left=False, labelsize=4)
         ax_right.spines[["top", "right"]].set_visible(False)
@@ -328,10 +414,17 @@ def fig_g1g2_from_table(df_anc, path_stem, corner_label="", incompatible_note=No
         cbar = fig.colorbar(sm, cax=ax_cbar)
         cbar.set_label("Signed phased D′", fontsize=5.5)
         cbar.ax.tick_params(labelsize=4.5, length=2)
+        if n_thin:
+            cbar.ax.text(0.5, -0.045, "faded: E<%g" % EXPECTED_THIN_THRESHOLD,
+                        transform=cbar.ax.transAxes, ha="center", va="top", fontsize=4,
+                        color="#555555")
 
         # Short panel label (not a sentence) -- N and full context live in the report README.
+        # Placed just above the gridspec's own top= margin (0.91) rather than at the figure's
+        # extreme edge (0.995) -- that large a gap above a comparatively short top-row axes was
+        # the "dead band" Marc's redesign brief flagged (item 2).
         if corner_label:
-            fig.text(0.005, 0.995, corner_label, ha="left", va="top", fontsize=6,
+            fig.text(0.01, 0.985, corner_label, ha="left", va="top", fontsize=6,
                      fontweight="bold")
     return vc.save_fig(fig, path_stem)
 
@@ -536,11 +629,13 @@ def run(args):
                        if total_estimated == 0 else
                        "predicted incompatible\n%d/%d observed" % (total_estimated, total_cross))
         fig_g1g2_from_table(pooled_df, os.path.join(args.out_dir, main_stem),
-                            corner_label=main_label, incompatible_note=pooled_note)
+                            corner_label=main_label, incompatible_note=pooled_note,
+                            n_haps=pooled_N)
     else:
         fig_g1g2_from_table(df_all[df_all["ancestry"] == main_anc],
                             os.path.join(args.out_dir, "fig_dq_g1g2_committed_MAIN_%s" % main_anc),
-                            corner_label="DQ G1/G2, %s" % main_anc)
+                            corner_label="DQ G1/G2, %s" % main_anc,
+                            n_haps=n_by_anc.get(main_anc))
 
     for anc in SUPPLEMENT_ANCESTRIES:
         anc_row = oe_df[oe_df["ancestry"] == anc]
@@ -552,7 +647,8 @@ def run(args):
             anc_note = None
         fig_g1g2_from_table(df_all[df_all["ancestry"] == anc],
                             os.path.join(args.out_dir, "fig_dq_g1g2_committed_supp_%s" % anc),
-                            corner_label="DQ G1/G2, %s" % anc, incompatible_note=anc_note)
+                            corner_label="DQ G1/G2, %s" % anc, incompatible_note=anc_note,
+                            n_haps=n_by_anc.get(anc))
 
     oe_df.to_csv(os.path.join(args.out_dir, "oe_purge_committed.tsv"), sep="\t", index=False)
     print(oe_df.to_string(index=False), flush=True)

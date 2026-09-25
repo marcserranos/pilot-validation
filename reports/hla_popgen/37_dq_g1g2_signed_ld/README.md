@@ -266,6 +266,66 @@ otherwise occlude each other.*
   together -- most same-group allele *pairs* still never co-occur (D'=-1), and only the true
   haplotype partners cluster near +1.
 
+## Redesign pass 2 (S04 WS-C, 2026-09-25) -- linter false negative + remaining layout faults
+
+Marc rejected the pass-1 redesign above on sight: the rotated "DQA1" y-axis label ran straight
+through the G1/G2 bracket's vertical stem, and the "DQB1" x-axis label collided with the bracket's
+horizontal cap -- yet `check_layout(strict=True)` had passed every figure with zero violations.
+
+**Root cause**: `check_layout()`'s overlap check only ever compared Text artists against other Text
+artists. The G1/G2 brackets (`_bracket_v`/`_bracket_h`) are drawn as plain `ax.plot(...)` Line2D
+segments in their own thin axes, never as Text -- so the linter had nothing in its `texts` list to
+compare either collision against. It wasn't a tolerance or threshold bug; the check category simply
+didn't exist.
+
+**Fix** (`_viz_common.py`): a new `mark_decoration(artist)` helper lets a script opt a Line2D/Patch
+into the linter's field of view as a structural "must never be covered by text" object (used here
+for the three bracket segments per `_bracket_v`/`_bracket_h` call, and the `axhline`/`axvline`
+G1/G2 divider lines). `check_layout()` gained two new error-severity checks: (a2) any Text
+overlapping a `mark_decoration()`-registered artist, and (a3) any Text overlapping a visible spine
+of an Axes it does not itself belong to (own-axes spines are exempt -- a tick label touching its
+own axis is normal). Opt-in rather than blanket Line2D/Patch scanning was deliberate: most
+Line2D/Patch objects in a figure ARE the data (bar rectangles, scatter markers) and text
+legitimately sits near/on them with no fault; blanket-flagging would have drowned real faults in
+false positives. See `_viz_common.mark_decoration()`'s docstring and
+`scripts/hla_popgen/tests/test_layout_linter.py`'s `test_text_over_decoration_line_detected` /
+`test_text_over_foreign_spine_detected` / `test_bracket_regression_*` for the regression coverage
+(these tests replicate the exact fault using `_bracket_v`/`_bracket_h` from this script, not just a
+synthetic stand-in).
+
+**Once the linter could see it**, re-running this script surfaced a second, previously-invisible
+real fault at the same class: the rotated DQB1 tick labels (e.g. "DQB1\*05:01") are long enough at
+90 degrees that they reached down into the bracket axes below and clipped the bracket's own top
+rail. Fixed by lowering the bracket's rail (`y=0.26` instead of the default `0.55`) to leave
+clearance under the longest tick label.
+
+**Other layout fixes, this pass** (Marc's redesign brief, independent of the linter bug):
+- Dropped the redundant `ax_heat.set_xlabel("DQB1")`/`set_ylabel("DQA1")` axis labels entirely --
+  every tick label already spells out the full allele name including gene (e.g. "DQA1\*01:02"), and
+  the G1/G2 brackets already anchor which axis is which, so the axis label carried no information,
+  only a collision surface right next to the bracket.
+- Closed the dead band between the bold corner panel label and the top marginal bar chart
+  (`fig.text` moved from figure-fraction (0.005, 0.995) to (0.01, 0.985), gridspec `top=` tightened
+  0.95 -> 0.91, top row height ratio 1.9 -> 1.5).
+- Marginal-axis ticks are now round numbers via `_nice_ceiling()` (0/0.1/0.2, 0/0.125/0.25, ...)
+  instead of `max(observed)*1.05` rounded to 2dp (previously e.g. 0/0.155/0.31).
+
+**Encoding change -- fading thin-evidence cells (item 4 of the brief)**: the compatible-quadrant
+D'-scale heatmap is mostly dark blue (D'=-1) because most non-haplotype-partner allele *pairs*
+genuinely never co-occur (see the bimodality section above) -- that is real signal, not an
+artifact. But some of those D'=-1 (or D'=+1) cells are built from very few *expected* haplotypes
+under independence (`E = freq_a * freq_b * N_haplotypes`), even though both alleles individually
+cleared the 20-haplotype disclosure floor on their own marginals (29's per-allele floor, not a
+per-cell one) -- a cell with `E < 5` could easily read `-1.0` from a handful of expected co-
+occurrences rather than a well-powered exclusion. Rather than hatching these (hatching is reserved
+for hard disclosure censorship, `vc.SUPPRESSED_COLOR`) or swapping the colormap (which would
+recolor confidently-estimated cells too, misleadingly), thin cells (`EXPECTED_THIN_THRESHOLD = 5`)
+get a translucent white overlay (alpha 0.55) on top of the same D'-scale color: nothing is hidden or
+altered, a confidently-estimated D'=-1/+1 simply reads visually darker/more salient than a
+thin-evidence one. A small "faded: E<5" caption sits under the colorbar whenever >=1 cell in the
+panel is faded. This does not change any number in any TSV -- it is a rendering-only visual weight,
+exactly like the pre-existing censored-cell dot marker.
+
 ## Caveats (from-committed mode)
 
 - **2-field (protein) resolution only.** Cole's target figure and the phase-error question are

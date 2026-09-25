@@ -219,11 +219,14 @@ def draw_ternary_grid(ax):
         mid = (p_a + p_b) / 2.0
         if np.dot(normal, mid - centroid) < 0:
             normal = -normal
-        for k in [0, 50, 100]:
-            tp = np.array(pt_fn(k / 100.0))
-            lp = tp + normal * 0.075
-            ax.text(lp[0], lp[1], str(k), fontsize=FS_ANNOT, ha="center", va="center",
-                   color="#888888")
+        # Only the midpoint (50) is labelled -- S04 WS-C phase 2 fix: the 0/100 ticks sit right on
+        # top of a vertex, which is also where that vertex's own bold ancestry label (AFR/EUR/AMR)
+        # is anchored, so "100"/"0" collided with "AFR"/"AMR" (`check_layout()` text_overlap).
+        # The vertex label already states the 0/100 endpoint unambiguously; the numeral added
+        # nothing but a collision.
+        tp = np.array(pt_fn(0.5))
+        lp = tp + normal * 0.075
+        ax.text(lp[0], lp[1], "50", fontsize=FS_ANNOT, ha="center", va="center", color="#888888")
     return xy
 
 
@@ -251,21 +254,38 @@ def draw_panel_b(ax, pb, gene_b, min_carriers, strict):
     ax.set_ylim(-0.16, np.sqrt(3) / 2 + 0.12)
     ax.axis("off")
     from matplotlib.lines import Line2D
-    # Marker legend anchored inside the panel, bottom-right (orchestrator: attach it inside
-    # panel b's area rather than floating above/outside it).
+    # Marker legend anchored INSIDE the panel's own axes-fraction box (S04 WS-C phase 2 fix: the
+    # previous bbox_to_anchor=(1.14, -0.08) sat outside the axes entirely, in the gap toward panel
+    # c, where it collided with panel c's rotated y-axis label -- `check_layout()`'s
+    # text_overlap check caught it, and check (a3)/text_foreign_spine would have too. (1.0, 0.0)
+    # keeps the legend fully inside this axes' own box, tucked in the empty lower-right corner of
+    # the triangle (between the AFR-AMR edge and the plot's own right boundary).
+    # Below the triangle's own base edge (data only ever falls inside the triangle, so the
+    # padding band below y=0 is guaranteed empty) rather than inside the plotted region -- the
+    # (1.0, 0.34) placement passed `check_layout()` but sat visually on top of scattered data
+    # points, which a Nature editor would still flag even though the mechanical linter can't see
+    # marker/text overlap. ncol=2 keeps it to one compact row.
     ax.legend(handles=[Line2D([], [], marker="o", ls="none", color="#666666", ms=2.4,
                               label="catalogued"),
                        Line2D([], [], marker="^", ls="none", color="#666666", ms=2.4,
                               label="first observed here")],
-             frameon=False, fontsize=FS_LEG - 0.5, loc="lower right", handletextpad=0.3,
-             borderaxespad=0.1, labelspacing=0.25, bbox_to_anchor=(1.14, -0.08))
+             frameon=False, fontsize=FS_LEG - 0.5, loc="upper center", handletextpad=0.3,
+             borderaxespad=0.0, labelspacing=0.25, columnspacing=1.0, ncol=2,
+             bbox_to_anchor=(0.5, -0.02))
 
 
 # ---- panel c/d: novelty heatmap + recurrence marginal bar --------------------------------
+# Short, single-line direct labels (de-AI checklist item 7/13: no sentence-length axis labels;
+# state the unit, let the README carry the full metric definition and caveats). S04 WS-C phase 2
+# fix: the previous two-line labels, rotated 90 for a y-axis label, laid their second line out
+# WIDTH-wise (perpendicular to the vertical reading direction) rather than adding height -- that
+# extra horizontal thickness is exactly what reached left into panel b's space and collided with
+# the "EUR" corner label and the ternary legend (`check_layout()` text_overlap). A single line has
+# no second line to add that width.
 _METRIC_LABEL = {
-    "any_field": "% called haplotypes with sequence (any field)\nabsent from IPD-IMGT/HLA -- mostly non-coding",
-    "cds": "% called haplotypes with a novel\ncoding sequence (CDS)",
-    "protein": "% called haplotypes with a novel\nprotein-coding allele",
+    "any_field": "any-field novelty (%)",
+    "cds": "novel CDS (%)",
+    "protein": "novel protein allele (%)",
 }
 
 

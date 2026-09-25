@@ -96,6 +96,128 @@ def test_aligned_marginal_via_sharex_passes():
     plt.close(fig)
 
 
+def test_text_over_decoration_line_detected():
+    """S04 WS-C phase 2 linter false negative: a Text artist drawn straight through a Line2D that
+    was never registered as data (a bracket/divider) must be caught once the Line2D is marked via
+    `mark_decoration()`. Before this check existed, `check_layout()` only compared Text against
+    Text, so this exact fault (the rotated "DQA1" ylabel drawn through the G1/G2 bracket's stem in
+    `fig_dq_g1g2_committed_MAIN_POOLED.png`) passed with zero violations."""
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ln, = ax.plot([0.5, 0.5], [0.2, 0.8], transform=ax.transAxes, color="black", lw=1.0)
+    vc.mark_decoration(ln)
+    ax.text(0.5, 0.5, "DQA1", transform=ax.transAxes, fontsize=14, rotation=90,
+            ha="center", va="center")
+    violations = vc.check_layout(fig)
+    assert "text_decoration_overlap" in _err_types(violations), violations
+    plt.close(fig)
+
+
+def test_text_over_unmarked_line_not_flagged():
+    """The same crossing geometry as above, but WITHOUT `mark_decoration()`, must not be flagged --
+    opt-in only, so ordinary data lines (a fitted curve, a trend line) that legitimately sit near
+    axis text don't turn into false positives."""
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.plot([0.5, 0.5], [0.2, 0.8], transform=ax.transAxes, color="black", lw=1.0)
+    ax.text(0.5, 0.5, "DQA1", transform=ax.transAxes, fontsize=14, rotation=90,
+            ha="center", va="center")
+    violations = vc.check_layout(fig)
+    assert "text_decoration_overlap" not in _err_types(violations), violations
+    plt.close(fig)
+
+
+def test_text_over_foreign_spine_detected():
+    """A Text artist belonging to one Axes that visually strays into a neighboring Axes' spine
+    must be flagged (check a3) -- e.g. a title or corner label creeping into an adjacent panel's
+    frame. A spine is exempt against Text from its OWN Axes (ordinary tick/axis labels touch their
+    own axis all the time -- that is not a fault)."""
+    fig = plt.figure(figsize=(4, 3))
+    ax1 = fig.add_axes([0.1, 0.1, 0.35, 0.8])
+    ax2 = fig.add_axes([0.55, 0.1, 0.35, 0.8])
+    # Text that belongs to ax1 but is placed, in figure coordinates, on top of ax2's left spine.
+    ax1.text(1.6, 0.5, "stray label", transform=ax1.transAxes, fontsize=14,
+             ha="center", va="center")
+    violations = vc.check_layout(fig)
+    assert "text_foreign_spine_overlap" in _err_types(violations), violations
+    plt.close(fig)
+
+
+def test_text_over_own_spine_not_flagged():
+    """A normal tick label sitting right at its own axes' spine must never be flagged -- the (a3)
+    exemption for text belonging to the same Axes as the spine."""
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.plot([0, 1, 2], [0, 1, 0])
+    violations = vc.check_layout(fig)
+    assert "text_foreign_spine_overlap" not in _err_types(violations), violations
+    plt.close(fig)
+
+
+def test_bracket_regression_dq_g1g2_ylabel_over_bracket():
+    """Direct regression test using the REAL `_bracket_v` helper from
+    `37c_dq_g1g2_from_committed.py` (not just a synthetic stand-in): reproduces the exact
+    "DQA1" ylabel over the G1/G2 bracket stem fault from
+    `fig_dq_g1g2_committed_MAIN_POOLED.png`, confirms it WOULD be caught (a rotated ylabel placed
+    on the bracket axes at the bracket's own x position), and confirms the actual fix (dropping
+    the redundant ylabel) makes the figure clean."""
+    m37c = importlib.util.module_from_spec(
+        importlib.util.spec_from_file_location(
+            "m37c_regr", os.path.join(HLA_POPGEN_DIR, "37c_dq_g1g2_from_committed.py")))
+    importlib.util.spec_from_file_location(
+        "m37c_regr", os.path.join(HLA_POPGEN_DIR, "37c_dq_g1g2_from_committed.py")).loader.exec_module(m37c)
+
+    # Fault: a rotated axis label drawn at the same location a bracket occupies.
+    fig = plt.figure(figsize=(4, 4))
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 3])
+    ax_brk = fig.add_subplot(gs[0, 0])
+    ax_heat = fig.add_subplot(gs[0, 1])
+    ax_brk.set_axis_off()
+    ax_brk.set_xlim(0, 1)
+    ax_brk.set_ylim(0, 1)
+    m37c._bracket_v(ax_brk, 0.1, 0.9, "G1")
+    # Simulate the old fault: a ylabel placed via fig.text at the bracket's stem x-position.
+    fig.text(0.30 * (gs[0, 0].get_position(fig).x1 - gs[0, 0].get_position(fig).x0)
+             + gs[0, 0].get_position(fig).x0, 0.5, "DQA1", rotation=90, fontsize=12,
+             ha="center", va="center")
+    violations = vc.check_layout(fig)
+    assert "text_decoration_overlap" in _err_types(violations), violations
+    plt.close(fig)
+
+    # Fix (what 37c actually does): no such label is drawn at all -- clean.
+    fig2 = plt.figure(figsize=(4, 4))
+    gs2 = fig2.add_gridspec(1, 2, width_ratios=[1, 3])
+    ax_brk2 = fig2.add_subplot(gs2[0, 0])
+    ax_heat2 = fig2.add_subplot(gs2[0, 1])
+    ax_brk2.set_axis_off()
+    ax_brk2.set_xlim(0, 1)
+    ax_brk2.set_ylim(0, 1)
+    m37c._bracket_v(ax_brk2, 0.1, 0.9, "G1")
+    violations2 = vc.check_layout(fig2)
+    assert "text_decoration_overlap" not in _err_types(violations2), violations2
+    plt.close(fig2)
+
+
+def test_bracket_regression_dq_g1g2_xlabel_over_bracket_cap():
+    """Direct regression test for the second half of the real fault: the "DQB1" xlabel colliding
+    with the horizontal bracket's vertical cap in the pre-fix render. Uses the real `_bracket_h`
+    helper."""
+    m37c = importlib.util.module_from_spec(
+        importlib.util.spec_from_file_location(
+            "m37c_regr2", os.path.join(HLA_POPGEN_DIR, "37c_dq_g1g2_from_committed.py")))
+    importlib.util.spec_from_file_location(
+        "m37c_regr2", os.path.join(HLA_POPGEN_DIR, "37c_dq_g1g2_from_committed.py")).loader.exec_module(m37c)
+
+    fig, ax_brk = plt.subplots(figsize=(4, 2))
+    ax_brk.set_axis_off()
+    ax_brk.set_xlim(0, 1)
+    ax_brk.set_ylim(0, 1)
+    # Old fault pattern: the bracket's default y/cap places its cap right where an xlabel at
+    # (x0+x1)/2, y=0.55-ish would sit -- reproduce by placing "DQB1" directly on the cap column.
+    m37c._bracket_h(ax_brk, 0.2, 0.8, "G1", y=0.55, cap=0.16)
+    ax_brk.text(0.2, 0.55 - 0.16, "DQB1", fontsize=12, ha="center", va="center")
+    violations = vc.check_layout(fig)
+    assert "text_decoration_overlap" in _err_types(violations), violations
+    plt.close(fig)
+
+
 def test_save_fig_strict_raises_on_violation(tmp_path):
     fig, ax = plt.subplots(figsize=(4, 3))
     ax.text(0.5, 0.5, "a", transform=ax.transAxes, fontsize=14)
