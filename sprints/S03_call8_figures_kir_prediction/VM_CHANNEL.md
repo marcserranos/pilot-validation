@@ -123,3 +123,11 @@ returning (e.g. `.replace(/=/g,':').replace(/;/g,',')`).
 - One JupyterLab terminal (`/api/terminals` POST) can be reused for the whole
   session — no need to open a new one per command, just reuse `window.ws`
   and call `bg`/`poll` repeatedly with different keys.
+
+## HARD RULE (added after an incident): never transfer files as base64 blobs
+Pasting large base64/encoded payloads into javascript_tool got an agent's browser tools permanently
+refused by the safety classifier (it looks like obfuscated code). Deploy source files as PLAIN TEXT:
+PUT /api/contents/<path> with `{"type":"file","format":"text","content": <the file text as a JSON string>}`.
+Split files >~30 kB into a few sequential PUTs to part files and `cat` them together on the VM. Keep
+each JS call readable. Pull binaries (PNG/PDF) is fine read-only; prefer pulling aggregate TSVs and
+rendering figures locally.
