@@ -110,7 +110,20 @@ def load_tables(in_dir):
 def build_gene_metrics(cov, slope, ancestry="ALL"):
     """Returns a tidy DataFrame, one row per (gene, species): pct_novel_any, pct_novel_protein,
     good_turing_coverage, completeness (s_obs/chao2), chao2_undetected_f0hat, slope_per_1000, all
-    at the genomic identity granularity pooled over `ancestry` (default ALL)."""
+    at the genomic identity granularity pooled over `ancestry` (default ALL) -- EXCEPT
+    pct_novel_protein, whose denominator is `protein` s_obs (the SAME granularity as its own
+    numerator, `protein_novel`), not `genomic` s_obs. 2026-09-27 fix (S04 coordinator item, VM
+    smoke-test follow-up on commit 4a75657): `protein_novel` and `genomic` are two DIFFERENT
+    identity granularities (a translated-protein identity vs. the curated full allele name) --
+    dividing one by the other is comparing apples to oranges regardless of how correctly either
+    side is computed, and was the proximate reason `pct_novel_protein` could exceed 100% even after
+    44's own per-call identity-collapsing fix. `protein_novel` is BY CONSTRUCTION a subset of
+    `protein` (44's `build_person_kir_identity`/`hla_level_mask` only ever add a call to
+    `protein_novel` after first adding the same id to `protein`), so protein_novel/protein can only
+    exceed 100% from an actual remaining bug, never a granularity artifact. Rows where the gene's
+    `protein`/`protein_novel` level is 44's explicit `"NA"` (catalogue-uncovered gene -- see
+    `kir_protein_catalogue_status()`) come through `pd.to_numeric(..., errors="coerce")` as NaN, so
+    `pct_novel_protein` is NaN for that gene rather than a fabricated 0% or masked ratio."""
     sub = cov[cov["ancestry"] == ancestry].copy()
     for col in ("s_obs", "good_turing_coverage", "chao2", "chao2_undetected_f0hat"):
         sub[col] = pd.to_numeric(sub[col], errors="coerce")
@@ -123,10 +136,11 @@ def build_gene_metrics(cov, slope, ancestry="ALL"):
         ["gene", "species", "s_obs", "good_turing_coverage", "chao2",
          "chao2_undetected_f0hat"]].rename(columns={"s_obs": "s_obs_genomic"})
     base = base.merge(s_obs_at("any_novel"), on=["gene", "species"], how="left")
+    base = base.merge(s_obs_at("protein"), on=["gene", "species"], how="left")
     base = base.merge(s_obs_at("protein_novel"), on=["gene", "species"], how="left")
 
     base["pct_novel_any"] = 100.0 * base["s_obs_any_novel"] / base["s_obs_genomic"]
-    base["pct_novel_protein"] = 100.0 * base["s_obs_protein_novel"] / base["s_obs_genomic"]
+    base["pct_novel_protein"] = 100.0 * base["s_obs_protein_novel"] / base["s_obs_protein"]
     base["completeness"] = base["s_obs_genomic"] / base["chao2"]
 
     sl = slope[(slope["ancestry"] == ancestry) & (slope["level"] == "genomic")

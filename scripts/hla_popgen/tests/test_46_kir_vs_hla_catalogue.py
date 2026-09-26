@@ -58,21 +58,29 @@ def _synthetic_cov():
                      "chao2_se": 1.0, "chao2_undetected_f0hat": (chao2 or s_obs * 1.5) - s_obs,
                      "q1": "", "q2": "", "chao_new_by_2n": 0.0})
 
-    # HLA-A: 100 genomic, 20 any-level novel (20%), 0 protein-novel, chao2=200 -> completeness 0.5
+    # HLA-A: 100 genomic, 20 any-level novel (20%), 0 protein-novel (of 90 protein), chao2=200 ->
+    # completeness 0.5. `protein` s_obs (90) is a SEPARATE granularity from `genomic` (100) on
+    # purpose -- pct_novel_protein's fixed (2026-09-27) denominator is `protein`, not `genomic`.
     add("A", "hla", "genomic", 100, chao2=200.0)
     add("A", "hla", "any_novel", 20, chao2=40.0)
+    add("A", "hla", "protein", 90, chao2=95.0)
     add("A", "hla", "protein_novel", 0, chao2=0.0)
     # HLA-B: 200 genomic, 100 any-level novel (50%), chao2=250 -> completeness 0.8
     add("B", "hla", "genomic", 200, chao2=250.0)
     add("B", "hla", "any_novel", 100, chao2=180.0)
+    add("B", "hla", "protein", 150, chao2=170.0)
     add("B", "hla", "protein_novel", 0, chao2=0.0)
-    # KIR2DL1: 50 genomic, 40 any-level novel (80%), chao2=55.55... -> completeness 0.9
+    # KIR2DL1: 50 genomic, 40 any-level novel (80%), chao2=55.55... -> completeness 0.9.
+    # protein=50, protein_novel=10 -> pct_novel_protein = 20% (of `protein`, not `genomic`).
     add("KIR2DL1", "kir", "genomic", 50, chao2=50 / 0.9)
     add("KIR2DL1", "kir", "any_novel", 40, chao2=44.0)
+    add("KIR2DL1", "kir", "protein", 50, chao2=60.0)
     add("KIR2DL1", "kir", "protein_novel", 10, chao2=12.0)
-    # KIR2DL2: 40 genomic, 10 any-level novel (25%), chao2=80 -> completeness 0.5
+    # KIR2DL2: 40 genomic, 10 any-level novel (25%), chao2=80 -> completeness 0.5.
+    # protein=20, protein_novel=2 -> pct_novel_protein = 10%.
     add("KIR2DL2", "kir", "genomic", 40, chao2=80.0)
     add("KIR2DL2", "kir", "any_novel", 10, chao2=15.0)
+    add("KIR2DL2", "kir", "protein", 20, chao2=25.0)
     add("KIR2DL2", "kir", "protein_novel", 2, chao2=3.0)
     return pd.DataFrame(rows)
 
@@ -125,6 +133,59 @@ class TestBuildGeneMetrics(unittest.TestCase):
         self.assertEqual(row["gene_display"], "HLA-A")
         row = self.metrics[(self.metrics.gene == "KIR2DL1") & (self.metrics.species == "kir")].iloc[0]
         self.assertEqual(row["gene_display"], "KIR2DL1")
+
+
+class TestPctNovelProteinDenominator(unittest.TestCase):
+    """2026-09-27 fix (S04 coordinator follow-up on 4a75657): pct_novel_protein's denominator must
+    be `protein` s_obs (the SAME granularity as its own `protein_novel` numerator), not `genomic`
+    s_obs -- dividing across two different identity granularities was itself part of why
+    pct_novel_protein could exceed 100% even with 44's per-call identity fix in place."""
+
+    def setUp(self):
+        self.cov = _synthetic_cov()
+        self.slope = _synthetic_slope()
+        self.metrics = m46.build_gene_metrics(self.cov, self.slope)
+
+    def test_pct_novel_protein_uses_protein_not_genomic_denominator(self):
+        row = self.metrics[(self.metrics.gene == "KIR2DL1") & (self.metrics.species == "kir")].iloc[0]
+        # protein_novel=10, protein=50 -> 20%. Dividing by genomic (50) would coincidentally also
+        # give 20% here (genomic==protein by fixture construction) -- KIR2DL2 below disambiguates.
+        self.assertAlmostEqual(row["pct_novel_protein"], 20.0)
+        row = self.metrics[(self.metrics.gene == "KIR2DL2") & (self.metrics.species == "kir")].iloc[0]
+        # protein_novel=2, protein=20 (NOT genomic=40) -> 10%, not 5% (which dividing by genomic=40
+        # would give) -- this is the case that actually distinguishes the two denominators.
+        self.assertAlmostEqual(row["pct_novel_protein"], 10.0)
+
+    def test_pct_novel_protein_never_exceeds_100_when_protein_novel_is_a_true_subset(self):
+        # protein_novel <= protein by construction in every fixture row here (44's own invariant:
+        # a call is only ever added to protein_novel after being added to protein) -> the fixed
+        # ratio must never exceed 100%, unlike the old genomic-denominator version.
+        self.assertTrue((self.metrics["pct_novel_protein"] <= 100.0).all())
+
+    def test_missing_protein_level_yields_nan_not_a_fabricated_value(self):
+        """A gene whose `protein`/`protein_novel` rows are 44's literal "NA" (catalogue-uncovered,
+        see kir_protein_catalogue_status()) must come through pd.to_numeric as NaN, so
+        pct_novel_protein is NaN for that gene -- never silently 0% or divide-by-zero-as-100%."""
+        rows = []
+
+        def add(gene, species, level, s_obs, chao2):
+            rows.append({"gene": gene, "ancestry": "ALL", "level": level, "species": species,
+                         "n_people": 1000, "s_obs": s_obs, "good_turing_coverage": 0.99,
+                         "chao2": chao2, "chao2_se": 1.0, "chao2_undetected_f0hat": chao2 - (
+                             0 if s_obs == "NA" else s_obs),
+                         "q1": "", "q2": "", "chao_new_by_2n": 0.0})
+
+        add("KIR2DP1", "kir", "genomic", 30, 35.0)
+        add("KIR2DP1", "kir", "any_novel", 5, 6.0)
+        add("KIR2DP1", "kir", "protein", "NA", float("nan"))
+        add("KIR2DP1", "kir", "protein_novel", "NA", float("nan"))
+        cov = pd.DataFrame(rows)
+        slope = pd.DataFrame([{"gene": "KIR2DP1", "ancestry": "ALL", "level": "genomic",
+                               "species": "kir", "curve": "distinct", "n_star": 1000,
+                               "slope_per_1000": 0.1, "mean_at_n_star": 0.0}])
+        metrics = m46.build_gene_metrics(cov, slope)
+        row = metrics[metrics.gene == "KIR2DP1"].iloc[0]
+        self.assertTrue(math.isnan(row["pct_novel_protein"]))
 
 
 class TestTwoProportionZTestReuse(unittest.TestCase):

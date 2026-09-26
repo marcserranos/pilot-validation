@@ -359,7 +359,14 @@ class TestBuildPersonKirIdentity(unittest.TestCase):
             self.assertEqual(n_cds, 0)
             self.assertEqual(n_seen, 1)
 
-    def test_cds_and_protein_derived_from_real_cds_fasta(self):
+    def test_cds_derived_from_real_cds_fasta_protein_uncovered_without_kir_ref(self):
+        """2026-09-27: without a `kir_ref` (no protein catalogue at all), `cds` is still real (it
+        only needs cds.fa.gz), but `protein`/`protein_novel` must NOT get a hash-based guess --
+        this gene must simply be left unpopulated (main() exports it as an explicit NA row with
+        reason=no_refdata; see kir_protein_catalogue_status()). This replaces the pre-2026-09-27
+        behavior, where a missing/uncovering kir_ref fell back to a hash id for every call
+        regardless of catalogue coverage -- the fallback itself was the source of the
+        KIR2DL2/KIR2DL5B/KIR2DP1 pct_novel_protein>100% VM smoke-test warnings."""
         with tempfile.TemporaryDirectory() as tmp:
             person_dir = os.path.join(tmp, "999", "immuannot_output")
             _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
@@ -369,18 +376,42 @@ class TestBuildPersonKirIdentity(unittest.TestCase):
             _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
                                [("ctgA", "KIR3DL1", 1, "ATGAAATAG")])
             pid, per_level, qc, n_seen, n_cds = m44.build_person_kir_identity(
-                "999", tmp, kir41, m03mod, m24mod)
+                "999", tmp, kir41, m03mod, m24mod)  # kir_ref=None (default)
             self.assertEqual(n_cds, 1)
             self.assertEqual(qc["n_matched"], 1)
             cds_ids = per_level["cds"]["KIR3DL1"]
             self.assertEqual(len(cds_ids), 1)
             self.assertTrue(next(iter(cds_ids)).startswith("KIR3DL1_cds_"))
+            # No protein catalogue -> gene left OUT of 'protein'/'protein_novel' entirely.
+            self.assertNotIn("KIR3DL1", per_level.get("protein", {}))
+            self.assertNotIn("KIR3DL1", per_level.get("protein_novel", {}))
+            self.assertEqual(qc["n_protein_gene_uncovered_calls"], 1)
+
+    def test_novel_protein_still_gets_a_hash_id_when_gene_IS_covered(self):
+        """Sanity check that removing the fallback didn't also remove the legitimate case: a
+        gene the catalogue DOES cover, whose observed protein is genuinely uncatalogued, still gets
+        a distinguishing hash id and counts as protein_novel (this is not "falling back to a finer
+        hash than genomic" -- it's the intended encoding for a real novel protein, paired 1:1 with
+        this same call's own genomic/any_novel identity)."""
+        ref = m24mod.RefIndex()
+        ref.add("KIR3DL1", "KIR3DL1*00101", "ATGAAACCCTAG")  # a DIFFERENT known protein
+        ref.finalize()
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "999", "immuannot_output")
+            _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
+                         [("KIR3DL1", "KIR3DL1*001new")], contig="ctgA")
+            _write_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
+                               [("ctgA", "KIR3DL1", 1, "ATGAAATAG")])  # translates to "MK", not
+                                                                        # catalogued
+            pid, per_level, qc, n_seen, n_cds = m44.build_person_kir_identity(
+                "999", tmp, kir41, m03mod, m24mod, kir_ref=ref)
             prot_ids = per_level["protein"]["KIR3DL1"]
             self.assertEqual(len(prot_ids), 1)
             self.assertTrue(next(iter(prot_ids)).startswith("KIR3DL1_prot_"))
-            # Deterministic hash: same sequence -> same id, reproducible.
             expected_prot = "KIR3DL1_prot_" + m24mod.sha8(m24mod.protein_info("ATGAAATAG")["protein"])
             self.assertEqual(next(iter(prot_ids)), expected_prot)
+            self.assertIn(expected_prot, per_level["protein_novel"]["KIR3DL1"])
 
 
 class TestBuildKirIdentitySetsFallback(unittest.TestCase):
@@ -697,6 +728,124 @@ class TestHlaPeopleOutrootBugFix(unittest.TestCase):
             self.assertEqual(matched_right[0]["seq"], "ATGAAATAG")
 
 
+class TestKirProteinCatalogueCoverageFollowUpFix(unittest.TestCase):
+    """2026-09-27 follow-up fix: the VM smoke test of commit 4a75657 still showed
+    pct_novel_protein > 100% for KIR2DL2, KIR2DL5B, and KIR2DP1. Root causes:
+      - KIR2DL5B (name-mismatch case): IPD-KIR's own CDSseq headers can carry an undifferentiated
+        "KIR2DL5" allele name instead of the KIR_GENES-spelled "KIR2DL5A"/"KIR2DL5B", so neither
+        gene is ever a key in `kir_ref.prot`/`kir_ref.cds` under its exact KIR_GENES name.
+      - KIR2DP1 (pseudogene case): every reference allele for a pseudogene is frameshifted or has a
+        premature stop, so `RefIndex.add()` adds it to `.cds` (gene "covered" by a naive check) but
+        NEVER to `.prot` -- `kir_ref.prot["KIR2DP1"]` stays permanently empty even though the gene
+        itself is "in the catalogue".
+      - KIR2DL2 (shared/bundled-file case): covered separately by
+        `_identity_worker_init`'s genes_needed=None fix (a file-level filename filter would have
+        skipped a file bundling KIR2DL2 with KIR2DL3 under a stem matching only one of them) --
+        exercised in TestGenesNeededNoneFix below.
+    The fix in both cases here: `kir_gene_protein_covered()` requires a NON-EMPTY `kir_ref.prot[gene]`
+    (not just gene membership in `kir_ref.cds`/`kir_ref.genes()`), and
+    `build_person_kir_identity()` NEVER produces a hash id for an uncovered gene -- it leaves the
+    gene out of `protein`/`protein_novel` entirely so main() can export an explicit NA row."""
+
+    def test_name_mismatch_gene_is_uncovered_even_though_related_gene_is_in_catalogue(self):
+        """Catalogue has 'KIR2DL5' headers (undifferentiated), never 'KIR2DL5A'/'KIR2DL5B' -- so
+        looking up either exact KIR_GENES-spelled name must report uncovered, not silently borrow
+        the undifferentiated entry (which would misattribute alleles across two real, distinct
+        genes)."""
+        ref = m24mod.RefIndex()
+        ref.add("KIR2DL5", "KIR2DL5*00101", "ATGAAATAG")  # undifferentiated header, no A/B suffix
+        ref.finalize()
+        self.assertFalse(m44.kir_gene_protein_covered(ref, "KIR2DL5A"))
+        self.assertFalse(m44.kir_gene_protein_covered(ref, "KIR2DL5B"))
+        ok_a, reason_a = m44.kir_protein_catalogue_status(ref, ["KIR2DL5A", "KIR2DL5B"])["KIR2DL5A"]
+        self.assertFalse(ok_a)
+        self.assertEqual(reason_a, "gene_not_in_catalogue")
+        # The undifferentiated name itself IS covered (sanity check on the fixture/helper).
+        self.assertTrue(m44.kir_gene_protein_covered(ref, "KIR2DL5"))
+
+    def test_pseudogene_with_only_nonfunctional_catalogue_records_is_uncovered(self):
+        """KIR2DP1-shaped case: RefIndex.add() with a frameshifted/premature-stop sequence adds a
+        CDS record but (by RefIndex.add()'s own gate) never a protein record -- gene ends up 'in'
+        kir_ref.cds/genes() but kir_ref.prot[gene] is empty. kir_gene_protein_covered() must treat
+        this as uncovered, not as "covered, zero known proteins == everything is novel"."""
+        ref = m24mod.RefIndex()
+        ref.add("KIR2DP1", "KIR2DP1*00101", "ATGAA")  # len 5 -> frameshift (not a multiple of 3)
+        ref.add("KIR2DP1", "KIR2DP1*00201", "ATGTAAGGG")  # premature stop mid-sequence
+        ref.finalize()
+        self.assertIn("KIR2DP1", ref.genes())          # has CDS records
+        self.assertEqual(ref.prot.get("KIR2DP1", {}), {})  # but zero usable protein records
+        self.assertFalse(m44.kir_gene_protein_covered(ref, "KIR2DP1"))
+        ok, reason = m44.kir_protein_catalogue_status(ref, ["KIR2DP1"])["KIR2DP1"]
+        self.assertFalse(ok)
+        self.assertEqual(reason, "no_catalogued_protein_entries")
+
+    def test_uncovered_gene_never_produces_a_hash_id_end_to_end(self):
+        """End-to-end (build_person_kir_identity) confirmation for the pseudogene case: even with a
+        real cds.fa.gz and a kir_ref that DOES have CDS-level records for the gene, an uncovered
+        (protein-empty) gene must come back with NOTHING in 'protein'/'protein_novel' -- never a
+        hash id, which is what silently caused the >100% warnings pre-fix."""
+        ref = m24mod.RefIndex()
+        ref.add("KIR2DP1", "KIR2DP1*00101", "ATGAA")  # frameshift -> never added to .prot
+        ref.finalize()
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "1", "immuannot_output")
+            _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
+                         [("KIR2DP1", "KIR2DP1*001")], contig="ctgA")
+            _write_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
+                               [("ctgA", "KIR2DP1", 1, "ATGAAATAG")])
+            pid, per_level, qc, n_seen, n_cds = m44.build_person_kir_identity(
+                "1", tmp, kir41, m03mod, m24mod, kir_ref=ref)
+            self.assertNotIn("KIR2DP1", per_level.get("protein", {}))
+            self.assertNotIn("KIR2DP1", per_level.get("protein_novel", {}))
+            self.assertEqual(qc["n_protein_gene_uncovered_calls"], 1)
+            # genomic/cds are unaffected -- they don't need the protein catalogue.
+            self.assertIn("KIR2DP1*001", per_level["genomic"]["KIR2DP1"])
+            self.assertEqual(len(per_level["cds"]["KIR2DP1"]), 1)
+
+    def test_covered_gene_alongside_uncovered_gene_only_the_latter_is_skipped(self):
+        """Multi-gene sanity check: a covered gene's protein tracking must be unaffected by a
+        SEPARATE gene being uncovered in the same catalogue/run."""
+        ref = m24mod.RefIndex()
+        ref.add("KIR3DL1", "KIR3DL1*00101", "ATGAAACCCTAG")  # covered, functional
+        ref.add("KIR2DP1", "KIR2DP1*00101", "ATGAA")          # uncovered, frameshift
+        ref.finalize()
+        status = m44.kir_protein_catalogue_status(ref, ["KIR3DL1", "KIR2DP1"])
+        self.assertEqual(status["KIR3DL1"], (True, "ok"))
+        self.assertEqual(status["KIR2DP1"], (False, "no_catalogued_protein_entries"))
+
+
+class TestGenesNeededNoneFix(unittest.TestCase):
+    """2026-09-27 fix: _identity_worker_init() now loads the KIR protein catalogue with
+    genes_needed=None instead of genes_needed=set(KIR_GENES), because load_refdata's file-level
+    pre-filter matches a CDSseq file's FILENAME stem, while gene attribution for records inside a
+    file comes from each record's HEADER -- a single file bundling two genes under a filename stem
+    that only exactly matches one exact KIR_GENES spelling (or neither) would previously skip the
+    WHOLE file and silently starve every gene inside it of catalogue coverage, however correctly
+    those records were labeled internally."""
+
+    def test_bundled_file_with_mismatched_stem_is_not_silently_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cdsseq_dir = os.path.join(tmp, "CDSseq")
+            os.makedirs(cdsseq_dir)
+            # A single file, stem "KIR2DL2_2DL3" -- matches NEITHER "KIR2DL2" nor "KIR2DL3"
+            # exactly -- bundling both genes' alleles, correctly labeled inside via headers.
+            with gzip.open(os.path.join(cdsseq_dir, "KIR2DL2_2DL3.fa.gz"), "wt") as f:
+                f.write(">KIR2DL2*00101\nATGAAACCCTAG\n")
+                f.write(">KIR2DL3*00101\nATGAAATTTTAG\n")
+
+            filtered = m24mod.load_refdata(tmp, genes_needed={"KIR2DL2", "KIR2DL3"})
+            self.assertNotIn("KIR2DL2", filtered.genes(),
+                             "sanity check on the fixture: a genes_needed filename filter DOES "
+                             "skip this bundled file (reproduces the pre-fix failure mode).")
+
+            unfiltered = m24mod.load_refdata(tmp, genes_needed=None)
+            self.assertIn("KIR2DL2", unfiltered.genes())
+            self.assertIn("KIR2DL3", unfiltered.genes())
+            self.assertTrue(m44.kir_gene_protein_covered(unfiltered, "KIR2DL2"))
+            self.assertTrue(m44.kir_gene_protein_covered(unfiltered, "KIR2DL3"))
+
+
 class TestKirProteinIdentityGranularityBugFix(unittest.TestCase):
     """Reproduces bug 2 (KIR pct_novel_protein > 100% for every gene, commit d7c16f6): the
     'protein'/'protein_novel' tracks hashed the raw per-call translated CDS for EVERY call,
@@ -833,14 +982,33 @@ class TestSanityCheckCoverage(unittest.TestCase):
         self.assertTrue(any("protein_novel s_obs == 0" in w for w in warnings))
 
     def test_flags_pct_over_100(self):
+        # 2026-09-27: denominator is 'protein' (same granularity), not 'genomic' -- protein_novel
+        # (300) exceeding protein (250) is the only thing that should trip this now.
         cov = [
             {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "genomic",
              "s_obs": 226},
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "protein",
+             "s_obs": 250},
             {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "protein_novel",
              "s_obs": 300},
         ]
         warnings = m44.sanity_check_coverage(cov)
         self.assertTrue(any("pct_novel_protein > 100%" in w for w in warnings))
+
+    def test_does_not_flag_when_protein_novel_exceeds_genomic_but_not_protein(self):
+        """The 2026-09-26 version of this check compared protein_novel against genomic and would
+        have fired here (300 > 226); the 2026-09-27 fix compares against 'protein' (400), so this
+        must NOT warn -- protein_novel is a legitimate subset of protein, just not of genomic."""
+        cov = [
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "genomic",
+             "s_obs": 226},
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "protein",
+             "s_obs": 400},
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "protein_novel",
+             "s_obs": 300},
+        ]
+        warnings = m44.sanity_check_coverage(cov)
+        self.assertEqual(warnings, [])
 
     def test_clean_data_emits_no_warnings(self):
         cov = [
