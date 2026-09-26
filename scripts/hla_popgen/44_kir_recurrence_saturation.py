@@ -171,6 +171,7 @@ USAGE (VM; see the module's own --help for every flag):
     python3 -u 44_kir_recurrence_saturation.py \\
       --kir-outroot ~/pipeline_outputs_kir \\
       --hla-table ~/pipeline_outputs/hla_calls_rich.tsv \\
+      --hla-people-outroot ~/pipeline_outputs/people \\
       --cohort-membership ~/pipeline_outputs/cohort_membership.tsv \\
       --relatedness-table ~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv \\
       --refdata ~/tools/Immuannot_refdata \\
@@ -200,6 +201,13 @@ LEVELS = ["genomic", "cds", "protein", "any_novel", "protein_novel"]
 KIR_LEVELS_NEEDING_CDS_FASTA = {"cds", "protein", "protein_novel"}
 SPECIES = ["kir", "hla"]
 KIR_THRESHOLDS = [1, 2, 3, 20]
+# 39_saturation_by_ancestry.py's own DEFAULT_PEOPLE_OUTROOT convention: cds.fa.gz lives under
+# <outroot>/people/<pid>/immuannot_output/hap{1,2}/cds.fa.gz, one level below --hla-table's own
+# default parent dir. BUG FIX 2026-09-26: this module previously hardcoded plain
+# "~/pipeline_outputs" (no "/people") as build_labeled_calls()'s `outroot` arg, so
+# match_sequences() found zero cds.fa.gz files for every depth-2/3 HLA call and every HLA
+# protein_novel s_obs came out 0 -- see sprints/S04_kir_recurrence_style_share/LOG.md.
+DEFAULT_HLA_PEOPLE_OUTROOT = os.path.expanduser("~/pipeline_outputs/people")
 N_PERMUTATIONS_DEFAULT = 25       # Pakistan Fig 3e convention, matches 39's default
 MIN_PEOPLE_PER_ANCESTRY = 100      # "well-powered" floor for N*, matches 39
 CURVE_STRIDE_DEFAULT = 25          # export every Nth curve point (keeps saturation_curves.tsv small)
@@ -272,6 +280,75 @@ def suppressed(n):
 
 def rate_row(n, d, pct_decimals=1):
     return m43().rate_row(n, d, pct_decimals)
+
+
+def _cov_s_obs_numeric(row):
+    """s_obs is exported as int for real rows or the string 'NA' for an unmatched level (see
+    build_na_rows) -- coerce to float('nan') for 'NA' so callers can uniformly use pd.isna/math."""
+    v = row.get("s_obs")
+    if v == "NA" or v is None:
+        return float("nan")
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
+def sanity_check_coverage(cov_rows):
+    """Runtime sanity gate on `coverage_chao2.tsv` rows (list of dicts, as built by
+    build_coverage_chao2_row/build_na_rows), run once per full 44 invocation right before export.
+    Catches, LOUDLY (never silently), the two failure modes this module has actually shipped with:
+      (1) protein_novel s_obs == 0 for every gene of a species that otherwise has real (>0)
+          any_novel novelty -- the HLA `--hla-people-outroot` path bug (match_sequences() silently
+          matching zero calls, so seq_class/prot_id never populate for any depth-2/3 call).
+      (2) any gene x ancestry's pct_novel_protein (= 100 * protein_novel_s_obs / genomic_s_obs, the
+          same ratio 46_kir_vs_hla_coverage.py's build_gene_metrics() reports) > 100% -- the KIR
+          protein-hash / genomic-name identity-granularity mismatch (see build_person_kir_identity's
+          docstring).
+    Does not raise (a warning, not a hard failure -- a real biological zero or a small-N NA/blank
+    row from disclosure masking are both possible and not necessarily bugs) but always prints to
+    stderr so it can't be missed in run.log. Returns the list of warning strings emitted (empty if
+    clean), so tests can assert on content instead of stderr capture."""
+    warnings = []
+    by_key = {}   # (species, gene, ancestry) -> {level: s_obs}
+    for r in cov_rows:
+        key = (r.get("species"), r.get("gene"), r.get("ancestry"))
+        by_key.setdefault(key, {})[r.get("level")] = _cov_s_obs_numeric(r)
+
+    any_novel_total = defaultdict(float)
+    protein_novel_total = defaultdict(float)
+    protein_novel_real_seen = defaultdict(bool)  # True once a species has >=1 non-"NA" row
+    for (species, gene, ancestry), levels in by_key.items():
+        any_novel = levels.get("any_novel")
+        protein_novel = levels.get("protein_novel")
+        genomic = levels.get("genomic")
+        if any_novel is not None and not math.isnan(any_novel):
+            any_novel_total[species] += any_novel
+        if protein_novel is not None and not math.isnan(protein_novel):
+            protein_novel_total[species] += protein_novel
+            protein_novel_real_seen[species] = True
+        if (genomic is not None and protein_novel is not None
+                and not math.isnan(genomic) and not math.isnan(protein_novel) and genomic > 0):
+            pct = 100.0 * protein_novel / genomic
+            if pct > 100.0:
+                msg = (f"[44] SANITY WARNING: pct_novel_protein > 100% for species={species} "
+                       f"gene={gene} ancestry={ancestry} (protein_novel s_obs={protein_novel:g} > "
+                       f"genomic s_obs={genomic:g}, {pct:.1f}%) -- identity-granularity mismatch "
+                       f"between the 'protein_novel' and 'genomic' tracks; see "
+                       f"build_person_kir_identity's docstring for the known KIR failure mode.")
+                warnings.append(msg)
+                log(msg)
+    for species in any_novel_total:
+        if (any_novel_total[species] > 0 and protein_novel_real_seen.get(species, False)
+                and protein_novel_total.get(species, 0.0) == 0.0):
+            msg = (f"[44] SANITY WARNING: protein_novel s_obs == 0 for EVERY gene/ancestry of "
+                   f"species={species}, despite any_novel s_obs summing to "
+                   f"{any_novel_total[species]:g} > 0 -- protein-level novelty pipeline likely "
+                   f"broken for this species (e.g. the HLA --hla-people-outroot cds.fa.gz path "
+                   f"bug), not a real biological zero.")
+            warnings.append(msg)
+            log(msg)
+    return warnings
 
 
 def write_status(out_dir, msg):
@@ -536,10 +613,30 @@ def resolve_kir_cds_sequences(rows, cds_fa_path, m03mod):
     return seq_by_key, stats
 
 
-def build_person_kir_identity(pid, kir_outroot, kir, m03mod, m24mod):
+def build_person_kir_identity(pid, kir_outroot, kir, m03mod, m24mod, kir_ref=None):
     """One person's contribution across all 5 KIR identity levels (see module docstring).
     Returns (pid, per_level: {level: {gene: set(id)}}, qc: Counter, n_hap_seen: int,
-    n_hap_cds_present: int) -- picklable (plain dicts/sets/Counter), safe for multiprocessing."""
+    n_hap_cds_present: int) -- picklable (plain dicts/sets/Counter), safe for multiprocessing.
+
+    `kir_ref`: optional `m24().RefIndex` built from IPD-KIR's own CDSseq/*.fa.gz snapshot (same
+    directory 24_novelty_by_field.py's HLA RefIndex globs -- confirmed present for all 17 KIR genes,
+    see 41_kir_pilot.classify_novelty_tier's own docstring). BUG FIX 2026-09-26 (identity-granularity
+    mismatch, S04 coordinator item): the `protein`/`protein_novel` tracks previously hashed the raw
+    observed CDS translation for EVERY call, known or not, so two people carrying the textbook-known
+    same allele could land on different hashes from ordinary per-sample sequencing noise -- richer
+    (finer-grained) than the curated `genomic` identity (the Immuannot consensus name, already
+    deduplicated to a cataloged allele for known calls), which is exactly backwards for a
+    protein-vs-genomic comparison and is why `pct_novel_protein` (46's own
+    `s_obs_protein_novel / s_obs_genomic`) could exceed 100%. Mirroring HLA's own `prot_id` scheme
+    (`24_novelty_by_field.allele_ids`: a curated 2-field name for a known/catalogued protein, a
+    hash only for a genuinely uncatalogued one) fixes this: when `kir_ref` is given and the gene is
+    covered, `protein_novel` = "this exact translated protein sequence is not in the catalogue's
+    protein set for this gene" (the task's own definition), and known proteins collapse to ONE
+    catalog-name-derived id across everyone, same as `genomic`/HLA. When `kir_ref` is None or the
+    gene isn't covered, falls back to the ORIGINAL scheme (hash id always; `protein_novel` gated on
+    41's `novelty_tier == "novel_protein"` heuristic instead of catalogue membership) -- the
+    documented fallback for when the KIR protein catalogue can't be loaded, and also what every
+    existing (pre-fix) unit test fixture exercises, since none of them pass `kir_ref`."""
     per_level = {lvl: defaultdict(set) for lvl in LEVELS}
     qc = Counter()
     n_hap_seen = n_hap_cds_present = 0
@@ -566,42 +663,64 @@ def build_person_kir_identity(pid, kir_outroot, kir, m03mod, m24mod):
                 cds_id = f"{gene}_cds_{m24mod.sha8(seq)}"
                 per_level["cds"][gene].add(cds_id)
                 protein = m24mod.protein_info(seq)["protein"]
-                prot_id = f"{gene}_prot_{m24mod.sha8(protein)}"
+                catalog_names = None
+                if kir_ref is not None and gene in kir_ref.genes():
+                    catalog_names = kir_ref.prot.get(gene, {}).get(protein)
+                    is_novel_protein = not catalog_names
+                else:
+                    is_novel_protein = (tier == "novel_protein")
+                if catalog_names:
+                    prot_id = f"{gene}_{sorted(catalog_names)[0]}"
+                else:
+                    prot_id = f"{gene}_prot_{m24mod.sha8(protein)}"
                 per_level["protein"][gene].add(prot_id)
-                if tier == "novel_protein":
+                if is_novel_protein:
                     per_level["protein_novel"][gene].add(prot_id)
     per_level = {lvl: dict(d) for lvl, d in per_level.items()}
     return pid, per_level, qc, n_hap_seen, n_hap_cds_present
 
 
-_id_kir = _id_m03 = _id_m24 = None
+_id_kir = _id_m03 = _id_m24 = _id_kir_ref = None
 
 
-def _identity_worker_init():
-    global _id_kir, _id_m03, _id_m24
+def _identity_worker_init(refdata=None):
+    global _id_kir, _id_m03, _id_m24, _id_kir_ref
     _id_kir, _id_m03, _id_m24 = m41(), m03(), m24()
+    _id_kir_ref = None
+    if refdata is not None:
+        try:
+            _id_kir_ref = _id_m24.load_refdata(refdata, genes_needed=set(_id_kir.KIR_GENES))
+        except SystemExit as e:
+            log(f"WARNING: could not load KIR protein catalogue from {refdata!r} ({e}); "
+                f"falling back to 41's novelty_tier heuristic for protein_novel.")
+            _id_kir_ref = None
 
 
 def _identity_worker_task(args):
     pid, kir_outroot = args
-    return build_person_kir_identity(pid, kir_outroot, _id_kir, _id_m03, _id_m24)
+    return build_person_kir_identity(pid, kir_outroot, _id_kir, _id_m03, _id_m24, _id_kir_ref)
 
 
-def build_kir_identity_sets(pids, kir_outroot, workers):
+def build_kir_identity_sets(pids, kir_outroot, workers, refdata=None):
     """Orchestrates build_person_kir_identity over all `pids` (optionally multiprocessed, mirroring
     43_kir_full_aggregate.parse_all's Pool(initializer=...) pattern). Returns
     (sets_by_level: {level: {gene: {pid: set(id)}}}, qc: Counter, cds_available: bool,
     n_hap_seen: int, n_hap_cds_present: int). `cds_available` is False iff cds.fa.gz was found for
     ZERO haplotypes across the entire cohort (a hard failure mode -- e.g. the file was cleaned up
-    or never written for the KIR run -- not ordinary per-person sparsity)."""
+    or never written for the KIR run -- not ordinary per-person sparsity).
+
+    `refdata`: passed through to each worker's own `_identity_worker_init` (not shared as a live
+    object across process boundaries -- each worker loads its own KIR RefIndex, same pattern this
+    file already uses for m41/m03/m24). None (the default) reproduces the pre-fix hash-only /
+    novelty_tier-heuristic behavior -- see build_person_kir_identity's docstring."""
     sets_by_level = {lvl: defaultdict(dict) for lvl in LEVELS}
     qc_total = Counter()
     n_hap_seen_total = n_hap_cds_present_total = 0
     if workers <= 1:
-        _identity_worker_init()
+        _identity_worker_init(refdata)
         results = (_identity_worker_task((pid, kir_outroot)) for pid in pids)
     else:
-        pool = mp.Pool(processes=workers, initializer=_identity_worker_init)
+        pool = mp.Pool(processes=workers, initializer=_identity_worker_init, initargs=(refdata,))
         results = pool.imap_unordered(_identity_worker_task,
                                        [(pid, kir_outroot) for pid in pids], chunksize=32)
     for pid, per_level, qc, n_seen, n_cds in results:
@@ -813,6 +932,15 @@ def main():
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kir-outroot", default=os.path.expanduser("~/pipeline_outputs_kir"))
     ap.add_argument("--hla-table", default=os.path.expanduser("~/pipeline_outputs/hla_calls_rich.tsv"))
+    ap.add_argument("--hla-people-outroot", default=DEFAULT_HLA_PEOPLE_OUTROOT,
+                     help="per-person dir containing <pid>/immuannot_output/hap{1,2}/cds.fa.gz for "
+                          "HLA sequence matching (39_saturation_by_ancestry.build_labeled_calls's "
+                          "own --outroot / DEFAULT_PEOPLE_OUTROOT convention -- NOT the same as "
+                          "--hla-table's parent dir; BUG FIX 2026-09-26: this file previously "
+                          "hardcoded '~/pipeline_outputs' here, one directory short of where "
+                          "cds.fa.gz actually lives, so match_sequences() silently matched zero "
+                          "depth-2/3 calls and every HLA protein_novel S_obs came out 0 -- see "
+                          "sprints/S04_kir_recurrence_style_share/LOG.md).")
     ap.add_argument("--cohort-membership", default=os.path.expanduser("~/pipeline_outputs/cohort_membership.tsv"))
     ap.add_argument("--relatedness-table", default=os.path.expanduser(
         "~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/short_read/snpindel/aux/relatedness/"
@@ -849,7 +977,7 @@ def main():
         table1=args.hla_table, limit=args.limit, cohort_membership=args.cohort_membership,
         relatedness_table=args.relatedness_table, kin_min=args.kin_min,
         strict_threshold=args.strict_threshold, skip_relatedness=args.skip_relatedness,
-        refdata=args.refdata, outroot=os.path.expanduser("~/pipeline_outputs"), threads=args.threads)
+        refdata=args.refdata, outroot=args.hla_people_outroot, threads=args.threads)
     calls, ref_catalogue_size, mstats, n_removed = m39mod.build_labeled_calls(hla_args)
     calls = add_hla_genomic_id(calls, m24mod)
     hla_pids = sorted(calls["person_id"].unique())
@@ -883,7 +1011,7 @@ def main():
     log("[44] building KIR identity sets (all 5 levels, one pass per person) ...")
     (kir_sets_by_level, kir_qc, kir_cds_available,
      n_hap_seen, n_hap_cds_present) = build_kir_identity_sets(
-        unrelated_pids, args.kir_outroot, args.workers)
+        unrelated_pids, args.kir_outroot, args.workers, refdata=args.refdata)
     if not kir_cds_available:
         log("[44] WARNING: cds.fa.gz was not found for ANY KIR haplotype -- 'cds'/'protein'/"
             "'protein_novel' will be exported as 'NA' for every KIR row. See module docstring "
@@ -914,6 +1042,8 @@ def main():
                 n_star_by_ancestry, args.curve_stride, args.extrapolate_2n)
             all_rec += rec; all_curve += curve; all_slope += slope; all_cov += cov
         write_status(args.out_dir, f"level={level} done ({len(all_rec)} recurrence rows so far)")
+
+    sanity_check_coverage(all_cov)
 
     pd.DataFrame(all_rec).to_csv(os.path.join(args.out_dir, "recurrence_classes.tsv"),
                                   sep="\t", index=False)

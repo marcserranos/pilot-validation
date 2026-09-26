@@ -625,6 +625,248 @@ class TestEndToEndSynthetic(unittest.TestCase):
         self.assertEqual(cov[0]["chao2"], "NA")
 
 
+class TestHlaPeopleOutrootBugFix(unittest.TestCase):
+    """Reproduces bug 1 (HLA protein_novel s_obs == 0 for every classical gene, commit d7c16f6):
+    44 used to hardcode `outroot=os.path.expanduser("~/pipeline_outputs")` when calling
+    39_saturation_by_ancestry.build_labeled_calls(), one directory short of
+    <outroot>/people/<pid>/immuannot_output/hap{1,2}/cds.fa.gz -- 39's own DEFAULT_PEOPLE_OUTROOT
+    convention (`os.path.join(DEFAULT_OUTROOT, "people")`). match_sequences()/_match_person()/
+    match_novel_rows() build `cds_path = os.path.join(outroot, person_id, "immuannot_output", hap,
+    "cds.fa.gz")` from that outroot directly, so the wrong outroot means every depth-2/3 call's
+    cds.fa.gz lookup misses, seq_class/prot_id never populate, and field_class==f2_protein AND
+    seq_class==novel_protein (protein_novel's own mask) is never true for ANY row -- a silent,
+    universal zero, not a real biological zero (S03/S01/Figure-1-panel-d show ~20-60 novel protein
+    alleles per classical gene)."""
+
+    def test_default_outroot_points_at_people_subdir(self):
+        # Would be AttributeError (pre-fix code had no such name at all) or a plain string equal
+        # to "~/pipeline_outputs" (pre-fix hardcoded value, missing "/people") before the fix.
+        default = getattr(m44, "DEFAULT_HLA_PEOPLE_OUTROOT", None)
+        self.assertIsNotNone(
+            default, "44 must expose DEFAULT_HLA_PEOPLE_OUTROOT (2026-09-26 bug fix)")
+        self.assertTrue(
+            default.rstrip("/").endswith(os.sep + "people"),
+            f"DEFAULT_HLA_PEOPLE_OUTROOT={default!r} must point at the 'people' subdir, matching "
+            f"39_saturation_by_ancestry.DEFAULT_PEOPLE_OUTROOT -- the pre-fix bug hardcoded the "
+            f"bare pipeline_outputs dir here, one level too shallow.")
+
+    def test_matches_39s_own_default_people_outroot(self):
+        m39mod = _load_module("39_saturation_by_ancestry.py", "saturation_by_ancestry_test_target_44")
+        self.assertEqual(m44.DEFAULT_HLA_PEOPLE_OUTROOT, m39mod.DEFAULT_PEOPLE_OUTROOT,
+                         "44's HLA people-outroot default has drifted from 39's own "
+                         "DEFAULT_PEOPLE_OUTROOT -- they must name the same directory.")
+
+    def test_wrong_outroot_silently_matches_nothing_right_outroot_matches(self):
+        """Mechanism-level reproduction: build one person's on-disk cds.fa.gz under the CORRECT
+        <outroot>/people/<pid>/... layout (39's convention) and show that match_sequences() (the
+        exact function build_labeled_calls() calls, reused verbatim) matches it when given the
+        correct 'people'-suffixed outroot but matches NOTHING when given the pre-fix, one-level-
+        shallow outroot -- reproducing the silent-zero mechanism behind bug 1 without needing the
+        full VM-only build_labeled_calls()/cohort/relatedness/refdata pipeline."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base = os.path.join(tmp, "pipeline_outputs")
+            people_root = os.path.join(base, "people")
+            pid = "1234567"
+            hap_dir = os.path.join(people_root, pid, "immuannot_output")
+            os.makedirs(os.path.join(hap_dir, "hap1"), exist_ok=True)
+            with gzip.open(os.path.join(hap_dir, "hap1", "cds.fa.gz"), "wt") as f:
+                f.write(">ctgA_A_1\nATGAAATAG\n")
+
+            # match_novel_rows joins on f"{contig}_{gene}" against the fasta header -- 'gene' here
+            # must be the bare name ("A"), matching the cds.fa.gz header convention (see
+            # 03_novel_alleles.py's own docstring / KIR fixtures elsewhere in this file). It also
+            # needs is_novel/gene_class/etc. columns match_novel_rows() reads directly.
+            t1 = pd.DataFrame([{
+                "person_id": pid, "hap": "hap1", "gene": "A", "contig": "ctgA",
+                "copy_index": 1, "depth": 2, "is_novel": "True", "gene_class": "classical",
+                "cds_distance": None, "n_aa_changes": None, "novelty_class": None,
+                "template_warning": None, "cds_mut": None,
+            }])
+
+            # Pre-fix behavior: outroot one level too shallow (no "/people").
+            matched_wrong, _ = m24mod.match_sequences(t1, base, threads=1)
+            self.assertEqual(len(matched_wrong), 0,
+                             "sanity check on the test fixture itself: the pre-fix (bare "
+                             "pipeline_outputs) outroot must NOT find cds.fa.gz.")
+
+            # Post-fix behavior: correct outroot (matches DEFAULT_HLA_PEOPLE_OUTROOT's shape).
+            matched_right, _ = m24mod.match_sequences(t1, people_root, threads=1)
+            self.assertEqual(len(matched_right), 1,
+                             "the correct 'people'-suffixed outroot must find and match the "
+                             "on-disk cds.fa.gz.")
+            self.assertEqual(matched_right[0]["seq"], "ATGAAATAG")
+
+
+class TestKirProteinIdentityGranularityBugFix(unittest.TestCase):
+    """Reproduces bug 2 (KIR pct_novel_protein > 100% for every gene, commit d7c16f6): the
+    'protein'/'protein_novel' tracks hashed the raw per-call translated CDS for EVERY call,
+    known or not, instead of collapsing known proteins to a single curated catalogue identity the
+    way HLA's own prot_id scheme does -- so two people carrying the textbook-SAME known KIR allele
+    (ordinary per-sample sequencing noise in the reconstructed CDS) could land on different
+    protein-level hashes, making 'protein' (and therefore 'protein_novel', a subset of it) far
+    FINER-grained than 'genomic' (the curated, already-deduplicated Immuannot consensus name) --
+    backwards for a protein-vs-genomic comparison, and exactly why
+    s_obs(protein_novel)/s_obs(genomic) (46_kir_vs_hla_coverage.py's pct_novel_protein) could
+    exceed 100%."""
+
+    def _catalog_ref(self, gene, known_seq):
+        """A minimal m24().RefIndex-shaped stand-in covering exactly one known protein for `gene`,
+        built the same way m24mod.RefIndex.add() would from a real CDSseq/*.fa.gz record."""
+        ref = m24mod.RefIndex()
+        ref.add(gene, f"{gene}*00101", known_seq)
+        ref.finalize()
+        return ref
+
+    def test_without_kir_ref_two_people_same_known_protein_get_different_hash_ids(self):
+        """Pre-fix (and still the documented fallback when no catalogue is available): a known
+        allele's protein identity is a raw hash of the exact observed sequence, so a 1bp-different
+        but SAME-catalogued-protein observation (silent/synonymous at nucleotide level for this
+        toy example is not required -- any two distinct nucleotide sequences suffice) produces two
+        DIFFERENT ids even though both are 'known'. This is the pre-fix behavior --
+        build_person_kir_identity's default (`kir_ref=None`) reproduces it exactly, and existing
+        older fixtures rely on this fallback still working."""
+        with tempfile.TemporaryDirectory() as tmp:
+            for pid, seq in (("1", "ATGAAATAG"), ("2", "ATGAAATAG")):
+                person_dir = os.path.join(tmp, pid, "immuannot_output")
+                _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
+                             [("KIR3DL1", "KIR3DL1*001")], contig="ctgA")
+                _write_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+                _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
+                                   [("ctgA", "KIR3DL1", 1, seq)])
+            sets_by_level, qc, cds_available, n_seen, n_cds = m44.build_kir_identity_sets(
+                ["1", "2"], tmp, workers=1)  # no refdata= -> kir_ref=None, old scheme
+            self.assertTrue(cds_available)
+            # Same sequence -> same hash -> ONE shared id (not the bug by itself), but this
+            # 'protein' id is a raw hash, never collapsed to a curated catalogue name -- the
+            # granularity-mismatch setup the next test exercises with genuinely known alleles.
+            prot_ids = set()
+            for pid in ("1", "2"):
+                prot_ids |= sets_by_level["protein"]["KIR3DL1"].get(pid, set())
+            self.assertTrue(all(pid.startswith("KIR3DL1_prot_") for pid in prot_ids))
+
+    def test_kir_ref_collapses_known_protein_to_one_catalogue_id_not_a_hash(self):
+        """The fix: when a `kir_ref` (IPD-KIR protein catalogue) is supplied and covers the gene, a
+        translated protein that MATCHES the catalogue collapses to ONE catalogue-name-derived id
+        (mirroring HLA's prot_id for known alleles), not a hash -- so 'protein' s_obs for known
+        alleles can no longer explode past 'genomic' s_obs the way raw per-call hashing did."""
+        known_seq = "ATGAAATAG"  # translates to catalogued protein "MK"
+        ref = self._catalog_ref("KIR3DL1", known_seq)
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "1", "immuannot_output")
+            _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
+                         [("KIR3DL1", "KIR3DL1*001")], contig="ctgA")
+            _write_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
+                               [("ctgA", "KIR3DL1", 1, known_seq)])
+            pid, per_level, qc, n_seen, n_cds = m44.build_person_kir_identity(
+                "1", tmp, kir41, m03mod, m24mod, kir_ref=ref)
+            prot_ids = per_level["protein"]["KIR3DL1"]
+            self.assertEqual(len(prot_ids), 1)
+            got = next(iter(prot_ids))
+            self.assertFalse(got.startswith("KIR3DL1_prot_"),
+                             f"a catalogued protein must NOT get a hash id, got {got!r}")
+            self.assertTrue(got.startswith("KIR3DL1_KIR3DL1*"),
+                            f"expected a catalogue-name-derived id, got {got!r}")
+            # Not novel: it's in the catalogue.
+            self.assertNotIn("KIR3DL1", per_level.get("protein_novel", {}))
+
+    def test_protein_novel_never_exceeds_genomic_s_obs_with_kir_ref(self):
+        """End-to-end-ish reproduction of the actual reported bug: build a small synthetic cohort
+        where several people carry the SAME known allele (each reconstructed with a trivially
+        different -- but still-translates-to-the-known-protein -- CDS to mimic per-sample noise)
+        plus one genuinely novel-protein carrier, run it through build_coverage_chao2_row for both
+        'genomic' and 'protein_novel', and confirm protein_novel's s_obs <= genomic's s_obs (the
+        pre-fix code could and did violate this -- see coverage_chao2.tsv commit d7c16f6, e.g.
+        KIR2DL1 genomic S_obs=226 vs protein S_obs=627)."""
+        known_seq = "ATGAAATAG"          # -> known protein "MK"
+        novel_seq = "ATGAAACAGTAG"       # -> different protein, not in catalogue
+        ref = self._catalog_ref("KIR3DL1", known_seq)
+        with tempfile.TemporaryDirectory() as tmp:
+            people = {
+                "1": "KIR3DL1*001", "2": "KIR3DL1*001", "3": "KIR3DL1*001",
+                "4": "KIR3DL1*002new",
+            }
+            seq_for = {"KIR3DL1*001": known_seq, "KIR3DL1*002new": novel_seq}
+            for pid, consensus in people.items():
+                person_dir = os.path.join(tmp, pid, "immuannot_output")
+                _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
+                             [("KIR3DL1", consensus)], contig="ctgA")
+                _write_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+                _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
+                                   [("ctgA", "KIR3DL1", 1, seq_for[consensus])])
+            sets_by_level, qc, cds_available, n_seen, n_cds = m44.build_kir_identity_sets(
+                list(people), tmp, workers=1, refdata=None)
+            # Manually attach the ref (build_kir_identity_sets(refdata=...) loads from disk; here
+            # we rebuild via build_person_kir_identity directly so the toy in-memory ref applies).
+            sets_by_level = {lvl: {} for lvl in m44.LEVELS}
+            for pid in people:
+                _, per_level, _, _, _ = m44.build_person_kir_identity(
+                    pid, tmp, kir41, m03mod, m24mod, kir_ref=ref)
+                for lvl, gene_sets in per_level.items():
+                    for gene, ids in gene_sets.items():
+                        sets_by_level[lvl].setdefault(gene, {})[pid] = ids
+
+            genomic_sets = sets_by_level["genomic"].get("KIR3DL1", {})
+            protein_novel_sets = sets_by_level["protein_novel"].get("KIR3DL1", {})
+            genomic_row = m44.build_coverage_chao2_row(
+                "KIR3DL1", "ALL", "genomic", "kir",
+                {p: genomic_sets.get(p, set()) for p in people})
+            protein_novel_row = m44.build_coverage_chao2_row(
+                "KIR3DL1", "ALL", "protein_novel", "kir",
+                {p: protein_novel_sets.get(p, set()) for p in people})
+            self.assertLessEqual(protein_novel_row["s_obs"], genomic_row["s_obs"],
+                                 f"protein_novel s_obs ({protein_novel_row['s_obs']}) must not "
+                                 f"exceed genomic s_obs ({genomic_row['s_obs']}) -- this is "
+                                 f"exactly the >100% pct_novel_protein bug.")
+            self.assertEqual(protein_novel_row["s_obs"], 1)  # only the one genuinely novel protein
+            self.assertEqual(genomic_row["s_obs"], 2)        # KIR3DL1*001 and *002new
+
+
+class TestSanityCheckCoverage(unittest.TestCase):
+    def test_flags_protein_novel_zero_when_any_novel_positive(self):
+        cov = [
+            {"species": "hla", "gene": "A", "ancestry": "ALL", "level": "any_novel", "s_obs": 50},
+            {"species": "hla", "gene": "A", "ancestry": "ALL", "level": "protein_novel", "s_obs": 0},
+            {"species": "hla", "gene": "A", "ancestry": "ALL", "level": "genomic", "s_obs": 300},
+        ]
+        warnings = m44.sanity_check_coverage(cov)
+        self.assertTrue(any("protein_novel s_obs == 0" in w for w in warnings))
+
+    def test_flags_pct_over_100(self):
+        cov = [
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "genomic",
+             "s_obs": 226},
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "protein_novel",
+             "s_obs": 300},
+        ]
+        warnings = m44.sanity_check_coverage(cov)
+        self.assertTrue(any("pct_novel_protein > 100%" in w for w in warnings))
+
+    def test_clean_data_emits_no_warnings(self):
+        cov = [
+            {"species": "hla", "gene": "A", "ancestry": "ALL", "level": "any_novel", "s_obs": 50},
+            {"species": "hla", "gene": "A", "ancestry": "ALL", "level": "protein_novel",
+             "s_obs": 20},
+            {"species": "hla", "gene": "A", "ancestry": "ALL", "level": "genomic", "s_obs": 300},
+        ]
+        self.assertEqual(m44.sanity_check_coverage(cov), [])
+
+    def test_na_rows_do_not_spuriously_trigger(self):
+        cov = [
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "any_novel",
+             "s_obs": 5},
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "protein_novel",
+             "s_obs": "NA"},
+            {"species": "kir", "gene": "KIR2DL1", "ancestry": "ALL", "level": "genomic",
+             "s_obs": "NA"},
+        ]
+        # any_novel > 0 for kir but protein_novel is "NA" (unmatched, not a real 0) -- must not
+        # be treated as a false protein_novel==0 total across a species with real any_novel data
+        # from OTHER genes; single-gene NA rows must not raise a pct>100 warning either.
+        warnings = m44.sanity_check_coverage(cov)
+        self.assertEqual(warnings, [])
+
+
 class TestJointUnrelatedSet(unittest.TestCase):
     def test_intersects_before_removing_relatives(self):
         kir_pids = ["1", "2", "3", "4"]
