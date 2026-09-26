@@ -580,9 +580,9 @@ class TestEndToEndSynthetic(unittest.TestCase):
         m45 = _load_module("45_kir_recurrence_figure.py", "kir_recurrence_figure_45_test_target")
         rec, curve, cov = m45.load_tables(out_dir)
         try:
-            m45.fig_saturation_paired(curve, os.path.join(out_dir, "fig_saturation_paired"))
-            m45.fig_recurrence_classes(rec, os.path.join(out_dir, "fig_recurrence_classes"))
-            m45.fig_coverage_chao2(cov, os.path.join(out_dir, "fig_coverage_chao2"))
+            m45.fig_saturation_by_recurrence(curve, os.path.join(out_dir, "fig_saturation_by_recurrence"))
+            m45.fig_saturation_per_ancestry(curve, os.path.join(out_dir, "fig_saturation_per_ancestry"))
+            m45.fig_coverage_completeness(cov, os.path.join(out_dir, "fig_coverage_completeness"))
         except RuntimeError as e:
             # Known LOCAL sandbox-only issue, not a bug in 44/45: macOS's system Helvetica.ttc
             # (a multi-face TrueType Collection) trips a freetype glyph-load failure inside
@@ -600,7 +600,8 @@ class TestEndToEndSynthetic(unittest.TestCase):
             self.skipTest(f"local-sandbox-only matplotlib/freetype glyph issue (not a 44/45 "
                           f"bug -- see comment): {e}")
             return
-        for stem in ("fig_saturation_paired", "fig_recurrence_classes", "fig_coverage_chao2"):
+        for stem in ("fig_saturation_by_recurrence", "fig_saturation_per_ancestry",
+                     "fig_coverage_completeness"):
             self.assertTrue(os.path.exists(os.path.join(out_dir, stem + ".png")))
             self.assertTrue(os.path.exists(os.path.join(out_dir, stem + ".pdf")))
 
