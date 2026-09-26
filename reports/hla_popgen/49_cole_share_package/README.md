@@ -45,6 +45,15 @@ reference and caveats. The short version: `novelty_tier != known` in either tabl
 
 ## Caveats
 
+- **Known cosmetic issue in the already-uploaded 2026-09-25 release (fixed for next time):** the
+  package's own `README.md`/`SCHEMA.md` header read "release 2026-09-26" (the wall-clock date the
+  script happened to run) while the bucket prefix is `release_2026-09-25` -- `date_str` was
+  `time.strftime("%Y-%m-%d")` at build time, independent of the upload prefix chosen later. Not a
+  disclosure or correctness issue (no data is mis-dated, only the doc header string), so the
+  already-uploaded package was left as-is rather than re-uploaded for a cosmetic fix. **Fixed in
+  the script** (`scripts/hla_popgen/49_cole_share_package.py`): added `--release-tag`, which now
+  drives the README/SCHEMA header date; defaults to today's date if omitted, so always pass
+  `--release-tag <date>` matching the upload prefix at build time for future releases.
 - KIR excludes the 991 sequel2/Tier-3 people (known `run_immuannot_person.py` chr6-reference-cache
   bug, not fixed) — see `persons.tsv`'s `exclusion_reason`.
 - The DQ/DP phasing-confidence column is only populated if `37_dq_g1g2_signed_ld.py

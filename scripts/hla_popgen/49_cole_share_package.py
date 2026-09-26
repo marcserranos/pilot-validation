@@ -80,9 +80,13 @@ S4 WS-E and CLAUDE.md's "explicit permission required" rule for shared-state VM/
       --format="value(md5Hash)"
 ===============================================================================================
 
-Usage (on the VM):
-    python3 scripts/hla_popgen/49_cole_share_package.py --dry-run
-    python3 scripts/hla_popgen/49_cole_share_package.py
+Usage (on the VM). Pass --release-tag matching the date you will use in the upload prefix below
+(release_<date>/) -- the README/SCHEMA header date and the bucket path are set independently, and
+leaving --release-tag unset silently stamps the docs with today's wall-clock date instead, which
+drifts from the upload prefix the moment build and upload happen on different days (this bit the
+2026-09-25/26 release: docs said "release 2026-09-26", bucket prefix was release_2026-09-25):
+    python3 scripts/hla_popgen/49_cole_share_package.py --dry-run --release-tag 2026-09-25
+    python3 scripts/hla_popgen/49_cole_share_package.py --release-tag 2026-09-25
     python3 scripts/hla_popgen/49_cole_share_package.py --verify
 
 Tests (local, synthetic data, no VM): scripts/hla_popgen/tests/test_49_cole_share_package.py
@@ -702,6 +706,16 @@ def parse_args(argv=None):
                      help="smoke test: cap discovered people on each side")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--verify", action="store_true")
+    ap.add_argument("--release-tag", default=None,
+                     help="Date (YYYY-MM-DD) stamped into README.md/SCHEMA.md's 'release "
+                          "<date>' header. MUST match the date used in the bucket upload prefix "
+                          "(release_<date>/ in the gsutil commands in this module's docstring) -- "
+                          "the two are set independently, so pass this explicitly at upload time "
+                          "rather than relying on the default. Defaults to today's date (wall "
+                          "clock at build time), which is usually WRONG if the package is built "
+                          "one day and uploaded/reviewed the next (see 2026-09-26 CRITIC note: "
+                          "package built/reviewed on 09-26 but uploaded under release_2026-09-25 "
+                          "-- always pass --release-tag explicitly matching the upload prefix).")
     return ap.parse_args(argv)
 
 
@@ -718,7 +732,7 @@ def main(argv=None):
         sys.exit(f"FATAL: --out-dir {args.out_dir!r} is under a production output path "
                  f"({forbidden}) -- refusing to write there. Use ~/s04/... instead.")
 
-    date_str = time.strftime("%Y-%m-%d")
+    date_str = args.release_tag or time.strftime("%Y-%m-%d")
 
     hla_df, hla_stats = build_hla_calls(args.hla_table1, args.phasing_confidence,
                                          limit=args.limit)

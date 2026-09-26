@@ -167,6 +167,14 @@ def fig_forest_and_epitopes(cooc, epi, out_stem):
         # --- Panel b: C1/C2/Bw4 carrier frequency by ancestry, compact dot plot ---
         epitopes = ["C1", "C2", "Bw4"]
         y_epi = {e: i for i, e in enumerate(epitopes)}
+        # Small fixed per-ancestry vertical jitter (order-dependent, not value-dependent) so that
+        # when two ancestries' % carriers land within a marker-width of each other (e.g. Bw4:
+        # AFR 74.0 vs EUR 74.6 vs EAS 75.5), later scatter() calls don't silently paint over an
+        # earlier point of a different color -- every one of the 6 ancestry dots per epitope row
+        # stays visible regardless of how close the underlying percentages are. Offsets are
+        # symmetric around 0 and small enough not to be mistaken for a meaningful y-value.
+        jitter = {anc: (i - (len(ANCESTRY_ORDER) - 1) / 2) * 0.07
+                  for i, anc in enumerate(ANCESTRY_ORDER)}
         for anc in ANCESTRY_ORDER:
             sub = epi[epi["ancestry"] == anc]
             if sub.empty:
@@ -176,8 +184,8 @@ def fig_forest_and_epitopes(cooc, epi, out_stem):
                 r = sub[sub["epitope"] == e]
                 if r.empty:
                     continue
-                ax_b.scatter([float(r["pct"].iloc[0])], [y_epi[e]], s=10, color=color,
-                             zorder=3, edgecolor="white", linewidth=0.3)
+                ax_b.scatter([float(r["pct"].iloc[0])], [y_epi[e] + jitter[anc]], s=10,
+                             color=color, zorder=3, edgecolor="white", linewidth=0.3)
         ax_b.set_yticks(list(y_epi.values()))
         ax_b.set_yticklabels(epitopes, fontsize=5.5)
         ax_b.set_ylim(-0.6, len(epitopes) - 0.4)

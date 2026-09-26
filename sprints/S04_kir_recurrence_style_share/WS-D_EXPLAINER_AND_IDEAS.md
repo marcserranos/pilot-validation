@@ -137,15 +137,24 @@ Bonferroni (0.05/30). EAS has the most distinct epitope profile (lowest C2 38.0%
 
 ## What's pending
 
-- Both scripts (47, 48) are local-only and synthetic-tested so far — **not yet run on real AoU
-  data.** See each script's own docstring for the exact VM command line.
-- `--platform-col` (script 47) needs verification against `cohort_membership.tsv`'s actual
-  columns on whichever VM instance runs this — the sibling WS6 script hit a VM instance missing
-  an expected column entirely; this script exits loudly with the available-columns list instead
-  of guessing, rather than repeating that failure mode silently.
-- The HLA-C1/C2 and Bw4/Bw6 epitope-group lookup tables in script 48 are documented, common
-  low-resolution approximations, not a direct position-80 sequence translation — they need a
-  VM-side cross-check against IPD-IMGT/HLA's own group assignments before the co-occurrence
-  numbers are treated as final (see the script's docstring and the 48 README's Caveats section).
+*(Superseded by "Results" above for the two items it resolves — left here, corrected, rather than
+deleted, since the "not yet run" and "needs a cross-check" wording below was written before the
+2026-09-25/26 VM run and is stale as originally worded.)*
+
+- ~~Both scripts (47, 48) are local-only and synthetic-tested so far — not yet run on real AoU
+  data.~~ **Done** — both ran on the full cohort (11,845 people) 2026-09-25/26; see "Results"
+  above and each script's own README.
+- `--platform-col` (script 47) verification against `cohort_membership.tsv`'s actual columns —
+  resolved during the VM run (no crash, ran cleanly); the column-name mismatch this note warns
+  about hit the sibling WS6 script, not 47/48.
+- ~~The HLA-C1/C2 and Bw4/Bw6 epitope-group lookup tables in script 48 ... need a VM-side
+  cross-check against IPD-IMGT/HLA's own group assignments before the co-occurrence numbers are
+  treated as final.~~ **Superseded**: script 48 was rewritten (commit `d84348a` and after) to
+  derive C1/C2/Bw4/Bw6 directly from each allele's own IPD-IMGT/HLA CDSseq reference sequence
+  (translated, leader-stripped, residues 77-83 read directly) as the *primary* path, with the
+  lookup table demoted to a fallback + cross-check only (used for novel/unresolvable calls). The
+  cross-check this note asked for is now a standing output
+  (`ligand_seq_vs_lookup_crosscheck.tsv`, `ligand_lookup_qc.tsv`): 235 two-field groups compared,
+  228 agree, 7 disagree — see the 48 README's Method/Result sections for the full framing.
 - WS6 full-cohort run (idea #7) is still pending, as documented in `42_repertoire_baseline.py`'s
   own README.
