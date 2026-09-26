@@ -452,16 +452,17 @@ def draw_panel_cd(ax_hm, ax_bar, grid, metric, dtab, cax=None):
     ax_bar.set_xlabel("novel protein alleles", fontsize=FS_TITLE, labelpad=2)
     ax_bar.tick_params(axis="x", labelsize=FS_TICK)
     ax_bar.spines[["top", "right"]].set_visible(False)
-    # In-panel legend, bottom-right corner (orchestrator review, 2026-09-26, 3rd attempt): below-
-    # axis placement kept failing because the physical gap between this row and the next is
-    # smaller than a 2-line legend needs once the xlabel above it is accounted for too (measured
-    # directly: ~7.5% of figure height available, ~9% needed) -- any axes- or figure-fraction
-    # offset large enough to clear the xlabel also reached into panel f's row below. Moved inside
-    # the axes instead, tucked into the bottom-right corner (HLA-A's row, inverted y-axis --
-    # genes are ordered by descending row position, so this is the last/bottom row, whose bar is
-    # short enough to leave that corner clear).
-    ax_bar.legend(frameon=False, fontsize=FS_LEG - 0.5, loc="lower right", handlelength=1.0,
-                 labelspacing=0.2, borderaxespad=0.3, ncol=1)
+    # No in-panel legend (orchestrator review, 2026-09-26, 4th attempt -- moved to the report
+    # README/caption instead): below-axis placement didn't physically fit this row (measured: the
+    # gap needed ~9% of figure height, had ~7.5%); the bottom-right in-panel corner (tried next)
+    # sat on top of the HLA-A bar, which is only short RELATIVE to the longest bars (B, C), not
+    # short enough in absolute terms to clear a 2-entry legend box. `check_layout()` never caught
+    # this because it has no check comparing legend/text Patches against ordinary data Patches
+    # (bars) in general -- only against artists explicitly registered as decorations
+    # (`mark_decoration()`) or plotted lines a label is registered against (`mark_label()`); a
+    # blanket text-vs-every-Patch check would flag legitimate in-bar value labels elsewhere in
+    # this codebase, so it was deliberately never added. The colour legend (grey="seen once",
+    # blue="2-19 unrelated people") is stated in this report's README instead.
 
 
 # ---- panel e: discovery curves --------------------------------------------------------------
@@ -508,7 +509,10 @@ def draw_panel_e(ax, curves_path, scheme="pred"):
         label_x_shared = xmax * 1.03  # past every curve's own last point -- no line reaches here
         label_y = {a: ends[a][1] for a in ends}
         yrange = max(v[1] for v in ends.values()) - min(v[1] for v in ends.values())
-        min_gap = max(1.0, yrange * 0.12)
+        # 0.12 -> 0.16 (orchestrator, 2026-09-26): AFR (511) and AMR (503) start only 8 apart,
+        # and 0.12*yrange wasn't quite enough separation once real font metrics were accounted
+        # for -- they still touched.
+        min_gap = max(1.0, yrange * 0.16)
 
         order = sorted(ends, key=lambda a: label_y[a])
         placed = []
@@ -532,9 +536,19 @@ def draw_panel_e(ax, curves_path, scheme="pred"):
             x0, y0 = ends[a]
             leader_x_end = label_x_shared - 0.01 * xmax  # stop short of the label's own text bbox
             if leader_x_end - x0 > 0.01 * xmax:
-                ln, = ax.plot([x0, leader_x_end], [y0, label_y[a]], color=ANC_COLORS[a],
-                             lw=0.5, ls=(0, (1, 1)), zorder=2.5, clip_on=False)
+                # Horizontal-only leader (orchestrator, 2026-09-26: the previous diagonal from the
+                # curve's true endpoint (x0, y0) straight to the label's (possibly repulsion-
+                # shifted) y looked like an odd, ungrounded diagonal, especially for AFR). Drawn
+                # as an "elbow": a short vertical tick right at the curve's own end (from y0 up/
+                # down to the label's row), then a horizontal run at the label's own y out to the
+                # label -- the dominant, eye-tracing segment is horizontal, and the vertical part
+                # is short enough to read as "this curve's end connects to this row."
+                ln, = ax.plot([x0, x0], [y0, label_y[a]], color=ANC_COLORS[a], lw=0.5,
+                             ls=(0, (1, 1)), zorder=2.5, clip_on=False)
                 vc.mark_decoration(ln)
+                ln2, = ax.plot([x0, leader_x_end], [label_y[a], label_y[a]], color=ANC_COLORS[a],
+                              lw=0.5, ls=(0, (1, 1)), zorder=2.5, clip_on=False)
+                vc.mark_decoration(ln2)
 
         # Extend the view to fit both the longest curve's x and every placed label -- autoscale
         # only ever accounted for the DATA (curves/fill_between), never these text annotations, so
@@ -546,7 +560,10 @@ def draw_panel_e(ax, curves_path, scheme="pred"):
         y_hi = max([y_hi_data] + list(label_y.values()))
         pad = max(1.0, (y_hi - y_lo) * 0.04)
         ax.set_ylim(y_lo - pad * 0.3, y_hi + pad)
-        ax.set_xlim(0, label_x_shared * 1.14)
+        # 1.14 -> 1.02 (orchestrator, 2026-09-26): the wider multiplier left a large empty band of
+        # x-range (out to ~3500) with nothing in it -- the labels/leaders all fit within a much
+        # smaller margin past label_x_shared.
+        ax.set_xlim(0, label_x_shared * 1.02)
     ax.set_xlabel("people sampled (both haplotypes)", fontsize=FS_TITLE)
     ax.set_ylabel("distinct HLA protein alleles\n(8 classical genes, pooled)", fontsize=FS_TITLE)
     ax.tick_params(labelsize=FS_TICK)

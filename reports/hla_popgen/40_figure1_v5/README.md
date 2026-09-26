@@ -276,6 +276,39 @@ the object was shared) on every axes that doesn't need its own tick text.
 No panel-content or number changed in this round either. `check_layout(strict=True)` passes both
 composed layouts with **0 errors, 0 warnings**.
 
+## Redesign round 3 (orchestrator correctness review, 2026-09-26)
+
+**Correctness check requested**: whether panel d's bars got reversed relative to their gene labels
+when `sharey=ax_c` was added in round 2. Verified directly against
+`scripts/hla_popgen/tests/test_figure1_v5_panel_cd_order.py` (new) and by loading commit
+`64716c0`'s pre-`sharey` code side by side: **the OLD (pre-round-2) render had panel d's bars
+reversed relative to their own row labels** -- `ax_hm.invert_yaxis()`/`ax_bar.invert_yaxis()` were
+each a single, independent inversion on two UNSHARED axes, which does not produce the same
+orientation on both (confirmed: old `ax_hm` ylim ascending, A bottom/DRB1 top -- correct; old
+`ax_bar` ylim descending, A top/DRB1 bottom -- backwards). The round-2 `sharey=` change makes both
+calls act on the same shared limits, so they cancel to net-zero, which happens to leave BOTH axes
+ascending (correct). This was verified value-by-value against `panel_c_novelty_totals.tsv` /
+`dtab`: every gene's bar total in the current render matches its own row's true value exactly.
+**The bug predates this redesign task** (present since the figure was first composed) and was
+fixed as a side effect of the `sharey` change, not introduced by it. Panel c's cells were checked
+the same way and were always correct (its own single inversion was never doubled).
+
+Also fixed:
+- **Panel d's legend**, still overlapping the HLA-A bar in its bottom-right in-panel position (the
+  4th placement attempt): removed from the panel entirely. `check_layout()` does not catch a
+  legend/text-over-bar collision because it has no check comparing arbitrary Text against
+  arbitrary data Patches (only against `mark_decoration()`-registered artists or, for direct
+  labels, `mark_label()`-registered lines) -- a blanket text-vs-every-Patch check would flag
+  legitimate in-bar value labels elsewhere in this codebase. The colour legend is stated here
+  instead: **grey = seen once, blue = 2-19 unrelated people** (recurrence class, same colours as
+  the committed figure).
+- **Panel e**: AFR and AMR's end-of-line labels were touching (511 vs 503, too close for the
+  previous gap threshold once real font metrics were accounted for) -- gap widened. The diagonal
+  leader from each curve's true endpoint straight to its (repulsion-shifted) label looked
+  ungrounded, especially for AFR -- replaced with an "elbow" (short vertical tick at the curve's
+  own end, then a horizontal run to the label) so the dominant line is horizontal. The x-axis
+  range was trimmed from an empty ~3500 down to ~3160 (no data or label past ~3110).
+
 ## Open issues
 
 1. Panel b (strict ancestry ≥0.98) and panel c/d (strict ancestry ≥0.9, from
