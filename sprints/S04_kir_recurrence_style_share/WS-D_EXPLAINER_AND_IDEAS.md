@@ -117,6 +117,24 @@ relatedness table and 03/24's rare-allele identification, no new data extraction
 
 ---
 
+## Results (S04 WS-D VM run, 2026-09-25/26 -- supersedes "What's pending" below where they conflict)
+
+Both scripts ran on the full cohort (11,845 unrelated people); figures added (`47b`, `48b`, see
+`FIGURES_INDEX.md`). **47:** ancestry is strongly encoded in HLA+KIR carriage (AUROC 0.81-0.98,
+6/6 ancestries), platform only weakly (0.573, both revio and sequel2e -- expected near-chance),
+and HLA-derived KIR cB content not at all beyond a modest lift (0.550). All permutation p-values
+sit at the 20-shuffle floor (~0.048) for every task including near-chance ones -- p is
+uninformative here; read the observed AUROC against the null band directly (that's what
+`fig_naive_ml_auroc.png` panel a does). No ancestry-adjusted or within-EUR platform number exists
+in the current TSVs, so whether platform's 0.573 is itself ancestry-confounded is unresolved --
+flagged below as a follow-up, not answered. **48:** no KIR-HLA receptor-ligand pair shows an
+ancestry-consistent enrichment/depletion across the 30 (pair x ancestry) tests; the two nominal
+single-ancestry signals (EAS 2DL2xC1 OR 0.62 depleted, EUR 2DL3xC1 OR 1.43 enriched) don't survive
+Bonferroni (0.05/30). EAS has the most distinct epitope profile (lowest C2 38.0%, highest C1
+89.5%). Both are QC/leads, not findings — see each script's README for full numbers and caveats.
+
+---
+
 ## What's pending
 
 - Both scripts (47, 48) are local-only and synthetic-tested so far — **not yet run on real AoU

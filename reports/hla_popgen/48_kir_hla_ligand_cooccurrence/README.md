@@ -5,7 +5,8 @@
 `HLA-A.fa.gz`/`HLA-B.fa.gz`/`HLA-C.fa.gz`, not `A.fa.gz`/etc. as first assumed, which had been
 silently falling back to the lookup table for every call. Verified fixed on the VM: md5 of the
 deployed script matches the commit, and the QC counters below show sequence resolution
-dominating. Figures are not in this pass.*
+dominating. Figure added 2026-09-26: `fig_kir_hla_ligand_forest.png` (+ `.pdf`), from
+`48b_ligand_figure.py`.*
 
 ## Question
 
@@ -139,6 +140,24 @@ Full per-ancestry, per-pair table (masked cells included) is in
   path resolved: `seq_label` vs. `lookup_label` and whether they `agree`. Allele group names only
   (catalogue facts), never paired with a carrier count.
 
+## Figure: `fig_kir_hla_ligand_forest.png` (+ `.pdf`, from `48b_ligand_figure.py`)
+
+- **Panel a** — one forest-plot row per (KIR gene x ligand pair, ancestry), ordered by biology:
+  the four inhibitory pairs first (2DL1xC2, 2DL2xC1, 2DL3xC1, 3DL1xBw4), then the one
+  activating/epidemiologic pair (3DS1xBw4-80I — tests the Martin et al. 2002 association, not a
+  confirmed receptor-ligand bond; see Caveats). Point = odds ratio, whiskers = 95% CI, x-axis is
+  log-scaled, dashed vertical line at OR=1 (no association). Y-tick ancestry labels are
+  colour-coded to match their point (no legend needed). A `*` marks the two nominal (uncorrected
+  p<0.05) signals called out in Result — EAS 2DL2xC1 and EUR 2DL3xC1 — neither survives the
+  Bonferroni threshold noted in the panel's own caption (0.05/30 tests ≈ 0.0017).
+- **Any row with a hatched grey bar labeled "censored (<20 in a cell)"** is a masked row: one of
+  its four 2x2 contingency cells has 1-19 people, so the OR/CI/p-values are blanked upstream in
+  `kir_hla_ligand_cooccurrence.tsv` per the disclosure rule. This is drawn as an explicit, visually
+  distinct placeholder — never a point, never OR=1, never silently dropped from the row list.
+- **Panel b** — a compact carrier-frequency-by-ancestry dot plot for the three epitope groups
+  (C1, C2, Bw4), same ancestry colour coding as panel a, for quick visual context alongside the
+  ligand-side ORs (e.g. EAS's low C2 frequency visible directly next to its 2DL2xC1 forest row).
+
 ## Caveats — read before trusting any number here
 
 - **Sequence-derived assignment depends on `~/tools/Immuannot_refdata/CDSseq/<gene>.fa.gz` being
@@ -161,6 +180,17 @@ Full per-ancestry, per-pair table (masked cells included) is in
 - Cannot distinguish real linkage-disequilibrium/selection from an ancestry confound or a miscall
   artifact on its own — a significant row is a lead to look into, not a finding to publish as-is.
 
+## Plain language, for Marc
+
+KIR receptors on immune (NK) cells recognize specific HLA "flavors" (C1/C2/Bw4) as ligands. We
+checked whether people who carry a given KIR receptor gene are more or less likely than chance to
+also carry its matching HLA flavor, separately in each ancestry group, using odds ratios (>1 means
+"co-occur more than expected"). Short answer: no. None of the five receptor-ligand pairs shows a
+consistent pattern across ancestries. Two ancestries had a borderline result (East Asian people
+carrying KIR2DL2 slightly less often alongside its ligand than expected; European people carrying
+KIR2DL3 slightly more often) but neither holds up once we account for testing 30 things at once —
+these are worth a second look, not something to report as a real finding yet.
+
 ## Distilled
 
 - Run on the full cohort (11,845 people) after fixing a `GENE_CDS_FILENAME` mismatch that had
@@ -170,5 +200,6 @@ Full per-ancestry, per-pair table (masked cells included) is in
 - No receptor-ligand pair shows an ancestry-consistent enrichment/depletion; the two nominal
   single-ancestry signals (EAS 2DL2xC1 depleted, EUR 2DL3xC1 enriched) don't survive a multiple-
   testing correction for the 30 pairs tested — leads, not findings.
-- Next step: figures, and a closer look at the 7 two-field groups where the sequence-derived and
-  lookup-table labels disagree (`ligand_seq_vs_lookup_crosscheck.tsv`).
+- Figure: `fig_kir_hla_ligand_forest.png` (forest plot + epitope frequency dot plot). Next step: a
+  closer look at the 7 two-field groups where the sequence-derived and lookup-table labels
+  disagree (`ligand_seq_vs_lookup_crosscheck.tsv`).
