@@ -14,18 +14,19 @@ never raw per-person data) and renders one figure with two panels:
       modeling -- re-stated here as a belt-and-suspenders filter against a stale/edited TSV).
 
 Interpretation guard (do not violate when extending this script or writing prose from it):
-  - `47`'s own permutation ran only `--n-perms 20` shuffles, so its empirical p-value floors at
-    1/21 ~= 0.048 for EVERY task -- including the near-chance ones. A p-value at that floor is
-    UNINFORMATIVE about effect size; this script never plots or claims a p-value. Instead it
-    plots the observed AUROC directly against the permutation null's min-max RANGE, which is the
-    honest way to show "clearly separated from chance" vs "indistinguishable from chance" with
-    only 20 shuffles per task.
-  - `naive_ml_metrics.tsv` reports `perm_auroc_mean`/`perm_auroc_p95`, not min/max -- with only 20
-    shuffles the exact min/max is not itself stored, so this script reconstructs a defensible band
-    using `perm_auroc_p95` as the band's upper edge and `2*perm_auroc_mean - perm_auroc_p95`
-    (mirrored around the mean) as a conservative lower edge, floored at 0.5. This is a symmetric
-    approximation of the null's spread around 0.5, not a re-derivation of the true 20-shuffle
-    range -- documented on the panel and in the README rather than silently presented as exact.
+  - `47` now stores the full permutation-null distribution per task (min/5th/25th/50th/75th/95th
+    percentile/max, `--n-perms` default 200), not just a mean/p95 pair. This script's `null_band()`
+    prefers the exact 5-95th-percentile columns (`perm_auroc_p05`/`perm_auroc_p95`) when present,
+    with min-max drawn as whiskers -- both the band and the whiskers are then the real shuffle
+    distribution, not an approximation.
+  - Fallback: an older `naive_ml_metrics.tsv` (pre-percentile-columns run) only has
+    `perm_auroc_mean`/`perm_auroc_p95`. In that case `null_band()` reconstructs a defensible band
+    using `perm_auroc_p95` as the upper edge and `2*perm_auroc_mean - perm_auroc_p95` (mirrored
+    around the mean) as a conservative lower edge, floored at 0.5 -- a symmetric approximation of
+    the null's spread, not the true range. The panel's legend text says which case it is.
+  - Even with 200 shuffles the empirical p-value floors at 1/201 ~= 0.005 -- still not a substitute
+    for reading the AUROC directly against its null band, which is what this panel plots; it never
+    plots or claims a p-value.
 
 Usage:
     python3 scripts/hla_popgen/47b_naive_ml_figure.py \\
@@ -75,15 +76,42 @@ def load_tables(in_dir):
     return metrics, feats
 
 
+def _has(row, col):
+    return col in row.index if hasattr(row, "index") else col in row
+
+
 def null_band(row):
-    """Returns (lo, hi) for the permutation-null band, from perm_auroc_mean/perm_auroc_p95 --
-    see module docstring's Interpretation guard for why this is a symmetric approximation, not
-    the true 20-shuffle min/max."""
+    """Returns (lo, hi, exact) for the permutation-null band.
+
+    Preferred path: `naive_ml_metrics.tsv` now stores the actual permutation-null
+    5th/95th-percentile columns (`perm_auroc_p05`/`perm_auroc_p95`) alongside min/max -- when
+    present, the band is the exact 5-95% range (`exact=True`) and whiskers are drawn out to the
+    stored min/max.
+
+    Fallback (older TSVs without those columns, e.g. from before this run's --n-perms increase):
+    reconstruct a symmetric approximation from `perm_auroc_mean`/`perm_auroc_p95` alone --
+    `exact=False` -- see module docstring's Interpretation guard for why this is only an
+    approximation, not the true shuffle range."""
+    if _has(row, "perm_auroc_p05") and row.get("perm_auroc_p05") == row.get("perm_auroc_p05") \
+            and str(row.get("perm_auroc_p05")) != "":
+        lo = float(row["perm_auroc_p05"])
+        hi = float(row["perm_auroc_p95"])
+        return lo, hi, True
     mean = float(row["perm_auroc_mean"])
     p95 = float(row["perm_auroc_p95"])
     hi = max(p95, mean)
     lo = max(0.5, 2 * mean - hi)
-    return lo, hi
+    return lo, hi, False
+
+
+def whiskers(row):
+    """Returns (min, max) of the true permutation-null draws when the min/max columns are
+    present, else None -- used to draw min-max whiskers on top of the 5-95% band (exact case
+    only; the mirrored-approximation fallback has no real min/max to draw)."""
+    if _has(row, "perm_auroc_min") and row.get("perm_auroc_min") == row.get("perm_auroc_min") \
+            and str(row.get("perm_auroc_min")) != "":
+        return float(row["perm_auroc_min"]), float(row["perm_auroc_max"])
+    return None
 
 
 def fig_auroc_vs_null(metrics, feats, out_stem, min_carriers=MIN_CARRIERS_FOR_FEATURE):
@@ -97,14 +125,25 @@ def fig_auroc_vs_null(metrics, feats, out_stem, min_carriers=MIN_CARRIERS_FOR_FE
 
         # --- Panel a: AUROC vs. permutation-null band, all 9 tasks, one shared 0.5-1.0 axis ---
         x = np.arange(len(tasks))
+        any_exact = False
         for xi, t in enumerate(tasks):
             row = m.loc[t]
-            lo, hi = null_band(row)
+            lo, hi, exact = null_band(row)
+            any_exact = any_exact or exact
             grp = TASK_GROUP[t]
             color = GROUP_COLOR[grp]
             ax_a.add_patch(matplotlib.patches.Rectangle(
                 (xi - 0.32, lo), 0.64, hi - lo, facecolor=vc.SUPPRESSED_COLOR,
                 edgecolor="none", zorder=1))
+            wk = whiskers(row)
+            if wk is not None:
+                wmin, wmax = wk
+                ax_a.plot([xi, xi], [wmin, lo], color="#999999", lw=0.5, zorder=1.3)
+                ax_a.plot([xi, xi], [hi, wmax], color="#999999", lw=0.5, zorder=1.3)
+                ax_a.plot([xi - 0.14, xi + 0.14], [wmin, wmin], color="#999999", lw=0.5,
+                         zorder=1.3)
+                ax_a.plot([xi - 0.14, xi + 0.14], [wmax, wmax], color="#999999", lw=0.5,
+                         zorder=1.3)
             ax_a.plot([xi - 0.32, xi + 0.32], [0.5, 0.5], color="#BBBBBB", lw=0.4,
                       zorder=1.2, ls=(0, (1, 1)))
             auroc = float(row["lr_auroc"])
@@ -123,10 +162,12 @@ def fig_auroc_vs_null(metrics, feats, out_stem, min_carriers=MIN_CARRIERS_FOR_FE
             tick_lbl.set_fontweight("bold")
         ax_a.set_ylabel("cross-validated AUROC")
         ax_a.axhline(0.5, color="#999999", lw=0.5, zorder=0.5)
+        band_desc = ("grey band = permutation-null 5-95% range, whiskers = min-max" if any_exact
+                    else "grey band = permutation-null AUROC range (mirrored mean/p95 "
+                         "approximation)")
         legend_txt = ax_a.annotate(
-            "grey band = permutation-null AUROC range (20 label shuffles); point = observed. "
-            "Label color: carriage->ancestry, carriage->platform, HLA->KIR cB "
-            "(matches point color).",
+            f"{band_desc}; point = observed. Label color: carriage->ancestry, "
+            "carriage->platform, HLA->KIR cB (matches point color).",
             (0.0, 1.10), xycoords="axes fraction", ha="left", va="bottom", fontsize=4.6,
             color="#666666")
         vc.mark_label(legend_txt)

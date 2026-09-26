@@ -68,32 +68,65 @@ def _synthetic_features():
 
 
 class TestNullBand(unittest.TestCase):
-    def test_typical_band(self):
-        # mean 0.55, p95 0.60 -> mirrored lower edge 2*0.55-0.60=0.50 (not floored, exactly at it)
-        row = {"perm_auroc_mean": 0.55, "perm_auroc_p95": 0.60}
-        lo, hi = m47b.null_band(row)
+    def test_typical_band_fallback(self):
+        # No perm_auroc_p05 column -> fallback path. mean 0.55, p95 0.60 -> mirrored lower edge
+        # 2*0.55-0.60=0.50 (not floored, exactly at it).
+        row = pd.Series({"perm_auroc_mean": 0.55, "perm_auroc_p95": 0.60})
+        lo, hi, exact = m47b.null_band(row)
+        self.assertFalse(exact)
         self.assertAlmostEqual(hi, 0.60)
         self.assertAlmostEqual(lo, 0.50)
 
         # mean 0.56, p95 0.60 -> mirrored lower edge 2*0.56-0.60=0.52, above the 0.5 floor
-        row2 = {"perm_auroc_mean": 0.56, "perm_auroc_p95": 0.60}
-        lo2, hi2 = m47b.null_band(row2)
+        row2 = pd.Series({"perm_auroc_mean": 0.56, "perm_auroc_p95": 0.60})
+        lo2, hi2, exact2 = m47b.null_band(row2)
+        self.assertFalse(exact2)
         self.assertAlmostEqual(hi2, 0.60)
         self.assertAlmostEqual(lo2, 0.52)
 
-    def test_floors_at_point_five(self):
+    def test_floors_at_point_five_fallback(self):
         # mean 0.50, p95 0.502 -> mirrored lower edge 0.498, must floor to 0.5.
-        row = {"perm_auroc_mean": 0.50, "perm_auroc_p95": 0.502}
-        lo, hi = m47b.null_band(row)
+        row = pd.Series({"perm_auroc_mean": 0.50, "perm_auroc_p95": 0.502})
+        lo, hi, exact = m47b.null_band(row)
+        self.assertFalse(exact)
         self.assertEqual(lo, 0.5)
         self.assertAlmostEqual(hi, 0.502)
 
-    def test_p95_below_mean_still_gives_hi_ge_mean(self):
+    def test_p95_below_mean_still_gives_hi_ge_mean_fallback(self):
         # Defensive case: noisy small-sample p95 could in principle sit below the mean.
-        row = {"perm_auroc_mean": 0.51, "perm_auroc_p95": 0.505}
-        lo, hi = m47b.null_band(row)
+        row = pd.Series({"perm_auroc_mean": 0.51, "perm_auroc_p95": 0.505})
+        lo, hi, exact = m47b.null_band(row)
         self.assertGreaterEqual(hi, row["perm_auroc_mean"])
         self.assertGreaterEqual(hi, lo)
+
+    def test_exact_band_used_when_percentile_columns_present(self):
+        # perm_auroc_p05 present and non-empty -> exact 5-95% band, ignoring the mean/mirroring.
+        row = pd.Series({"perm_auroc_mean": 0.501, "perm_auroc_p05": 0.47, "perm_auroc_p95": 0.53})
+        lo, hi, exact = m47b.null_band(row)
+        self.assertTrue(exact)
+        self.assertAlmostEqual(lo, 0.47)
+        self.assertAlmostEqual(hi, 0.53)
+
+    def test_exact_band_ignores_blank_percentile_column(self):
+        # A blank string (as pandas.read_csv would give for an empty TSV cell) must not be
+        # mistaken for a real 0.0 percentile -- falls back to the mean/p95 approximation.
+        row = pd.Series({"perm_auroc_mean": 0.55, "perm_auroc_p05": "", "perm_auroc_p95": 0.60})
+        lo, hi, exact = m47b.null_band(row)
+        self.assertFalse(exact)
+
+
+class TestWhiskers(unittest.TestCase):
+    def test_returns_none_without_min_max_columns(self):
+        row = pd.Series({"perm_auroc_mean": 0.5, "perm_auroc_p95": 0.52})
+        self.assertIsNone(m47b.whiskers(row))
+
+    def test_returns_min_max_when_present(self):
+        row = pd.Series({"perm_auroc_min": 0.40, "perm_auroc_max": 0.62})
+        self.assertEqual(m47b.whiskers(row), (0.40, 0.62))
+
+    def test_blank_min_treated_as_absent(self):
+        row = pd.Series({"perm_auroc_min": "", "perm_auroc_max": 0.62})
+        self.assertIsNone(m47b.whiskers(row))
 
 
 class TestFigureRendersAndLayout(unittest.TestCase):

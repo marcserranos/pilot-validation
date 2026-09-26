@@ -17,20 +17,31 @@ science result -- see the README for how to read each number.
    default `platform`, from cohort_membership.tsv per SCHEMA.md Table 4; CLI-overridable because
    the column's exact name/values were not re-verified on every VM instance -- the S03 42-script
    README documents an instance where an expected column was entirely absent). Predictable would
-   mean a technical/batch artifact riding on the calls, not biology.
+   mean a technical/batch artifact riding on the calls, not biology. Three variants settle whether
+   platform's AUROC is a genuine batch effect or an ancestry echo: (a) `platform_<X>_EUR` /
+   `platform_<X>_AFR` -- the same one-vs-rest task restricted to a single ancestry, requiring
+   >=20 people per class PER FOLD (stricter than the plain >=20-total gate); (b)
+   `platform_<X>_adj_ancestry` in `naive_ml_ancestry_adjusted.tsv` -- an L1-LR fit on carriage +
+   the 6 ancestry probabilities (`p_afr..p_sas`) vs. the same probabilities alone, on the same CV
+   folds, reporting delta_auroc = auroc(carriage+ancestry) - auroc(ancestry-only). A delta near 0
+   means the raw platform AUROC was mostly ancestry leaking through the carriage features.
 3. **cA/cB from HLA**: person-level KIR A/B content (does either haplotype carry a B-content gene,
    43_kir_full_aggregate.py's B_CONTENT_GENES rule) predicted from HLA carriage alone. HLA and KIR
    sit on different chromosomes (6 vs 19) with no known direct genetic linkage, so this is a
    negative control: a strong positive result would be surprising and worth a second look (or a
-   confound, e.g. ancestry correlating with both).
+   confound, e.g. ancestry correlating with both). Given the same EUR-restricted
+   (`cB_from_HLA_EUR`) and ancestry-adjusted-delta (`cB_from_HLA_adj_ancestry`) treatment as
+   platform, above.
 
 Two models per task: L1-logistic regression (`liblinear`) and a depth-3 decision tree (readable
 by eye -- print its splits). 5-fold stratified CV, pooled out-of-fold AUROC with a permutation
-baseline (>=20 label shuffles by default) so every AUROC ships with a null distribution, not a
-bare number. Top |coefficient| / feature_importance_ features are reported ONLY for
-carrier-count >=20 (the feature-construction step already drops rarer alleles before any model
-sees them, so this is enforced structurally, not by a late filter that could leak a rare allele
-name next to a small count).
+baseline (`--n-perms`, default 200 label shuffles, parallelized across processes with a lighter
+null model -- see NULL_N_SPLITS/NULL_MAX_ITER) so every AUROC ships with a null distribution, not
+a bare number: `naive_ml_metrics.tsv` stores the null's min/5th/25th/50th/75th/95th
+percentile/max, not just a mean and p95. Top |coefficient| / feature_importance_ features are
+reported ONLY for carrier-count >=20 (the feature-construction step already drops rarer alleles
+before any model sees them, so this is enforced structurally, not by a late filter that could
+leak a rare allele name next to a small count).
 
 ## PCA (aggregate-only)
 
@@ -77,6 +88,7 @@ import argparse
 import gzip
 import importlib.util
 import json
+import multiprocessing as mp
 import os
 import random
 import sys
@@ -92,6 +104,20 @@ ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 MIN_CARRIERS_FOR_FEATURE = 20
 CLASSICAL_GENES = ["HLA-A", "HLA-B", "HLA-C", "HLA-DPA1", "HLA-DPB1", "HLA-DQA1", "HLA-DQB1",
                     "HLA-DRB1"]
+PROB_COLS = [f"p_{a.lower()}" for a in ANCESTRY_ORDER]  # cohort_membership.tsv, SCHEMA.md Table 4
+
+# Permutation-null workers use a *lighter* model than the real fit: 3-fold CV (not 5) and a
+# capped solver iteration count. The null's location (centered near 0.5) does not depend on fold
+# count or exact convergence, so this is free throughput, not a bias -- see run_binary_task().
+NULL_N_SPLITS = 3
+NULL_MAX_ITER = 500
+
+# Set by run_binary_task() right before spawning the permutation pool. On a fork()-based
+# multiprocessing context (default on Linux, requested explicitly here so it also works on the
+# macOS dev machine) child processes inherit these via copy-on-write -- no per-task pickling of
+# the (possibly large) feature matrix.
+_PERM_X = None
+_PERM_Y = None
 
 
 def log(msg):
@@ -200,10 +226,69 @@ def build_kir_features(pids, kir_outroot, kir_mod):
 # ---------------------------------------------------------------------------
 # Modeling: L1-LR + depth-3 tree, 5-fold CV AUROC, permutation baseline.
 # ---------------------------------------------------------------------------
-def run_binary_task(X, y, feature_names, n_splits=5, n_perms=20, seed=0):
-    """X: 2D bool/float ndarray, y: 0/1 ndarray. Returns dict with cv AUROC (LR/tree), permuted
-    null AUROC array, and top |coef|/importance features (already restricted upstream to
-    >=20-carrier features, so nothing further to mask here)."""
+def _perm_task(args):
+    """One permutation draw, run in a worker process. Reads the module-level _PERM_X/_PERM_Y
+    (inherited via fork(), never pickled) so only the tiny `args` tuple crosses the process
+    boundary. Uses the *lighter* null model (NULL_N_SPLITS-fold CV, capped max_iter) -- see the
+    module-level comment by NULL_N_SPLITS for why this doesn't bias the null's location."""
+    seed, n_splits = args
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import StratifiedKFold, cross_val_predict
+    from sklearn.metrics import roc_auc_score
+
+    rng = np.random.default_rng(seed)
+    y_perm = rng.permutation(_PERM_Y)
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    lr = LogisticRegression(penalty="l1", solver="liblinear", C=1.0, max_iter=NULL_MAX_ITER)
+    try:
+        oof = cross_val_predict(lr, _PERM_X, y_perm, cv=skf, method="predict_proba")[:, 1]
+        return float(roc_auc_score(y_perm, oof))
+    except ValueError:
+        return None  # a degenerate fold (single class) under permutation -- skip that draw
+
+
+def _run_permutations(X, y, n_perms, seed, n_jobs=None):
+    """Runs n_perms permutation draws, parallelized across processes when a fork() context is
+    available (Linux VM and macOS dev both support it); falls back to a serial loop on any
+    platform/error where fork-based multiprocessing isn't usable. Returns a list of AUROC floats
+    (degenerate draws already dropped)."""
+    global _PERM_X, _PERM_Y
+    if n_perms <= 0:
+        return []
+    _PERM_X, _PERM_Y = X, y
+    tasks = [(seed * 1_000_003 + i + 1, NULL_N_SPLITS) for i in range(n_perms)]
+    n_jobs = n_jobs or min(os.cpu_count() or 1, 8, n_perms)
+    results = []
+    try:
+        ctx = mp.get_context("fork")
+        with ctx.Pool(processes=max(1, n_jobs)) as pool:
+            for res in pool.imap_unordered(_perm_task, tasks):
+                if res is not None:
+                    results.append(res)
+    except (ValueError, OSError, RuntimeError):
+        log("[47] fork-based permutation pool unavailable, falling back to serial permutations.")
+        results = [r for r in (_perm_task(t) for t in tasks) if r is not None]
+    finally:
+        _PERM_X, _PERM_Y = None, None
+    return results
+
+
+PERM_PERCENTILES = [0, 5, 25, 50, 75, 95, 100]
+PERM_PERCENTILE_KEYS = ["perm_auroc_min", "perm_auroc_p05", "perm_auroc_p25", "perm_auroc_p50",
+                        "perm_auroc_p75", "perm_auroc_p95", "perm_auroc_max"]
+
+
+def run_binary_task(X, y, feature_names, n_splits=5, n_perms=20, seed=0, min_per_fold=None,
+                    n_jobs=None):
+    """X: 2D bool/float ndarray, y: 0/1 ndarray. Returns dict with cv AUROC (LR/tree), the full
+    permutation-null distribution (min/5/25/50/75/95th pct/max + n_perms actually completed), and
+    top |coef|/importance features (already restricted upstream to >=20-carrier features, so
+    nothing further to mask here).
+
+    `min_per_fold`, when given, additionally requires n_pos/n_neg >= min_per_fold * n_splits (a
+    stricter disclosure/power gate than the plain >=20-total rule below), for subgroup tasks --
+    e.g. platform-within-one-ancestry -- where the WS-D brief asks for >=20 people per fold per
+    class, not just >=20 overall."""
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import StratifiedKFold, cross_val_predict
     from sklearn.metrics import roc_auc_score
@@ -212,6 +297,10 @@ def run_binary_task(X, y, feature_names, n_splits=5, n_perms=20, seed=0):
     n_pos, n = int(y.sum()), len(y)
     if n_pos < MIN_CARRIERS_FOR_FEATURE or (n - n_pos) < MIN_CARRIERS_FOR_FEATURE:
         return None  # underpowered / disclosive class size -- caller skips this task entirely
+    if min_per_fold is not None:
+        floor = min_per_fold * n_splits
+        if n_pos < floor or (n - n_pos) < floor:
+            return None  # per-fold power gate (e.g. >=20/fold) not met
 
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
     lr = LogisticRegression(penalty="l1", solver="liblinear", C=1.0, max_iter=2000)
@@ -222,15 +311,7 @@ def run_binary_task(X, y, feature_names, n_splits=5, n_perms=20, seed=0):
     lr_auc = roc_auc_score(y, lr_oof)
     tree_auc = roc_auc_score(y, tree_oof)
 
-    rng = np.random.default_rng(seed)
-    perm_aucs = []
-    for _ in range(n_perms):
-        y_perm = rng.permutation(y)
-        try:
-            oof = cross_val_predict(lr, X, y_perm, cv=skf, method="predict_proba")[:, 1]
-            perm_aucs.append(roc_auc_score(y_perm, oof))
-        except ValueError:
-            continue  # a degenerate fold (single class) under permutation -- skip that draw
+    perm_aucs = _run_permutations(X, y, n_perms, seed, n_jobs=n_jobs)
 
     lr.fit(X, y)
     coefs = lr.coef_.ravel()
@@ -242,18 +323,61 @@ def run_binary_task(X, y, feature_names, n_splits=5, n_perms=20, seed=0):
     top_idx_t = np.argsort(-imp)[:15]
     top_tree = [(feature_names[i], float(imp[i])) for i in top_idx_t if imp[i] > 0]
 
-    perm_arr = np.array(perm_aucs) if perm_aucs else np.array([np.nan])
-    p_value = float((np.sum(perm_arr >= lr_auc) + 1) / (len(perm_arr) + 1)) if perm_aucs else None
+    perm_arr = np.array(perm_aucs) if perm_aucs else np.array([])
+    if len(perm_arr):
+        pcts = np.percentile(perm_arr, PERM_PERCENTILES)
+        perm_stats = {k: float(v) for k, v in zip(PERM_PERCENTILE_KEYS, pcts)}
+        perm_mean = float(perm_arr.mean())
+        p_value = float((np.sum(perm_arr >= lr_auc) + 1) / (len(perm_arr) + 1))
+    else:
+        perm_stats = {k: None for k in PERM_PERCENTILE_KEYS}
+        perm_mean = None
+        p_value = None
 
-    return {
+    out = {
         "n_total": n, "n_pos": n_pos,
         "lr_auroc": float(lr_auc), "tree_auroc": float(tree_auc),
-        "n_perms": len(perm_aucs),
-        "perm_auroc_mean": float(np.nanmean(perm_arr)),
-        "perm_auroc_p95": float(np.nanpercentile(perm_arr, 95)) if perm_aucs else None,
+        "n_perms": len(perm_arr),
+        "perm_auroc_mean": perm_mean,
         "perm_pvalue_lr": p_value,
         "top_lr_features": top_lr,
         "top_tree_features": top_tree,
+    }
+    out.update(perm_stats)
+    return out
+
+
+def run_delta_task(X_full, X_covariates_only, y, n_splits=5, seed=0):
+    """Ancestry-adjusted comparison: fits the same L1-LR on the *same* CV folds for (a) carriage
+    features + the 6 ancestry-probability covariates (`X_full`) and (b) the covariates alone
+    (`X_covariates_only`), and reports delta_auroc = auroc_full - auroc_covariates_only. A
+    delta near 0 means carriage adds nothing once ancestry is accounted for (i.e. the raw
+    carriage-only AUROC was largely an ancestry echo); a delta clearly above 0 means carriage
+    predicts the outcome independently of ancestry. Same StratifiedKFold random_state for both
+    fits (depends only on y, which is identical for both) makes this a paired comparison, not two
+    independently-noisy AUROCs."""
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import StratifiedKFold, cross_val_predict
+    from sklearn.metrics import roc_auc_score
+
+    n_pos, n = int(y.sum()), len(y)
+    if n_pos < MIN_CARRIERS_FOR_FEATURE or (n - n_pos) < MIN_CARRIERS_FOR_FEATURE:
+        return None
+
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    lr = LogisticRegression(penalty="l1", solver="liblinear", C=1.0, max_iter=2000)
+    try:
+        oof_full = cross_val_predict(lr, X_full, y, cv=skf, method="predict_proba")[:, 1]
+        oof_cov = cross_val_predict(lr, X_covariates_only, y, cv=skf, method="predict_proba")[:, 1]
+    except ValueError:
+        return None
+    auc_full = float(roc_auc_score(y, oof_full))
+    auc_cov = float(roc_auc_score(y, oof_cov))
+    return {
+        "n_total": n, "n_pos": n_pos,
+        "auroc_carriage_plus_ancestry": auc_full,
+        "auroc_ancestry_only": auc_cov,
+        "delta_auroc": auc_full - auc_cov,
     }
 
 
@@ -411,43 +535,139 @@ def run_pipeline(table1_df, cohort_df, kir_presence, kir_content, out_dir, platf
         r["task"] = f"platform_{plat}"
         results.append(r)
 
+    # Task 2b: same platform prediction, restricted to one ancestry at a time (EUR, AFR), each
+    # requiring >=20 people per class PER FOLD (stricter than the plain >=20-total gate above) --
+    # settles whether platform's AUROC survives once ancestry can no longer vary within the task.
+    for plat in sorted(set(y_plat)):
+        y_full = (y_plat == plat).astype(int)
+        for anc_name in ("EUR", "AFR"):
+            mask = (y_anc == anc_name)
+            if mask.sum() < 2 * MIN_CARRIERS_FOR_FEATURE:
+                log(f"[47] task=platform_{plat}_{anc_name}: skipped (too few {anc_name} people)")
+                continue
+            r = run_binary_task(X_all[mask], y_full[mask], feature_names, n_perms=n_perms,
+                                min_per_fold=MIN_CARRIERS_FOR_FEATURE)
+            if r is None:
+                log(f"[47] task=platform_{plat}_{anc_name}: skipped (underpowered per-fold, "
+                    f"need >=20/class/fold)")
+                continue
+            r["task"] = f"platform_{plat}_{anc_name}"
+            results.append(r)
+
+    # Ancestry-probability covariates (6 columns, SCHEMA.md Table 4) for the ancestry-adjusted
+    # delta tasks below. Soft-skip (not fatal) if a VM instance's cohort_membership.tsv lacks them
+    # -- unlike --platform-col this isn't a hard input the whole script depends on.
+    have_probs = all(c in cohort_df.columns for c in PROB_COLS)
+    probs_by_person = None
+    if have_probs:
+        probs_df = cohort_df.set_index(cohort_df["person_id"].astype(str))[PROB_COLS]
+        probs_by_person = probs_df.reindex(people)
+    else:
+        log(f"[47] ancestry-adjusted (delta) tasks skipped: cohort_membership.tsv missing one or "
+            f"more of {PROB_COLS}.")
+
+    def _delta_for(task_name, X_carriage_sub, y_sub, probs_sub):
+        valid = probs_sub.notna().all(axis=1).values
+        if valid.sum() < 2 * MIN_CARRIERS_FOR_FEATURE:
+            log(f"[47] task={task_name}: skipped (too few people with complete ancestry probs)")
+            return None
+        probs_arr = probs_sub.loc[valid].values.astype(float)
+        X_full = np.hstack([X_carriage_sub[valid], probs_arr])
+        r = run_delta_task(X_full, probs_arr, y_sub[valid])
+        if r is None:
+            log(f"[47] task={task_name}: skipped (underpowered)")
+            return None
+        r["task"] = task_name
+        return r
+
+    delta_results = []
+    if have_probs:
+        # Task 2c: ancestry-adjusted platform delta (whole cohort) -- settles batch-effect vs
+        # ancestry-echo for platform's raw AUROC (see README).
+        for plat in sorted(set(y_plat)):
+            y = (y_plat == plat).astype(int)
+            r = _delta_for(f"platform_{plat}_adj_ancestry", X_all, y, probs_by_person)
+            if r is not None:
+                delta_results.append(r)
+
     # Task 3: cA/cB from HLA only (KIR features excluded from X for this task by design).
     content_of = kir_content if isinstance(kir_content, dict) else kir_content.to_dict()
     y_content = np.array([content_of.get(p, "missing") for p in people])
     valid = y_content != "missing"
     if valid.sum() >= 2 * MIN_CARRIERS_FOR_FEATURE:
+        valid_people = [p for p, v in zip(people, valid) if v]
         y = (y_content[valid] == "cB").astype(int)
-        Xh = hla_mat.loc[[p for p, v in zip(people, valid) if v]].values.astype(float)
+        Xh = hla_mat.loc[valid_people].values.astype(float)
         r = run_binary_task(Xh, y, list(hla_mat.columns), n_perms=n_perms)
         if r is not None:
             r["task"] = "cB_from_HLA"
             results.append(r)
         else:
             log("[47] task=cB_from_HLA: skipped (underpowered)")
+
+        # Same treatment as platform: cB-from-HLA restricted to EUR only (>=20/class/fold), and
+        # an ancestry-adjusted delta -- checks whether cB_from_HLA's 0.550 is itself an
+        # ancestry-mediated correlation rather than direct HLA-KIR linkage (README's stated
+        # open question).
+        anc_valid = np.array([ancestry_of.get(p, "UNASSIGNED") for p in valid_people])
+        eur_mask = anc_valid == "EUR"
+        if eur_mask.sum() >= 2 * MIN_CARRIERS_FOR_FEATURE:
+            r_eur = run_binary_task(Xh[eur_mask], y[eur_mask], list(hla_mat.columns),
+                                    n_perms=n_perms, min_per_fold=MIN_CARRIERS_FOR_FEATURE)
+            if r_eur is not None:
+                r_eur["task"] = "cB_from_HLA_EUR"
+                results.append(r_eur)
+            else:
+                log("[47] task=cB_from_HLA_EUR: skipped (underpowered per-fold, need "
+                    ">=20/class/fold)")
+        else:
+            log("[47] task=cB_from_HLA_EUR: skipped (too few EUR people)")
+
+        if have_probs:
+            probs_valid = probs_by_person.reindex(valid_people)
+            r_delta = _delta_for("cB_from_HLA_adj_ancestry", Xh, y, probs_valid)
+            if r_delta is not None:
+                delta_results.append(r_delta)
     else:
         log("[47] task=cB_from_HLA: skipped (too few people with valid KIR content)")
 
     # Write results TSV + top-features TSV (features already >=20-carrier filtered).
     metric_rows, feat_rows = [], []
     for r in results:
-        metric_rows.append({
+        row = {
             "task": r["task"], "n_total": r["n_total"], "n_pos": suppressed(r["n_pos"]),
             "lr_auroc": round(r["lr_auroc"], 4), "tree_auroc": round(r["tree_auroc"], 4),
             "n_perms": r["n_perms"],
-            "perm_auroc_mean": round(r["perm_auroc_mean"], 4) if r["perm_auroc_mean"] == r["perm_auroc_mean"] else "",
-            "perm_auroc_p95": round(r["perm_auroc_p95"], 4) if r["perm_auroc_p95"] is not None else "",
+            "perm_auroc_mean": round(r["perm_auroc_mean"], 4) if r["perm_auroc_mean"] is not None else "",
             "perm_pvalue_lr": round(r["perm_pvalue_lr"], 4) if r["perm_pvalue_lr"] is not None else "",
-        })
+        }
+        for k in PERM_PERCENTILE_KEYS:
+            row[k] = round(r[k], 4) if r.get(k) is not None else ""
+        metric_rows.append(row)
         for feat, coef in r["top_lr_features"]:
             feat_rows.append({"task": r["task"], "model": "l1_logreg", "feature": feat,
                               "weight": round(coef, 4)})
         for feat, imp in r["top_tree_features"]:
             feat_rows.append({"task": r["task"], "model": "tree_depth3", "feature": feat,
                               "weight": round(imp, 4)})
-    pd.DataFrame(metric_rows).to_csv(os.path.join(out_dir, "naive_ml_metrics.tsv"),
-                                     sep="\t", index=False)
+    metrics_cols = (["task", "n_total", "n_pos", "lr_auroc", "tree_auroc", "n_perms",
+                     "perm_auroc_mean"] + PERM_PERCENTILE_KEYS + ["perm_pvalue_lr"])
+    pd.DataFrame(metric_rows, columns=metrics_cols).to_csv(
+        os.path.join(out_dir, "naive_ml_metrics.tsv"), sep="\t", index=False)
     pd.DataFrame(feat_rows).to_csv(os.path.join(out_dir, "naive_ml_top_features.tsv"),
                                    sep="\t", index=False)
+
+    # Ancestry-adjusted delta TSV (platform + cB_from_HLA vs. the 6-ancestry-probability
+    # covariate-only model on the same folds) -- see README "Is platform confounded by ancestry?".
+    delta_rows = [{
+        "task": r["task"], "n_total": r["n_total"], "n_pos": suppressed(r["n_pos"]),
+        "auroc_carriage_plus_ancestry": round(r["auroc_carriage_plus_ancestry"], 4),
+        "auroc_ancestry_only": round(r["auroc_ancestry_only"], 4),
+        "delta_auroc": round(r["delta_auroc"], 4),
+    } for r in delta_results]
+    pd.DataFrame(delta_rows, columns=["task", "n_total", "n_pos", "auroc_carriage_plus_ancestry",
+                                      "auroc_ancestry_only", "delta_auroc"]).to_csv(
+        os.path.join(out_dir, "naive_ml_ancestry_adjusted.tsv"), sep="\t", index=False)
 
     run_pca(X_all, people, ancestry_of, platform_of, out_dir, n_bins=pca_bins)
 
@@ -477,7 +697,10 @@ def main():
     ap.add_argument("--out-dir", default=os.path.expanduser("~/s04/results/47"))
     ap.add_argument("--limit", type=int, default=None,
                     help="Restrict to the first N people (sorted, deterministic) for a smoke test.")
-    ap.add_argument("--n-perms", type=int, default=20)
+    ap.add_argument("--n-perms", type=int, default=200,
+                    help="Permutation-null draws per task. Parallelized across processes and "
+                         "run with a lighter null model (NULL_N_SPLITS-fold CV, capped max_iter) "
+                         "-- see module comments near NULL_N_SPLITS.")
     ap.add_argument("--pca-bins", type=int, default=20)
     ap.add_argument("--synthetic", action="store_true",
                     help="Local dry run: generate an in-memory synthetic cohort instead of "
