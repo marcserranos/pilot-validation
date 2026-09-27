@@ -19,7 +19,7 @@ pilot-validation/
 Four tiers, by how much attention each deserves in a fresh session:
 - **`context/` — read in full, every time.** Small, dense, and designed to be cheap to fully ingest. This is the project's working memory.
 - **`reference/` — consult on demand.** SpecHLA/SpecImmune upstream READMEs, the AoU org PDF, and `AOU_DATA_ACCESS_NOTES.md`. Don't read these unprompted; grep/check them *before* researching something externally (a repeated, expensive lesson — see ENVIRONMENT.md quirk #16).
-- **`scripts/` — used, not read.** Pipeline code. Read a specific script when you're about to run or modify it, not as part of session startup.
+- **`scripts/` — used, not read.** Pipeline code. Read a specific script when you're about to run or modify it, not as part of session startup. `scripts/legacy/` holds pre-numbered-convention one-off scripts kept for provenance, not part of the live pipeline (see `scripts/legacy/README.md`).
 - **`reports/` — finished deliverables, consult on demand.** Full writeups of a completed sub-thread (with figures). EXPERIMENTS.md carries a short pointer entry, not the content — read the report itself only if you need the detail behind the pointer.
 
 ## How the context-update system works

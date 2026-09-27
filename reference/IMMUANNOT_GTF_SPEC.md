@@ -423,7 +423,7 @@ GTF, because the row-order key that would disambiguate them (`tmp.gene.csv`) is 
   written later, 2026-08-10) additionally captures `template_distance` and a boolean
   "had-any-template_warning" flag per gene, cached to `immuannot_confidence.tsv`. Still discards
   `cds_distance`, `cds_mut`, `alleles`, and contig identity (column 1) — see part G's gap above.
-- **`scripts/diagnose_immuannot_pilot.py`'s `parse_gtf_rich()`** (lines 228-253) is the most
+- **`scripts/legacy/experiments/diagnose_immuannot_pilot.py`'s `parse_gtf_rich()`** (lines 228-253) is the most
   complete of the three: it merges **every** attribute key seen across every row for a gene
   (`slot.setdefault`, so first-seen value per key wins, not last) — this WOULD capture
   `cds_mut`/`alleles`/`template_warning`/etc. if invoked, but its own docstring flags itself as

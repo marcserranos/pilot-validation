@@ -30,7 +30,7 @@ gcsfuse --billing-project wb-glacial-potato-8710 --implicit-dirs vwb-aou-dataset
 
 # 1. Slice both technologies to the chr6 HLA region + convert to FASTQ (samtools lives in the spechla env)
 cd ~/repos/pilot-validation && pixi shell -e spechla
-bash scripts/slice_and_fastq.sh <id> <cram_path_rel_to_mount> <lr_bam_path_rel_to_mount>
+bash scripts/legacy/experiments/slice_and_fastq.sh <id> <cram_path_rel_to_mount> <lr_bam_path_rel_to_mount>
 #   paths e.g.:  pooled/wgs/cram/v8_base/wgs_<id>.cram
 #                pooled/longreads/v8_delta/BI/revio/bam/<id>/GRCh38/<id>.bam
 
@@ -46,12 +46,12 @@ bash scripts/slice_and_fastq.sh <id> <cram_path_rel_to_mount> <lr_bam_path_rel_t
     2> ~/pipeline_outputs/<id>/specimmune_timing.txt
 
 # 4. 3-way comparison table (writes ~/pipeline_outputs/<id>/comparison.md; paste that back to fold into .local.md)
-python3 ~/repos/pilot-validation/scripts/compare_hla_results.py <id>
+python3 ~/repos/pilot-validation/scripts/legacy/experiments/compare_hla_results.py <id>
 ```
 
 Region window: **`chr6:29,500,000-33,500,000`** (4 Mb — classical MHC + ~440 kb pad each side). See DECISIONS / EXPERIMENTS for the open padding-narrowing experiment.
 
-> Note: `slice_and_fastq.sh`'s *printed* SpecImmune hint omits `--visualization ""`; use the runbook form above — disabling it is the standing decision (DECISIONS). All project scripts referenced throughout this file live in `scripts/`; only upstream tools' own internal paths (`~/tools/SpecHLA/script/...`, `~/tools/SpecImmune/scripts/...`) are unaffected by this repo's layout.
+> Note: `slice_and_fastq.sh`'s *printed* SpecImmune hint omits `--visualization ""`; use the runbook form above — disabling it is the standing decision (DECISIONS). Project scripts referenced throughout this file live in `scripts/`, except the pre-numbered-convention experiment scripts (including `slice_and_fastq.sh` and `compare_hla_results.py` above), which moved to `scripts/legacy/experiments/` in the WS-F reorg (see `context/EXPERIMENTS.md`); only upstream tools' own internal paths (`~/tools/SpecHLA/script/...`, `~/tools/SpecImmune/scripts/...`) are unaffected by this repo's layout.
 
 ## Confirmed data locations (v9 CDR, `C2025Q4R6`)
 

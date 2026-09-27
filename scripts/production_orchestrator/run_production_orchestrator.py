@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Full-cohort Immuannot production orchestrator. See BRIEF.md in this directory for the full
 design rationale -- every safety behavior here maps to a specific real incident earlier in this
-project (ENVIRONMENT.md quirks #11/#14/#17/#18/#23-#27). This script extends scripts/scaling_probe.py's
+project (ENVIRONMENT.md quirks #11/#14/#17/#18/#23-#27). This script extends scripts/legacy/experiments/scaling_probe.py's
 proven patterns (mount check, PID lock, ThreadPoolExecutor concurrency, real exceptions stop
 immediately -- no bash, no set -e ambiguity) rather than starting from zero.
 
 What it adds beyond scaling_probe.py (which only ever probes ONE config, once):
-  - Loops over the ENTIRE cohort (from build_immuannot_cohort.py's output), not one fixed batch.
+  - Loops over the ENTIRE cohort (from legacy/experiments/build_immuannot_cohort.py's output), not one fixed batch.
   - Real resumability: before dispatching ANYONE, scans the filesystem for each candidate's actual
     expected output (hap1.gtf.gz / hap2.gtf.gz under ~/pipeline_outputs/<pid>/immuannot_output/) --
     not a log entry, not run_immuannot_person.py's own canonical-file check (which can't see
@@ -310,7 +310,7 @@ def check_phase2_prereqs():
 
 def load_cohort(cohort_path):
     """Returns (people, ancestry_map, trim_tier_map) for the FULL cohort file, unfiltered.
-    ancestry_map is {person_id: ancestry_pred_or_'NA'} -- build_immuannot_cohort.py's ancestry join
+    ancestry_map is {person_id: ancestry_pred_or_'NA'} -- legacy/experiments/build_immuannot_cohort.py's ancestry join
     (2026-08-04), used ONLY for local per-ancestry progress logging, never sent to the remote
     heartbeat dashboard (monitoring/README.md keeps that aggregate-counts-only). If the cohort file
     predates the ancestry join (no ancestry_pred column), every person maps to 'NA' -- degrades
@@ -318,7 +318,7 @@ def load_cohort(cohort_path):
     filter_people()) -- kept separate from loading so the same load can serve both the default
     automatic two-phase split and a --single-phase manual filter."""
     if not os.path.isfile(cohort_path):
-        die(f"cohort file not found: {cohort_path} -- run build_immuannot_cohort.py first.")
+        die(f"cohort file not found: {cohort_path} -- run legacy/experiments/build_immuannot_cohort.py first.")
     df = pd.read_csv(cohort_path, sep="\t", dtype=str)
     for c in ["person_id", "trim_tier"]:
         if c not in df.columns:

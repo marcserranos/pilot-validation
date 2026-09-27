@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Figure 1 v5 -- the introductory figure of the paper, redrawn to Cole's 2026-09-22 panel-by-panel
-feedback (sprints/CALL_SUMMARY_2026-09-22.md Sec 6) and then to the orchestrator's 2026-09-23
+feedback (sprints/_calls/2026-09-22_CALL_SUMMARY.md Sec 6) and then to the orchestrator's 2026-09-23
 review of the first v5 draft (fixed 183x150 mm canvas, censored-cell display bug, panel a rebuilt
 from disclosure-safe bins, new panel f). Nature spec: double column 183 mm, <=~150 mm tall, 6 pt
 body text, 7 pt axis titles, bold lowercase 8 pt panel letters, no in-panel caption text (the

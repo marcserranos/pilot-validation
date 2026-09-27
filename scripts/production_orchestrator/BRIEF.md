@@ -51,7 +51,7 @@ incident this session. Full accounts: `context/ENVIRONMENT.md` quirks #11, #14, 
 4. **Prefer Python over bash for the orchestrator itself.** This session tried a bash orchestrator
    first; it became a full day/night incident (duplicate-launch races, `du`/`df` hanging 15 min to
    2+ hours on this VM's gcsfuse mounts, silent continuation past failures because bash had no
-   `set -e`). The replacement, `scripts/scaling_probe.py`, is a working, much simpler reference —
+   `set -e`). The replacement, `scripts/legacy/experiments/scaling_probe.py`, is a working, much simpler reference —
    real exceptions stop execution immediately with a traceback, no `set -e`/`pipefail` ambiguity.
    **This is the recommended starting skeleton for the orchestrator**, not a from-scratch design —
    it already has the mount check, the lock, and a working concurrent-worker pattern
@@ -67,7 +67,7 @@ incident this session. Full accounts: `context/ENVIRONMENT.md` quirks #11, #14, 
 
 ## The cohort — what "everyone we can call" actually means, and what's still open
 
-`scripts/build_immuannot_cohort.py` exists and does the right *kind* of check (existence-verifies
+`scripts/legacy/experiments/build_immuannot_cohort.py` exists and does the right *kind* of check (existence-verifies
 `assembly_hap1_fa`/`assembly_hap2_fa`/`assembly_hap1_aln2_hg38_bam`/`assembly_hap2_aln2_hg38_bam`
 against the mount, not just a platform label) — but it was built for small verified test batches
 (`-n`, defaulting to 40, stops as soon as N are found) and filters to `platform == "revio"` only.
@@ -76,7 +76,7 @@ For the full production run:
 - **Remove or raise the `-n` cap** so it enumerates every verified-eligible person, not just the
   first N. Given `revio` is ~11,070 manifest rows, a serial per-row existence check (as the script
   currently does) may be slow — consider parallelizing (the pattern in
-  `scripts/lr_manifest_format_census.py`, `ThreadPoolExecutor` since this is FUSE-I/O-bound, not
+  `scripts/legacy/experiments/lr_manifest_format_census.py`, `ThreadPoolExecutor` since this is FUSE-I/O-bound, not
   CPU-bound, already checkpointed/resumable) rather than assuming a serial loop is fast enough at
   this scale. Verify by timing a real run, don't assume.
 - **Open, deliberate decision needed, not a silent default: what about `sequel2`'s 991 people?**

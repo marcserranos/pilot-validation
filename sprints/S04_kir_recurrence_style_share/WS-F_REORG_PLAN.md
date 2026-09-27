@@ -398,3 +398,52 @@ forwarding shims at the old paths, update the 3 hardcoded references in
 `scripts/production_orchestrator/` and `scripts/bootstrap_vm.sh`/`PREFLIGHT.md`'s curl URL
 together in one commit, and re-verify by actually bootstrapping a scratch VM before trusting it —
 not a change to make casually from a read-only audit.*
+
+---
+
+## Executed (2026-09-27, WS-F executor)
+
+This plan's move table was re-run and confirmed unchanged (no new loose top-level `scripts/*.py`/
+`*.sh` since this plan was written; `git status` showed only `sprints/S04_kir_recurrence_style_share/`
+in-flight files from other concurrent agents, none touched here). Executed as proposed with one
+deviation:
+
+- **All 37 experiment scripts** → `git mv`'d to `scripts/legacy/experiments/`, exactly as planned.
+- **3 loose sprint call notes** → `git mv`'d to `sprints/_calls/` with date-prefixed names, exactly
+  as planned.
+- **2 `hla_popgen` briefs** (`NEEDLE_VIEW_BRIEF.md`, `RUNBOOK.md`) → `git mv`'d to
+  `reports/hla_popgen/_briefs/`, exactly as planned.
+- **Deviation: `outputs/` was left in place**, not moved into `scripts/legacy/experiments_outputs/`.
+  Reason found mid-execution: `outputs/` was deliberately untracked and `.gitignore`'d by an
+  earlier commit ("Untrack outputs/ and scripts/__pycache__ (now .gitignore'd)") as policy, not
+  oversight — folding it into a new git-tracked path would silently re-track content that was
+  deliberately excluded, which isn't this reorg's call to make unasked. Flagged as an open question
+  in `context/DECISIONS.md` (2026-09-27 entry) instead of decided unilaterally.
+- **The 5 VM-critical files were left exactly where §3.1 recommended** (not moved, no shims added).
+  `scripts/production_orchestrator/` and `scripts/hla_popgen/` were left untouched as directed.
+- **Reference fixes beyond the plan's own §6 script**: also updated real functional/actionable
+  paths found in `scripts/legacy/experiments/*.sh`'s own `COMPARE=`/log lines (cross-references
+  between moved sibling scripts), `context/ENVIRONMENT.md`'s live SR/LR runbook commands,
+  `scripts/hla_popgen/{README.md,SCHEMA.md}` and pipeline-script docstrings/tests that named
+  `RUNBOOK.md`/`NEEDLE_VIEW_BRIEF.md`/the call notes by path, `scripts/production_analysis/`,
+  `scripts/production_orchestrator/{BRIEF.md,run_production_orchestrator.py}`,
+  `scripts/monitoring/BRIEF.md`, and `reference/{IMMUANNOT_GTF_SPEC.md,AOU_DATA_ACCESS_NOTES.md}`.
+  Left untouched, per the plan's own Category A/B reasoning: `context/EXPERIMENTS.md` and
+  `context/DECISIONS.md` (append-only, one new entry added to each instead), and historical sprint
+  narrative in `sprints/S03_call8_figures_kir_prediction/{SPRINT.md,LOG.md,CRITIC_1.md}` and
+  `sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md` (point-in-time records of what
+  was true when written).
+- **Also added**: `scripts/legacy/README.md`, `sprints/_calls/README.md`,
+  `reports/hla_popgen/_briefs/README.md` (what's there, why, pre-convention/point-in-time status).
+- **Verification**: `python3 -m py_compile` on every moved/edited `.py` and `bash -n` on every
+  moved `.sh` — clean. `pytest scripts/hla_popgen/tests scripts/production_orchestrator/tests -q`
+  (deselecting `test_44_kir_recurrence_saturation.py`, owned by a concurrently-editing agent):
+  518 passed, 9 errors — confirmed via `git stash` to be pre-existing (`fixtures_dir`/
+  `fixtures_root` pytest fixtures not defined anywhere in the repo), not caused by this reorg.
+  `grep` sweep for every moved basename repo-wide: zero stale functional references remain outside
+  the append-only files and the historical sprint docs named above.
+- **Not touched, per the brief**: `scripts/hla_popgen/44_kir_recurrence_saturation.py` and its
+  test (pre-existing uncommitted edits from a concurrent agent, confirmed via `git diff --stat`
+  before this session began), `sprints/S04_kir_recurrence_style_share/LOG.md` (modified by another
+  agent), `VM_CLEANUP_PLAN_v2.md`/`VM_OPERATOR_HANDOFF.md` (new files from another agent, already
+  correctly placed inside this sprint folder). None of these were staged or committed here.

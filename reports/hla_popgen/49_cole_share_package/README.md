@@ -15,7 +15,7 @@ covering what he does not yet have: novel HLA calls (only common two-field allel
 before), all KIR calls (never shared), ancestry probabilities/labels, unrelated-set membership,
 and the DQ/DP cis-pair phasing-confidence flag he asked for on the 2026-09-22 call. See
 `sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md` §2 WS-E and
-`sprints/ALEIX_HANDOFF_2026-09-22.md` §5.1.
+`sprints/_calls/2026-09-22_ALEIX_HANDOFF.md` §5.1.
 
 ## Method
 

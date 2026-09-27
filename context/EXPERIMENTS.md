@@ -746,3 +746,31 @@ Pointer entry; details in `sprints/S03_call8_figures_kir_prediction/{LOG.md,KIR_
 - 41 extended pilot (170 people): 100% haps, 9.06 genes/hap, 61.0% novel.
 - 40 Figure 1 v5: 40a (589 bins ≥20) + 40b (48 cells) exported; all six panels composed.
 - 42 repertoire baseline: n=1,500 subsample, AFR AUROC 0.82, EUR 0.67, sex 0.55; no disease ≥100 cases.
+
+## 2026-09-27 — WS-F repo reorg: pre-convention scripts/legacy moved, doc briefs relocated
+Structural note, not a research run. Full move table, reference audit, and VM-critical-file
+exclusions: `sprints/S04_kir_recurrence_style_share/WS-F_REORG_PLAN.md`. Executed via `git mv`
+(history preserved); 5 VM-production files kept in place (`scripts/run_immuannot_person.py`,
+`scripts/monitoring/`, `scripts/bootstrap_vm.sh`, `scripts/setup_immuannot.sh`,
+`scripts/spechla_pad_helpers.py`), and `scripts/production_orchestrator/`/`scripts/hla_popgen/`
+were left untouched (already namespaced). Old→new paths (old basename, at `scripts/` or
+`sprints/` top level, unless noted):
+- 37 pre-numbered-convention experiment scripts (`analyze_*`, `build_*`, `compare_hla_results.py`,
+  `experiment_*`, `run_experiment_*`, `run_*_pad_sweep.sh`, `run_immuannot_pad_sweep.py`,
+  `diagnose_immuannot_pilot.py`, `hla_disease_sanity_check.py`, `local_plot_*.py`,
+  `lr_manifest_format_census.py`, `patch_specimmune_for_gene_restriction.py`,
+  `plot_confidence_distributions.py`, `prune_pipeline_outputs.sh`, `rnaseq_*`,
+  `scaling_probe.py`, `slice_and_fastq.sh`, `summarize_lr_census.py`,
+  `build_restricted_specimmune_db.sh`) → same basename under `scripts/legacy/experiments/`.
+- `sprints/CALL_BRIEF_2026-09-22.md` → `sprints/_calls/2026-09-22_CALL_BRIEF.md`.
+- `sprints/CALL_SUMMARY_2026-09-22.md` → `sprints/_calls/2026-09-22_CALL_SUMMARY.md`.
+- `sprints/ALEIX_HANDOFF_2026-09-22.md` → `sprints/_calls/2026-09-22_ALEIX_HANDOFF.md`.
+- `scripts/hla_popgen/NEEDLE_VIEW_BRIEF.md` → `reports/hla_popgen/_briefs/NEEDLE_VIEW_BRIEF.md`.
+- `scripts/hla_popgen/RUNBOOK.md` → `reports/hla_popgen/_briefs/RUNBOOK.md`.
+Live references (README.md, CLAUDE.md, `context/STATUS.md`, `context/ENVIRONMENT.md`, script
+docstrings, tests, `reports/*/README.md` usage commands) updated to the new paths; historical
+narrative in this file and in `context/DECISIONS.md` above this entry is left as written
+(append-only, bare filenames now stale — same posture as this file's 2026-07 structural note re:
+the earlier repo-root move). `outputs/` (legacy, untracked/`.gitignore`d CSVs+plots, zero repo
+references) was deliberately left in place rather than folded into `scripts/legacy/` — re-tracking
+gitignored content in git wasn't this reorg's call to make (see DECISIONS.md entry, same date).

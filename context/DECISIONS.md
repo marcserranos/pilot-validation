@@ -72,3 +72,25 @@
 - **Pipeline outputs to `~/pipeline_outputs/`, not `/tmp` (2026-07-08).** `/tmp` isn't visible in the Jupyter file browser (quirk #12).
 - **Dropped the 1000 Genomes pilot.** Validating directly on AoU's own SR/LR overlap population instead.
 - **pixi, not conda** — see ENVIRONMENT / package management for the full rationale.
+
+- **WS-F repo reorg executed as proposed, with `outputs/` left untouched (2026-09-27).** Marc's
+  steer: lower the bar for deleting evident trash, raise the bar for organizing everything else
+  into folders. Executed the predecessor audit's plan (`sprints/S04_kir_recurrence_style_share/WS-F_REORG_PLAN.md`,
+  full move table in `context/EXPERIMENTS.md`'s matching entry): 37 pre-convention experiment
+  scripts → `scripts/legacy/experiments/`, 3 loose sprint call notes → `sprints/_calls/`, 2
+  `hla_popgen` narrative briefs → `reports/hla_popgen/_briefs/`. The 5 files with real VM-production
+  wiring (`run_immuannot_person.py`, `monitoring/`, `bootstrap_vm.sh`, `setup_immuannot.sh`,
+  `spechla_pad_helpers.py`) were left in place per the predecessor audit's dependency findings —
+  not revisited. **`outputs/` (legacy `allele_freq_by_ancestry.csv`, `allele_tree_data.csv`,
+  `plots/`) was deliberately left where it is, ungrouped with the reorg, rather than moved into
+  `scripts/legacy/experiments_outputs/` as the predecessor plan proposed.** Reason found mid-reorg:
+  `outputs/` was intentionally untracked and `.gitignore`'d in an earlier deliberate commit
+  ("Untrack outputs/ and scripts/__pycache__ (now .gitignore'd)") as a general untracked-noise
+  policy, not an oversight — moving it into a new git-tracked path would silently reverse that
+  policy call and put those files under version control for the first time. Content itself checked
+  and confirmed aggregate-only (frequency/tree summaries, no participant-level rows), so there's no
+  disclosure blocker if a future session decides to track it; this is purely "not this reorg's call
+  to make" without asking first. **Open**: should `outputs/` stay gitignored-and-in-place, get
+  folded into `scripts/legacy/experiments_outputs/` and added to git (predecessor's original
+  proposal), or get deleted outright as superseded by the numbered `hla_popgen/` pipeline? Ask
+  Marc before doing any of the three.

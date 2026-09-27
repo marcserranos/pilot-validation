@@ -19,7 +19,7 @@ and reported, but not individually verified, since an index file existing whenev
 file does is a reasonable assumption, not something checked here). 29 primary columns were
 existence-checked; 25 index columns were skipped on that assumption.
 
-Script: `scripts/lr_manifest_format_census.py` (checkpointed every 500 rows, resumable,
+Script: `scripts/legacy/experiments/lr_manifest_format_census.py` (checkpointed every 500 rows, resumable,
 16-way parallelized over the gcsfuse mount — see ENVIRONMENT.md quirk #22 for why that mattered).
 Verification method: real file existence against the mount (`os.path.exists()`), never a
 path-pattern or column-name guess — the same rule ENVIRONMENT.md quirk #13 established after

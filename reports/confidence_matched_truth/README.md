@@ -2,7 +2,7 @@
 
 **2026-07-24.** Extends `reports/experiment_d_field_cascade/` (AoU/SpecHLA vs. SpecImmune-LR
 truth) and `reports/immuannot_pilot/` (AoU/SpecHLA vs. Immuannot truth, see
-`scripts/analyze_experiment_d_field_cascade_immuannot.py`) with a single, objective, very
+`scripts/legacy/experiments/analyze_experiment_d_field_cascade_immuannot.py`) with a single, objective, very
 restrictive confidence bar applied to BOTH long-read truth sources before scoring AoU-native
 and SpecHLA against them — Marc's explicit design constraints: **one global threshold per
 tool (never tuned per gene), grounded in real sequencing-error math (not an arbitrary
@@ -68,8 +68,8 @@ confidence-filtering is a pure win.
 
 ## Data & reproducibility
 
-- Script: `scripts/analyze_confidence_matched_truth.py`. Run via
-  `pixi run -e spechla -- python3 scripts/analyze_confidence_matched_truth.py <cohort.tsv> --si-identity-threshold 0.9995 --immuannot-distance-threshold 0`
+- Script: `scripts/legacy/experiments/analyze_confidence_matched_truth.py`. Run via
+  `pixi run -e spechla -- python3 scripts/legacy/experiments/analyze_confidence_matched_truth.py <cohort.tsv> --si-identity-threshold 0.9995 --immuannot-distance-threshold 0`
 - Reads the same per-person `comparison_log.csv`, `immuannot_calls.tsv`, and
   `hap{1,2}.gtf.gz` files as `reports/immuannot_pilot/` and
   `reports/experiment_d_field_cascade/` — no new VM run needed.

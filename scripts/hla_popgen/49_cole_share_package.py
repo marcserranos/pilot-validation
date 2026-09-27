@@ -490,7 +490,7 @@ never be copied into git, a public report, a chat message, or anywhere outside t
 ## What's new in this release vs. what Cole already has
 
 Cole previously received (and confirmed using) **only common, two-field HLA alleles** -- see
-`sprints/ALEIX_HANDOFF_2026-09-22.md` S3. **Novel HLA calls were never shared.** This release adds:
+`sprints/_calls/2026-09-22_ALEIX_HANDOFF.md` S3. **Novel HLA calls were never shared.** This release adds:
 - novel HLA calls (all novelty tiers, not just the common two-field subset), with novelty tier and
   artifact label so they can be told apart from the previously-shared common calls
   (`already_shared_two_field_common` column in `hla_calls.{ext}`);
@@ -537,7 +537,7 @@ One row per (person_id, hap, contig, gene, copy_index). {kir_stats['n_rows']} ro
 
 **"Use novel alleles with caution."** Per Cole's own words on the 2026-09-22 call: *"the novel
 ones are interesting, but they're kind of dangerous, and we can't say much with them because we
-don't have a lot of them"* (`sprints/ALEIX_HANDOFF_2026-09-22.md`). Any `novelty_tier` other than
+don't have a lot of them"* (`sprints/_calls/2026-09-22_ALEIX_HANDOFF.md`). Any `novelty_tier` other than
 `known` in either file is a single-cohort, unvalidated call -- do not use as a positive control or
 as a stratifier without checking recurrence across unrelated people first
 (`reports/hla_popgen/34_novel_protein_recurrence/`, `44`/`45`).

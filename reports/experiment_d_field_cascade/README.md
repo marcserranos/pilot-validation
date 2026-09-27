@@ -4,9 +4,9 @@ Same re-scoring of Experiment D's n=60 AoU-native/SpecHLA calls (cumulative fiel
 resolution, per gene), run against two different long-read truth sources:
 
 - `specImmune_bench/` — vs. SpecImmune-LR truth (2026-07-20; script:
-  `scripts/analyze_experiment_d_field_cascade.py`).
+  `scripts/legacy/experiments/analyze_experiment_d_field_cascade.py`).
 - `Immuannot_bench/` — vs. Immuannot truth (2026-07-24; script:
-  `scripts/analyze_experiment_d_field_cascade_immuannot.py`). Immuannot-truth pool is smaller
+  `scripts/legacy/experiments/analyze_experiment_d_field_cascade_immuannot.py`). Immuannot-truth pool is smaller
   (403/480 slots — Immuannot abstains on the rest, doesn't miscall them).
 
 **Reading the two side by side**: DRB1's Field-2 concordance looks notably better against

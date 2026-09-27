@@ -114,13 +114,13 @@ the hardest locus. Every other gene moves the expected direction by a real margi
 B 74%→94%, DQA1/DQB1/DPA1 into the mid-90s/100%) except C, which dips slightly (92%→89%, n=19,
 2 discordant pairs — almost certainly noise at this sample size, not a reversal).
 
-Script: `scripts/analyze_immuannot_specimmune_confidence_matched.py`.
+Script: `scripts/legacy/experiments/analyze_immuannot_specimmune_confidence_matched.py`.
 
 ## Data & reproducibility
 
-- Script: `scripts/diagnose_immuannot_pilot.py` (also the source of `field2_by_gene.png`,
+- Script: `scripts/legacy/experiments/diagnose_immuannot_pilot.py` (also the source of `field2_by_gene.png`,
   `confidence_comparison.png`, and `runtime.png` — same numbers as the tables, not retyped).
-- Run via `pixi run -e spechla -- python3 scripts/diagnose_immuannot_pilot.py` (needs matplotlib,
+- Run via `pixi run -e spechla -- python3 scripts/legacy/experiments/diagnose_immuannot_pilot.py` (needs matplotlib,
   unlike the pipeline scripts themselves).
 - Aggregate-only: raw per-person calls, timing, and the per-individual detail CSV all stay on the
   Workbench VM (`~/pipeline_outputs/immuannot_calls.tsv`, `immuannot_timing.tsv`,
@@ -128,7 +128,7 @@ Script: `scripts/analyze_immuannot_specimmune_confidence_matched.py`.
   standing egress rule (`context/DECISIONS.md`).
 - Companion pipeline scripts: `scripts/run_immuannot_person.py` (the production run, whole-block
   trim via each haplotype's own `.paf` alignment), `scripts/setup_immuannot.sh`.
-- A separate padding-tightening experiment (`scripts/run_immuannot_pad_sweep.py`) tested whether the
+- A separate padding-tightening experiment (`scripts/legacy/experiments/run_immuannot_pad_sweep.py`) tested whether the
   trim could be narrowed further (down to the literal gene body, or even a deliberate truncation
   positive control) — result: no, generous whole-block trimming is necessary for Immuannot's own
   accuracy at several genes, particularly DQA1/DQB1 on fragmented assemblies. Not adopted; the

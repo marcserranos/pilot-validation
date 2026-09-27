@@ -7,14 +7,14 @@ supervisors how AoU-native's quality compares to a high-confidence non-native "g
 
 Immuannot's own per-call confidence signal is `template_distance` (edit distance to the nearest
 IMGT reference allele; 0 = perfect match, higher = less confident -- see
-scripts/plot_confidence_distributions.py for the original single-cohort version of this signal).
+scripts/legacy/experiments/plot_confidence_distributions.py for the original single-cohort version of this signal).
 As we restrict the comparison to only Immuannot calls at or below a given distance threshold t,
 those calls become progressively closer to a genuinely trustworthy "ground truth" proxy -- so any
 remaining AoU-native/Immuannot mismatch is more likely a real AoU-native error, not Immuannot's
 own uncertainty. The discrepancy rate (1 - Field 2 concordance) should fall and level off as t
 shrinks toward 0: that floor is the estimate of AoU-native's real error rate against
 high-confidence ground truth (same interpretive logic as the confidence-matched-truth work
-already done at n=60, scripts/analyze_confidence_matched_truth.py -- this generalizes it from one
+already done at n=60, scripts/legacy/experiments/analyze_confidence_matched_truth.py -- this generalizes it from one
 fixed threshold to a full sweep, at full production scale, per gene).
 
 X-axis is drawn with the axis REVERSED (large/loose distance on the left, 0/strict on the right)

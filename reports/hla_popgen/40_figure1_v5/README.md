@@ -1,7 +1,7 @@
 # 40 — Figure 1 v5
 
 *WS4, S03 sprint. Implements Cole's 2026-09-22 panel feedback
-(`sprints/CALL_SUMMARY_2026-09-22.md` Sec 6), then the orchestrator's 2026-09-23 review of the
+(`sprints/_calls/2026-09-22_CALL_SUMMARY.md` Sec 6), then the orchestrator's 2026-09-23 review of the
 first v5 draft. Built by `scripts/hla_popgen/40_figure1_v5.py` (+ `40a_admixture_bins.py` for
 panel a).*
 
