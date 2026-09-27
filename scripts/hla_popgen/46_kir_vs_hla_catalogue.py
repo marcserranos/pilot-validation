@@ -104,10 +104,13 @@ def load_tables(in_dir):
     curve = pd.read_csv(os.path.join(in_dir, "saturation_curves.tsv"), sep="\t")
     cov = pd.read_csv(os.path.join(in_dir, "coverage_chao2.tsv"), sep="\t")
     slope = pd.read_csv(os.path.join(in_dir, "equal_n_slope.tsv"), sep="\t")
-    return rec, curve, cov, slope
+    qc_path = os.path.join(in_dir, "kir_protein_catalogue_qc.tsv")
+    protein_qc = pd.read_csv(qc_path, sep="\t") if os.path.exists(qc_path) else pd.DataFrame(
+        columns=["gene", "protein_catalogue_covered", "reason"])
+    return rec, curve, cov, slope, protein_qc
 
 
-def build_gene_metrics(cov, slope, ancestry="ALL"):
+def build_gene_metrics(cov, slope, protein_qc=None, ancestry="ALL"):
     """Returns a tidy DataFrame, one row per (gene, species): pct_novel_any, pct_novel_protein,
     good_turing_coverage, completeness (s_obs/chao2), chao2_undetected_f0hat, slope_per_1000, all
     at the genomic identity granularity pooled over `ancestry` (default ALL) -- EXCEPT
@@ -132,22 +135,50 @@ def build_gene_metrics(cov, slope, ancestry="ALL"):
         d = sub[sub["level"] == level][["gene", "species", "s_obs"]]
         return d.rename(columns={"s_obs": f"s_obs_{level}"})
 
+    def chao2_at(level):
+        d = sub[sub["level"] == level][["gene", "species", "chao2"]]
+        return d.rename(columns={"chao2": f"chao2_{level}"})
+
     base = sub[sub["level"] == "genomic"][
         ["gene", "species", "s_obs", "good_turing_coverage", "chao2",
          "chao2_undetected_f0hat"]].rename(columns={"s_obs": "s_obs_genomic"})
     base = base.merge(s_obs_at("any_novel"), on=["gene", "species"], how="left")
     base = base.merge(s_obs_at("protein"), on=["gene", "species"], how="left")
     base = base.merge(s_obs_at("protein_novel"), on=["gene", "species"], how="left")
+    base = base.merge(chao2_at("protein"), on=["gene", "species"], how="left")
 
     base["pct_novel_any"] = 100.0 * base["s_obs_any_novel"] / base["s_obs_genomic"]
     base["pct_novel_protein"] = 100.0 * base["s_obs_protein_novel"] / base["s_obs_protein"]
     base["completeness"] = base["s_obs_genomic"] / base["chao2"]
+    # Protein-level richness completeness -- answers WS-B's "which catalogue is better
+    # represented" question AT THE PROTEIN LEVEL specifically (2026-09-27 coordinator ask). NaN
+    # for a gene 44 marked catalogue-uncovered (its `protein`/`chao2_protein` are already NaN via
+    # pd.to_numeric(..., errors="coerce") on 44's literal "NA") -- never divides to a fabricated 0.
+    base["completeness_protein"] = base["s_obs_protein"] / base["chao2_protein"]
 
     sl = slope[(slope["ancestry"] == ancestry) & (slope["level"] == "genomic")
                & (slope["curve"] == "distinct")][["gene", "species", "slope_per_1000"]]
     base = base.merge(sl, on=["gene", "species"], how="left")
 
     base["gene_display"] = np.where(base["species"] == "hla", "HLA-" + base["gene"], base["gene"])
+
+    # Protein-catalogue coverage status (2026-09-27, `kir_protein_catalogue_qc.tsv`): HLA genes
+    # have no such QC file (every HLA classical gene has a curated IPD-IMGT/HLA protein catalogue
+    # entry) so they default to covered=True/"ok"; KIR genes are joined from 44's own QC table --
+    # a gene 44 flagged uncovered (KIR2DP1/KIR3DP1, both pseudogenes with no catalogued reference
+    # protein) must be rendered as an explicit NA/"pseudogene" case downstream, never plotted as
+    # if its NaN pct_novel_protein/completeness_protein were an ordinary missing value.
+    if protein_qc is None or protein_qc.empty:
+        base["protein_catalogue_covered"] = True
+        base["protein_catalogue_reason"] = "ok"
+    else:
+        qc = protein_qc.rename(columns={"protein_catalogue_covered": "_covered",
+                                         "reason": "_reason"})
+        base = base.merge(qc[["gene", "_covered", "_reason"]], on="gene", how="left")
+        base["protein_catalogue_covered"] = base["_covered"].fillna(True)
+        base["protein_catalogue_reason"] = base["_reason"].fillna("ok")
+        base = base.drop(columns=["_covered", "_reason"])
+
     return base.sort_values(["species", "gene"]).reset_index(drop=True)
 
 
@@ -206,7 +237,7 @@ def _label_points_repel(texts, renderer, px_to_pt, max_iter):
                 overlap_y = min(bi.y1, bj.y1) - max(bi.y0, bj.y0)
                 if overlap_y <= 0:
                     continue
-                push_px = overlap_y / 2.0 + 4.0
+                push_px = overlap_y / 2.0 + 6.0
                 push_pt = push_px * px_to_pt
                 if bi.y0 <= bj.y0:
                     _nudge_text_points(texts[i], -push_pt)
@@ -222,33 +253,93 @@ def _label_points_repel(texts, renderer, px_to_pt, max_iter):
     return texts
 
 
+def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=()):
+    """One completeness-vs-novelty scatter panel, direct-labeled, both species. Rows where
+    `x_col`/`y_col` is NaN (a catalogue-uncovered gene, e.g. KIR2DP1/KIR3DP1 at the protein level)
+    are NEVER silently dropped or plotted as 0 -- they are listed by name in an in-panel note
+    (`na_note`, e.g. "KIR2DP1, KIR3DP1: no catalogue protein (pseudogene)"), so a reader sees
+    explicitly which genes are missing and why, per the 2026-09-27 coordinator instruction.
+
+    Labeling is done PER SPECIES so a tight cluster of one species doesn't force the other
+    species' already-well-spaced labels into a shared far-away column. Species named in
+    `column_species` use 45's shared-x-column end-of-line labeling (`_label_curve_ends`,
+    originally built for curve endpoints but equally valid for any (x, y) point), positioned
+    just past THAT SPECIES' OWN rightmost point -- i.e. the KIR protein-level cluster (~13 genes
+    packed into x=90-100/y=0.06-0.25) gets a short local column with leader lines, not a
+    figure-spanning one. Every other species uses `_label_points()`'s free per-point repulsion,
+    which reads fine when points are already spread out (e.g. panel a, or panel b's HLA points).
+    The free style was tried for the KIR cluster first and passed `check_layout(strict=True)`
+    with zero TEXT-vs-TEXT violations yet still visually sat labels on top of marker dots --
+    `check_layout()`'s overlap check is text-vs-text/decoration only, it does not compare a label
+    against a plain scatter marker, so that failure mode is a real "text on data" violation
+    (FIGURE_STYLE.md) the mechanical linter cannot catch; caught only by rendering and viewing the
+    PNG at full size (2026-09-27 visual review)."""
+    handles = []
+    per_species = {}
+    na_genes = []
+    for sp in SPECIES_ORDER:
+        s_all = metrics[metrics["species"] == sp]
+        na_genes += s_all.loc[s_all[x_col].isna() | s_all[y_col].isna(), "gene_display"].tolist()
+        s = s_all.dropna(subset=[x_col, y_col])
+        h = ax.scatter(s[x_col], s[y_col], s=16, color=SPECIES_COLOR[sp],
+                        label=SPECIES_LABEL[sp], zorder=3, edgecolors="white", linewidths=0.3)
+        handles.append(h)
+        per_species[sp] = (s[x_col].tolist(), s[y_col].tolist(), s["gene_display"].tolist())
+    ax.set_ylim(0, 1.05)
+    ax.set_xlim(left=-2)
+    m45 = _load_45() if any(sp in column_species for sp in SPECIES_ORDER) else None
+    # Free-style species are repelled together in ONE pass (not one call per species) -- a
+    # per-species-only pass would resolve overlaps within each species but miss a label from one
+    # species landing on a label from the other (caught by re-running check_layout, not by eye:
+    # 'HLA-DRB1 overlaps KIR3DS1' in panel a, two close points from different species).
+    free_x, free_y, free_lab, free_col = [], [], [], []
+    for sp in SPECIES_ORDER:
+        xs, ys, labs = per_species[sp]
+        if not xs:
+            continue
+        if sp in column_species:
+            ends = {lab: (x, y) for x, y, lab in zip(xs, ys, labs)}
+            colors_by_label = {lab: SPECIES_COLOR[sp] for lab in labs}
+            m45._label_curve_ends(ax, ends, colors_by_label, fontsize=5.0, min_gap_frac=0.05)
+        else:
+            free_x += xs
+            free_y += ys
+            free_lab += labs
+            free_col += [SPECIES_COLOR[sp]] * len(xs)
+    if free_x:
+        _label_points(ax, free_x, free_y, free_lab, free_col)
+    if na_genes:
+        note = na_note or (", ".join(na_genes) + ": no catalogue data at this level")
+        # Top-left, not bottom-left: this data's y-range clusters low-to-mid (completeness
+        # 0.08-0.57), so the top of the panel is the reliably empty corner -- checked against the
+        # actual metrics range, not assumed.
+        t = ax.text(0.02, 0.98, note, transform=ax.transAxes, fontsize=5.2, color="#666666",
+                     ha="left", va="top", style="italic", wrap=True)
+        vc.mark_label(t)
+    return handles
+
+
 def fig_catalogue_completeness(metrics, out_stem):
     with vc.nature_style():
-        fig, ax = plt.subplots(figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(115)),
-                                constrained_layout=True)
-        handles = []
-        all_x, all_y, all_lab, all_col = [], [], [], []
-        for sp in SPECIES_ORDER:
-            s = metrics[metrics["species"] == sp].dropna(subset=["pct_novel_any", "completeness"])
-            h = ax.scatter(s["pct_novel_any"], s["completeness"], s=16,
-                            color=SPECIES_COLOR[sp], label=SPECIES_LABEL[sp], zorder=3,
-                            edgecolors="white", linewidths=0.3)
-            handles.append(h)
-            all_x += s["pct_novel_any"].tolist()
-            all_y += s["completeness"].tolist()
-            all_lab += s["gene_display"].tolist()
-            all_col += [SPECIES_COLOR[sp]] * len(s)
-        # Fix axis limits and the legend BEFORE labeling -- `_label_points()` measures real
-        # rendered pixel positions, which shift if xlim/ylim/legend are added afterward (each
-        # changes the data<->pixel mapping or adds a sibling artist that reflows the layout).
-        ax.set_xlabel("% of distinct alleles novel (any level)")
-        ax.set_ylabel(r"Chao2 richness completeness (S$_{obs}$/Chao2)")
-        ax.set_ylim(0, 1.05)
-        ax.set_xlim(left=-2)
-        ax.legend(handles=handles, loc="lower left", **vc.LEGEND_KW)
-        # ALL points (both species) go through one repulsion pass -- resolving overlaps per
-        # species separately would miss a KIR label landing on an HLA label placed nearby.
-        _label_points(ax, all_x, all_y, all_lab, all_col)
+        fig, axes = plt.subplots(1, 2, figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(110)),
+                                  constrained_layout=True)
+        # Fix labels/limits BEFORE labeling points -- `_label_points()` measures real rendered
+        # pixel positions, which shift if axis decorations are added afterward.
+        axes[0].set_xlabel("% of distinct alleles novel (any level)")
+        axes[0].set_ylabel(r"Chao2 richness completeness (S$_{obs}$/Chao2)")
+        axes[0].set_title("any-level identity", fontsize=7)
+        axes[1].set_xlabel("% of distinct alleles novel (protein level)")
+        axes[1].set_title("protein-level identity", fontsize=7)
+        handles = _scatter_panel(axes[0], metrics, "pct_novel_any", "completeness")
+        # Protein-level panel: KIR2DP1/KIR3DP1 (pseudogenes, no catalogued reference protein --
+        # `kir_protein_catalogue_qc.tsv`) are NaN on both axes here and are named explicitly
+        # rather than silently vanishing from the plot.
+        _scatter_panel(axes[1], metrics, "pct_novel_protein", "completeness_protein",
+                       na_note="KIR2DP1, KIR3DP1: pseudogenes, no catalogued reference protein "
+                                "(excluded, not 0)", column_species=("kir",))
+        axes[0].legend(handles=handles, loc="lower left", **vc.LEGEND_KW)
+        vc.panel_letter(axes[0], "a")
+        vc.panel_letter(axes[1], "b")
         vc.save_fig(fig, out_stem)
 
 
@@ -305,8 +396,8 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
-    rec, curve, cov, slope = load_tables(args.in_dir)
-    metrics = build_gene_metrics(cov, slope)
+    rec, curve, cov, slope, protein_qc = load_tables(args.in_dir)
+    metrics = build_gene_metrics(cov, slope, protein_qc)
     metrics_path = os.path.join(args.out_dir, "46_catalogue_metrics.tsv")
     metrics.to_csv(metrics_path, sep="\t", index=False)
     print(f"  wrote {metrics_path}", file=sys.stderr)

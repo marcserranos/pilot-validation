@@ -280,5 +280,159 @@ class TestLabelBindingMatchesData(unittest.TestCase):
         self.assertEqual(seen_labels, set(expected))
 
 
+class TestProteinCatalogueQCMerge(unittest.TestCase):
+    """2026-09-27 coordinator ask: NA (catalogue-uncovered) genes must be rendered explicitly,
+    never as 0 -- covers build_gene_metrics()'s merge of kir_protein_catalogue_qc.tsv and the
+    completeness_protein column it enables."""
+
+    def _qc(self):
+        return pd.DataFrame([
+            {"gene": "KIR2DL1", "protein_catalogue_covered": True, "reason": "ok"},
+            {"gene": "KIR2DL2", "protein_catalogue_covered": False,
+             "reason": "no_catalogued_protein_entries"},
+        ])
+
+    def test_completeness_protein_arithmetic(self):
+        cov = _synthetic_cov()
+        slope = _synthetic_slope()
+        metrics = m46.build_gene_metrics(cov, slope, self._qc())
+        row = metrics[(metrics.gene == "KIR2DL1") & (metrics.species == "kir")].iloc[0]
+        # protein=50, chao2_protein=60 -> completeness_protein = 50/60.
+        self.assertAlmostEqual(row["completeness_protein"], 50.0 / 60.0)
+
+    def test_uncovered_gene_flagged_not_fabricated(self):
+        cov = _synthetic_cov()
+        slope = _synthetic_slope()
+        metrics = m46.build_gene_metrics(cov, slope, self._qc())
+        row = metrics[(metrics.gene == "KIR2DL2") & (metrics.species == "kir")].iloc[0]
+        self.assertFalse(row["protein_catalogue_covered"])
+        self.assertEqual(row["protein_catalogue_reason"], "no_catalogued_protein_entries")
+        # Fixture KIR2DL2 has real (non-NaN) protein/protein_novel values -- the covered=False
+        # flag from the QC table is independent of whether THIS fixture's numbers are NaN; the
+        # actual v3 data's KIR2DP1/KIR3DP1 rows are simultaneously covered=False AND NaN. Confirm
+        # covered=True genes are never accidentally flagged False by the merge.
+        row2 = metrics[(metrics.gene == "KIR2DL1") & (metrics.species == "kir")].iloc[0]
+        self.assertTrue(row2["protein_catalogue_covered"])
+
+    def test_hla_defaults_covered_true_without_qc_table(self):
+        # HLA genes never appear in kir_protein_catalogue_qc.tsv (KIR-only) -- must default to
+        # covered=True/"ok", never inherit a stray False from the merge's NaN-fill.
+        cov = _synthetic_cov()
+        slope = _synthetic_slope()
+        metrics = m46.build_gene_metrics(cov, slope, self._qc())
+        for _, row in metrics[metrics.species == "hla"].iterrows():
+            self.assertTrue(row["protein_catalogue_covered"])
+            self.assertEqual(row["protein_catalogue_reason"], "ok")
+
+    def test_no_qc_table_defaults_everyone_covered(self):
+        cov = _synthetic_cov()
+        slope = _synthetic_slope()
+        metrics = m46.build_gene_metrics(cov, slope, None)
+        self.assertTrue((metrics["protein_catalogue_covered"]).all())
+
+
+class TestNaGenesRenderedExplicitly(unittest.TestCase):
+    """2026-09-27 coordinator ask: 'Render NA genes explicitly ... never as 0.' A gene whose
+    protein-level metrics are NaN (catalogue-uncovered) must produce an in-panel text note naming
+    it, and must NOT appear as a plotted point at (0, 0) or any other fabricated position."""
+
+    def _metrics_with_na_gene(self):
+        cov = _synthetic_cov()
+        # Add a third KIR gene with NaN protein-level columns (simulating KIR2DP1/KIR3DP1).
+        rows = cov.to_dict("records")
+        rows.append({"gene": "KIR2DP1", "ancestry": "ALL", "level": "genomic", "species": "kir",
+                     "n_people": 1000, "s_obs": 30, "good_turing_coverage": 0.99, "chao2": 35.0,
+                     "chao2_se": 1.0, "chao2_undetected_f0hat": 5.0, "q1": "", "q2": "",
+                     "chao_new_by_2n": 0.0})
+        rows.append({"gene": "KIR2DP1", "ancestry": "ALL", "level": "any_novel", "species": "kir",
+                     "n_people": 1000, "s_obs": 5, "good_turing_coverage": 0.99, "chao2": 6.0,
+                     "chao2_se": 1.0, "chao2_undetected_f0hat": 1.0, "q1": "", "q2": "",
+                     "chao_new_by_2n": 0.0})
+        rows.append({"gene": "KIR2DP1", "ancestry": "ALL", "level": "protein", "species": "kir",
+                     "n_people": 1000, "s_obs": "NA", "good_turing_coverage": "NA",
+                     "chao2": "NA", "chao2_se": "NA", "chao2_undetected_f0hat": "NA", "q1": "",
+                     "q2": "", "chao_new_by_2n": "NA"})
+        rows.append({"gene": "KIR2DP1", "ancestry": "ALL", "level": "protein_novel",
+                     "species": "kir", "n_people": 1000, "s_obs": "NA",
+                     "good_turing_coverage": "NA", "chao2": "NA", "chao2_se": "NA",
+                     "chao2_undetected_f0hat": "NA", "q1": "", "q2": "", "chao_new_by_2n": "NA"})
+        cov2 = pd.DataFrame(rows)
+        slope = _synthetic_slope()
+        qc = pd.DataFrame([{"gene": "KIR2DP1", "protein_catalogue_covered": False,
+                            "reason": "no_catalogued_protein_entries"}])
+        return m46.build_gene_metrics(cov2, slope, qc)
+
+    def test_na_gene_excluded_from_scatter_points_not_plotted_at_zero(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        metrics = self._metrics_with_na_gene()
+        row = metrics[metrics.gene == "KIR2DP1"].iloc[0]
+        self.assertTrue(math.isnan(row["pct_novel_protein"]))
+        self.assertTrue(math.isnan(row["completeness_protein"]))
+
+        fig, ax = plt.subplots(figsize=(4, 3), constrained_layout=True)
+        handles = m46._scatter_panel(ax, metrics, "pct_novel_protein", "completeness_protein",
+                                      na_note="KIR2DP1: pseudogene, no catalogued reference "
+                                               "protein (excluded, not 0)")
+        # The NaN row must not appear as a scattered point at all -- collect every point actually
+        # drawn and confirm none sits at (0, 0) (the fabricated-zero failure mode this test
+        # guards against) and that the point count equals only the non-NaN rows.
+        n_plotted = sum(len(h.get_offsets()) for h in handles)
+        n_non_na = metrics[["pct_novel_protein", "completeness_protein"]].dropna().shape[0]
+        self.assertEqual(n_plotted, n_non_na)
+        for h in handles:
+            for (x, y) in h.get_offsets():
+                self.assertFalse(x == 0.0 and y == 0.0,
+                                  "an NA gene must never be plotted as a (0, 0) point")
+        # The explicit note naming the excluded gene must be present as a real text artist.
+        note_texts = [t.get_text() for t in ax.texts]
+        self.assertTrue(any("KIR2DP1" in t for t in note_texts),
+                        f"expected an in-panel note naming KIR2DP1, got texts: {note_texts}")
+        plt.close(fig)
+
+
+class TestColumnLabelStyleBinding(unittest.TestCase):
+    """fig_catalogue_completeness's protein-level panel uses column_species=('kir',) to avoid
+    labels sitting on top of densely-clustered marker dots (2026-09-27 visual-review fix). Confirm
+    the column-style leader lines still connect each label to ITS OWN gene's real data point."""
+
+    def test_column_style_leaders_match_data_points(self):
+        """The column style (`_label_curve_ends`, reused from 45) deliberately moves each label's
+        OWN text position away from its data point (vertical repulsion + shared x-column) and
+        connects the two with a leader line -- so `.xy` is not expected to equal the data point
+        here (unlike the 'free' `_label_points` style, covered by TestLabelBindingMatchesData).
+        What this test guards against instead: `_scatter_panel` building the `ends` dict from the
+        WRONG row when constructing column-style input (e.g. a species/gene mismatch upstream) --
+        checked two ways: (a) every plotted MARKER sits exactly at its metrics row's data point,
+        and (b) the set of column-style labels drawn is exactly the set of KIR gene_display names
+        with non-NaN data, no more, no fewer."""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        cov = _synthetic_cov()
+        slope = _synthetic_slope()
+        metrics = m46.build_gene_metrics(cov, slope)
+        kir = metrics[metrics.species == "kir"].dropna(
+            subset=["pct_novel_protein", "completeness_protein"])
+
+        fig, ax = plt.subplots(figsize=(4, 3), constrained_layout=True)
+        handles = m46._scatter_panel(ax, metrics, "pct_novel_protein", "completeness_protein",
+                                      column_species=("kir",))
+        kir_handle = handles[m46.SPECIES_ORDER.index("kir")]
+        plotted = {tuple(round(v, 6) for v in pt) for pt in kir_handle.get_offsets()}
+        expected_points = {(round(row["pct_novel_protein"], 6),
+                             round(row["completeness_protein"], 6))
+                            for _, row in kir.iterrows()}
+        self.assertEqual(plotted, expected_points)
+
+        drawn_labels = {t.get_text() for t in ax.texts
+                        if hasattr(t, "_layout_direct_label") and t.get_text().startswith("KIR")}
+        self.assertEqual(drawn_labels, set(kir["gene_display"]))
+        plt.close(fig)
+
+
 if __name__ == "__main__":
     unittest.main()

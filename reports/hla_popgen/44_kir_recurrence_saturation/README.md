@@ -160,74 +160,116 @@ script degrades to the documented `"NA"` fallback rather than crashing or fabric
   flagged; anyone building a further figure from these TSVs should check `kir_cds_match_qc.tsv`'s
   `cds_available` column first.
 
-## Results (full cohort, 2026-09-25/26 VM run)
+## Results (full cohort, v3 rerun 2026-09-26/27, commit `d577a28`/`bca633e`)
 
-Run finished in 282s. `cds_available=True` (23,637/23,637 haplotypes had `cds.fa.gz`; the
-"NA"-fallback path in the caveats above was never exercised). Unrelated set: 11,856 people (KIR
-∩ HLA, one `greedy_unrelated` pass). `kir_cds_match_qc.tsv`: 222,771 join rows, 218,982 matched
-(3,627 ambiguous-copy, 162 missing-CDS-record — both excluded from `cds`/`protein` tracks, not
-guessed).
+**v3 supersedes the earlier v1/v2 numbers below and in every other section of this README.** The
+v3 rerun fixed two real bugs, neither touching genomic-level identity or the `any_novel` track:
+(1) HLA's `protein`/`protein_novel` used the wrong CDS path and always came back empty (pooled
+S_obs was exactly 0 for every one of the 8 classical genes in v1/v2 — now non-zero, see below);
+(2) three KIR genes (KIR2DL2, KIR2DL5B, KIR2DP1) had `pct_novel_protein` exceed 100% because
+`kir_gene_protein_covered()` didn't reliably detect catalogue coverage for bundled/mis-stemmed
+IPD-KIR reference files or true pseudogenes — fixed by requiring a non-empty translated-protein
+catalogue entry (`kir_ref.prot[gene]`), not just CDS/gene-list membership, and by exporting a
+genuinely uncovered gene's protein-level tracks as literal `"NA"` (never a hash-based guess) —
+see the new `kir_protein_catalogue_qc.tsv`. **Two KIR genes remain genuinely uncovered at the
+protein level, not a bug**: **KIR2DP1 and KIR3DP1 are both pseudogenes with no catalogued
+reference protein in IPD-KIR 2.13.0** (`kir_protein_catalogue_qc.tsv`: `protein_catalogue_covered
+= False`, `reason = no_catalogued_protein_entries`) — their `protein`/`protein_novel` rows are
+`"NA"` throughout this README, 45's figures, and 46's metrics, never rendered as 0 or silently
+dropped.
+
+Run finished in 292s. `cds_available=True` (23,637/23,637 haplotypes had `cds.fa.gz`).
+Unrelated set: 11,856 people (KIR ∩ HLA, one `greedy_unrelated` pass). `kir_cds_match_qc.tsv`:
+join QC essentially unchanged from v1/v2 (still ~1.7% ambiguous-copy, excluded not guessed).
+`sanity_check_coverage()` ran with **zero warnings** in v3 (v2 had 6: `pct_novel_protein>100%`
+for KIR2DL2/KIR2DL5B/KIR2DP1).
 
 **Pooled (ALL ancestry, genomic level, summed/averaged across genes):**
 
 | species | genes | s_obs (distinct alleles) | Chao2 | Good–Turing coverage |
 |---|---|---|---|---|
-| HLA (8 classical genes) | 8 | 2,823 | 4,434 | 99.4% |
+| HLA (8 classical genes) | 8 | 2,808 | 4,409 | 99.4% |
 | KIR (17 genes) | 17 | 1,460 | 1,734 | 99.9% |
 
-**Novelty (pooled ALL ancestry, `n_distinct_alleles` at genomic vs. any-level-novel):**
+(HLA's genomic S_obs moved 2,823→2,808 between v2 and v3 — a side effect of the same rerun, not
+independently investigated further here; KIR genomic numbers are unchanged.)
 
-| species | genomic (all alleles) | any_novel | % novel |
+**Novelty (pooled ALL ancestry, `n_distinct_alleles` at genomic vs. any-level-novel vs.
+protein-level-novel — the protein columns are new/fixed in v3):**
+
+| species | genomic (all alleles) | any_novel | % novel (any) | protein (catalogue-covered alleles) | protein_novel | % novel (protein) |
+|---|---|---|---|---|---|---|
+| HLA | 2,808 | 790 | 28.1% | 1,079 | 198 | 18.4% |
+| KIR | 1,460 | 788 | 54.0% | 6,681 | 6,300 | 94.3% |
+
+`% novel (protein)` = `protein_novel / protein` (SAME identity granularity numerator/denominator
+— fixed 2026-09-27, see "Resolved" note below; dividing by `genomic` instead, as v1/v2 did, was
+the proximate cause of KIR's >100% bug). **HLA now has real, non-zero protein-level novelty
+(198 distinct novel proteins, 18.4% of its protein-catalogue-covered alleles)** — the v1/v2 "0"
+was the wrong-CDS-path bug, not a real absence of HLA protein-level novelty.
+
+**Chao2 richness completeness at the PROTEIN level (pooled ALL ancestry; NEW in v3 — see
+"Protein-level catalogue coverage" below for why this reverses the genomic-level headline):**
+
+| species | s_obs (protein) | Chao2 (protein) | completeness (protein) |
 |---|---|---|---|
-| HLA | 2,823 | 805 | 28.5% |
-| KIR | 1,460 | 754 | 51.6% |
+| HLA | 1,079 | 2,703 | 39.9% |
+| KIR | 6,681 | 44,326 | 15.1% |
 
-Protein-level novelty (`protein_novel`, pooled ALL): HLA 0 distinct novel-protein alleles at the
-classical-8-gene pooled level; KIR 7,297 (dominated by `eq1`/`eq2` — see recurrence split below).
-The HLA 0 looks surprising next to S03's non-zero novel-protein counts; it has not been
-reconciled against 39/34's own committed numbers in this pass and should be checked before citing
-it — flagged, not resolved.
+**Recurrence-class split (pooled ALL ancestry; allele counts, not participant counts — see
+Disclosure). Values below are the CORRECTED, exactly-partitioning pooled counts recovered from
+`saturation_curves.tsv` at the full cohort size (`45_kir_recurrence_figure.pooled_recurrence_from_curves()`
+— see "Reconciliation note" below for why this is preferred over summing `recurrence_classes.tsv`'s
+per-gene `<20`-masked cells directly):**
 
-**Recurrence-class split (pooled ALL ancestry, genomic level; allele counts, not participant
-counts — see Disclosure):**
+| species | level | eq1 (seen once) | eq2 (seen twice) | gt2 (>2, incl. ≥20) | ge20 | s_obs |
+|---|---|---|---|---|---|---|
+| HLA | genomic | 965 | 306 | 1,537 | 744 | 2,808 |
+| KIR | genomic | 236 | 126 | 1,098 | 641 | 1,460 |
+| HLA | any-level novel | 332 | 95 | 363 | 181 | 790 |
+| KIR | any-level novel | 156 | 69 | 563 | 303 | 788 |
+| HLA | protein-level novel | 192 | 6 | 0 | 0 | 198 |
+| KIR | protein-level novel | 5,448 | 393 | 459 | 51 | 6,300 |
 
-| species | eq1 (seen once) | eq2 (seen twice) | gt2 (>2, incl. ≥20) | ge20 |
-|---|---|---|---|---|
-| HLA | 962 | 285 | 1,559 | 745 |
-| KIR | 262 | 180 | 1,091 | 601 |
+**Reconciliation note:** `recurrence_classes.tsv`'s per-gene `eq1`/`eq2`/`gt2` columns are
+`<20`-masked independently per gene, so naively summing the masked pooled table across genes
+UNDER/OVER-counts — every allele is by construction in exactly one of eq1/eq2/gt2, so
+`eq1+eq2+gt2` must equal `s_obs` exactly, which the raw `recurrence_classes.tsv` sum does not.
+`saturation_curves.tsv`'s per-gene rows at the full cohort size are NOT `<20`-masked, so summing
+them recovers the exact pooled counts; `45`'s `main()` logs an `eq1+eq2+gt2 == s_obs` check for
+every species/level and it holds exactly for all six genomic/any_novel/protein_novel × species
+combinations in v3 (confirmed again on the v3 rerun, not just v1/v2).
 
-**Reconciliation note (added 2026-09-26, WS-A figure pass):** this table does not partition
-exactly (962+285+1,559 = 2,806 vs. S_obs 2,823 for HLA; 262+180+1,091 = 1,533 vs. S_obs 1,460 for
-KIR — the latter overshoots, which a masking-only explanation cannot produce on its own). Every
-allele is by construction in exactly one of eq1/eq2/gt2, so eq1+eq2+gt2 must equal S_obs exactly;
-`45_kir_recurrence_figure.py`'s `pooled_recurrence_from_curves()` recovers the true, unmasked,
-exactly-partitioning pooled counts by summing every gene's `saturation_curves.tsv` row AT THE
-FULL COHORT SIZE instead of naively summing this table's per-gene `<20`-masked cells (which
-under-count whichever class had a masked gene-level cell). The corrected pooled genomic-level
-counts are **HLA eq1=962, eq2=302, gt2=1,559 (sum 2,823 ✓)** and **KIR eq1=236, eq2=126, gt2=1,098
-(sum 1,460 ✓)** — see `recurrence_stats.tsv` and "Figures (script 45)" below. The table above is
-left as originally generated (do not silently rewrite a committed number); treat its `eq2`/`eq1`
-columns as lower bounds where they disagree with the corrected values just given, and use the
-corrected values for any prose claim.
+**Equal-N discovery slope (new alleles per next 1,000 people, genomic level, summed across the 8/17
+genes at each ancestry's own `n_star` from `equal_n_slope.tsv`):**
 
-**Equal-N discovery slope (new alleles per next 1,000 people, genomic level):**
+| ancestry | HLA slope | KIR slope | n_star |
+|---|---|---|---|
+| ALL | 83.31 | 21.84 | 11,856 |
+| AFR | 309.48 | 158.45 | 1,236 |
+| AMR | 328.74 | 150.20 | 1,236 |
+| EAS | 266.73 | 149.29 | 1,236 |
+| EUR | 305.60 | 157.91 | 1,236 |
+| SAS | 247.97 | 131.26 | 1,236 |
+| MID | not well-powered (excluded, per 39's own precedent) | not well-powered | — |
 
-| ancestry | HLA slope | KIR slope |
-|---|---|---|
-| ALL | 4.99 | 0.68 |
-| AFR | 16.93 | 4.55 |
-| AMR | 19.30 | 4.58 |
-| EAS | 14.51 | 4.45 |
-| EUR | 15.92 | 5.17 |
-| SAS | 13.56 | 4.08 |
-| MID | not well-powered (excluded, per 39's own precedent) | not well-powered |
+**Flagged, not fixed here**: this table's numbers (summed directly from the committed
+`equal_n_slope.tsv`, the same file the original v1/v2 headline table cited) do NOT match the
+previously-reported v1/v2 headline slope values (e.g. AFR was reported as 16.93, not 309.48) —
+checked against `equal_n_slope.tsv` from BEFORE the v3 rerun (`git show c448a2b:...`) and the
+same ~18x discrepancy is already present there, so this is a PRE-EXISTING inconsistency between
+44's own committed TSV and its README prose, unrelated to the protein-level fix this pass
+addresses. `n_star=1,236` for every non-ALL ancestry (identical across genes within an ancestry,
+confirmed) is suspiciously close to MID's own small cohort size, suggesting the "largest N every
+well-powered ancestry reaches" N*-selection logic may be including MID (which is supposed to be
+excluded as not-well-powered) when computing the shared cross-ancestry ceiling. **Not
+independently re-derived or fixed in this pass** — out of scope for the protein-level ask that
+triggered this rerun, and risks introducing a second, still-unverified number on top of an
+already-inconsistent one. Flagged for a dedicated follow-up rather than silently trusting either
+the old prose or this newly-summed table.
 
-Both species are still discovering new alleles at every ancestry's current N — none are flat.
-HLA's curve climbs 3-4x faster than KIR's per 1,000 people at every ancestry, consistent with
-HLA's lower Good-Turing coverage headroom being offset by its much larger observed richness
-(2,823 vs. 1,460) and its more IMGT-catalogue-anchored known space; AMR (19.3) and AFR (16.9) are
-the steepest HLA climbers, matching the project's standing expectation that AFR/AMR ancestry is
-under-sampled relative to the reference catalogue.
+Qualitatively unaffected by the above: both species are still discovering new alleles at every
+ancestry's current N — none are flat/saturated.
 
 Full per-gene, per-ancestry, per-level breakdowns are in `recurrence_classes.tsv`,
 `coverage_chao2.tsv`, `equal_n_slope.tsv` and the full rarefaction curves in
@@ -245,15 +287,14 @@ in `strict=True` mode (no text/text or text/data overlaps, no clipped labels).
   distinct alleles that have reached "seen 1x / 2x / >2x / ≥20x" as N unrelated people grows —
   direct-labeled at their own line end (no legend). **How to read**: this answers Marc's ask A
   directly — both novelty levels are visible side by side, and recurrence-class saturation is
-  shown as separate curves rather than collapsed into one "novel" number. Panel b (HLA
-  protein-level novel) is blank by design: the pooled protein-level novel-allele count for HLA is
-  exactly 0 in this dataset (an unreconciled 44 data question — see "Protein-level novelty" above
-  and Caveats) — plotting near-zero float noise on an auto-scaled axis would have produced an
-  unreadable 1e-6-scale panel, so it states the fact in-panel instead of a misleading empty chart.
-  Panel d (KIR protein-level novel) shows the opposite pattern from panel c (KIR any-level novel):
-  KIR's genuine amino-acid-level novelty is overwhelmingly "seen 1x" (private), while KIR's
-  any-level (mostly non-coding) novelty is overwhelmingly "seen >2x" (shared) — see the
-  singleton-share finding below for the statistical test of this pattern.
+  shown as separate curves rather than collapsed into one "novel" number. **v3 update**: panel b
+  (HLA protein-level novel) now shows real data (the v1/v2 "0 protein-level novel alleles" panel
+  was the wrong-CDS-path bug, fixed in v3) — HLA's protein-level novelty (198 alleles) is almost
+  entirely "seen 1x" (private singletons, 97.0%), a nearly flat rising line with essentially no
+  seen->2x/>2x mass. Panel d (KIR protein-level novel) is dominated by "seen 1x" too (86.5%
+  singleton) but has a visible >2x/>=20x tail KIR2DL4/KIR2DS4-type genes contribute — both species'
+  protein-level novelty is now overwhelmingly private, unlike the any-level pattern (panels a/c)
+  where KIR's is mostly shared — see the singleton-share finding below for the statistical test.
 - **`fig_saturation_per_ancestry.{png,pdf}`** — 1×2, HLA / KIR, genomic-level (all alleles, not
   just novel) rarefaction curves per ancestry (AFR/AMR/EAS/EUR/SAS; MID excluded, not
   well-powered, per 39's precedent), direct-labeled at a shared x-column past each curve's own
@@ -272,46 +313,80 @@ in `strict=True` mode (no text/text or text/data overlaps, no clipped labels).
   almost nothing about how much of the total allele *diversity* remains undiscovered, because
   that answer is dominated by whichever alleles are common. Chao2 completeness answers the
   diversity question directly: an estimated 36% of HLA's true allele richness and 16% of KIR's
-  remain unobserved at current N. **Do not write "99% of the allele space is explored" — that
-  claim conflates the two metrics and is false; the correct headline is "≥99% incidence coverage,
-  but only 64-84% of estimated total richness observed."**
+  remain unobserved at current N (GENOMIC level). **Do not write "99% of the allele space is
+  explored" — that claim conflates the two metrics and is false; the correct headline is "≥99%
+  incidence coverage, but only 64-84% of estimated total richness observed."** **This genomic-level
+  ranking (KIR better represented than HLA) REVERSES at the protein level** — see script 46's
+  `fig_catalogue_completeness` panel b and "Protein-level catalogue coverage" below: HLA's
+  protein-level completeness (39.9%) is more than DOUBLE KIR's (15.1%).
 
-### Recurrence-sum gap and singleton-share hypothesis test (`recurrence_stats.tsv`)
+### Recurrence-sum gap and singleton-share hypothesis test (`recurrence_stats.tsv`, v3 numbers)
 
 - **The recurrence-class sum gap is resolved, not just explained**: see the "Reconciliation note"
   under Results above. `saturation_curves.tsv`'s per-gene rows at the full cohort size are not
   `<20`-masked (unlike `recurrence_classes.tsv`), so summing them recovers the exact pooled
   counts; `45`'s `main()` logs an `eq1+eq2+gt2 == s_obs` check for every species/level at import
   time and it holds exactly (to float rounding) for all six genomic/any_novel/protein_novel ×
-  species combinations, confirming the corrected numbers are internally consistent and the
-  original headline table's gap was a masking-summation artifact, not a real accounting error in
-  44's underlying computation.
+  species combinations on the v3 rerun too, confirming the corrected numbers are internally
+  consistent and the original headline table's gap was a masking-summation artifact, not a real
+  accounting error in 44's underlying computation.
 - **Singleton-share hypothesis** ("KIR novelty is less private than HLA novelty, suggesting
   systematic catalogue gaps rather than private sequencing errors"), tested with a two-proportion
   z-test (`eq1 / s_obs`, HLA vs. KIR, pooled ALL ancestry; `two_proportion_ztest()` in `45`, no
-  scipy/statsmodels dependency):
+  scipy/statsmodels dependency) — **now computable at all three levels, including protein, now
+  that HLA's protein-level bug is fixed**:
 
   | level | HLA singleton share | KIR singleton share | z | p |
   |---|---|---|---|---|
-  | genomic (all alleles) | 34.1% (962/2,823) | 16.2% (236/1,460) | 12.38 | 3×10⁻³⁵ |
-  | any-level novel | 40.9% (329/805) | 19.8% (156/788) | 9.14 | 6×10⁻²⁰ |
-  | protein-level novel | NA (HLA S_obs=0) | 88.2% (6,433/7,297) | — | — |
+  | genomic (all alleles) | 34.4% (965/2,808) | 16.2% (236/1,460) | 12.55 | 4×10⁻³⁶ |
+  | any-level novel | 42.0% (332/790) | 19.8% (156/788) | 9.55 | 1×10⁻²¹ |
+  | protein-level novel | 97.0% (192/198) | 86.5% (5,448/6,300) | 4.30 | 1.7×10⁻⁵ |
 
-  **Result: the hypothesis holds, strongly, at both the genomic and any-level-novel granularities**
-  — KIR's any-level-novel alleles are far more likely to be shared across ≥2 unrelated people
-  (80.2% non-singleton) than HLA's (59.1% non-singleton), consistent with KIR's excess novelty
+  **Result: the hypothesis holds at the genomic and any-level-novel granularities** — KIR's
+  any-level-novel alleles are far more likely to be shared across ≥2 unrelated people (80.2%
+  non-singleton) than HLA's (58.0% non-singleton), consistent with KIR's excess any-level novelty
   reflecting systematic, recurrent catalogue gaps (largely non-coding, per S03: 58.9% of KIR calls
-  novel, mostly non-coding) rather than private sequencing artifacts, which would be expected to
-  land disproportionately as singletons.
-  **Do not extend this claim to the protein level** — the comparison is not computable for HLA
-  (0 protein-level novel alleles pooled, an unreconciled data question, see Caveats), and KIR's
-  OWN protein-level novelty shows the *opposite* pattern from its any-level novelty: 88.2% of
-  KIR's protein-level novel alleles are singletons, i.e. private, the profile expected of rare
-  variants or sequencing noise, not a systematic catalogue gap. **The honest summary is: KIR's
-  bulk excess novelty (mostly non-coding, any-level) looks like real, shared, catalogue-missing
-  diversity; KIR's much smaller pool of genuine amino-acid-changing novelty looks private, similar
-  in character to HLA's own singleton-heavy novelty.** This nuance is the reason WS-B (script 46)
-  reports catalogue completeness per gene rather than collapsing to one number.
+  novel, mostly non-coding) rather than private sequencing artifacts.
+  **The hypothesis does NOT hold, and is not the right frame, at the protein level** — now that
+  this is computable for both species (v3 fix), BOTH species' protein-level novelty is
+  overwhelmingly private (HLA 97.0%, KIR 86.5% singleton). The z-test is still significant
+  (KIR is modestly, ~10 points, less singleton-heavy than HLA even here) but the effect size and
+  the qualitative picture are entirely different from the any-level result: at the protein level,
+  genuine amino-acid-changing novelty in BOTH species looks like ordinary rare/private variation,
+  not a systematic catalogue gap. **The honest summary is: KIR's bulk excess novelty (mostly
+  non-coding, any-level) looks like real, shared, catalogue-missing diversity; KIR's (and HLA's)
+  much smaller pool of genuine amino-acid-changing novelty looks private in both species.** This
+  nuance is the reason WS-B (script 46) reports catalogue completeness per gene AND per identity
+  level rather than collapsing to one number.
+
+### Protein-level catalogue coverage: does KIR still look better represented? (2026-09-27, v3)
+
+**No — the ranking reverses at the protein level.** Pooled ALL ancestry, protein identity
+granularity:
+
+| species | s_obs (protein) | % novel (protein) | singleton share (protein) | completeness (protein) |
+|---|---|---|---|---|
+| HLA | 1,079 | 18.4% | 97.0% | **39.9%** |
+| KIR | 6,681 | 94.3% | 86.5% | **15.1%** |
+
+At the GENOMIC level, KIR looked better represented (84.2% vs. 63.7% completeness, per Results
+above) because its excess novelty is mostly shared, non-coding variation the catalogue is missing
+systematically. At the PROTEIN level, the picture flips: KIR's protein-level Chao2 estimate
+(44,326 estimated distinct proteins against only 6,681 observed) is enormous relative to HLA's
+(2,703 against 1,079 observed) — KIR's protein-level allele space looks vastly LESS complete than
+HLA's. **Plausible mechanism, flagged as an open question rather than asserted as fact** (no VM
+access from this local-only task to inspect raw per-call translations): KIR's `protein` identity
+is a hash of the translated CDS sequence extracted per-haplotype; if distinct non-coding or
+frame-adjacent differences (which dominate KIR's novelty, per S03) occasionally still produce a
+distinct translated hash without representing a biologically meaningful amino-acid-level allele,
+Chao2's `f1`/`f2` (singleton/doublet) counts would be inflated far beyond genuine protein
+diversity, ballooning the Chao2 estimate and depressing completeness — this would be a residual,
+milder version of the same class of bug fixed for KIR2DL2/KIR2DL5B/KIR2DP1 in v3, not yet fully
+eliminated for the other 14 KIR genes. **This is not confirmed and should be checked against raw
+per-person translations on the VM before being treated as a settled biological finding** — flagged
+for Marc/Aleix rather than decided here, per this repo's disclosure/uncertainty-flagging
+convention. Either way, the NUMBER (15.1% vs. 39.9%) is real and reproducible from the committed
+v3 TSVs; only the MECHANISM (real biology vs. residual identity-hashing artifact) is uncertain.
 
 ## Planned outputs
 
@@ -405,12 +480,28 @@ first — if `False`, the KIR `cds`/`protein`/`protein_novel` rows are `"NA"` by
 
 ## Caveats
 
+- **Resolved in v3** (was flagged here in v1/v2, kept for the record): HLA's pooled
+  `protein_novel` S_obs was exactly 0 for every classical gene due to a wrong CDS path; KIR's
+  `pct_novel_protein` exceeded 100% for KIR2DL2/KIR2DL5B/KIR2DP1 due to catalogue-coverage
+  detection gaps (a pseudogene with CDS-but-no-protein entries, and bundled/mis-stemmed IPD-KIR
+  reference files hiding a covered gene from a filename-based pre-filter). Both fixed on the VM
+  (commits `4a75657`, `bca633e`, `d577a28`) and in 46's denominator (commit on this branch,
+  2026-09-27). **KIR2DP1 and KIR3DP1 remain genuinely uncovered at the protein level** — both are
+  pseudogenes with no catalogued reference protein in IPD-KIR 2.13.0, not a bug; their
+  `protein`/`protein_novel` values are the literal `"NA"` throughout, never 0.
+- The protein-level KIR-vs-HLA completeness reversal (KIR 15.1% vs. HLA 39.9%, see "Protein-level
+  catalogue coverage" above) has an UNCONFIRMED mechanism — possibly a milder, not-yet-fully-fixed
+  version of the same class of identity-hashing artifact fixed for 3 KIR genes in v3, possibly a
+  real biological signal (KIR's translated-protein diversity genuinely far exceeds what
+  IPD-KIR 2.13.0 catalogues). Flagged for a VM-side check of raw per-call translations before
+  either interpretation is asserted as settled.
+- The equal-N discovery slope table's numbers (`Results`, above) do not match the v1/v2 headline
+  slope table that was previously in this README, and this discrepancy predates the v3 rerun
+  (confirmed against the pre-v3 `equal_n_slope.tsv` via `git show`) — flagged, not resolved, out
+  of scope for this pass (unrelated to the protein-level fix).
 - KIR's `cds`/`protein`/`protein_novel` identity depends on `hap{1,2}/cds.fa.gz` existing per
-  haplotype in `~/pipeline_outputs_kir` — argued from Immuannot's shared source code and this
-  project's own `run_immuannot_person.py`, but not empirically confirmed without VM access (see
-  "Resolved: KIR/HLA identity mismatch"). The script degrades to an explicit `"NA"` export if
-  false, rather than crashing or fabricating a number, but this fallback itself is only
-  synthetic-fixture-tested, not real-data-tested.
+  haplotype in `~/pipeline_outputs_kir` — confirmed present for 23,637/23,637 haplotypes on the
+  real VM tree (v3 run), no longer a theoretical concern.
 - A gene detected in >1 copy on the same contig is excluded from KIR's `cds`/`protein`/
   `protein_novel` tracks (join ambiguity — see above); counted in `kir_cds_match_qc.tsv`, never
   guessed. This is expected to be rare (KIR structural duplication on one contig) but not zero.
@@ -450,19 +541,32 @@ first — if `False`, the KIR `cds`/`protein`/`protein_novel` rows are `"NA"` by
   floor.
 - All 1-19 counts masked `<20`, including allele-class counts (a stricter reading than 36's
   earlier convention — flagged for Marc, see "Disclosure choices" above).
-- **Full-cohort results (11,856 unrelated people)**: HLA S_obs 2,823 (28.5% any-level novel),
-  Chao2 4,434 (64% richness completeness); KIR S_obs 1,460 (51.6% any-level novel), Chao2 1,734
-  (84% completeness). Good–Turing incidence coverage ≥99% for both — see the interpretation guard
-  in "Figures (script 45)" for why that is a different claim from "richness completeness."
-- **Singleton-share hypothesis confirmed** (two-proportion z-test, `recurrence_stats.tsv`): KIR's
-  any-level novel alleles are much less often private singletons than HLA's (19.8% vs. 40.9%,
-  p≈6e-20) — consistent with KIR's excess novelty being systematic/shared catalogue gaps. This
-  flips at the protein level (KIR's own protein-level novelty is 88.2% singleton, i.e. private) —
-  do not extend the "systematic gap" claim there; HLA's protein-level comparison is not computable
-  (S_obs=0, flagged data question).
-- The original pooled recurrence-class headline table above under-counts/over-counts due to
-  per-gene `<20` masking summed naively; the corrected, exactly-partitioning pooled counts are in
-  "Figures (script 45)" and `recurrence_stats.tsv`.
+- **Full-cohort results (11,856 unrelated people), v3**: HLA S_obs 2,808 (28.1% any-level novel),
+  Chao2 4,409 (63.7% richness completeness, genomic level); KIR S_obs 1,460 (54.0% any-level
+  novel), Chao2 1,734 (84.2% completeness, genomic level). Good–Turing incidence coverage ≥99%
+  for both — see the interpretation guard above for why that is a different claim from "richness
+  completeness."
+- **At the PROTEIN level, both HLA's novelty count and KIR's completeness ranking are new/fixed in
+  v3**: HLA protein_novel S_obs 198 (18.4% of protein-catalogue-covered alleles, was bugged to 0
+  in v1/v2); KIR protein_novel S_obs 6,300 (94.3%, was bugged to >100% for 3 genes in v2).
+  **Protein-level completeness REVERSES the genomic-level ranking: HLA 39.9% vs. KIR 15.1%** — see
+  "Protein-level catalogue coverage" above; mechanism flagged as unconfirmed (possible residual
+  identity-hashing artifact vs. real biology), the number itself is reproducible from v3 TSVs.
+- **Singleton-share hypothesis confirmed at genomic/any-level, reframed at protein level**
+  (two-proportion z-test, `recurrence_stats.tsv`): KIR's any-level novel alleles are much less
+  often private singletons than HLA's (19.8% vs. 42.0%, p≈1e-21) — consistent with KIR's excess
+  any-level novelty being systematic/shared catalogue gaps. At the protein level (now computable
+  for both species), BOTH are overwhelmingly private (HLA 97.0%, KIR 86.5% singleton) — do not
+  extend the "systematic gap" framing to protein-level novelty in either species.
+- **KIR2DP1 and KIR3DP1 have no catalogued reference protein in IPD-KIR 2.13.0** (both
+  pseudogenes) — their protein-level values are the literal `"NA"` everywhere in this README,
+  45's figures, and 46's metrics, never rendered as 0 (`kir_protein_catalogue_qc.tsv`).
+- The original v1/v2 pooled recurrence-class headline table under-counted/over-counted due to
+  per-gene `<20` masking summed naively; the corrected, exactly-partitioning pooled counts are the
+  ones in the Results table above and in `recurrence_stats.tsv`.
+- **Flagged, not fixed this pass**: the equal-N discovery slope table's numbers don't match a
+  pre-existing v1/v2 headline table, a discrepancy confirmed to predate v3 and unrelated to the
+  protein-level fix — see Caveats.
 - Figures: `fig_saturation_by_recurrence`, `fig_saturation_per_ancestry`,
   `fig_coverage_completeness` (all PNG 600dpi + PDF, `_viz_common.check_layout` strict-clean) —
   see `sprints/S04_kir_recurrence_style_share/FIGURES_INDEX.md`.

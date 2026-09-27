@@ -1,4 +1,4 @@
 level	hla_s_obs	kir_s_obs	hla_singleton_share	kir_singleton_share	z	p_value	note
-genomic	2823.0	1460.0	0.3408	0.1616	12.38	3.360946174115134e-35	eq1/s_obs, HLA vs KIR, two-proportion z-test
-any_novel	805.0	788.0	0.4087	0.198	9.138	6.367511224672719e-20	eq1/s_obs, HLA vs KIR, two-proportion z-test
-protein_novel	0.0	7297.0					one species has s_obs==0 at this level -- test not computable
+genomic	2808.0	1460.0	0.3437	0.1616	12.545	4.2335303155418506e-36	eq1/s_obs, HLA vs KIR, two-proportion z-test
+any_novel	790.0	788.0	0.4203	0.198	9.552	1.266732380459267e-21	eq1/s_obs, HLA vs KIR, two-proportion z-test
+protein_novel	198.0	6300.0	0.9697	0.8648	4.295	1.749505345916746e-05	eq1/s_obs, HLA vs KIR, two-proportion z-test
