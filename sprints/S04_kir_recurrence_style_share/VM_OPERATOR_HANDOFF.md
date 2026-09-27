@@ -1,7 +1,52 @@
-# VM operator handoff (2026-09-27, session 2 end)
+# VM operator handoff (2026-09-27, session 3 end)
 
 Inner lab URL: `https://9394ec22-d949-4489-b46e-73790750472e.workbench-app-prod.verily.com/lab`
-(app was still running from session 1, same hostname `18aa4228c0ec` -- no restart this session).
+(app was still running from session 1/2, same hostname `18aa4228c0ec` -- no restart this session).
+
+## Session 3: 44 v4 (true genomic identity) -- BLOCKED at smoke test, do not run full job yet
+
+Deployed `44_kir_recurrence_saturation_v4.py` (local commit `55b3d83`) via the diff+patch-in-terminal
+recipe below, md5-verified byte-for-byte against local (`08de53eb6f7ea08833dd3b13c05bc74c`). Input
+checks: HLA `hap1.trimmed.fa` present for 12259 haplotypes under `~/pipeline_outputs/people`, KIR
+same count under `~/pipeline_outputs_kir`, `~/tools/Immuannot_refdata/gen.fa.gz` present with 1530
+KIR-matching headers.
+
+**`--limit 300` smoke test ran to completion (132s, 9 tables, no exception, no
+`check_identity_invariants` violation) but exported HLA `genomic`/`any_novel` as `NA` for every
+row** (`genomic_identity_qc.tsv`: `hla_genomic_available=False, n_hap_seen_hla=0,
+n_hap_trimmed_present_hla=0`, reported reason `no_trimmed_fasta` -- **misleading**, the files do
+exist; `KIR2DP1`/`KIR3DP1` protein-catalogue warning is expected/pre-existing, not new).
+
+**Root cause (confirmed, not yet fixed -- out of this session's scope):**
+`build_person_true_genomic_identity()`/`build_true_genomic_identity_sets()` filter each GTF
+transcript row by `r["gene"] in gene_names`, where `gene_names` for HLA is
+`m39mod.CLASSICAL_GENES_BARE` (bare names: `A`, `B`, `C`, `DRB1`, ...). But the HLA GTF's own
+`gene_name` attribute is **prefixed** (`HLA-A`, `HLA-B`, `HLA-DRB1`, ...) -- confirmed by direct
+inspection of one person's `hap1.gtf.gz`. KIR's GTF uses bare gene names natively, so the same
+filter happens to work for KIR (595/595 haplotypes seen in the smoke run) but silently zeroes out
+every HLA row. This is a genuine bug in the new species-agnostic code path, not a smoke-sample
+fluke -- it will reproduce on the full cohort. Needs a fix (e.g. strip an `HLA-` prefix before the
+`gene_names` membership test, or normalize `gene_names` to include both bare and prefixed forms)
+before the full v4 run is attempted.
+
+**STOPPED here per task instruction** ("if any level is NA unexpectedly, STOP and report").
+`~/s04/results/44_v4_smoke/` (9 tables) and `~/s04/44_v4_smoke.log` are left on the VM for the next
+session to inspect. The full run was NOT started. `~/pipeline_outputs/*.tsv` were never touched
+(read-only paths; the run only reads `hap{N}.gtf.gz`/`hap{N}.trimmed.fa`, never writes there) -- no
+md5 pre/post check was needed since no write path was exercised, but a fresh check is cheap
+insurance for the next session before any full run.
+
+**Gotcha this session (new):** typing a large heredoc body across several separate `type` tool
+calls into ONE open heredoc silently dropped ~17 lines somewhere in the run (root cause not fully
+isolated, suspected a timing/echo race in the xterm.js websocket under sustained large paste).
+Fix: write EACH chunk to its OWN small file with its OWN heredoc + immediate `md5sum`/`wc -l`
+verification against the local chunk before moving to the next chunk, then `cat` all verified
+chunks together and re-verify the concatenation's md5 against the local full diff before applying
+`patch`. This caught two more transcription slips (a dropped line, a `+`/space typo) immediately,
+each fixed with a targeted `sed` rather than retyping. Also: a large paste can take 10-20s to fully
+land in the terminal before the next command is safe to send -- `wait` a beat before reading output
+after any multi-KB `type` call, or the next command's output gets misread as still-echoing heredoc
+body.
 
 ## Status: both jobs done, pulled, committed. Nothing left running on ~/s04.
 
