@@ -7,6 +7,91 @@ S04_kir_recurrence_style_share, WS-A. **VM run completed 2026-09-25/26 on the fu
 2026-09-26 (this pass) — see "Figures (script 45)" below for paths, how to read them, and the
 recurrence-sum / singleton-share findings.**
 
+## v4 identity-impossibility fix (2026-09-27) — ALL numbers below are v3 and SUPERSEDED
+
+**Every table and figure in this README below this section is from v3 and is now known to rest on
+a broken identity definition. Do not cite the v3 "KIR catalogue better covered / KIR novelty less
+private" headline, or any genomic-vs-protein comparison, until the v4 VM rerun lands.** The
+orchestrator's sanity check on the v3 protein-level numbers found a logical impossibility: KIR
+pooled had 1,460 distinct "genomic" alleles but 6,300 distinct "protein" identities (94.3% novel,
+86.5% singleton) — protein identity is a coarsening of full-sequence identity by translation, so
+the number of distinct proteins can never exceed the number of distinct full sequences. It did in
+v3, which means the v3 identity scheme was internally inconsistent.
+
+**Root cause, confirmed by reading the code (both hold, not either/or):**
+1. **(hypothesis a, confirmed)** `genomic` identity was NAME-based for both species, not
+   sequence-based: KIR used the raw Immuannot `consensus` string, HLA the untruncated normalized
+   consensus name. A NOVEL call's consensus is just `"<nearest-known-template>...new"` — it names
+   which known template the call is CLOSEST to, not what the actual novel sequence IS. Two people
+   with two genuinely different novel sequences that happen to diverge from the same known
+   template at the same field depth get the IDENTICAL consensus string, collapsing distinct
+   sequences onto one "genomic allele," while `cds`/`protein` (already hash-based for novel calls)
+   correctly counted them apart — directly inflating protein-vs-genomic richness in the wrong
+   direction.
+2. **(hypothesis b, confirmed)** KIR's per-call CDS/translation extraction never filtered assembly/
+   annotation artifacts. HLA's own pipeline excludes `partial_cds`/`inframe_stop`/
+   `homopolymer_indel`-flagged calls (via Immuannot's `template_warning`/`cds_mut` attributes) and
+   CDS sequences that don't translate cleanly (`frameshift`/`premature_stop`) before ever hashing a
+   CDS/protein (`keep_clean`). KIR's `cds.fa.gz`-based extraction never read `template_warning` and
+   never checked frameshift/premature-stop, so every such artifact became its own spurious "novel
+   protein," inflating KIR's protein-level `S_obs`/novelty/singleton-share relative to HLA's
+   already-filtered numbers.
+   (Hypothesis c, "something else e.g. multi-copy genes," was not needed to explain the
+   impossibility once (a) and (b) were fixed, though the pre-existing, separately-flagged
+   ambiguous-multi-copy exclusion in `kir_cds_match_qc.tsv` is unrelated and unaffected.)
+
+**Fix (commit — see LOG.md/this sprint's git history for the exact hash), in
+`scripts/hla_popgen/44_kir_recurrence_saturation.py`:**
+- `genomic` is now DEFINED AS THE SAME sequence-hash identity as `cds` for BOTH species (a hash of
+  the observed CDS nucleotide sequence) — the best common denominator available, since neither
+  species has a verified extraction path for the FULL genomic sequence (introns/UTRs; only
+  `cds.fa.gz` is confirmed extracted/joined per haplotype — see `build_person_kir_identity`'s
+  docstring). `S_obs(genomic) == S_obs(cds)` now holds by construction for both species.
+- KIR calls now pass the SAME artifact filter as HLA (`artifact_label_of()`, reused from
+  `24_novelty_by_field.py`, plus a frameshift/premature-stop check on the translated CDS) before
+  contributing to `cds`/`protein`/`genomic` — symmetric across species.
+- A hard invariant check (`check_identity_invariants()`, raises `ValueError`, never just warns) now
+  runs on every real number right before export: `S_obs(protein) <= S_obs(cds) == S_obs(genomic)`,
+  and `any_novel`/`protein_novel` counts never exceed their own baseline track, for every
+  (species, gene, ancestry) with unmasked values.
+- Two new aggregate diagnostic outputs: `artifact_qc.tsv` (per-species, per-gene artifact counts)
+  and `diagnostics_identity.tsv` (per-species, per-gene n_calls / n_distinct_names / n_distinct
+  genomic·cds·protein / artifact counts / median distinct-CDS-hashes-per-reference-name — the
+  direct evidence for how much the old name-based identity collapsed distinct sequences).
+- New synthetic tests (`scripts/hla_popgen/tests/test_44_kir_recurrence_saturation.py`): a
+  name-collapse regression (two people, same consensus name, different CDS sequences, must count
+  as 2 distinct alleles, for both KIR and HLA), an artifact-inflation regression (partial_CDS/
+  inframe_stop/homopolymer_indel/frameshift calls must be excluded, not hashed), and the invariant
+  check itself (passes on a consistent hierarchy, raises on the exact v3 impossibility pattern,
+  skips masked/NA cells rather than false-flagging them).
+
+**What this changes going forward, not yet re-measured**: `genomic` and `cds` now report
+IDENTICAL numbers for both species (by design — see above), so the pre-v4 distinction between
+"genomic-level" and "cds-level" richness in this README's tables collapses to one column once v4
+numbers land. The v3 "KIR catalogue better covered at genomic level, worse at protein level"
+finding, the singleton-share hypothesis test at every level, and the recurrence-class tables all
+need a v4 VM rerun before being treated as current. **VM command** (new `--out-dir`, does not
+overwrite v3):
+
+```
+cd ~/s04 && PYTHONPATH=~/s04:~/s03:~/repos/pilot-validation/scripts/hla_popgen \
+  python3 -u 44_kir_recurrence_saturation.py \
+    --kir-outroot ~/pipeline_outputs_kir \
+    --hla-table ~/pipeline_outputs/hla_calls_rich.tsv \
+    --hla-people-outroot ~/pipeline_outputs/people \
+    --cohort-membership ~/pipeline_outputs/cohort_membership.tsv \
+    --relatedness-table ~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv \
+    --refdata ~/tools/Immuannot_refdata \
+    --out-dir ~/s04/results/44_v4 --workers 4 2>&1 | tee -a ~/s04/results/44_v4/run.log
+```
+
+Pull back all 9 TSVs (5 original + `kir_protein_catalogue_qc.tsv` + the new `artifact_qc.tsv` +
+`diagnostics_identity.tsv`, plus `STATUS.txt`) under `~/s04/results/44_v4/`. Then rerun
+`45_kir_recurrence_figure.py` / `46_kir_vs_hla_catalogue.py` against the v4 output and rewrite this
+README's Results section (below) and 46's README from the v4 numbers, not v3's.
+
+---
+
 ## Question
 
 1. Repeat for KIR the recurrence-class and discovery/saturation analyses already done for HLA

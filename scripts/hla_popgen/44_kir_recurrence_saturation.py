@@ -31,30 +31,51 @@ REUSE (imported via importlib, not re-derived):
     `cds.fa.gz` too (same Immuannot codepath writes it for both HLA and KIR runs -- see "KIR
     IDENTITY EXTRACTION" below for why this file should exist per haplotype for KIR as well).
 
-ALLELE IDENTITY -- THREE MATCHED GRANULARITIES, SAME DEFINITION FOR BOTH SPECIES
-(this section replaces an earlier, mismatched design flagged by the S04 coordinator as an open
-item before the VM run: KIR previously used a genomic-level identity for its "all"/"any_novel"
-tracks while HLA used a CDS-level identity for the same tracks. Fixed here.):
+ALLELE IDENTITY -- THREE MATCHED GRANULARITIES, SAME DEFINITION FOR BOTH SPECIES, ALL
+SEQUENCE-BASED (2026-09-27 identity-impossibility fix; see build_person_kir_identity's docstring
+for the full root-cause writeup and hla_id_col's for the mirrored HLA-side fix). This is the
+SECOND identity fix in this file's history: the first (2026-09-26) matched KIR's genomic-level
+identity to HLA's for the "all"/"any_novel" tracks but left both NAME-based; this one makes ALL
+THREE granularities sequence-based for both species, closing the impossibility that let v3 report
+more distinct KIR proteins (6,300) than distinct KIR genomic alleles (1,460) -- protein identity is
+a coarsening of full-sequence identity and can never be richer than it.
 
-  - `genomic` -- the full called allele string, including non-coding differences. HLA: the
-    UNTRUNCATED normalized consensus name (`normalize_allele_name(consensus)[1]`, all colon
-    fields kept, e.g. `"HLA-A*01:01:01:new"`) -- this is the SAME string
-    `24_novelty_by_field.field_class_of()`/`add_call_labels()` already derives `field_class` from
-    (the "new" suffix's field DEPTH is what makes a call `known`/`f4_noncoding`/`f3_synonymous`/
-    `f2_protein`), so using the full name as the genomic-level identity is not a new definition,
-    just using the existing name at its full, untruncated resolution instead of the 2-/3-field
-    truncations (`prot_id`/`cds_id`) 24 also derives from it. KIR: the raw Immuannot `consensus`
-    string for a call (matches `43_kir_full_aggregate.py`'s own convention).
+  - `genomic` -- the best-available sequence-based identity for the FULL called allele. Neither
+    species has a verified, already-used extraction path for a haplotype's full genomic sequence
+    (introns/UTRs) -- only `cds.fa.gz` is confirmed extracted/joined per haplotype
+    (reference/IMMUANNOT_GTF_SPEC.md; `hap{N}.trimmed.fa` is kept on disk but a gene-span
+    coordinate extraction from it is new, unverified logic, out of scope here) -- so `genomic` is
+    DEFINED AS THE SAME IDENTITY AS `cds` for BOTH species: a hash of the observed CDS nucleotide
+    sequence, `<gene>_cds_<sha8>` for KIR, `cds_id` (24_novelty_by_field.allele_ids(), already
+    hash-based for novel calls) for HLA. This is an intentional, documented equivalence (CDS as the
+    best common denominator for "genomic," not a redundant duplicate column by oversight): it makes
+    `S_obs(genomic) == S_obs(cds)` hold by construction, which is what
+    `check_identity_invariants()` enforces at export time. Previously (both the original design and
+    the 2026-09-26 partial fix) `genomic` was NAME-based -- HLA's untruncated normalized consensus
+    name, KIR's raw Immuannot `consensus` string -- which is the root cause of the impossibility
+    (hypothesis (a)): a NOVEL call's consensus name is just "<nearest-known-template>...new", not
+    the actual novel sequence, so two genuinely different novel sequences sharing the same nearest
+    template collapsed onto one "genomic allele" while the hash-based `cds`/`protein` levels
+    correctly kept them apart.
   - `cds` -- the coding-sequence identity (a hash of the observed CDS nucleotide sequence). HLA:
     `cds_id` (`24_novelty_by_field.allele_ids()`, already computed -- CDS-level 3-field name for
-    known/synonymous-tier calls, a `sha8` hash of the reconstructed CDS for the rest). KIR: a NEW
-    hash (`<gene>_cds_<sha8>`) over the observed CDS sequence extracted from `<hap>/cds.fa.gz` and
-    joined to the GTF call by `(contig, gene)` -- see "KIR IDENTITY EXTRACTION" below.
+    known/synonymous-tier calls, a `sha8` hash of the reconstructed CDS for the rest -- the 3-field
+    IPD-IMGT nomenclature is bijective with CDS sequence by definition, so the name IS a legitimate
+    sequence identity for known alleles, not a name-based shortcut). KIR: a hash
+    (`<gene>_cds_<sha8>`) over the observed CDS sequence extracted from `<hap>/cds.fa.gz` and
+    joined to the GTF call by `(contig, gene)` -- see "KIR IDENTITY EXTRACTION" below. BOTH species
+    now additionally require the call to pass the SAME artifact filter before being hashed
+    (hypothesis (b) -- see build_person_kir_identity's docstring fix (b)): HLA already excluded
+    `partial_cds`/`inframe_stop`/`homopolymer_indel`-flagged calls and CDS sequences that don't
+    translate cleanly (`frameshift`/`premature_stop`) via `keep_clean`; KIR's `cds.fa.gz`
+    extraction never checked any of this before this fix, so an assembly/annotation artifact could
+    become its own spurious "novel" identity. `artifact_qc.tsv` reports the per-species,
+    per-gene artifact counts (task item 2).
   - `protein` -- the translated-protein identity. HLA: `prot_id` (already computed -- 2-field
     IPD-IMGT name for known alleles, a `sha8` hash of the translated protein for novel-protein
-    calls). KIR: a NEW hash (`<gene>_prot_<sha8>`) over `24_novelty_by_field.protein_info(cds_seq)
+    calls). KIR: a hash (`<gene>_prot_<sha8>`) over `24_novelty_by_field.protein_info(cds_seq)
     ["protein"]` (translate + strip one terminal stop codon -- reused verbatim, not re-derived),
-    from the SAME `cds.fa.gz`-extracted sequence as the `cds` level.
+    from the SAME `cds.fa.gz`-extracted, artifact-filtered sequence as the `cds` level.
 
   "any_novel" (any-level novel) = novel at the GENOMIC level: KIR `novelty_tier != "known"`
   (excludes `undetermined`); HLA `field_class != "known"` (excludes `uncalled`). Identity used for
@@ -170,7 +191,25 @@ OUTPUTS (--out-dir, default ~/s04/results/44/; only aggregates, safe to pull off
                            kir_gene_protein_covered(). A gene with covered=False has its
                            protein/protein_novel rows exported as "NA" everywhere in
                            recurrence_classes.tsv/coverage_chao2.tsv/etc, never a hash-based guess.
+  artifact_qc.tsv          (2026-09-27, task item 2) species, gene, artifact_label, n_calls --
+                           aggregate-only counts of {clean, homopolymer_indel, partial_cds,
+                           inframe_stop, frameshift_or_stop} calls, SAME artifact_label_of()
+                           definition for both species (see build_artifact_qc_rows()).
+  diagnostics_identity.tsv (2026-09-27, task item 4) species, gene, n_calls, n_distinct_names
+                           (the OLD name-based identity), n_distinct_genomic/cds/protein (the NEW
+                           S_obs, from coverage_chao2.tsv's own s_obs at ancestry=ALL -- never
+                           masked), n_artifact_<label> per type, and
+                           median_distinct_cds_hashes_per_name -- the direct evidence for how much
+                           the old name-based identity collapsed distinct sequences (hypothesis
+                           (a)), per gene, for both species (see build_diagnostics_identity_rows()).
   STATUS.txt               aggregate-progress-only status file, rewritten as the run proceeds.
+
+INVARIANT (task item 3, `check_identity_invariants()`, raises ValueError -- never just warns): for
+every (species, gene, ancestry) with unmasked, non-"NA" values, S_obs(protein) <= S_obs(cds) ==
+S_obs(genomic), and any_novel/protein_novel n_distinct_alleles never exceed their own baseline
+track's. Run once, right before the TSVs are written, on the real numbers about to be exported --
+this is the hard gate that would have caught the v3 impossibility (6,300 KIR proteins > 1,460 KIR
+genomic alleles) before it ever reached a report.
 
 USAGE (VM; see the module's own --help for every flag):
   cd ~/s04 && PYTHONPATH=~/s04:~/s03:~/repos/pilot-validation/scripts/hla_popgen \\
@@ -204,7 +243,12 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 SUPPRESS_BELOW = 20
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 LEVELS = ["genomic", "cds", "protein", "any_novel", "protein_novel"]
-KIR_LEVELS_NEEDING_CDS_FASTA = {"cds", "protein", "protein_novel"}
+# 2026-09-27 identity-impossibility fix: "genomic"/"any_novel" are now the SAME CDS-sequence-hash
+# identity as "cds" (see build_person_kir_identity's docstring) -- they need the cds.fa.gz join
+# just as much as "cds"/"protein"/"protein_novel" now, unlike the old name-based genomic identity
+# which only needed hap{1,2}.gtf.gz. All 5 levels now degrade to "NA" together if cds.fa.gz is
+# unavailable for the whole cohort.
+KIR_LEVELS_NEEDING_CDS_FASTA = {"genomic", "cds", "protein", "any_novel", "protein_novel"}
 SPECIES = ["kir", "hla"]
 KIR_THRESHOLDS = [1, 2, 3, 20]
 # 39_saturation_by_ancestry.py's own DEFAULT_PEOPLE_OUTROOT convention: cds.fa.gz lives under
@@ -359,6 +403,82 @@ def sanity_check_coverage(cov_rows):
             warnings.append(msg)
             log(msg)
     return warnings
+
+
+def _rec_int_or_none(v):
+    """Parse a recurrence_classes.tsv-style cell (int, '<20', '0', or 'NA') to an int, or None if
+    it cannot be compared exactly (masked '<20' or missing 'NA' -- both hide the true value)."""
+    if v is None:
+        return None
+    if isinstance(v, (int, np.integer)):
+        return int(v)
+    s = str(v)
+    if s in ("NA", "<20", ""):
+        return None
+    try:
+        return int(float(s))
+    except (TypeError, ValueError):
+        return None
+
+
+def check_identity_invariants(cov_rows, rec_rows):
+    """HARD invariant check on `coverage_chao2.tsv`/`recurrence_classes.tsv` rows -- raises
+    ValueError (never just warns, unlike `sanity_check_coverage`) if the identity hierarchy this
+    whole module depends on is violated for any (species, gene, ancestry):
+      1. s_obs(protein) <= s_obs(cds) <= s_obs(genomic) -- protein identity is a coarsening of CDS
+         identity (translation), and CDS/genomic are now the SAME identity by construction (see
+         build_person_kir_identity's/hla_id_col's 2026-09-27 fix docstrings) -- so genomic and cds
+         must be EQUAL and protein must never exceed either. This is the exact invariant whose
+         violation (KIR: 6,300 distinct v3 "proteins" > 1,460 distinct "genomic" alleles) triggered
+         this fix.
+      2. any_novel n_distinct_alleles <= genomic n_distinct_alleles, and protein_novel
+         n_distinct_alleles <= protein n_distinct_alleles -- a novelty-filtered track is always a
+         subset of its own baseline track.
+    Only rows where BOTH sides are exact, unmasked, non-"NA" values are compared -- a masked '<20'
+    or missing 'NA' cell hides the true count, so it is skipped, never treated as a violation or a
+    pass. Returns nothing on success; raises ValueError with every violation found (not just the
+    first) on failure."""
+    cov_by_key = {}  # (species, gene, ancestry, level) -> s_obs (int) or None if uncomparable
+    for r in cov_rows:
+        key = (r.get("species"), r.get("gene"), r.get("ancestry"), r.get("level"))
+        cov_by_key[key] = _rec_int_or_none(r.get("s_obs"))
+    rec_by_key = {}  # (species, gene, ancestry, level) -> n_distinct_alleles (int) or None
+    for r in rec_rows:
+        key = (r.get("species"), r.get("gene"), r.get("ancestry"), r.get("level"))
+        rec_by_key[key] = _rec_int_or_none(r.get("n_distinct_alleles"))
+
+    violations = []
+    triples = ({(s, g, a) for (s, g, a, _lvl) in cov_by_key}
+               | {(s, g, a) for (s, g, a, _lvl) in rec_by_key})
+    for species, gene, ancestry in sorted(triples, key=lambda t: (t[0] or "", t[1] or "", t[2] or "")):
+        genomic = cov_by_key.get((species, gene, ancestry, "genomic"))
+        cds = cov_by_key.get((species, gene, ancestry, "cds"))
+        protein = cov_by_key.get((species, gene, ancestry, "protein"))
+        if cds is not None and genomic is not None and cds > genomic:
+            violations.append(f"{species}/{gene}/{ancestry}: s_obs(cds)={cds} > "
+                               f"s_obs(genomic)={genomic}")
+        if protein is not None and cds is not None and protein > cds:
+            violations.append(f"{species}/{gene}/{ancestry}: s_obs(protein)={protein} > "
+                               f"s_obs(cds)={cds}")
+
+        any_novel = rec_by_key.get((species, gene, ancestry, "any_novel"))
+        genomic_n = rec_by_key.get((species, gene, ancestry, "genomic"))
+        if any_novel is not None and genomic_n is not None and any_novel > genomic_n:
+            violations.append(f"{species}/{gene}/{ancestry}: any_novel n_distinct_alleles="
+                               f"{any_novel} > genomic n_distinct_alleles={genomic_n}")
+        protein_novel = rec_by_key.get((species, gene, ancestry, "protein_novel"))
+        protein_n = rec_by_key.get((species, gene, ancestry, "protein"))
+        if protein_novel is not None and protein_n is not None and protein_novel > protein_n:
+            violations.append(f"{species}/{gene}/{ancestry}: protein_novel n_distinct_alleles="
+                               f"{protein_novel} > protein n_distinct_alleles={protein_n}")
+
+    if violations:
+        raise ValueError(
+            f"[44] IDENTITY INVARIANT VIOLATED ({len(violations)} case(s)) -- the identity "
+            f"hierarchy (protein <= cds == genomic; novel <= baseline) does not hold on real "
+            f"exported numbers. This is the exact class of bug the 2026-09-27 identity-"
+            f"impossibility fix was meant to eliminate; a violation here means it is NOT fully "
+            f"fixed. First few: " + "; ".join(violations[:10]))
 
 
 def write_status(out_dir, msg):
@@ -537,6 +657,7 @@ _KIR_CONSENSUS_RE = re.compile(r'consensus "([^"]+)"')
 _KIR_GENE_ID_RE = re.compile(r'gene_id "([^"]+)"')
 _KIR_CDS_DIST_RE = re.compile(r'cds_distance (\d+)')
 _KIR_CDS_MUT_RE = re.compile(r'cds_mut "([^"]*)"')
+_KIR_TEMPLATE_WARNING_RE = re.compile(r'template_warning "([^"]*)"')
 _KIR_COPY_SUFFIX_RE = re.compile(r'\.(\d+)$')
 
 
@@ -569,11 +690,22 @@ def parse_hap_gtf_full(gtf_path, kir):
             copy_m = _KIR_COPY_SUFFIX_RE.search(geneid_m.group(1)) if geneid_m else None
             cds_dist_m = _KIR_CDS_DIST_RE.search(attrs)
             cds_mut_m = _KIR_CDS_MUT_RE.search(attrs)
+            warn_m = _KIR_TEMPLATE_WARNING_RE.search(attrs)
             row = {
                 "gene": gene_m.group(1), "consensus": consensus, "contig": fields[0],
                 "copy_index": int(copy_m.group(1)) if copy_m else 1,
                 "cds_distance": int(cds_dist_m.group(1)) if cds_dist_m else None,
                 "cds_mut": cds_mut_m.group(1) if cds_mut_m else None,
+                # 2026-09-27 identity-impossibility fix: `template_warning` is an ORDINARY
+                # Immuannot transcript attribute (reference/IMMUANNOT_GTF_SPEC.md part A) written
+                # by the SAME searchTemplate.py codepath for every gene family it annotates, HLA or
+                # KIR (41_kir_pilot.py's own docstring: KIR calling is "the only change needed... a
+                # different --region value", same tool, same attribute schema) -- it was simply
+                # never extracted here before this fix, so KIR calls with a truncated/broken CDS
+                # reconstruction (partial_CDS, inframe_stop) were never excluded from cds/protein
+                # hashing the way 24_novelty_by_field.artifact_label_of()/keep_clean already
+                # exclude the analogous HLA calls. See build_person_kir_identity's docstring.
+                "template_warning": warn_m.group(1) if warn_m else None,
                 "is_novel": consensus.rstrip('"').endswith("new") and consensus != "undetermined",
                 "is_undetermined": consensus == "undetermined",
             }
@@ -674,6 +806,53 @@ def build_person_kir_identity(pid, kir_outroot, kir, m03mod, m24mod, kir_ref=Non
     Returns (pid, per_level: {level: {gene: set(id)}}, qc: Counter, n_hap_seen: int,
     n_hap_cds_present: int) -- picklable (plain dicts/sets/Counter), safe for multiprocessing.
 
+    2026-09-27 IDENTITY-IMPOSSIBILITY FIX (S04 coordinator item -- see LOG.md "Orchestrator
+    sanity check REJECTS the KIR protein numbers"): the v3 pipeline could report MORE distinct
+    KIR proteins (6,300) than distinct KIR "genomic" alleles (1,460), which is a logical
+    impossibility -- protein identity is a coarsening of the full sequence, so it can never be
+    finer. Root-caused to TWO independent bugs, both fixed here:
+
+    (a) NAME-based, not sequence-based, "genomic"/"any_novel" identity. `genomic` used to be the
+        raw Immuannot `consensus` string (and HLA's mirrored it with the untruncated normalized
+        name -- see `hla_id_col` below). For a NOVEL call, Immuannot's consensus is just
+        "<nearest-known-prefix>...new" -- it names WHICH known template the call is closest to
+        and THAT a novel difference exists, not WHAT the actual novel sequence is. Two people
+        with two genuinely DIFFERENT novel sequences that happen to diverge from the same known
+        template at the same depth get the IDENTICAL consensus string -- collapsing distinct
+        sequences onto one "genomic allele" while `cds`/`protein` (already hash-based for novel
+        calls) correctly kept them apart. This is exactly backwards for a genomic-vs-protein
+        richness comparison. FIX: `genomic` (and `any_novel`, its novelty-filtered counterpart)
+        are now the SAME sequence-hash identity as `cds` (`<gene>_cds_<sha8>`, a hash of the
+        observed CDS nucleotide sequence). This project has no code path that extracts a
+        haplotype's FULL genomic sequence (introns/UTRs) for either species -- only `cds.fa.gz`
+        is confirmed extracted/joined (reference/IMMUANNOT_GTF_SPEC.md; `hap{N}.trimmed.fa` is
+        kept on disk but extracting a gene's genomic span from it needs new, VM-unverified
+        coordinate logic) -- so CDS is used as the best common denominator for "genomic" on BOTH
+        species (HLA's mirrored fix is in `hla_id_col`/`add_hla_genomic_id` below). This means
+        `genomic` and `cds` are IDENTICAL by construction now (documented, not a redundancy bug):
+        `S_obs(genomic) == S_obs(cds)` always holds, satisfying the invariant
+        `S_obs(protein) <= S_obs(cds) <= S_obs(genomic)` (`check_identity_invariants()` below
+        enforces this at export time, raising rather than warning).
+    (b) NO artifact filtering for KIR before hashing. HLA's own pipeline
+        (`24_novelty_by_field.artifact_label_of`/`keep_clean`) excludes `partial_cds`,
+        `inframe_stop` (from Immuannot's `template_warning` attribute) and `homopolymer_indel`
+        (from `cds_mut`), plus any CDS whose length isn't a multiple of 3 or that translates with
+        an internal stop (`seq_class == "frameshift_or_stop"`), before it ever hashes a CDS/
+        protein. KIR's `cds.fa.gz`/`cds_mut` extraction never read `template_warning` at all and
+        never checked for frameshift/premature-stop after translating -- every assembly/annotation
+        artifact (a truncated CDS reconstruction, a broken reading frame, an internal stop) became
+        its own unique "novel protein" hash, inflating KIR's protein-level `S_obs`/novelty/
+        singleton-share numbers relative to HLA's already-filtered ones. FIX: `parse_hap_gtf_full`
+        now also extracts `template_warning`; this function computes the SAME
+        `m24mod.artifact_label_of(template_warning, cds_mut)` HLA uses and excludes any non-clean
+        call, PLUS excludes any resolved CDS whose `protein_info()` reports `frameshift` or
+        `premature_stop` -- the identical two-part gate as HLA's `keep_clean`
+        (`artifact_label == "clean" and seq_class != "frameshift_or_stop"`), applied symmetrically.
+        Per-gene artifact counts are accumulated into `qc` (tuple keys `("artifact", gene, label)`)
+        for the new `artifact_qc.tsv` aggregate (task item 2) and diagnostic tuple keys
+        `("namehash", gene, consensus, cds_hash_or_"unresolved")` / `("n_calls", gene)` for the new
+        `diagnostics_identity.tsv` (task item 4) -- see `main()`'s aggregation of these.
+
     `kir_ref`: optional `m24().RefIndex` built from IPD-KIR's own CDSseq/*.fa.gz snapshot (same
     directory 24_novelty_by_field.py's HLA RefIndex globs -- confirmed present for all 17 KIR genes,
     see 41_kir_pilot.classify_novelty_tier's own docstring). BUG FIX 2026-09-26/27
@@ -715,26 +894,47 @@ def build_person_kir_identity(pid, kir_outroot, kir, m03mod, m24mod, kir_ref=Non
         qc.update(stats)
         for r in kir_rows:
             gene, tier, consensus = r["gene"], r["novelty_tier"], r["consensus"]
-            if tier != "undetermined":
-                per_level["genomic"][gene].add(consensus)
-            if tier not in ("known", "undetermined"):
-                per_level["any_novel"][gene].add(consensus)
+            qc[("n_calls", gene)] += 1
+            if tier == "undetermined":
+                continue
+            # Same artifact gate HLA's keep_clean already applies (fix (b) above) -- computed
+            # regardless of whether the cds.fa.gz join succeeds, since template_warning/cds_mut
+            # come straight off the GTF row.
+            artifact_label = m24mod.artifact_label_of(r.get("template_warning"), r["cds_mut"])
+            qc[("artifact", gene, artifact_label)] += 1
+            if artifact_label != "clean":
+                continue
             seq = seq_by_key.get((gene, consensus))
-            if seq and tier != "undetermined":
-                cds_id = f"{gene}_cds_{m24mod.sha8(seq)}"
-                per_level["cds"][gene].add(cds_id)
-                if not kir_gene_protein_covered(kir_ref, gene):
-                    qc["n_protein_gene_uncovered_calls"] += 1
-                    continue  # never guess a finer-than-genomic id for an uncovered gene
-                protein = m24mod.protein_info(seq)["protein"]
-                catalog_names = kir_ref.prot[gene].get(protein)
-                if catalog_names:
-                    prot_id = f"{gene}_{sorted(catalog_names)[0]}"
-                else:
-                    prot_id = f"{gene}_prot_{m24mod.sha8(protein)}"
-                per_level["protein"][gene].add(prot_id)
-                if not catalog_names:
-                    per_level["protein_novel"][gene].add(prot_id)
+            if not seq:
+                qc[("namehash", gene, consensus, "unresolved")] += 1
+                continue
+            pinfo = m24mod.protein_info(seq)
+            if pinfo["frameshift"] or pinfo["premature_stop"]:
+                qc[("artifact", gene, "frameshift_or_stop")] += 1
+                qc[("namehash", gene, consensus, "unresolved")] += 1
+                continue
+            # Fix (a) above: genomic/cds/any_novel now share ONE sequence-hash identity (the CDS
+            # hash) -- the best common denominator available for both species, since neither has a
+            # verified full-genomic-sequence extraction path. genomic and cds are therefore
+            # identical sets by construction (documented, not a bug -- see docstring).
+            cds_id = f"{gene}_cds_{m24mod.sha8(seq)}"
+            per_level["genomic"][gene].add(cds_id)
+            per_level["cds"][gene].add(cds_id)
+            if tier != "known":
+                per_level["any_novel"][gene].add(cds_id)
+            qc[("namehash", gene, consensus, cds_id)] += 1
+            if not kir_gene_protein_covered(kir_ref, gene):
+                qc["n_protein_gene_uncovered_calls"] += 1
+                continue  # never guess a finer-than-genomic id for an uncovered gene
+            protein = pinfo["protein"]
+            catalog_names = kir_ref.prot[gene].get(protein)
+            if catalog_names:
+                prot_id = f"{gene}_{sorted(catalog_names)[0]}"
+            else:
+                prot_id = f"{gene}_prot_{m24mod.sha8(protein)}"
+            per_level["protein"][gene].add(prot_id)
+            if not catalog_names:
+                per_level["protein_novel"][gene].add(prot_id)
     per_level = {lvl: dict(d) for lvl, d in per_level.items()}
     return pid, per_level, qc, n_hap_seen, n_hap_cds_present
 
@@ -810,13 +1010,22 @@ def build_kir_identity_sets(pids, kir_outroot, workers, refdata=None):
 
 # ---------------------------------------------------------------------------
 # HLA-side extraction: reuses 39_saturation_by_ancestry.build_labeled_calls() (the full
-# field_class/seq_class/prot_id/cds_id pipeline) -- no re-derivation of sequence matching. The
-# genomic-level identity (full, untruncated normalized consensus name) is the one new column added
-# here, via 24_novelty_by_field.normalize_allele_name (reused, not re-derived).
+# field_class/seq_class/prot_id/cds_id pipeline) -- no re-derivation of sequence matching.
+#
+# 2026-09-27 identity-impossibility fix (mirrors the KIR-side fix in build_person_kir_identity's
+# docstring, fix (a)): "genomic_id" (the full, untruncated normalized consensus name) is KEPT here
+# as a diagnostic-only column -- it is exactly the NAME-based identity that collapses distinct
+# novel sequences sharing a known prefix+depth onto one string (a novel HLA consensus is also just
+# "<known-prefix>:new", not the actual novel sequence) -- but it is NO LONGER used as the
+# `genomic`/`any_novel` IDENTITY (see hla_id_col below, now aliased to `cds_id`). `diagnostics_
+# identity.tsv`'s "median distinct CDS hashes per reference name" statistic groups by this column
+# specifically to quantify how much collapse the OLD name-based identity caused, for both species.
 # ---------------------------------------------------------------------------
 def add_hla_genomic_id(calls, m24mod):
     """Adds a 'genomic_id' column: the full normalized consensus name (all colon fields kept),
-    cached per distinct consensus string (there are far fewer distinct strings than rows)."""
+    cached per distinct consensus string (there are far fewer distinct strings than rows).
+    DIAGNOSTIC-ONLY as of the 2026-09-27 fix -- see module docstring above; not used for
+    `genomic`/`any_novel` identity any more (hla_id_col aliases those to `cds_id`)."""
     cache = {}
 
     def f(cons):
@@ -844,8 +1053,14 @@ def hla_level_mask(calls, level):
 
 
 def hla_id_col(level):
-    return {"genomic": "genomic_id", "cds": "cds_id", "protein": "prot_id",
-            "any_novel": "genomic_id", "protein_novel": "prot_id"}[level]
+    """2026-09-27 fix: 'genomic'/'any_novel' now alias 'cds_id' (a real sequence-hash identity for
+    novel calls, a nomenclature-bijective 3-field name for known/cds_known/f4_noncoding calls --
+    see 24_novelty_by_field.allele_ids()) instead of the name-based 'genomic_id', which collapsed
+    distinct novel sequences sharing a known prefix+depth (see build_person_kir_identity's
+    docstring fix (a) for the full rationale, mirrored here). This makes genomic == cds for HLA by
+    construction too, matching KIR's own fix and satisfying check_identity_invariants()."""
+    return {"genomic": "cds_id", "cds": "cds_id", "protein": "prot_id",
+            "any_novel": "cds_id", "protein_novel": "prot_id"}[level]
 
 
 def hla_person_gene_sets(calls, level, genes_bare):
@@ -998,6 +1213,121 @@ def run_gene_level(gene, level, species, full_gene_sets, pids_by_ancestry, order
     return rec_rows, curve_rows, slope_rows, cov_rows
 
 
+# ---------------------------------------------------------------------------
+# Diagnostic aggregates (task item 4, 2026-09-27 identity-impossibility fix): artifact_qc.tsv and
+# diagnostics_identity.tsv, built symmetrically for both species from data already collected above
+# (kir_qc's tuple-keyed diagnostic entries; HLA's own `calls` frame, which already carries
+# artifact_label/genomic_id/cds_id/prot_id per call).
+# ---------------------------------------------------------------------------
+def split_kir_qc(kir_qc):
+    """Separates kir_qc's SCALAR (string-keyed, aggregate) entries -- the pre-existing
+    kir_cds_match_qc.tsv fields (n_matched, n_ambiguous_copy, etc.) -- from its new tuple-keyed
+    diagnostic entries added by build_person_kir_identity's 2026-09-27 fix:
+      ("n_calls", gene) -> count of every KIR transcript row seen for that gene (pre-filter).
+      ("artifact", gene, label) -> count of calls with that artifact_label (label in {"clean",
+        "homopolymer_indel", "partial_cds", "inframe_stop", "frameshift_or_stop"}).
+      ("namehash", gene, consensus_name, cds_hash_or_"unresolved") -> count of calls where this
+        (pre-fix) consensus NAME mapped to this (post-fix) CDS HASH -- the direct evidence for
+        name-collapse magnitude (task item 1/hypothesis (a)).
+    Returns (scalar_qc: dict, n_calls_by_gene: dict, artifact_by_gene_label: dict,
+    name_to_hashes_by_gene: {gene: {name: set(hash)}})."""
+    scalar_qc = {}
+    n_calls_by_gene = Counter()
+    artifact_by_gene_label = Counter()
+    name_to_hashes_by_gene = defaultdict(lambda: defaultdict(set))
+    for k, v in kir_qc.items():
+        if isinstance(k, tuple):
+            if k[0] == "n_calls":
+                n_calls_by_gene[k[1]] += v
+            elif k[0] == "artifact":
+                artifact_by_gene_label[(k[1], k[2])] += v
+            elif k[0] == "namehash":
+                _, gene, name, h = k
+                if h != "unresolved":
+                    name_to_hashes_by_gene[gene][name].add(h)
+        else:
+            scalar_qc[k] = v
+    return scalar_qc, dict(n_calls_by_gene), dict(artifact_by_gene_label), dict(name_to_hashes_by_gene)
+
+
+def build_artifact_qc_rows(kir_artifact_by_gene_label, hla_calls):
+    """artifact_qc.tsv: gene, species, artifact_label, n_calls -- aggregate-only, symmetric across
+    species (task item 2). HLA counts are read straight from `calls['artifact_label']`
+    (24_novelty_by_field.add_call_labels, already computed for every HLA call by
+    39.build_labeled_calls); KIR counts come from the SAME artifact_label_of() function, newly
+    applied per build_person_kir_identity's 2026-09-27 fix."""
+    rows = []
+    for (gene, label), n in sorted(kir_artifact_by_gene_label.items()):
+        rows.append({"species": "kir", "gene": gene, "artifact_label": label, "n_calls": int(n)})
+    if hla_calls is not None and len(hla_calls):
+        tab = hla_calls.groupby(["gene_b", "artifact_label"]).size()
+        for (gene, label), n in tab.items():
+            rows.append({"species": "hla", "gene": gene, "artifact_label": label, "n_calls": int(n)})
+    return rows
+
+
+def _median(values):
+    if not values:
+        return float("nan")
+    s = sorted(values)
+    n = len(s)
+    mid = n // 2
+    return float(s[mid]) if n % 2 else (s[mid - 1] + s[mid]) / 2.0
+
+
+def build_diagnostics_identity_rows(all_cov, kir_n_calls_by_gene, kir_artifact_by_gene_label,
+                                     kir_name_to_hashes, hla_calls):
+    """diagnostics_identity.tsv, one row per (species, gene) -- pooled ALL ancestry (task item 4):
+      n_calls, n_distinct_names (the OLD, pre-fix name-based identity), n_distinct_genomic/cds/
+      protein (the NEW, post-fix sequence-hash S_obs, read from coverage_chao2.tsv's own `s_obs`
+      at ancestry=ALL -- s_obs is never disclosure-masked, unlike n_distinct_alleles in
+      recurrence_classes.tsv, so this is always a real number here), n_artifact_<label> per
+      artifact type, and median_distinct_cds_hashes_per_name -- directly answers "does one NAME
+      collapse multiple distinct sequences" (hypothesis (a)), for both species side by side."""
+    s_obs_by = {}  # (species, gene, level) -> s_obs at ancestry=ALL
+    for r in all_cov:
+        if r.get("ancestry") != "ALL":
+            continue
+        s_obs_by[(r.get("species"), r.get("gene"), r.get("level"))] = _rec_int_or_none(r.get("s_obs"))
+
+    artifact_labels = sorted({label for (_, label) in kir_artifact_by_gene_label})
+    if hla_calls is not None and "artifact_label" in hla_calls.columns:
+        artifact_labels = sorted(set(artifact_labels) | set(hla_calls["artifact_label"].dropna().unique()))
+
+    rows = []
+
+    def add_row(species, gene, n_calls, name_to_hashes, artifact_counts):
+        row = {
+            "species": species, "gene": gene, "n_calls": n_calls,
+            "n_distinct_names": len(name_to_hashes),
+            "n_distinct_genomic": s_obs_by.get((species, gene, "genomic"), ""),
+            "n_distinct_cds": s_obs_by.get((species, gene, "cds"), ""),
+            "n_distinct_protein": s_obs_by.get((species, gene, "protein"), ""),
+            "median_distinct_cds_hashes_per_name": round(
+                _median([len(hs) for hs in name_to_hashes.values()]), 2),
+        }
+        for label in artifact_labels:
+            row[f"n_artifact_{label}"] = int(artifact_counts.get(label, 0))
+        rows.append(row)
+
+    for gene in sorted(kir_n_calls_by_gene):
+        name_to_hashes = kir_name_to_hashes.get(gene, {})
+        artifact_counts = {label: n for (g, label), n in kir_artifact_by_gene_label.items()
+                            if g == gene}
+        add_row("kir", gene, int(kir_n_calls_by_gene[gene]), name_to_hashes, artifact_counts)
+
+    if hla_calls is not None and len(hla_calls):
+        for gene, gdf in hla_calls.groupby("gene_b"):
+            name_to_hashes = defaultdict(set)
+            for name, cds_id in zip(gdf["genomic_id"], gdf["cds_id"]):
+                if isinstance(name, str) and isinstance(cds_id, str):
+                    name_to_hashes[name].add(cds_id)
+            artifact_counts = gdf["artifact_label"].value_counts().to_dict()
+            add_row("hla", gene, int(len(gdf)), dict(name_to_hashes), artifact_counts)
+
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1146,6 +1476,11 @@ def main():
         write_status(args.out_dir, f"level={level} done ({len(all_rec)} recurrence rows so far)")
 
     sanity_check_coverage(all_cov)
+    # HARD gate (task item 3): unlike sanity_check_coverage (warns on known bug SIGNATURES), this
+    # RAISES if the identity hierarchy (protein <= cds == genomic; novel <= baseline) is violated
+    # on the actual exported numbers -- the exact class of impossibility that triggered the
+    # 2026-09-27 identity fix (KIR: 6,300 "proteins" > 1,460 "genomic" alleles).
+    check_identity_invariants(all_cov, all_rec)
 
     pd.DataFrame(all_rec).to_csv(os.path.join(args.out_dir, "recurrence_classes.tsv"),
                                   sep="\t", index=False)
@@ -1155,11 +1490,25 @@ def main():
                                     sep="\t", index=False)
     pd.DataFrame(all_cov).to_csv(os.path.join(args.out_dir, "coverage_chao2.tsv"),
                                   sep="\t", index=False)
-    pd.DataFrame([{**dict(kir_qc), "n_hap_seen": n_hap_seen,
+
+    (kir_qc_scalar, kir_n_calls_by_gene, kir_artifact_by_gene_label,
+     kir_name_to_hashes) = split_kir_qc(kir_qc)
+    pd.DataFrame([{**kir_qc_scalar, "n_hap_seen": n_hap_seen,
                    "n_hap_cds_fasta_present": n_hap_cds_present,
                    "cds_available": kir_cds_available}]).to_csv(
         os.path.join(args.out_dir, "kir_cds_match_qc.tsv"), sep="\t", index=False)
-    write_status(args.out_dir, f"DONE in {time.perf_counter()-t0:.0f}s -- 5 tables written")
+
+    # New (2026-09-27 identity-impossibility fix, task items 2/4): artifact counts and name/hash
+    # collapse diagnostics, symmetric across species.
+    artifact_rows = build_artifact_qc_rows(kir_artifact_by_gene_label, calls)
+    pd.DataFrame(artifact_rows).to_csv(os.path.join(args.out_dir, "artifact_qc.tsv"),
+                                        sep="\t", index=False)
+    diag_rows = build_diagnostics_identity_rows(
+        all_cov, kir_n_calls_by_gene, kir_artifact_by_gene_label, kir_name_to_hashes, calls)
+    pd.DataFrame(diag_rows).to_csv(os.path.join(args.out_dir, "diagnostics_identity.tsv"),
+                                    sep="\t", index=False)
+
+    write_status(args.out_dir, f"DONE in {time.perf_counter()-t0:.0f}s -- 7 tables written")
     log(f"[44] done in {time.perf_counter()-t0:.0f}s")
 
 
