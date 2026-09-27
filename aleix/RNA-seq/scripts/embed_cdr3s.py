@@ -261,7 +261,17 @@ def main():
                     help="VM-local: per-CDR3 pool (has real research_ids) + raw embedding "
                          ".npy files -- NEVER commit this, same privacy posture as "
                          "query_overlap_phenotypes.py's pheno cache")
+    ap.add_argument("--models", default="sceptr,esmc",
+                    help="comma-separated subset of {sceptr,esmc} to run (default: both, for "
+                         "the head-to-head comparison). At full-cohort scale ESMC is ~156x "
+                         "slower than SCEPTR for a worse same/diff-V-gene gap (2026-09-10 "
+                         "500-person comparison, DECISIONS.md) -- pass --models sceptr to "
+                         "skip the ~16hr ESMC pass once the comparison question is settled.")
     args = ap.parse_args()
+    models = {m.strip().lower() for m in args.models.split(",") if m.strip()}
+    bad = models - {"sceptr", "esmc"}
+    if bad:
+        die(f"--models: unknown model(s) {bad} -- choose from sceptr, esmc")
 
     if args.from_pool_tsv:
         pool = pd.read_csv(os.path.expanduser(args.from_pool_tsv), sep="\t")
@@ -338,33 +348,35 @@ def main():
     os.makedirs(local_outdir, exist_ok=True)
     results = []
 
-    print("--- SCEPTR (TCR-specific, 153K params) ---")
-    try:
-        sceptr_embs, sceptr_s = embed_sceptr(seqs)
-        same, diff = same_vs_diff_vgene_contrast(sceptr_embs, v_genes)
-        print(f"  {sceptr_s:.1f}s wall, {sceptr_embs.shape[1]}-dim vectors")
-        print(f"  same-V-gene cosine sim: {same:.4f}  |  diff-V-gene: {diff:.4f}  "
-              f"|  gap: {same - diff:+.4f}")
-        np.save(os.path.join(local_outdir, "cdr3_embeddings_sceptr.npy"), sceptr_embs)
-        results.append(("SCEPTR", sceptr_embs.shape[1], sceptr_s, same, diff))
-    except Exception as e:
-        print(f"  !! SCEPTR failed: {e}\n  (pip install sceptr if missing)", file=sys.stderr)
+    if "sceptr" in models:
+        print("--- SCEPTR (TCR-specific, 153K params) ---")
+        try:
+            sceptr_embs, sceptr_s = embed_sceptr(seqs)
+            same, diff = same_vs_diff_vgene_contrast(sceptr_embs, v_genes)
+            print(f"  {sceptr_s:.1f}s wall, {sceptr_embs.shape[1]}-dim vectors")
+            print(f"  same-V-gene cosine sim: {same:.4f}  |  diff-V-gene: {diff:.4f}  "
+                  f"|  gap: {same - diff:+.4f}")
+            np.save(os.path.join(local_outdir, "cdr3_embeddings_sceptr.npy"), sceptr_embs)
+            results.append(("SCEPTR", sceptr_embs.shape[1], sceptr_s, same, diff))
+        except Exception as e:
+            print(f"  !! SCEPTR failed: {e}\n  (pip install sceptr if missing)", file=sys.stderr)
 
-    print("\n--- ESMC-300M (general protein LM) ---")
-    try:
-        esmc_embs, esmc_s = embed_esmc(seqs)
-        same, diff = same_vs_diff_vgene_contrast(esmc_embs, v_genes)
-        print(f"  {esmc_s:.1f}s wall, {esmc_embs.shape[1]}-dim vectors")
-        print(f"  same-V-gene cosine sim: {same:.4f}  |  diff-V-gene: {diff:.4f}  "
-              f"|  gap: {same - diff:+.4f}")
-        np.save(os.path.join(local_outdir, "cdr3_embeddings_esmc.npy"), esmc_embs)
-        results.append(("ESMC-300M", esmc_embs.shape[1], esmc_s, same, diff))
-    except Exception as e:
-        print(f"  !! ESMC failed: {e}\n  "
-              f"(need: pip install accelerate && pip install "
-              f"git+https://github.com/Biohub/esm.git@v3.4.1 -- PyPI's esm 3.2.3 and the "
-              f"old EsmcForMaskedLM path are both broken upstream, see embed_esmc() docstring)",
-              file=sys.stderr)
+    if "esmc" in models:
+        print("\n--- ESMC-300M (general protein LM) ---")
+        try:
+            esmc_embs, esmc_s = embed_esmc(seqs)
+            same, diff = same_vs_diff_vgene_contrast(esmc_embs, v_genes)
+            print(f"  {esmc_s:.1f}s wall, {esmc_embs.shape[1]}-dim vectors")
+            print(f"  same-V-gene cosine sim: {same:.4f}  |  diff-V-gene: {diff:.4f}  "
+                  f"|  gap: {same - diff:+.4f}")
+            np.save(os.path.join(local_outdir, "cdr3_embeddings_esmc.npy"), esmc_embs)
+            results.append(("ESMC-300M", esmc_embs.shape[1], esmc_s, same, diff))
+        except Exception as e:
+            print(f"  !! ESMC failed: {e}\n  "
+                  f"(need: pip install accelerate && pip install "
+                  f"git+https://github.com/Biohub/esm.git@v3.4.1 -- PyPI's esm 3.2.3 and the "
+                  f"old EsmcForMaskedLM path are both broken upstream, see embed_esmc() docstring)",
+                  file=sys.stderr)
 
     if results:
         summary = pd.DataFrame(results, columns=[
