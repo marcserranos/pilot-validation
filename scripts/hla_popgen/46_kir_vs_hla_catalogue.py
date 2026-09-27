@@ -139,6 +139,10 @@ def build_gene_metrics(cov, slope, protein_qc=None, ancestry="ALL"):
         d = sub[sub["level"] == level][["gene", "species", "chao2"]]
         return d.rename(columns={"chao2": f"chao2_{level}"})
 
+    def gt_at(level):
+        d = sub[sub["level"] == level][["gene", "species", "good_turing_coverage"]]
+        return d.rename(columns={"good_turing_coverage": f"good_turing_coverage_{level}"})
+
     base = sub[sub["level"] == "genomic"][
         ["gene", "species", "s_obs", "good_turing_coverage", "chao2",
          "chao2_undetected_f0hat"]].rename(columns={"s_obs": "s_obs_genomic"})
@@ -146,6 +150,15 @@ def build_gene_metrics(cov, slope, protein_qc=None, ancestry="ALL"):
     base = base.merge(s_obs_at("protein"), on=["gene", "species"], how="left")
     base = base.merge(s_obs_at("protein_novel"), on=["gene", "species"], how="left")
     base = base.merge(chao2_at("protein"), on=["gene", "species"], how="left")
+    # CDS-level metrics (v4b, 2026-09-27 -- Marc's ask: base the headline KIR-vs-HLA comparison on
+    # CDS and protein, NOT genomic. Genomic (true gene-span) identity is an UPPER BOUND, likely
+    # inflated by person-specific span/UTR boundaries and intronic assembly noise the CDS-level
+    # artifact gate can't see -- see README caveat 1). CDS has no "novel" sub-level of its own in
+    # 44's exports (only genomic/any_novel and protein/protein_novel are novelty pairs); CDS's own
+    # s_obs/chao2/coverage is exported here as a headline completeness metric in its own right.
+    base = base.merge(s_obs_at("cds"), on=["gene", "species"], how="left")
+    base = base.merge(chao2_at("cds"), on=["gene", "species"], how="left")
+    base = base.merge(gt_at("cds"), on=["gene", "species"], how="left")
 
     base["pct_novel_any"] = 100.0 * base["s_obs_any_novel"] / base["s_obs_genomic"]
     base["pct_novel_protein"] = 100.0 * base["s_obs_protein_novel"] / base["s_obs_protein"]
@@ -155,6 +168,10 @@ def build_gene_metrics(cov, slope, protein_qc=None, ancestry="ALL"):
     # for a gene 44 marked catalogue-uncovered (its `protein`/`chao2_protein` are already NaN via
     # pd.to_numeric(..., errors="coerce") on 44's literal "NA") -- never divides to a fabricated 0.
     base["completeness_protein"] = base["s_obs_protein"] / base["chao2_protein"]
+    # CDS-level richness completeness -- the OTHER headline granularity (v4b). Renamed the
+    # pre-existing genomic-level `completeness` column is deliberately avoided (would break every
+    # caller/test that already reads `completeness` as genomic) -- CDS gets its own column.
+    base["completeness_cds"] = base["s_obs_cds"] / base["chao2_cds"]
 
     sl = slope[(slope["ancestry"] == ancestry) & (slope["level"] == "genomic")
                & (slope["curve"] == "distinct")][["gene", "species", "slope_per_1000"]]
@@ -253,7 +270,8 @@ def _label_points_repel(texts, renderer, px_to_pt, max_iter):
     return texts
 
 
-def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=()):
+def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=(),
+                    column_fontsize=5.0, column_min_gap_frac=0.05, label_genes=True):
     """One completeness-vs-novelty scatter panel, direct-labeled, both species. Rows where
     `x_col`/`y_col` is NaN (a catalogue-uncovered gene, e.g. KIR2DP1/KIR3DP1 at the protein level)
     are NEVER silently dropped or plotted as 0 -- they are listed by name in an in-panel note
@@ -285,8 +303,34 @@ def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=()):
                         label=SPECIES_LABEL[sp], zorder=3, edgecolors="white", linewidths=0.3)
         handles.append(h)
         per_species[sp] = (s[x_col].tolist(), s[y_col].tolist(), s["gene_display"].tolist())
-    ax.set_ylim(0, 1.05)
-    ax.set_xlim(left=-2)
+    # Bottom padding (-0.04, not 0): a free-style label for a near-zero-completeness gene is
+    # offset only 2pt above its own point (`_label_points`' default), which can otherwise render
+    # low enough to collide with the x-tick-label row just below the axes' own spine (found on
+    # full-size review: 'KIR2DP1' over the '100' x-tick in the CDS panel -- the two are plain Text
+    # objects, and check (a3)'s own-axes-spine exemption doesn't cover a sibling tick LABEL). No
+    # real data point is ever negative, so this buffer band is always empty of data.
+    ax.set_ylim(-0.04, 1.05)
+    # Right-pad xlim past the data max (v4b, 3-panel layout): a free-style label offset a few
+    # points to the right of its point (`_label_points`' dx_pt=3.0) can otherwise land on top of
+    # the rightmost x-tick label itself (found on full-size review: 'KIR2DP1' over the '100'
+    # tick in the CDS panel) -- pad by 15% of the observed x-range so labels near the right edge
+    # have somewhere to go.
+    all_x_vals = [v for sp in SPECIES_ORDER for v in per_species[sp][0]]
+    xmax_data = max(all_x_vals) if all_x_vals else 100.0
+    ax.set_xlim(left=-2, right=max(xmax_data * 1.15, xmax_data + 10))
+    if not label_genes:
+        # Both species' any-level novelty ranges overlap substantially at the CDS granularity
+        # (unlike the protein panel, where KIR's cluster and HLA's cluster sit at very different
+        # x) -- neither the free-repulsion nor the column-leader style can place ~30 gene labels
+        # here without collisions between species (tried both, 2026-09-27: free-vs-free overlaps,
+        # and free HLA labels landing on KIR's column leader lines). Gene identities for this
+        # panel are in `46_catalogue_metrics.tsv`/`_by_ancestry.tsv`; the caption says so.
+        if na_genes:
+            note = na_note or (", ".join(na_genes) + ": no catalogue data at this level")
+            t = ax.text(0.02, 0.98, note, transform=ax.transAxes, fontsize=5.2, color="#666666",
+                         ha="left", va="top", style="italic", wrap=True)
+            vc.mark_label(t)
+        return handles
     m45 = _load_45() if any(sp in column_species for sp in SPECIES_ORDER) else None
     # Free-style species are repelled together in ONE pass (not one call per species) -- a
     # per-species-only pass would resolve overlaps within each species but miss a label from one
@@ -300,7 +344,8 @@ def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=()):
         if sp in column_species:
             ends = {lab: (x, y) for x, y, lab in zip(xs, ys, labs)}
             colors_by_label = {lab: SPECIES_COLOR[sp] for lab in labs}
-            m45._label_curve_ends(ax, ends, colors_by_label, fontsize=5.0, min_gap_frac=0.05)
+            m45._label_curve_ends(ax, ends, colors_by_label, fontsize=column_fontsize,
+                                   min_gap_frac=column_min_gap_frac)
         else:
             free_x += xs
             free_y += ys
@@ -320,26 +365,42 @@ def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=()):
 
 
 def fig_catalogue_completeness(metrics, out_stem):
+    """Three panels, left to right: (a) genomic (span-level) identity -- the UPPER-BOUND context
+    view (see README caveat 1: person-specific span/UTR boundaries and intronic assembly noise the
+    CDS-level artifact gate can't see likely inflate this one), (b) CDS-level completeness (a v4b
+    headline granularity), (c) protein-level completeness (the other v4b headline granularity).
+    Panel (b)'s x-axis reuses `pct_novel_any` (a genomic-level novelty measure) as the only novelty
+    percentage 44 exports that pairs with the CDS s_obs/chao2 identity granularity -- CDS itself
+    has no separate cds_novel/non-novel split in 44's tables, only its own identity-level
+    s_obs/chao2 (see `build_gene_metrics` docstring)."""
     with vc.nature_style():
-        fig, axes = plt.subplots(1, 2, figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(110)),
+        fig, axes = plt.subplots(1, 3, figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(140)),
                                   constrained_layout=True)
         # Fix labels/limits BEFORE labeling points -- `_label_points()` measures real rendered
         # pixel positions, which shift if axis decorations are added afterward.
         axes[0].set_xlabel("% of distinct alleles novel (any level)")
         axes[0].set_ylabel(r"Chao2 richness completeness (S$_{obs}$/Chao2)")
-        axes[0].set_title("any-level identity", fontsize=7)
-        axes[1].set_xlabel("% of distinct alleles novel (protein level)")
-        axes[1].set_title("protein-level identity", fontsize=7)
+        axes[0].set_title("genomic identity (upper bound)", fontsize=6.5)
+        axes[1].set_xlabel("% of distinct alleles novel (any level)")
+        axes[1].set_title("CDS identity (headline)", fontsize=6.5)
+        axes[2].set_xlabel("% of distinct alleles novel (protein level)")
+        axes[2].set_title("protein identity (headline)", fontsize=6.5)
         handles = _scatter_panel(axes[0], metrics, "pct_novel_any", "completeness")
+        # CDS panel: both species' any-level-novelty values span a similar, overlapping range
+        # here (unlike the protein panel), so gene labels are dropped for legibility (see
+        # `_scatter_panel(..., label_genes=False)` docstring) -- values are in
+        # `46_catalogue_metrics.tsv`/`_by_ancestry.tsv`, and the caption says so explicitly.
+        _scatter_panel(axes[1], metrics, "pct_novel_any", "completeness_cds", label_genes=False)
         # Protein-level panel: KIR2DP1/KIR3DP1 (pseudogenes, no catalogued reference protein --
         # `kir_protein_catalogue_qc.tsv`) are NaN on both axes here and are named explicitly
         # rather than silently vanishing from the plot.
-        _scatter_panel(axes[1], metrics, "pct_novel_protein", "completeness_protein",
+        _scatter_panel(axes[2], metrics, "pct_novel_protein", "completeness_protein",
                        na_note="KIR2DP1, KIR3DP1: pseudogenes, no catalogued reference protein "
                                 "(excluded, not 0)", column_species=("kir",))
         axes[0].legend(handles=handles, loc="lower left", **vc.LEGEND_KW)
         vc.panel_letter(axes[0], "a")
         vc.panel_letter(axes[1], "b")
+        vc.panel_letter(axes[2], "c")
         vc.save_fig(fig, out_stem)
 
 
@@ -401,6 +462,20 @@ def main():
     metrics_path = os.path.join(args.out_dir, "46_catalogue_metrics.tsv")
     metrics.to_csv(metrics_path, sep="\t", index=False)
     print(f"  wrote {metrics_path}", file=sys.stderr)
+
+    # Per-ancestry gene metrics (Marc's ask: "check it per gene and per ancestry") -- one combined
+    # tidy TSV with an `ancestry` column, not 5 separate files, so a reader can filter/pivot in one
+    # place. MID excluded (39/44 precedent: not well-powered).
+    ANCESTRY_ORDER_46 = ["AFR", "AMR", "EAS", "EUR", "SAS"]
+    per_anc = []
+    for anc in ANCESTRY_ORDER_46:
+        m = build_gene_metrics(cov, slope, protein_qc, ancestry=anc)
+        m.insert(0, "ancestry", anc)
+        per_anc.append(m)
+    metrics_ancestry = pd.concat(per_anc, ignore_index=True)
+    metrics_ancestry_path = os.path.join(args.out_dir, "46_catalogue_metrics_by_ancestry.tsv")
+    metrics_ancestry.to_csv(metrics_ancestry_path, sep="\t", index=False)
+    print(f"  wrote {metrics_ancestry_path}", file=sys.stderr)
 
     fig_catalogue_completeness(metrics, os.path.join(args.out_dir, "fig_catalogue_completeness"))
     fig_recurrence_composition(curve, os.path.join(args.out_dir, "fig_recurrence_composition"))

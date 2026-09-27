@@ -128,12 +128,17 @@ def two_proportion_ztest(x1, n1, x2, n2):
 
 def compute_singleton_share_stats(curve):
     """Marc's hypothesis: 'KIR novelty is less private than HLA novelty (singleton share lower),
-    suggesting systematic catalogue gaps rather than private errors.' Tested at genomic (all
-    alleles, for context) and any-level-novel (the actual novelty claim); protein-level is
-    reported but flagged NA for HLA (pooled protein_novel S_obs is 0 -- see README caveats, an
-    unreconciled 44 data question, not something this local-only script can fix)."""
+    suggesting systematic catalogue gaps rather than private errors.' Tested at genomic (span
+    level -- an UPPER BOUND, see module/README caveats on person-specific span boundaries and
+    intronic noise the artifact gate can't see -- included for context, not as a headline), CDS
+    and protein (the two levels this v4b pass treats as authoritative, since both pass the same
+    HLA-style artifact gate), and any-level-novel (a genomic-level novelty view, same upper-bound
+    caveat). v4b (2026-09-27): CDS added to this loop per Marc's ask to test private-vs-shared
+    novelty at both CDS and protein level, not just any/protein. Two-sided two-proportion z-test,
+    pooled variance, no multiple-testing correction applied across the 4 levels tested here --
+    treat each row as its own test, not a family-wise-corrected claim (README states this)."""
     rows = []
-    for level in ["genomic", "any_novel", "protein_novel"]:
+    for level in ["genomic", "cds", "any_novel", "protein_novel"]:
         hla = pooled_recurrence_from_curves(curve, "hla", level)
         kir = pooled_recurrence_from_curves(curve, "kir", level)
         if hla is None or kir is None:
@@ -178,6 +183,19 @@ def _label_curve_ends(ax, ends, colors, fontsize, min_gap_frac=0.12):
         if placed and y - placed[-1] < min_gap:
             y = placed[-1] + min_gap
         placed.append(y)
+    # Floor the LOWEST placed label at least half a gap above the axis bottom (`ylo`, usually 0):
+    # several near-zero recurrence classes (e.g. protein-level "seen >2x"/"seen >=20x" for a
+    # sparsely-observed species) can all end up with placed y == ylo, putting the label's va=
+    # "center" baseline exactly on the x-axis spine -- half the glyph then renders into the tick-
+    # label margin below the axes (found on full-size visual review of the per-ancestry
+    # supplement, not caught by check_layout -- the label never leaves its own axes' bbox, it
+    # just visually collides with that axes' own spine/ticks, which check (a3) explicitly exempts
+    # for text belonging to its own axes). Shifting the whole placed stack up preserves every
+    # already-enforced inter-label gap.
+    floor = ylo + min_gap * 0.5
+    if placed and placed[0] < floor:
+        shift = floor - placed[0]
+        placed = [y + shift for y in placed]
     label_y = dict(zip(order, placed))
     for k, (x0, y0) in ends.items():
         t = ax.annotate(k, (label_x, label_y[k]), fontsize=fontsize, color=colors[k],
@@ -247,6 +265,61 @@ def fig_saturation_by_recurrence(curve, out_stem, ancestry="ALL"):
 
 
 # ---------------------------------------------------------------------------
+# Figure 1supp: per-ancestry (equal-N) version of Figure 1 -- same recurrence-class-stratified,
+# any-level-vs-protein-level layout, one grid PER SPECIES with ancestry as rows instead of a
+# single ALL-pooled row. Marc's ask (A): "overall + per ancestry (equal-N)".
+# ---------------------------------------------------------------------------
+def fig_saturation_by_recurrence_ancestry(curve, out_stem, species, ancestries=ANCESTRY_ORDER):
+    pal = vc.JOURNAL_PALETTES[RECUR_COLOR_KEY]
+    colors = {c: pal[i] for i, c in enumerate(RECUR_CLASSES)}
+    present = [a for a in ancestries
+               if not curve[(curve["species"] == species) & (curve["ancestry"] == a)].empty]
+    with vc.nature_style():
+        fig, axes = plt.subplots(len(present), len(LEVEL_ORDER),
+                                  figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(34 * len(present))),
+                                  constrained_layout=True, squeeze=False)
+        for row, anc in enumerate(present):
+            for col, level in enumerate(LEVEL_ORDER):
+                ax = axes[row, col]
+                sub = curve[(curve["species"] == species) & (curve["level"] == level)
+                            & (curve["ancestry"] == anc)]
+                pooled = sub.groupby("n", as_index=False)[
+                    ["mean_eq1", "mean_eq2", "mean_gt2", "mean_ge20"]].sum().sort_values("n")
+                all_zero = pooled.empty or float(
+                    pooled[["mean_eq1", "mean_eq2", "mean_gt2", "mean_ge20"]].to_numpy().max()) <= 0
+                if all_zero:
+                    ax.set_xlim(0, 1)
+                    ax.set_ylim(0, 1)
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    t = ax.text(0.5, 0.5, "0 alleles\n(pooled)", ha="center", va="center",
+                                 fontsize=6, color="#666666", transform=ax.transAxes)
+                    vc.mark_label(t)
+                else:
+                    ends = {}
+                    for c in RECUR_CLASSES:
+                        x = pooled["n"].to_numpy()
+                        y = pooled["mean_" + c].to_numpy()
+                        ax.plot(x, y, color=colors[c], linewidth=0.9)
+                        ends[RECUR_LABEL[c]] = (x[-1], y[-1])
+                    colors_by_label = {RECUR_LABEL[c]: colors[c] for c in RECUR_CLASSES}
+                    ax.set_xlim(left=0)
+                    ax.set_ylim(bottom=0)
+                    if row == 0:
+                        _label_curve_ends(ax, ends, colors_by_label, fontsize=4.6)
+                if row == 0:
+                    ax.set_title(LEVEL_LABEL[level], fontsize=6.5)
+                if col == 0:
+                    ax.set_ylabel(anc, fontsize=6.5, rotation=0, ha="right", va="center")
+                if row == len(present) - 1:
+                    ax.set_xlabel("N (this ancestry)", fontsize=5.5)
+                ax.tick_params(labelsize=5)
+        fig.suptitle(f"{SPECIES_LABEL[species]}: per-ancestry (equal-N) saturation by "
+                     "recurrence class", fontsize=7, fontweight="bold")
+        vc.save_fig(fig, out_stem)
+
+
+# ---------------------------------------------------------------------------
 # Figure 2: equal-N supplement -- overall (genomic level) discovery curve per ancestry, KIR vs HLA,
 # plus the pooled-ALL curve for scale contrast (explains why the pooled slope << per-ancestry
 # slope: pooled N* is capped by the smallest well-powered ancestry's endpoint, see caption).
@@ -285,6 +358,11 @@ def fig_saturation_per_ancestry(curve, out_stem, level="genomic"):
 # read as a stand-in for the other (interpretation guard, module docstring).
 # ---------------------------------------------------------------------------
 def fig_coverage_completeness(cov, out_stem, level="genomic"):
+    """Pooled-ALL Good-Turing incidence coverage + Chao2 richness completeness, one species pair
+    per call. `level` picks which identity granularity: 'genomic' is the span-level UPPER BOUND
+    (person-specific span boundaries + intronic noise inflate it -- see README caveat 1, plotted
+    for context only), 'cds' and 'protein' are the two levels this v4b pass treats as the
+    headline comparison (both pass the same artifact gate)."""
     sub = cov[(cov["ancestry"] == "ALL") & (cov["level"] == level)].copy()
     sub["completeness"] = sub["s_obs"] / sub["chao2"]
     agg = sub.groupby("species", as_index=False).agg(
@@ -310,9 +388,58 @@ def fig_coverage_completeness(cov, out_stem, level="genomic"):
             ax.set_ylim(0, 1.08)
             ax.set_title(title, fontsize=6.5)
         axes[0].set_ylabel("fraction")
+        fig.suptitle(f"identity level: {level}"
+                     + (" (upper bound -- see caveats)" if level == "genomic" else ""),
+                     fontsize=6, style="italic")
         vc.panel_letter(axes[0], "a")
         vc.panel_letter(axes[1], "b")
         vc.save_fig(fig, out_stem)
+
+
+def fig_coverage_completeness_ancestry(cov, out_stem, level="protein",
+                                        ancestries=ANCESTRY_ORDER):
+    """Per-ancestry Good-Turing coverage + Chao2 completeness (Marc's ask: 'plus sample coverage
+    and Chao2' broken out per ancestry, not just pooled-ALL). Grouped bars: x = ancestry,
+    color = species. Default `level='protein'` -- the headline granularity, not the genomic
+    upper bound."""
+    sub = cov[(cov["ancestry"].isin(ancestries)) & (cov["level"] == level)].copy()
+    sub["completeness"] = sub["s_obs"] / sub["chao2"]
+    agg = sub.groupby(["ancestry", "species"], as_index=False).agg(
+        good_turing_coverage=("good_turing_coverage", "mean"),
+        s_obs=("s_obs", "sum"), chao2=("chao2", "sum"))
+    agg["completeness"] = agg["s_obs"] / agg["chao2"]
+    present = [a for a in ancestries if a in set(agg["ancestry"])]
+    with vc.nature_style():
+        fig, axes = plt.subplots(1, 2, figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(60)),
+                                  constrained_layout=True)
+        x = np.arange(len(present))
+        width = 0.35
+        for ax, metric, title in (
+                (axes[0], "good_turing_coverage", "Good–Turing incidence coverage"),
+                (axes[1], "completeness", "Chao2 richness completeness (S$_{obs}$/Chao2)")):
+            for i, sp in enumerate(SPECIES_ORDER):
+                vals = [float(agg.loc[(agg["ancestry"] == a) & (agg["species"] == sp),
+                                       metric].iloc[0]) if not agg.loc[
+                        (agg["ancestry"] == a) & (agg["species"] == sp)].empty else np.nan
+                        for a in present]
+                offset = (i - 0.5) * width
+                ax.bar(x + offset, vals, width=width, color=SPECIES_COLOR_45(sp),
+                       label=SPECIES_LABEL[sp])
+            ax.set_xticks(x)
+            ax.set_xticklabels(present, fontsize=6)
+            ax.set_ylim(0, 1.08)
+            ax.set_title(title, fontsize=6.5)
+        axes[0].set_ylabel("fraction")
+        axes[0].legend(loc="lower right", **vc.LEGEND_KW)
+        fig.suptitle(f"identity level: {level}, per ancestry", fontsize=6, style="italic")
+        vc.panel_letter(axes[0], "a")
+        vc.panel_letter(axes[1], "b")
+        vc.save_fig(fig, out_stem)
+
+
+def SPECIES_COLOR_45(sp):
+    return {"hla": vc.JOURNAL_PALETTES[RECUR_COLOR_KEY][0],
+            "kir": vc.JOURNAL_PALETTES[RECUR_COLOR_KEY][3]}[sp]
 
 
 def main():
@@ -327,8 +454,19 @@ def main():
     rec, curve, cov = load_tables(args.in_dir)
 
     fig_saturation_by_recurrence(curve, os.path.join(out_dir, "fig_saturation_by_recurrence"))
+    for species in SPECIES_ORDER:
+        fig_saturation_by_recurrence_ancestry(
+            curve, os.path.join(out_dir, f"fig_saturation_by_recurrence_ancestry_{species}"),
+            species)
     fig_saturation_per_ancestry(curve, os.path.join(out_dir, "fig_saturation_per_ancestry"))
-    fig_coverage_completeness(cov, os.path.join(out_dir, "fig_coverage_completeness"))
+    fig_coverage_completeness(cov, os.path.join(out_dir, "fig_coverage_completeness"),
+                               level="genomic")
+    fig_coverage_completeness(cov, os.path.join(out_dir, "fig_coverage_completeness_cds"),
+                               level="cds")
+    fig_coverage_completeness(cov, os.path.join(out_dir, "fig_coverage_completeness_protein"),
+                               level="protein")
+    fig_coverage_completeness_ancestry(
+        cov, os.path.join(out_dir, "fig_coverage_completeness_ancestry_protein"), level="protein")
 
     stats = compute_singleton_share_stats(curve)
     stats_path = os.path.join(out_dir, "recurrence_stats.tsv")
@@ -337,7 +475,7 @@ def main():
 
     # Sanity-log the partition identity + the known recurrence_classes.tsv undercount, so a rerun
     # of this script always re-confirms both README claims rather than trusting stale prose.
-    for level in ["genomic", "any_novel", "protein_novel"]:
+    for level in ["genomic", "cds", "any_novel", "protein_novel"]:
         for sp in SPECIES_ORDER:
             p = pooled_recurrence_from_curves(curve, sp, level)
             if p is not None:

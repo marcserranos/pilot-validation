@@ -434,5 +434,123 @@ class TestColumnLabelStyleBinding(unittest.TestCase):
         plt.close(fig)
 
 
+def _synthetic_cov_with_cds():
+    """`_synthetic_cov()` plus a `cds` row per gene (v4b headline granularity) -- hand-computable
+    completeness_cds."""
+    cov = _synthetic_cov()
+    rows = cov.to_dict("records")
+
+    def add_cds(gene, species, s_obs, chao2):
+        rows.append({"gene": gene, "ancestry": "ALL", "level": "cds", "species": species,
+                     "n_people": 1000, "s_obs": s_obs, "good_turing_coverage": 0.98,
+                     "chao2": chao2, "chao2_se": 1.0, "chao2_undetected_f0hat": chao2 - s_obs,
+                     "q1": "", "q2": "", "chao_new_by_2n": 0.0})
+
+    add_cds("A", "hla", 60, 120.0)      # completeness_cds = 0.5
+    add_cds("B", "hla", 120, 150.0)     # completeness_cds = 0.8
+    add_cds("KIR2DL1", "kir", 30, 40.0)  # completeness_cds = 0.75
+    add_cds("KIR2DL2", "kir", 25, 50.0)  # completeness_cds = 0.5
+    return pd.DataFrame(rows)
+
+
+class TestCdsLevelMetrics(unittest.TestCase):
+    """v4b (2026-09-27): CDS-level metrics added to `build_gene_metrics` -- Marc's ask to base the
+    headline KIR-vs-HLA comparison on CDS and protein, not the genomic (span-level) upper bound."""
+
+    def setUp(self):
+        self.cov = _synthetic_cov_with_cds()
+        self.slope = _synthetic_slope()
+        self.metrics = m46.build_gene_metrics(self.cov, self.slope)
+
+    def test_completeness_cds_arithmetic(self):
+        row = self.metrics[(self.metrics.gene == "A") & (self.metrics.species == "hla")].iloc[0]
+        self.assertAlmostEqual(row["completeness_cds"], 0.5)
+        row = self.metrics[(self.metrics.gene == "B") & (self.metrics.species == "hla")].iloc[0]
+        self.assertAlmostEqual(row["completeness_cds"], 0.8)
+        row = self.metrics[(self.metrics.gene == "KIR2DL1") & (self.metrics.species == "kir")].iloc[0]
+        self.assertAlmostEqual(row["completeness_cds"], 0.75)
+        row = self.metrics[(self.metrics.gene == "KIR2DL2") & (self.metrics.species == "kir")].iloc[0]
+        self.assertAlmostEqual(row["completeness_cds"], 0.5)
+
+    def test_completeness_cds_nan_when_no_cds_row(self):
+        # Plain _synthetic_cov() has no `cds` level rows at all -- every gene's completeness_cds
+        # must come through as NaN, never a fabricated 0 or a silent KeyError.
+        metrics = m46.build_gene_metrics(_synthetic_cov(), self.slope)
+        self.assertTrue(metrics["completeness_cds"].isna().all())
+
+    def test_existing_genomic_completeness_column_unchanged(self):
+        # Adding the cds columns must not disturb the pre-existing genomic-level `completeness`.
+        row = self.metrics[(self.metrics.gene == "A") & (self.metrics.species == "hla")].iloc[0]
+        self.assertAlmostEqual(row["completeness"], 0.5)
+
+
+class TestFigCatalogueCompletenessThreePanels(unittest.TestCase):
+    """v4b: `fig_catalogue_completeness` grew a third (CDS) panel between the pre-existing genomic
+    and protein panels. Confirms it still renders through `check_layout(strict=True)` and that the
+    CDS panel's `label_genes=False` path draws NO per-gene direct labels (only an na_note, if any)
+    -- the busy CDS panel deliberately omits gene labels (see `_scatter_panel` docstring)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.cov = _synthetic_cov_with_cds()
+        self.slope = _synthetic_slope()
+        self.metrics = m46.build_gene_metrics(self.cov, self.slope)
+
+    def test_renders_three_panels_without_layout_violation(self):
+        out_stem = os.path.join(self.tmp.name, "fig_catalogue_completeness")
+        m46.fig_catalogue_completeness(self.metrics, out_stem)
+        self.assertTrue(os.path.exists(out_stem + ".png"))
+        self.assertTrue(os.path.exists(out_stem + ".pdf"))
+
+    def test_label_genes_false_draws_no_gene_labels(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(4, 3), constrained_layout=True)
+        m46._scatter_panel(ax, self.metrics, "pct_novel_any", "completeness_cds",
+                            label_genes=False)
+        gene_names = set(self.metrics["gene_display"])
+        drawn = {t.get_text() for t in ax.texts}
+        self.assertFalse(drawn & gene_names, f"expected no gene labels, found: {drawn}")
+        plt.close(fig)
+
+
+class TestMainWritesPerAncestryMetrics(unittest.TestCase):
+    """Marc's ask: 'check it per gene and per ancestry' -- `main()` now also writes
+    `46_catalogue_metrics_by_ancestry.tsv`. Tests the underlying loop logic directly (build a
+    per-ancestry frame the same way `main()` does) rather than invoking `main()` and its argparse/
+    file-path plumbing."""
+
+    def test_per_ancestry_metrics_concat_has_ancestry_column_and_all_ancestries(self):
+        rows = []
+
+        def add(gene, species, level, ancestry, s_obs, chao2=None):
+            rows.append({"gene": gene, "ancestry": ancestry, "level": level, "species": species,
+                         "n_people": 500, "s_obs": s_obs, "good_turing_coverage": 0.95,
+                         "chao2": chao2 if chao2 is not None else s_obs * 1.5, "chao2_se": 1.0,
+                         "chao2_undetected_f0hat": (chao2 or s_obs * 1.5) - s_obs,
+                         "q1": "", "q2": "", "chao_new_by_2n": 0.0})
+
+        for anc in ("AFR", "EUR"):
+            add("A", "hla", "genomic", anc, 100, chao2=200.0)
+            add("A", "hla", "any_novel", anc, 20, chao2=40.0)
+            add("A", "hla", "protein", anc, 90, chao2=95.0)
+            add("A", "hla", "protein_novel", anc, 0, chao2=0.0)
+        cov = pd.DataFrame(rows)
+        slope = pd.DataFrame([{"gene": "A", "ancestry": a, "level": "genomic", "species": "hla",
+                               "curve": "distinct", "n_star": 500, "slope_per_1000": 1.0,
+                               "mean_at_n_star": 0.0} for a in ("AFR", "EUR")])
+        per_anc = []
+        for anc in ("AFR", "EUR"):
+            m = m46.build_gene_metrics(cov, slope, ancestry=anc)
+            m.insert(0, "ancestry", anc)
+            per_anc.append(m)
+        combined = pd.concat(per_anc, ignore_index=True)
+        self.assertEqual(set(combined["ancestry"]), {"AFR", "EUR"})
+        self.assertEqual(len(combined), 2)  # one HLA-A row per ancestry
+
+
 if __name__ == "__main__":
     unittest.main()
