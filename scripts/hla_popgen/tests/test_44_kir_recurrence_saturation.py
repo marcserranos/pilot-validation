@@ -100,6 +100,39 @@ def _write_cds_fasta_gz(path, records):
             f.write(f">{contig}_{gene}_{idx}\n{seq}\n")
 
 
+def _write_full_gtf_gz(path, entries, contig="chr19_synth"):
+    """For TRUE-GENOMIC identity tests: writes BOTH 'gene' and 'transcript' feature rows (real
+    Immuannot GTFs have both -- parse_hap_gtf_gene_rows needs the 'gene' row's start/end/strand,
+    parse_hap_gtf_transcript_minimal needs the 'transcript' row's consensus/cds_mut/
+    template_warning). entries: list of dicts with gene, consensus, start, end (1-based inclusive),
+    strand ('+'/'-'), and optional gene_id/template_warning/cds_mut."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with gzip.open(path, "wt") as f:
+        f.write("##synthetic test gtf\n")
+        for e in entries:
+            gene_id = e.get("gene_id", f"IG{e['gene']}")
+            strand = e.get("strand", "+")
+            start, end = e["start"], e["end"]
+            f.write(f'{contig}\tImmuannot\tgene\t{start}\t{end}\t.\t{strand}\t.\t'
+                    f'gene_id "{gene_id}"; gene_name "{e["gene"]}";\n')
+            t_attrs = (f'gene_id "{gene_id}"; transcript_id "IAT{e["gene"]}.1"; '
+                      f'gene_name "{e["gene"]}"; consensus "{e["consensus"]}"; '
+                      f'alleles "{e["consensus"]}";')
+            if e.get("template_warning") is not None:
+                t_attrs += f' template_warning "{e["template_warning"]}";'
+            if e.get("cds_mut") is not None:
+                t_attrs += f' cds_mut "{e["cds_mut"]}";'
+            f.write(f"{contig}\tImmuannot\ttranscript\t{start}\t{end}\t.\t{strand}\t.\t{t_attrs}\n")
+
+
+def _write_trimmed_fa(path, contig_seqs):
+    """hap{N}.trimmed.fa is PLAIN TEXT (not gzipped) -- see load_trimmed_fasta's docstring."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        for name, seq in contig_seqs.items():
+            f.write(f">{name}\n{seq}\n")
+
+
 class TestRecurrenceClassing(unittest.TestCase):
     def test_classify_recurrence_exact_and_overlap(self):
         counts = Counter({"a": 1, "b": 2, "c": 5, "d": 25})
@@ -379,10 +412,11 @@ class TestBuildPersonKirIdentity(unittest.TestCase):
             self.assertEqual(qc[("n_calls", "KIR3DL1")], 1)
             self.assertEqual(qc[("n_calls", "KIR2DL1")], 1)
 
-    def test_genomic_equals_cds_when_cds_fasta_present(self):
-        """Core assertion of fix (a): genomic and cds are now the IDENTICAL sequence-hash identity
-        (both are the CDS hash) -- this is what makes S_obs(genomic) == S_obs(cds), satisfying the
-        S_obs(protein) <= S_obs(cds) <= S_obs(genomic) invariant by construction."""
+    def test_genomic_and_any_novel_no_longer_populated_here(self):
+        """2026-09-27b TRUE-GENOMIC fix (supersedes the same-day genomic==cds alias):
+        build_person_kir_identity no longer populates 'genomic'/'any_novel' at all -- those now
+        come from build_person_true_genomic_identity() (hap{N}.trimmed.fa + gen.fa.gz), a separate,
+        species-agnostic code path. 'cds'/'protein'/'protein_novel' here are unchanged."""
         with tempfile.TemporaryDirectory() as tmp:
             person_dir = os.path.join(tmp, "999", "immuannot_output")
             _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
@@ -392,9 +426,9 @@ class TestBuildPersonKirIdentity(unittest.TestCase):
                                [("ctgA", "KIR3DL1", 1, "ATGAAATAG")])
             pid, per_level, qc, n_seen, n_cds = m44.build_person_kir_identity(
                 "999", tmp, kir41, m03mod, m24mod)
-            self.assertEqual(per_level["genomic"]["KIR3DL1"], per_level["cds"]["KIR3DL1"])
-            self.assertEqual(per_level["any_novel"]["KIR3DL1"], per_level["cds"]["KIR3DL1"])
-            self.assertTrue(next(iter(per_level["genomic"]["KIR3DL1"])).startswith("KIR3DL1_cds_"))
+            self.assertNotIn("KIR3DL1", per_level.get("genomic", {}))
+            self.assertNotIn("KIR3DL1", per_level.get("any_novel", {}))
+            self.assertTrue(next(iter(per_level["cds"]["KIR3DL1"])).startswith("KIR3DL1_cds_"))
 
     def test_cds_derived_from_real_cds_fasta_protein_uncovered_without_kir_ref(self):
         """2026-09-27: without a `kir_ref` (no protein catalogue at all), `cds` is still real (it
@@ -567,10 +601,28 @@ class TestEndToEndSynthetic(unittest.TestCase):
             "KIR3DL1*002new": "ATGAAACAG",  # 1bp different -> different novel protein/cds hash
             "KIR2DL1*003new": "ATGCCCTAG",
         }
+        # 2026-09-27b true-genomic fix: also write gene-row GTF entries + hap1.trimmed.fa so KIR's
+        # 'genomic'/'any_novel' levels (now built from hap{N}.trimmed.fa gene spans, not cds.fa.gz)
+        # have real data in this end-to-end test too, instead of degrading to NA -- fixed,
+        # non-overlapping spans per gene on the shared 60bp synthetic contig.
+        gene_span = {"KIR3DL1": (10, 20), "KIR2DL1": (30, 40)}
+        genomic_seq_by_consensus = {
+            "KIR3DL1*001": "AAAAAAAAAAA", "KIR3DL1*002new": "GGGGGGGGGGG",
+            "KIR2DL1*003new": "TTTTTTTTTTT",
+        }
         for pid, (anc, calls) in self.people.items():
             hap_dir = os.path.join(self.outroot, pid, "immuannot_output")
-            _write_gtf_gz(os.path.join(hap_dir, "hap1.gtf.gz"), calls, contig="ctgA")
-            _write_gtf_gz(os.path.join(hap_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            entries = []
+            contig_seq = ["N"] * 60
+            for gene, cons in calls:
+                start, end = gene_span[gene]
+                entries.append({"gene": gene, "consensus": cons, "start": start, "end": end})
+                contig_seq[start - 1:end] = list(genomic_seq_by_consensus[cons])
+            _write_full_gtf_gz(os.path.join(hap_dir, "hap1.gtf.gz"), entries, contig="ctgA")
+            _write_full_gtf_gz(os.path.join(hap_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            if entries:
+                _write_trimmed_fa(os.path.join(hap_dir, "hap1.trimmed.fa"),
+                                  {"ctgA": "".join(contig_seq)})
             records = [("ctgA", gene, i + 1, cds_by_consensus[cons])
                       for i, (gene, cons) in enumerate(calls)]
             if records:
@@ -616,6 +668,17 @@ class TestEndToEndSynthetic(unittest.TestCase):
          n_hap_seen, n_hap_cds_present) = m44.build_kir_identity_sets(pids, self.outroot, workers=1)
         self.assertTrue(kir_cds_available)
 
+        # 2026-09-27b true-genomic fix: 'genomic'/'any_novel' now come from a SEPARATE pass over
+        # hap{N}.trimmed.fa gene spans (setUp wrote real fixtures for these) -- gen_catalogue=None
+        # here (no gen.fa.gz fixture), so 'any_novel' comes back real-but-zero for every call
+        # (novelty is undetermined without a catalogue, never guessed True), not NA.
+        (kir_gen_sets, kir_gen_qc, kir_trimmed_available, _, _) = (
+            m44.build_true_genomic_identity_sets(pids, self.outroot, {"KIR3DL1", "KIR2DL1"},
+                                                 None, workers=1))
+        self.assertTrue(kir_trimmed_available)
+        kir_sets_by_level["genomic"] = kir_gen_sets["genomic"]
+        kir_sets_by_level["any_novel"] = kir_gen_sets["any_novel"]
+
         hla_sets_by_level = {lvl: m44.hla_person_gene_sets(calls, lvl, ["A"]) for lvl in m44.LEVELS}
 
         all_rec, all_curve, all_slope, all_cov = [], [], [], []
@@ -650,8 +713,11 @@ class TestEndToEndSynthetic(unittest.TestCase):
         rec_df = pd.read_csv(os.path.join(out_dir, "recurrence_classes.tsv"), sep="\t", dtype=str)
         for col in ("n_distinct_alleles", "eq1", "eq2", "gt2", "ge20"):
             for v in rec_df[col]:
-                if v not in ("0", "<20", "NA"):
-                    self.assertGreaterEqual(int(v), 20, f"{col}={v} should have been masked")
+                # pandas' default na_values reads the literal "NA" string back as float NaN --
+                # expected (KIR genomic/any_novel are NA here, no trimmed.fa fixture provided).
+                if pd.isna(v) or v in ("0", "<20", "NA"):
+                    continue
+                self.assertGreaterEqual(int(v), 20, f"{col}={v} should have been masked")
 
         # KIR cds/protein levels should have produced REAL (non-NA) rows since a cds.fa.gz fixture
         # was provided for every call in this fixture.
@@ -849,10 +915,9 @@ class TestKirProteinCatalogueCoverageFollowUpFix(unittest.TestCase):
             self.assertNotIn("KIR2DP1", per_level.get("protein", {}))
             self.assertNotIn("KIR2DP1", per_level.get("protein_novel", {}))
             self.assertEqual(qc["n_protein_gene_uncovered_calls"], 1)
-            # genomic/cds are unaffected by protein-catalogue coverage -- they only need cds.fa.gz
-            # (present here), and post-2026-09-27-fix are the SAME CDS-hash identity.
-            self.assertEqual(per_level["genomic"]["KIR2DP1"], per_level["cds"]["KIR2DP1"])
-            self.assertTrue(next(iter(per_level["genomic"]["KIR2DP1"])).startswith("KIR2DP1_cds_"))
+            # 'cds' is unaffected by protein-catalogue coverage -- it only needs cds.fa.gz (present
+            # here). 'genomic' is no longer built by this function (2026-09-27b true-genomic fix).
+            self.assertTrue(next(iter(per_level["cds"]["KIR2DP1"])).startswith("KIR2DP1_cds_"))
             self.assertEqual(len(per_level["cds"]["KIR2DP1"]), 1)
 
     def test_covered_gene_alongside_uncovered_gene_only_the_latter_is_skipped(self):
@@ -1007,20 +1072,23 @@ class TestKirProteinIdentityGranularityBugFix(unittest.TestCase):
                     for gene, ids in gene_sets.items():
                         sets_by_level[lvl].setdefault(gene, {})[pid] = ids
 
-            genomic_sets = sets_by_level["genomic"].get("KIR3DL1", {})
+            # 2026-09-27b: 'genomic' is no longer built by build_person_kir_identity (it now comes
+            # from the separate true-genomic path) -- compare against 'cds' instead, which this
+            # function DOES still build, and which the invariant (protein <= cds) still covers.
+            cds_sets = sets_by_level["cds"].get("KIR3DL1", {})
             protein_novel_sets = sets_by_level["protein_novel"].get("KIR3DL1", {})
-            genomic_row = m44.build_coverage_chao2_row(
-                "KIR3DL1", "ALL", "genomic", "kir",
-                {p: genomic_sets.get(p, set()) for p in people})
+            cds_row = m44.build_coverage_chao2_row(
+                "KIR3DL1", "ALL", "cds", "kir",
+                {p: cds_sets.get(p, set()) for p in people})
             protein_novel_row = m44.build_coverage_chao2_row(
                 "KIR3DL1", "ALL", "protein_novel", "kir",
                 {p: protein_novel_sets.get(p, set()) for p in people})
-            self.assertLessEqual(protein_novel_row["s_obs"], genomic_row["s_obs"],
+            self.assertLessEqual(protein_novel_row["s_obs"], cds_row["s_obs"],
                                  f"protein_novel s_obs ({protein_novel_row['s_obs']}) must not "
-                                 f"exceed genomic s_obs ({genomic_row['s_obs']}) -- this is "
+                                 f"exceed cds s_obs ({cds_row['s_obs']}) -- this is "
                                  f"exactly the >100% pct_novel_protein bug.")
             self.assertEqual(protein_novel_row["s_obs"], 1)  # only the one genuinely novel protein
-            self.assertEqual(genomic_row["s_obs"], 2)        # KIR3DL1*001 and *002new
+            self.assertEqual(cds_row["s_obs"], 2)        # KIR3DL1*001 and *002new
 
 
 class TestSanityCheckCoverage(unittest.TestCase):
@@ -1113,34 +1181,56 @@ class TestIdentityImpossibilityFixNameCollapse(unittest.TestCase):
     (name-based, incorrectly collapsed)."""
 
     def test_same_consensus_name_different_sequences_are_two_distinct_genomic_alleles(self):
+        """2026-09-27b TRUE-GENOMIC fix: genomic identity now comes from
+        build_person_true_genomic_identity() (hap{N}.trimmed.fa gene span, hashed) -- exercised
+        here directly, since the same collapse mechanism (two different observed sequences sharing
+        one Immuannot consensus name) applies to the true genomic span just as it did to the
+        earlier CDS-hash-as-genomic-alias design."""
+        contig = "ctgA"
+        # 50bp contig; gene span [10,20] (1-based inclusive, 11bp) differs between the two people.
+        base = "N" * 9 + "AAAAAAAAAAA" + "N" * 30
+        variant = "N" * 9 + "CCCCCCCCCCC" + "N" * 30
         with tempfile.TemporaryDirectory() as tmp:
-            for pid, seq in (("1", "ATGAAATAG"), ("2", "ATGCCCTAG")):
+            for pid, seq in (("1", base), ("2", variant)):
                 person_dir = os.path.join(tmp, pid, "immuannot_output")
                 # SAME consensus name for both people -- this is what Immuannot's "nearest known
                 # template + new" naming does for two unrelated novel sequences.
-                _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
-                             [("KIR3DL1", "KIR3DL1*001new")], contig="ctgA")
-                _write_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
-                _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
-                                   [("ctgA", "KIR3DL1", 1, seq)])
-            sets_by_level, qc, cds_available, n_seen, n_cds = m44.build_kir_identity_sets(
-                ["1", "2"], tmp, workers=1)
-            self.assertTrue(cds_available)
-            genomic_ids = set()
-            for pid_ids in sets_by_level["genomic"]["KIR3DL1"].values():
-                genomic_ids |= pid_ids
-            # The OLD (name-based) identity would have given exactly 1 distinct allele here
-            # (both calls are literally the string "KIR3DL1*001new"). The fix must give 2.
+                _write_full_gtf_gz(
+                    os.path.join(person_dir, "hap1.gtf.gz"),
+                    [{"gene": "KIR3DL1", "consensus": "KIR3DL1*001new", "start": 10, "end": 20}],
+                    contig=contig)
+                _write_full_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig=contig)
+                _write_trimmed_fa(os.path.join(person_dir, "hap1.trimmed.fa"), {contig: seq})
+            pid_out, per_gene, qc, n_seen, n_trim = m44.build_person_true_genomic_identity(
+                "1", tmp, {"KIR3DL1"}, None, m24mod)
+            _, per_gene2, _, _, _ = m44.build_person_true_genomic_identity(
+                "2", tmp, {"KIR3DL1"}, None, m24mod)
+            genomic_ids = per_gene["KIR3DL1"]["genomic"] | per_gene2["KIR3DL1"]["genomic"]
+            # The OLD (name-based) identity would have given exactly 1 distinct allele here (both
+            # calls are literally the string "KIR3DL1*001new"). The fix must give 2.
             self.assertEqual(len(genomic_ids), 2,
-                             "genomic identity must be sequence-based: two different observed "
-                             "CDS sequences sharing one Immuannot consensus name must NOT collapse "
-                             "to one distinct allele (this was the root cause of the KIR "
-                             "genomic-S_obs-too-low / protein-S_obs-too-high impossibility).")
-            # And it must equal the 'cds' identity exactly (fix (a)'s core equivalence).
-            cds_ids = set()
-            for pid_ids in sets_by_level["cds"]["KIR3DL1"].values():
-                cds_ids |= pid_ids
-            self.assertEqual(genomic_ids, cds_ids)
+                             "true-genomic identity must be sequence-based: two different observed "
+                             "genomic spans sharing one Immuannot consensus name must NOT collapse "
+                             "to one distinct allele.")
+
+    def test_genomic_identity_sets_orchestrator_matches_per_person_function(self):
+        contig = "ctgA"
+        seq = "N" * 9 + "AAAAAAAAAAA" + "N" * 30
+        with tempfile.TemporaryDirectory() as tmp:
+            for pid in ("1", "2"):
+                person_dir = os.path.join(tmp, pid, "immuannot_output")
+                _write_full_gtf_gz(
+                    os.path.join(person_dir, "hap1.gtf.gz"),
+                    [{"gene": "KIR3DL1", "consensus": "KIR3DL1*001", "start": 10, "end": 20}],
+                    contig=contig)
+                _write_full_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig=contig)
+                _write_trimmed_fa(os.path.join(person_dir, "hap1.trimmed.fa"), {contig: seq})
+            sets_by_level, qc, trimmed_available, n_seen, n_trim = (
+                m44.build_true_genomic_identity_sets(["1", "2"], tmp, {"KIR3DL1"}, None, workers=1))
+            self.assertTrue(trimmed_available)
+            self.assertEqual(len(sets_by_level["genomic"]["KIR3DL1"]["1"]), 1)
+            self.assertEqual(sets_by_level["genomic"]["KIR3DL1"]["1"],
+                             sets_by_level["genomic"]["KIR3DL1"]["2"])  # same sequence -> same id
 
     def test_hla_side_mirrors_the_same_fix(self):
         """The HLA-side mirror of the same fix: hla_id_col('genomic') now aliases cds_id, which is
@@ -1241,6 +1331,128 @@ class TestIdentityImpossibilityFixArtifactFilter(unittest.TestCase):
             self.assertEqual(qc[("artifact", "KIR3DL1", "clean")], 1)
 
 
+class TestTrueGenomicIdentity(unittest.TestCase):
+    """2026-09-27b coordinator follow-up: TRUE genomic identity (hap{N}.trimmed.fa gene span,
+    hashed) + gen.fa.gz-based novelty, restoring non-coding novelty the genomic==cds alias had
+    collapsed away."""
+
+    def test_genomic_span_novel_exact_match(self):
+        self.assertFalse(m44.genomic_span_novel("AAACCC", {"AAACCC"}))
+
+    def test_genomic_span_novel_observed_contained_in_reference(self):
+        """Our trim is tighter than IPD's own genomic record -- not novel."""
+        self.assertFalse(m44.genomic_span_novel("CCC", {"AAACCCGGG"}))
+
+    def test_genomic_span_novel_reference_contained_in_observed(self):
+        """IPD's record excludes some flanking UTR our extraction includes -- not novel."""
+        self.assertFalse(m44.genomic_span_novel("AAACCCGGG", {"CCC"}))
+
+    def test_genomic_span_novel_true_novelty(self):
+        self.assertTrue(m44.genomic_span_novel("TTTTTT", {"AAACCC", "GGGCCC"}))
+
+    def test_genomic_span_novel_undetermined_without_catalogue(self):
+        self.assertIsNone(m44.genomic_span_novel("AAACCC", set()))
+        self.assertIsNone(m44.genomic_span_novel("AAACCC", None))
+
+    def test_extract_genomic_span_reverse_complements_minus_strand(self):
+        trimmed = {"ctgA": "NNNNNNNNNAAACCCGGGNNNNNNNNNN"}  # span [10,18] = "AAACCCGGG"
+        seq, edge = m44.extract_genomic_span(trimmed, "ctgA", 10, 18, "+")
+        self.assertEqual(seq, "AAACCCGGG")
+        self.assertFalse(edge)
+        seq_rc, _ = m44.extract_genomic_span(trimmed, "ctgA", 10, 18, "-")
+        self.assertEqual(seq_rc, m44.reverse_complement("AAACCCGGG"))
+
+    def test_extract_genomic_span_flags_contig_edge(self):
+        trimmed = {"ctgA": "AAACCCGGGTTT"}
+        _, edge_start = m44.extract_genomic_span(trimmed, "ctgA", 1, 5, "+")
+        self.assertTrue(edge_start)
+        _, edge_end = m44.extract_genomic_span(trimmed, "ctgA", 8, 12, "+")
+        self.assertTrue(edge_end)
+        _, no_edge = m44.extract_genomic_span(trimmed, "ctgA", 4, 8, "+")
+        self.assertFalse(no_edge)
+
+    def test_extract_genomic_span_missing_contig_returns_none(self):
+        seq, edge = m44.extract_genomic_span({}, "ctgA", 1, 5, "+")
+        self.assertIsNone(seq)
+        self.assertFalse(edge)
+
+    def test_load_trimmed_fasta_missing_file_returns_empty_dict(self):
+        self.assertEqual(m44.load_trimmed_fasta("/no/such/file.fa"), {})
+
+    def test_load_genomic_catalogue_missing_file_returns_none_with_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cat, reason = m44.load_genomic_catalogue(tmp, m24mod)
+            self.assertIsNone(cat)
+            self.assertEqual(reason, "no_gen_fasta")
+
+    def test_contig_edge_truncated_span_excluded_from_genomic_identity(self):
+        """Task requirement: 'apply the same artifact gate to genomic spans that touch a contig
+        end (truncated)'."""
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "1", "immuannot_output")
+            # Gene span [1,10] touches the contig start (position 1) -> truncation artifact.
+            _write_full_gtf_gz(
+                os.path.join(person_dir, "hap1.gtf.gz"),
+                [{"gene": "KIR3DL1", "consensus": "KIR3DL1*001", "start": 1, "end": 10}],
+                contig="ctgA")
+            _write_full_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_trimmed_fa(os.path.join(person_dir, "hap1.trimmed.fa"),
+                              {"ctgA": "AAAAAAAAAANNNNNNNNNN"})
+            pid, per_gene, qc, n_seen, n_trim = m44.build_person_true_genomic_identity(
+                "1", tmp, {"KIR3DL1"}, None, m24mod)
+            self.assertNotIn("KIR3DL1", per_gene)
+            self.assertEqual(qc[("artifact_genomic", "KIR3DL1", "contig_edge_truncated")], 1)
+
+    def test_partial_cds_template_warning_excludes_genomic_span_too(self):
+        """The SAME artifact_label_of() gate cds/protein use also applies to true-genomic spans
+        (not just a contig-edge check)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "1", "immuannot_output")
+            _write_full_gtf_gz(
+                os.path.join(person_dir, "hap1.gtf.gz"),
+                [{"gene": "KIR3DL1", "consensus": "KIR3DL1*001new", "start": 10, "end": 20,
+                  "template_warning": "partial_CDS"}],
+                contig="ctgA")
+            _write_full_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_trimmed_fa(os.path.join(person_dir, "hap1.trimmed.fa"),
+                              {"ctgA": "N" * 9 + "AAAAAAAAAAA" + "N" * 20})
+            pid, per_gene, qc, n_seen, n_trim = m44.build_person_true_genomic_identity(
+                "1", tmp, {"KIR3DL1"}, None, m24mod)
+            self.assertNotIn("KIR3DL1", per_gene)
+            self.assertEqual(qc[("artifact_genomic", "KIR3DL1", "partial_cds")], 1)
+
+    def test_no_catalogue_for_gene_counts_toward_genomic_but_not_any_novel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "1", "immuannot_output")
+            _write_full_gtf_gz(
+                os.path.join(person_dir, "hap1.gtf.gz"),
+                [{"gene": "KIR3DL1", "consensus": "KIR3DL1*001new", "start": 10, "end": 20}],
+                contig="ctgA")
+            _write_full_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_trimmed_fa(os.path.join(person_dir, "hap1.trimmed.fa"),
+                              {"ctgA": "N" * 9 + "AAAAAAAAAAA" + "N" * 20})
+            pid, per_gene, qc, n_seen, n_trim = m44.build_person_true_genomic_identity(
+                "1", tmp, {"KIR3DL1"}, {}, m24mod)  # empty catalogue -> no entries for this gene
+            self.assertEqual(len(per_gene["KIR3DL1"]["genomic"]), 1)
+            self.assertEqual(len(per_gene["KIR3DL1"]["any_novel"]), 0)
+            self.assertEqual(qc[("artifact_genomic", "KIR3DL1", "no_catalogue_for_gene")], 1)
+
+    def test_trimmed_available_false_when_no_trimmed_fa_anywhere(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "1", "immuannot_output")
+            _write_full_gtf_gz(
+                os.path.join(person_dir, "hap1.gtf.gz"),
+                [{"gene": "KIR3DL1", "consensus": "KIR3DL1*001", "start": 10, "end": 20}],
+                contig="ctgA")
+            _write_full_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            # No hap1.trimmed.fa written at all.
+            sets_by_level, qc, trimmed_available, n_seen, n_trim = (
+                m44.build_true_genomic_identity_sets(["1"], tmp, {"KIR3DL1"}, None, workers=1))
+            self.assertFalse(trimmed_available)
+            self.assertEqual(n_trim, 0)
+            self.assertGreater(n_seen, 0)
+
+
 class TestSplitKirQcAndDiagnostics(unittest.TestCase):
     def test_split_separates_scalar_and_tuple_keyed_entries(self):
         qc = Counter({
@@ -1288,6 +1500,18 @@ class TestCheckIdentityInvariants(unittest.TestCase):
             self._rec("kir", "KIR3DL1", "ALL", "protein_novel", 30),
         ]
         m44.check_identity_invariants(cov, rec)  # must not raise
+
+    def test_passes_when_genomic_strictly_exceeds_cds(self):
+        """2026-09-27b true-genomic fix: genomic is no longer forced equal to cds (that was the
+        same-day alias, since superseded) -- distinct non-coding differences legitimately make
+        genomic RICHER than cds (introns/UTR collapse away at the CDS level), so genomic > cds must
+        NOT raise; only cds > genomic (the impossible direction) should."""
+        cov = [
+            self._cov("kir", "KIR3DL1", "ALL", "genomic", 150),
+            self._cov("kir", "KIR3DL1", "ALL", "cds", 100),
+            self._cov("kir", "KIR3DL1", "ALL", "protein", 60),
+        ]
+        m44.check_identity_invariants(cov, [])  # must not raise
 
     def test_raises_when_protein_exceeds_cds(self):
         """This is the EXACT v3 impossibility this fix addresses: 6,300 distinct KIR proteins

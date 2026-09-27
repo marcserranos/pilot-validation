@@ -89,6 +89,30 @@ a coarsening of full-sequence identity and can never be richer than it.
   resolution, directly answering WS-B's "which region is better represented in its reference, at
   which resolution") plus the two novelty-filtered tracks (`any_novel`, `protein_novel`).
 
+TRUE GENOMIC IDENTITY (2026-09-27b, coordinator follow-up to the same-day genomic==cds alias):
+Marc's explicit ask is "general" novelty (ANY sequence difference, including non-coding) shown
+side by side with protein novelty -- the genomic==cds alias lost this, since CDS excludes introns/
+UTR and non-coding differences are the bulk of KIR's novelty (S03). `genomic`/`any_novel` are now
+built by `build_person_true_genomic_identity()` (species-agnostic): the GTF `gene` feature row's
+own (contig, start, end, strand) is used to slice `hap{N}.trimmed.fa` (kept, not gzipped, per
+reference/IMMUANNOT_GTF_SPEC.md part D/E and `00_recon_vm.py`'s HAP_ROOT_FILES), reverse-
+complemented on the `-` strand, then hashed. Novelty is decided by exact-or-containment comparison
+against `<refdata>/gen.fa.gz` (IPD's own genomic-allele FASTA -- see `genomic_span_novel()`'s
+docstring for the exact rule and why exact-length equality is too strict). The SAME
+`artifact_label_of()` gate `cds`/`protein` use applies here too, PLUS a genomic-specific check: a
+span touching a trimmed contig's own edge (position 1 or the contig's last base) is excluded as a
+likely truncation, never silently kept. Both `hap{N}.trimmed.fa` and `gen.fa.gz` availability are
+checked explicitly per species/globally; either missing degrades `genomic`/`any_novel` to the
+literal `"NA"` for that species (see LEVELS_NEEDING_TRIMMED_FASTA), never a guess or a silent
+fallback to the CDS-based identity. Runtime: reading one extra plain-text FASTA (typically tens to
+a few hundred KB, region-limited) and doing string-slice+hash work per haplotype, PLUS the one-time
+`gen.fa.gz` catalogue load (comparable in size/cost to the existing CDSseq catalogue load) and a
+per-distinct-(gene,sequence) containment scan (memoized via `novelty_cache`, so repeat known
+alleles cost one scan, not one per carrier) -- expected to add a similar order of magnitude to the
+existing `cds.fa.gz` pass (~10-20 min at 4 workers per the original identity-extraction estimate
+below), i.e. roughly +10-25 min on top of the current total, not a new dominant cost; not yet
+measured on real VM data.
+
 KIR IDENTITY EXTRACTION -- WHAT FILES EXIST, WHAT WAS CHECKED, WHAT COULD NOT BE VERIFIED
   `41_kir_pilot.py` and `43_kir_full_aggregate.py` have only ever read
   `<pid>/immuannot_output/hap{1,2}.gtf.gz` (confirmed by reading both files in full -- neither
@@ -202,6 +226,14 @@ OUTPUTS (--out-dir, default ~/s04/results/44/; only aggregates, safe to pull off
                            median_distinct_cds_hashes_per_name -- the direct evidence for how much
                            the old name-based identity collapsed distinct sequences (hypothesis
                            (a)), per gene, for both species (see build_diagnostics_identity_rows()).
+  genomic_artifact_qc.tsv  (2026-09-27b) species, gene, artifact_label, n_calls -- genomic-SPAN-
+                           level artifact counts (contig_edge_truncated, partial_cds, inframe_stop,
+                           homopolymer_indel, unresolved, no_catalogue_for_gene, clean), separate
+                           from artifact_qc.tsv's CDS-level counts.
+  genomic_identity_qc.tsv (2026-09-27b) one row: gen_catalogue_status, kir_genomic_available,
+                           hla_genomic_available (bools), n_hap_seen/n_hap_trimmed_present per
+                           species -- read this before trusting any 'genomic'/'any_novel' row is
+                           real rather than 'NA'.
   STATUS.txt               aggregate-progress-only status file, rewritten as the run proceeds.
 
 INVARIANT (task item 3, `check_identity_invariants()`, raises ValueError -- never just warns): for
@@ -226,6 +258,7 @@ Never writes anywhere under ~/pipeline_outputs* (read-only inputs; verify with a
 check of the 14 HLA production tables per this project's standing rule, same as 43's run did).
 """
 import argparse
+import glob
 import gzip
 import importlib.util
 import math
@@ -243,12 +276,15 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 SUPPRESS_BELOW = 20
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 LEVELS = ["genomic", "cds", "protein", "any_novel", "protein_novel"]
-# 2026-09-27 identity-impossibility fix: "genomic"/"any_novel" are now the SAME CDS-sequence-hash
-# identity as "cds" (see build_person_kir_identity's docstring) -- they need the cds.fa.gz join
-# just as much as "cds"/"protein"/"protein_novel" now, unlike the old name-based genomic identity
-# which only needed hap{1,2}.gtf.gz. All 5 levels now degrade to "NA" together if cds.fa.gz is
-# unavailable for the whole cohort.
-KIR_LEVELS_NEEDING_CDS_FASTA = {"genomic", "cds", "protein", "any_novel", "protein_novel"}
+# 2026-09-27b TRUE-GENOMIC fix (supersedes the same-day genomic==cds alias): "genomic"/"any_novel"
+# are back to their OWN identity, now a hash of the ACTUAL genomic span (gene start-end, including
+# introns/UTR) read from hap{N}.trimmed.fa by GTF gene-row coordinates -- see
+# build_person_true_genomic_identity()'s docstring. This restores non-coding novelty (the bulk of
+# KIR's novelty signal, per S03) which the genomic==cds alias had collapsed away. "cds"/"protein"/
+# "protein_novel" are UNCHANGED (still need cds.fa.gz); "genomic"/"any_novel" now need
+# hap{N}.trimmed.fa + the genomic reference catalogue (gen.fa.gz) instead.
+KIR_LEVELS_NEEDING_CDS_FASTA = {"cds", "protein", "protein_novel"}
+LEVELS_NEEDING_TRIMMED_FASTA = {"genomic", "any_novel"}
 SPECIES = ["kir", "hla"]
 KIR_THRESHOLDS = [1, 2, 3, 20]
 # 39_saturation_by_ancestry.py's own DEFAULT_PEOPLE_OUTROOT convention: cds.fa.gz lives under
@@ -693,6 +729,7 @@ def parse_hap_gtf_full(gtf_path, kir):
             warn_m = _KIR_TEMPLATE_WARNING_RE.search(attrs)
             row = {
                 "gene": gene_m.group(1), "consensus": consensus, "contig": fields[0],
+                "gene_id": geneid_m.group(1) if geneid_m else None,
                 "copy_index": int(copy_m.group(1)) if copy_m else 1,
                 "cds_distance": int(cds_dist_m.group(1)) if cds_dist_m else None,
                 "cds_mut": cds_mut_m.group(1) if cds_mut_m else None,
@@ -712,6 +749,318 @@ def parse_hap_gtf_full(gtf_path, kir):
             row["novelty_tier"] = kir.classify_novelty_tier(row)
             rows.append(row)
     return rows
+
+
+# ---------------------------------------------------------------------------
+# TRUE GENOMIC identity (2026-09-27b, coordinator follow-up): restores non-coding novelty, which
+# the same-day genomic==cds alias collapsed away -- Marc's explicit ask is "general" novelty (ANY
+# sequence difference, including non-coding) side by side with protein novelty, and KIR's novelty
+# is mostly non-coding (S03). Species-agnostic (the SAME functions drive both HLA and KIR, unlike
+# the KIR-only cds.fa.gz-join code above) -- both species' Immuannot output shares the exact same
+# GTF schema (reference/IMMUANNOT_GTF_SPEC.md part A) and the same per-person tree shape
+# (<outroot>/<pid>/immuannot_output/hap{N}.gtf.gz + hap{N}.trimmed.fa, confirmed by
+# 00_recon_vm.py's own HAP_ROOT_FILES convention).
+# ---------------------------------------------------------------------------
+_COMPLEMENT_TABLE = str.maketrans("ACGTNacgtn", "TGCANtgcan")
+
+
+def reverse_complement(seq):
+    return seq.translate(_COMPLEMENT_TABLE)[::-1]
+
+
+def load_trimmed_fasta(path):
+    """hap{N}.trimmed.fa is PLAIN TEXT (NOT gzipped), per reference/IMMUANNOT_GTF_SPEC.md part D/E
+    and 00_recon_vm.py's own HAP_ROOT_FILES list (unlike cds.fa.gz, which is gzipped). Returns
+    {contig_id: seq} -- an empty dict, never an exception, if the file is missing; callers gate on
+    this explicitly (this task's "never a silent fallback" requirement)."""
+    seqs = {}
+    if not path or not os.path.exists(path):
+        return seqs
+    name = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n\r")
+            if not line:
+                continue
+            if line.startswith(">"):
+                if name is not None:
+                    seqs[name] = "".join(chunks).upper()
+                name = line[1:].split()[0]
+                chunks = []
+            else:
+                chunks.append(line.strip())
+    if name is not None:
+        seqs[name] = "".join(chunks).upper()
+    return seqs
+
+
+def parse_hap_gtf_transcript_minimal(gtf_path):
+    """Species-agnostic parse of Immuannot 'transcript' feature rows, for TRUE-GENOMIC identity
+    only: gene, gene_id, contig, consensus, cds_mut, template_warning. Deliberately does NOT call
+    41_kir_pilot.classify_novelty_tier (KIR-naming-convention-specific, e.g. its no-colon 'new'
+    suffix rule) -- true-genomic novelty here is decided by sequence containment against
+    gen.fa.gz (genomic_span_novel below), not by the consensus 'new'-suffix heuristic, so no
+    species-specific novelty classification is needed at this layer for either species."""
+    rows = []
+    if not gtf_path or not os.path.exists(gtf_path):
+        return rows
+    with gzip.open(gtf_path, "rt") as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 9 or fields[2] != "transcript":
+                continue
+            attrs = fields[8]
+            gene_m = _KIR_GENE_NAME_RE.search(attrs)
+            cons_m = _KIR_CONSENSUS_RE.search(attrs)
+            geneid_m = _KIR_GENE_ID_RE.search(attrs)
+            if not gene_m or not cons_m or not geneid_m:
+                continue
+            cds_mut_m = _KIR_CDS_MUT_RE.search(attrs)
+            warn_m = _KIR_TEMPLATE_WARNING_RE.search(attrs)
+            rows.append({
+                "gene": gene_m.group(1), "gene_id": geneid_m.group(1), "contig": fields[0],
+                "consensus": cons_m.group(1),
+                "cds_mut": cds_mut_m.group(1) if cds_mut_m else None,
+                "template_warning": warn_m.group(1) if warn_m else None,
+            })
+    return rows
+
+
+def parse_hap_gtf_gene_rows(gtf_path):
+    """Species-agnostic parse of Immuannot 'gene' feature rows (reference/IMMUANNOT_GTF_SPEC.md
+    part A): gene_id -> {contig, start, end, strand}. Columns 4/5 are 1-based inclusive,
+    contig-relative (part C) -- directly usable as a trimmed.fa slice, no off-by-one adjustment
+    (part D's "indirect route", step 2)."""
+    spans = {}
+    if not gtf_path or not os.path.exists(gtf_path):
+        return spans
+    with gzip.open(gtf_path, "rt") as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 9 or fields[2] != "gene":
+                continue
+            gid_m = _KIR_GENE_ID_RE.search(fields[8])
+            if not gid_m:
+                continue
+            try:
+                start, end = int(fields[3]), int(fields[4])
+            except ValueError:
+                continue
+            spans[gid_m.group(1)] = {"contig": fields[0], "start": start, "end": end,
+                                     "strand": fields[6]}
+    return spans
+
+
+def extract_genomic_span(trimmed_seqs, contig, start, end, strand):
+    """1-based inclusive GTF gene-row coords -> the observed genomic span sequence (introns/UTR
+    included), reverse-complemented to coding-sense orientation on the '-' strand (reference/
+    IMMUANNOT_GTF_SPEC.md part D, "indirect route" step 3). Returns (seq_or_None,
+    touches_contig_edge: bool). `touches_contig_edge` is the coordinator's flagged artifact: a gene
+    mapped right up to a trimmed contig's own boundary (position 1, or the contig's last base) is a
+    truncation candidate (the assembly/trim may have cut off real flanking sequence), not a
+    complete genomic call -- callers exclude these from genomic identity entirely, same treatment
+    as any other artifact class."""
+    seq_full = trimmed_seqs.get(contig)
+    if not seq_full:
+        return None, False
+    n = len(seq_full)
+    if start < 1 or end > n or start > end:
+        return None, False
+    touches_edge = (start == 1) or (end == n)
+    span = seq_full[start - 1:end]
+    if strand == "-":
+        span = reverse_complement(span)
+    return span, touches_edge
+
+
+def load_genomic_catalogue(refdata_dir, m24mod):
+    """Loads the IPD genomic-allele reference FASTA into {gene_bare: set(seq)} for the
+    true-genomic novelty check. Path: `<refdata>/gen.fa.gz` (the coordinator's specified location);
+    falls back to a recursive glob (`**/gen.fa.gz`) in case it's nested like `CDSseq/*.fa.gz` is.
+    Reuses `24_novelty_by_field.iter_fasta`/`parse_ref_header` verbatim -- the SAME header-parsing
+    convention already used for CDSseq, so this covers HLA and KIR from one file/one parse if IPD
+    bundles both gene families together (as CDSseq does). GUARDED: returns (None, reason) -- never
+    raises, never fabricates an empty-but-'ok' catalogue -- if the file can't be found or yields no
+    records. Callers must export genomic-level NOVELTY as 'NA' with that reason when this is None
+    (the genomic BASELINE hash doesn't need this catalogue and is unaffected)."""
+    path = os.path.join(refdata_dir, "gen.fa.gz")
+    if not os.path.exists(path):
+        cands = sorted(glob.glob(os.path.join(refdata_dir, "**", "gen.fa.gz"), recursive=True))
+        path = cands[0] if cands else None
+    if not path:
+        return None, "no_gen_fasta"
+    catalogue = defaultdict(set)
+    for g, name, seq, frame in m24mod.iter_fasta(path):
+        if g and seq:
+            catalogue[g].add(seq.upper())
+    if not catalogue:
+        return None, "gen_fasta_empty"
+    return dict(catalogue), "ok"
+
+
+def genomic_span_novel(obs_seq, ref_seqs):
+    """Novelty rule for TRUE-GENOMIC identity (defensible choice, documented per the coordinator's
+    ask -- "choose a defensible rule, document it, and test it"): IPD's own genomic reference
+    records do not necessarily span the identical coordinates our own gene-row extraction does (UTR
+    extent conventions differ between an assembly-derived trim and IPD's own record boundary), so
+    requiring an EXACT match would misclassify almost every textbook-known allele as "novel" purely
+    over a UTR-length mismatch. The precise fix (trimming to the shared aligned extent via
+    `mm2.ipd.gen.paf.gz`, when present) needs per-haplotype PAF re-parsing not implemented in this
+    pass -- flagged as a follow-up, not silently approximated as something stronger than it is.
+    RULE USED: NOT novel iff the observed span EQUALS a reference genomic sequence for this gene,
+    OR is CONTAINED IN one (our trim is the tighter of the two), OR CONTAINS one (the reference
+    record is the tighter one) -- i.e. "novel" means no reference genomic sequence for this gene
+    shares a containment relationship with the observed span in EITHER direction. Returns None
+    (never True/False) when `ref_seqs` is empty/unavailable for this gene -- novelty is
+    UNDETERMINED then, not silently "not novel"."""
+    if not ref_seqs:
+        return None
+    for ref in ref_seqs:
+        if obs_seq == ref or obs_seq in ref or ref in obs_seq:
+            return False
+    return True
+
+
+def build_person_true_genomic_identity(pid, hap_root, gene_names, gen_catalogue, m24mod,
+                                        novelty_cache=None):
+    """Species-agnostic (SAME function drives HLA and KIR -- 2026-09-27b true-genomic fix).
+    `hap_root`: the <outroot>/<pid>/immuannot_output tree's PARENT (KIR: --kir-outroot; HLA:
+    --hla-people-outroot, the SAME per-person convention 39/03 already use for cds.fa.gz).
+    `gene_names`: the species' own bare gene set (KIR_GENES / CLASSICAL_GENES_BARE).
+    `gen_catalogue`: {gene: set(seq)} from load_genomic_catalogue(), or None if unavailable.
+    `novelty_cache`: optional shared dict {(gene, seq): bool_or_None} -- many calls across people
+    share the SAME textbook-known genomic sequence, so caching genomic_span_novel()'s O(catalogue
+    size) containment scan per DISTINCT (gene, seq) pair (not per call) is the difference between
+    "cheap" and "re-scanning a multi-thousand-allele catalogue per haplotype."
+
+    Returns (pid, per_gene: {gene: {'genomic': set(id), 'any_novel': set(id)}}, qc: Counter,
+    n_hap_seen: int, n_hap_trimmed_present: int).
+
+    GATE per call (task: "apply the same artifact gate to genomic spans that touch a contig end
+    (truncated)" plus the pre-existing artifact_label_of() gate cds/protein already use):
+      1. `consensus == "undetermined"` -> skipped (shared HLA/KIR semantics, callIPDallele.py:140 --
+         Immuannot could not resolve this call at all).
+      2. `artifact_label_of(template_warning, cds_mut) != "clean"` (partial_cds/inframe_stop/
+         homopolymer_indel, from the SAME attributes cds/protein-level processing already reads) ->
+         excluded, `qc[("artifact_genomic", gene, label)]`.
+      3. the gene-row span can't be resolved (no matching gene_id, or hap{N}.trimmed.fa missing/
+         doesn't contain the contig) -> excluded, `qc[("artifact_genomic", gene, "unresolved")]`.
+      4. the extracted span TOUCHES A CONTIG END (`extract_genomic_span`'s `touches_contig_edge`) ->
+         excluded as a truncation artifact, `qc[("artifact_genomic", gene, "contig_edge_truncated")]`.
+    A call surviving all four gets `genomic_id = f"{gene}_gen_{sha8(span)}"`, added to 'genomic'.
+    Novelty (added to 'any_novel') is `genomic_span_novel(span, gen_catalogue.get(gene))` -- if that
+    is None (no catalogue entries for this gene), the call still counts toward 'genomic' baseline
+    richness but NEVER toward 'any_novel' either way (novelty is genuinely undetermined, not
+    guessed), and `qc[("artifact_genomic", gene, "no_catalogue_for_gene")]` records it."""
+    per_gene = defaultdict(lambda: {"genomic": set(), "any_novel": set()})
+    qc = Counter()
+    n_hap_seen = n_hap_trimmed_present = 0
+    if novelty_cache is None:
+        novelty_cache = {}
+    for hap in ("hap1", "hap2"):
+        person_dir = os.path.join(hap_root, str(pid), "immuannot_output")
+        gtf_path = os.path.join(person_dir, f"{hap}.gtf.gz")
+        rows = [r for r in parse_hap_gtf_transcript_minimal(gtf_path) if r["gene"] in gene_names]
+        if not rows:
+            continue
+        n_hap_seen += 1
+        trimmed_seqs = load_trimmed_fasta(os.path.join(person_dir, f"{hap}.trimmed.fa"))
+        if trimmed_seqs:
+            n_hap_trimmed_present += 1
+        gene_spans = parse_hap_gtf_gene_rows(gtf_path)
+        for r in rows:
+            gene, consensus = r["gene"], r["consensus"]
+            if consensus == "undetermined":
+                continue
+            artifact_label = m24mod.artifact_label_of(r.get("template_warning"), r["cds_mut"])
+            if artifact_label != "clean":
+                qc[("artifact_genomic", gene, artifact_label)] += 1
+                continue
+            span_info = gene_spans.get(r["gene_id"]) if r["gene_id"] else None
+            seq = touches_edge = None
+            if span_info and trimmed_seqs:
+                seq, touches_edge = extract_genomic_span(
+                    trimmed_seqs, span_info["contig"], span_info["start"], span_info["end"],
+                    span_info["strand"])
+            if not seq:
+                qc[("artifact_genomic", gene, "unresolved")] += 1
+                continue
+            if touches_edge:
+                qc[("artifact_genomic", gene, "contig_edge_truncated")] += 1
+                continue
+            qc[("artifact_genomic", gene, "clean")] += 1
+            genomic_id = f"{gene}_gen_{m24mod.sha8(seq)}"
+            per_gene[gene]["genomic"].add(genomic_id)
+            cache_key = (gene, seq)
+            if cache_key in novelty_cache:
+                novel = novelty_cache[cache_key]
+            else:
+                ref_seqs = gen_catalogue.get(gene) if gen_catalogue else None
+                novel = genomic_span_novel(seq, ref_seqs)
+                novelty_cache[cache_key] = novel
+            if novel is None:
+                qc[("artifact_genomic", gene, "no_catalogue_for_gene")] += 1
+            elif novel:
+                per_gene[gene]["any_novel"].add(genomic_id)
+    per_gene = {g: {"genomic": d["genomic"], "any_novel": d["any_novel"]}
+                for g, d in per_gene.items()}
+    return pid, per_gene, qc, n_hap_seen, n_hap_trimmed_present
+
+
+_id_gen_catalogue = None
+_id_gen_cache = None
+
+
+def _genomic_worker_init(gen_catalogue):
+    global _id_gen_catalogue, _id_gen_cache
+    _id_gen_catalogue = gen_catalogue
+    _id_gen_cache = {}
+
+
+def _genomic_worker_task(args):
+    pid, hap_root, gene_names = args
+    return build_person_true_genomic_identity(pid, hap_root, gene_names, _id_gen_catalogue, m24(),
+                                              _id_gen_cache)
+
+
+def build_true_genomic_identity_sets(pids, hap_root, gene_names, gen_catalogue, workers):
+    """Orchestrates build_person_true_genomic_identity over all `pids` -- species-agnostic; the
+    SAME function drives KIR's and HLA's own per-person trees (see main()). Returns
+    (sets_by_level: {'genomic': {gene: {pid: set}}, 'any_novel': {gene: {pid: set}}},
+    qc: Counter, trimmed_available: bool, n_hap_seen: int, n_hap_trimmed_present: int).
+    `trimmed_available` is False iff hap{N}.trimmed.fa was found for ZERO haplotypes across the
+    whole cohort -- main() exports 'genomic'/'any_novel' as 'NA' (reason='no_trimmed_fasta') in
+    that case for this species, never a silent fallback."""
+    sets_by_level = {"genomic": defaultdict(dict), "any_novel": defaultdict(dict)}
+    qc_total = Counter()
+    n_hap_seen_total = n_hap_trimmed_present_total = 0
+    if workers <= 1:
+        cache = {}
+        results = (build_person_true_genomic_identity(pid, hap_root, gene_names, gen_catalogue,
+                                                       m24(), cache) for pid in pids)
+    else:
+        pool = mp.Pool(processes=workers, initializer=_genomic_worker_init,
+                       initargs=(gen_catalogue,))
+        results = pool.imap_unordered(
+            _genomic_worker_task, [(pid, hap_root, gene_names) for pid in pids], chunksize=32)
+    for pid, per_gene, qc, n_seen, n_trim in results:
+        for gene, levels in per_gene.items():
+            for lvl in ("genomic", "any_novel"):
+                sets_by_level[lvl][gene][pid] = levels[lvl]
+        qc_total.update(qc)
+        n_hap_seen_total += n_seen
+        n_hap_trimmed_present_total += n_trim
+    if workers > 1:
+        pool.close()
+        pool.join()
+    trimmed_available = n_hap_trimmed_present_total > 0
+    return (sets_by_level, qc_total, trimmed_available, n_hap_seen_total,
+            n_hap_trimmed_present_total)
 
 
 def resolve_kir_cds_sequences(rows, cds_fa_path, m03mod):
@@ -913,15 +1262,13 @@ def build_person_kir_identity(pid, kir_outroot, kir, m03mod, m24mod, kir_ref=Non
                 qc[("artifact", gene, "frameshift_or_stop")] += 1
                 qc[("namehash", gene, consensus, "unresolved")] += 1
                 continue
-            # Fix (a) above: genomic/cds/any_novel now share ONE sequence-hash identity (the CDS
-            # hash) -- the best common denominator available for both species, since neither has a
-            # verified full-genomic-sequence extraction path. genomic and cds are therefore
-            # identical sets by construction (documented, not a bug -- see docstring).
+            # NOTE 2026-09-27b: this function no longer populates 'genomic'/'any_novel' -- those
+            # are now built separately by build_person_true_genomic_identity() from
+            # hap{N}.trimmed.fa gene spans (restores non-coding novelty; see LEVELS_NEEDING_
+            # TRIMMED_FASTA / that function's docstring). 'cds'/'protein'/'protein_novel' below are
+            # unchanged.
             cds_id = f"{gene}_cds_{m24mod.sha8(seq)}"
-            per_level["genomic"][gene].add(cds_id)
             per_level["cds"][gene].add(cds_id)
-            if tier != "known":
-                per_level["any_novel"][gene].add(cds_id)
             qc[("namehash", gene, consensus, cds_id)] += 1
             if not kir_gene_protein_covered(kir_ref, gene):
                 qc["n_protein_gene_uncovered_calls"] += 1
@@ -1444,8 +1791,57 @@ def main():
                   for g, (ok, reason) in sorted(kir_protein_status.items())]).to_csv(
         os.path.join(args.out_dir, "kir_protein_catalogue_qc.tsv"), sep="\t", index=False)
 
-    log("[44] building HLA identity sets (all 5 levels) ...")
-    hla_sets_by_level = {lvl: hla_person_gene_sets(calls, lvl, hla_genes) for lvl in LEVELS}
+    log("[44] building HLA identity sets (cds/protein/protein_novel levels) ...")
+    hla_sets_by_level = {lvl: hla_person_gene_sets(calls, lvl, hla_genes)
+                         for lvl in LEVELS if lvl not in LEVELS_NEEDING_TRIMMED_FASTA}
+
+    # 2026-09-27b TRUE-GENOMIC fix (coordinator follow-up): 'genomic'/'any_novel' are no longer
+    # aliased to 'cds' -- they are now built from hap{N}.trimmed.fa gene spans + gen.fa.gz, the SAME
+    # species-agnostic code path for BOTH species (see build_person_true_genomic_identity's
+    # docstring). Loaded ONCE and shared: IPD's gen.fa.gz is expected to carry both gene families
+    # (mirrors how CDSseq/*.fa.gz is organized), so one load covers KIR and HLA.
+    log("[44] loading genomic reference catalogue (gen.fa.gz) ...")
+    gen_catalogue, gen_catalogue_reason = load_genomic_catalogue(args.refdata, m24mod)
+    if gen_catalogue is None:
+        log(f"[44] WARNING: genomic reference catalogue unavailable ({gen_catalogue_reason}) -- "
+            f"'genomic'/'any_novel' baseline richness may still be real (from trimmed.fa alone) "
+            f"but 'any_novel' (genomic-level NOVELTY) cannot be determined for any gene without a "
+            f"catalogue to compare against; see genomic_span_novel()'s None return.")
+    else:
+        kir_genes_in_cat = sum(1 for g in kir_genes if g in gen_catalogue)
+        log(f"[44] genomic catalogue loaded: {len(gen_catalogue)} genes total, "
+            f"{kir_genes_in_cat}/{len(kir_genes)} KIR genes present.")
+
+    log("[44] building KIR true-genomic identity sets (hap{N}.trimmed.fa + gen.fa.gz) ...")
+    (kir_gen_sets, kir_gen_qc, kir_trimmed_available,
+     n_hap_seen_gk, n_hap_trim_gk) = build_true_genomic_identity_sets(
+        unrelated_pids, args.kir_outroot, set(kir_genes), gen_catalogue, args.workers)
+    kir_genomic_available = kir_trimmed_available and gen_catalogue is not None
+    if not kir_trimmed_available:
+        log("[44] WARNING: hap{N}.trimmed.fa was not found for ANY KIR haplotype -- KIR "
+            "'genomic'/'any_novel' will be exported as 'NA' (reason=no_trimmed_fasta).")
+    elif gen_catalogue is None:
+        log(f"[44] WARNING: no genomic catalogue ({gen_catalogue_reason}) -- KIR "
+            f"'genomic'/'any_novel' will be exported as 'NA' (reason={gen_catalogue_reason}).")
+    write_status(args.out_dir, f"KIR true-genomic sets built; available={kir_genomic_available} "
+                                f"(n_hap_seen={n_hap_seen_gk}, n_hap_trimmed={n_hap_trim_gk})")
+    if kir_genomic_available:
+        kir_sets_by_level["genomic"] = kir_gen_sets["genomic"]
+        kir_sets_by_level["any_novel"] = kir_gen_sets["any_novel"]
+
+    log("[44] building HLA true-genomic identity sets (hap{N}.trimmed.fa + gen.fa.gz) ...")
+    (hla_gen_sets, hla_gen_qc, hla_trimmed_available,
+     n_hap_seen_gh, n_hap_trim_gh) = build_true_genomic_identity_sets(
+        unrelated_pids, args.hla_people_outroot, set(hla_genes), gen_catalogue, args.workers)
+    hla_genomic_available = hla_trimmed_available and gen_catalogue is not None
+    if not hla_trimmed_available:
+        log("[44] WARNING: hap{N}.trimmed.fa was not found for ANY HLA haplotype -- HLA "
+            "'genomic'/'any_novel' will be exported as 'NA' (reason=no_trimmed_fasta).")
+    write_status(args.out_dir, f"HLA true-genomic sets built; available={hla_genomic_available} "
+                                f"(n_hap_seen={n_hap_seen_gh}, n_hap_trimmed={n_hap_trim_gh})")
+    if hla_genomic_available:
+        hla_sets_by_level["genomic"] = hla_gen_sets["genomic"]
+        hla_sets_by_level["any_novel"] = hla_gen_sets["any_novel"]
 
     all_rec, all_curve, all_slope, all_cov = [], [], [], []
     for level in LEVELS:
@@ -1461,6 +1857,9 @@ def main():
                 # kir_protein_catalogue_status()/kir_gene_protein_covered().
                 rec, curve, slope, cov = build_na_rows(gene, level, "kir", pids_by_ancestry,
                                                         n_star_by_ancestry)
+            elif level in LEVELS_NEEDING_TRIMMED_FASTA and not kir_genomic_available:
+                rec, curve, slope, cov = build_na_rows(gene, level, "kir", pids_by_ancestry,
+                                                        n_star_by_ancestry)
             else:
                 full_gene_sets = kir_sets_by_level[level].get(gene, {})
                 rec, curve, slope, cov = run_gene_level(
@@ -1468,6 +1867,11 @@ def main():
                     n_star_by_ancestry, args.curve_stride, args.extrapolate_2n)
             all_rec += rec; all_curve += curve; all_slope += slope; all_cov += cov
         for gene in hla_genes:
+            if level in LEVELS_NEEDING_TRIMMED_FASTA and not hla_genomic_available:
+                rec, curve, slope, cov = build_na_rows(gene, level, "hla", pids_by_ancestry,
+                                                        n_star_by_ancestry)
+                all_rec += rec; all_curve += curve; all_slope += slope; all_cov += cov
+                continue
             full_gene_sets = hla_sets_by_level[level].get(gene, {})
             rec, curve, slope, cov = run_gene_level(
                 gene, level, "hla", full_gene_sets, pids_by_ancestry, orders_by_ancestry,
@@ -1508,7 +1912,25 @@ def main():
     pd.DataFrame(diag_rows).to_csv(os.path.join(args.out_dir, "diagnostics_identity.tsv"),
                                     sep="\t", index=False)
 
-    write_status(args.out_dir, f"DONE in {time.perf_counter()-t0:.0f}s -- 7 tables written")
+    # 2026-09-27b: genomic-span-level artifact counts (contig_edge_truncated, partial_cds,
+    # inframe_stop, homopolymer_indel, unresolved, no_catalogue_for_gene, clean) -- separate from
+    # artifact_qc.tsv's CDS-level counts since they're a different identity level's gate.
+    genomic_artifact_rows = [
+        {"species": species, "gene": gene, "artifact_label": label, "n_calls": int(n)}
+        for qc, species in ((kir_gen_qc, "kir"), (hla_gen_qc, "hla"))
+        for (kind, gene, label), n in qc.items() if kind == "artifact_genomic"
+    ]
+    pd.DataFrame(genomic_artifact_rows).to_csv(
+        os.path.join(args.out_dir, "genomic_artifact_qc.tsv"), sep="\t", index=False)
+    pd.DataFrame([{"gen_catalogue_status": gen_catalogue_reason,
+                   "kir_genomic_available": kir_genomic_available,
+                   "hla_genomic_available": hla_genomic_available,
+                   "n_hap_seen_kir": n_hap_seen_gk, "n_hap_trimmed_present_kir": n_hap_trim_gk,
+                   "n_hap_seen_hla": n_hap_seen_gh, "n_hap_trimmed_present_hla": n_hap_trim_gh}]
+                 ).to_csv(os.path.join(args.out_dir, "genomic_identity_qc.tsv"),
+                          sep="\t", index=False)
+
+    write_status(args.out_dir, f"DONE in {time.perf_counter()-t0:.0f}s -- 9 tables written")
     log(f"[44] done in {time.perf_counter()-t0:.0f}s")
 
 
