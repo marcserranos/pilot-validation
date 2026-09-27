@@ -236,6 +236,28 @@ OUTPUTS (--out-dir, default ~/s04/results/44/; only aggregates, safe to pull off
                            real rather than 'NA'.
   STATUS.txt               aggregate-progress-only status file, rewritten as the run proceeds.
 
+CHECKPOINTING / RESUME (2026-09-27c, after a ~1h VM run died at ~33min and lost everything --
+Marc's rule: save gradually): every expensive stage (KIR CDS/protein identity, KIR true-genomic
+identity, HLA labeled calls, HLA true-genomic identity) and the per-gene-level output-row loop
+writes its result ATOMICALLY (tmp file + os.replace) to `<out-dir>/_checkpoints/<stage>.pkl` as
+soon as it finishes; the two per-person identity loops ALSO checkpoint every `--checkpoint-every`
+(default 1000) people within the loop itself, so a crash loses at most one chunk, not the whole
+stage. On start (`--resume`, on by default), each checkpoint is validated against a small header
+{script md5, args hash} written alongside it -- a checkpoint from a different code version or a
+different `--kir-outroot`/`--hla-table`/`--limit`/etc. is a MISMATCH, logged and ignored (never
+silently reused), and that stage/chunk is recomputed from scratch. `--no-resume` ignores every
+checkpoint unconditionally (fresh run).
+
+`_checkpoints/` holds PER-PERSON IDENTITY SETS (the exact `~/pipeline_outputs*`-derived per-person
+allele sets this whole module exists to keep off the VM's shared results tree) -- it MUST NOT be
+pulled off the VM, ever, disclosure rules or not: it is intermediate working state, not an
+aggregate. It lives under `~/s04/results/44/_checkpoints` (i.e. under `~/s04/results/`, never
+under `~/pipeline_outputs*`), one single, easily-excluded directory name -- a pull step should use
+`rsync --exclude='_checkpoints'` or `find <out-dir> -maxdepth 1 -name '_checkpoints' -prune -o
+-print` rather than a blanket recursive copy of `--out-dir`. Safe to delete once the run's 9
+aggregate TSVs are written and pulled; a fresh `--no-resume` run also ignores (does not delete) any
+stale `_checkpoints/` left over from a previous, differently-configured run.
+
 INVARIANT (task item 3, `check_identity_invariants()`, raises ValueError -- never just warns): for
 every (species, gene, ancestry) with unmasked, non-"NA" values, S_obs(protein) <= S_obs(cds) ==
 S_obs(genomic), and any_novel/protein_novel n_distinct_alleles never exceed their own baseline
@@ -260,10 +282,13 @@ check of the 14 HLA production tables per this project's standing rule, same as 
 import argparse
 import glob
 import gzip
+import hashlib
 import importlib.util
+import json
 import math
 import multiprocessing as mp
 import os
+import pickle
 import re
 import sys
 import time
@@ -297,6 +322,8 @@ DEFAULT_HLA_PEOPLE_OUTROOT = os.path.expanduser("~/pipeline_outputs/people")
 N_PERMUTATIONS_DEFAULT = 25       # Pakistan Fig 3e convention, matches 39's default
 MIN_PEOPLE_PER_ANCESTRY = 100      # "well-powered" floor for N*, matches 39
 CURVE_STRIDE_DEFAULT = 25          # export every Nth curve point (keeps saturation_curves.tsv small)
+CHECKPOINT_EVERY_DEFAULT = 1000    # people per within-loop checkpoint chunk (2026-09-27c resume fix)
+CHECKPOINT_DIRNAME = "_checkpoints"  # under --out-dir; per-person state, NEVER pulled off the VM
 
 
 def log(msg):
@@ -523,6 +550,172 @@ def write_status(out_dir, msg):
             f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
     except OSError as e:
         log(f"WARNING: could not write STATUS.txt: {e}")
+
+
+class Timer:
+    """Context manager: logs + writes to STATUS.txt a stage's start/end/elapsed. Used for every
+    checkpointed stage below so a killed/resumed run's STATUS.txt shows exactly which stage was
+    running when it died and how long each completed stage actually took."""
+    def __init__(self, out_dir, stage_name):
+        self.out_dir, self.stage_name = out_dir, stage_name
+
+    def __enter__(self):
+        self.t0 = time.perf_counter()
+        write_status(self.out_dir, f"STAGE START {self.stage_name}")
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        elapsed = time.perf_counter() - self.t0
+        if exc_type is None:
+            write_status(self.out_dir, f"STAGE END {self.stage_name} elapsed={elapsed:.1f}s")
+        else:
+            write_status(self.out_dir,
+                         f"STAGE FAILED {self.stage_name} elapsed={elapsed:.1f}s ({exc_type.__name__}: {exc})")
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Checkpointing (2026-09-27c): a ~1h VM run died at ~33min and lost EVERYTHING -- Marc's rule is
+# "save gradually". Every expensive stage writes its result atomically (tmp file + os.replace)
+# under `<out-dir>/_checkpoints/`, validated on load by a small header (script md5 + args hash) so
+# a checkpoint from a stale code version or a different input configuration is ignored (logged,
+# never silently reused) rather than trusted. See module docstring "CHECKPOINTING / RESUME" for
+# the full contract, including why `_checkpoints/` must never be pulled off the VM.
+# ---------------------------------------------------------------------------
+def script_md5():
+    with open(os.path.abspath(__file__), "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()
+
+
+# Args that affect NOTHING about the computed result (only speed, I/O location, or the
+# resume/checkpoint machinery itself) -- excluded from the fingerprint so e.g. changing --workers
+# or --out-dir doesn't spuriously invalidate every checkpoint.
+_ARGS_EXCLUDED_FROM_FINGERPRINT = {"workers", "out_dir", "resume", "checkpoint_every"}
+
+
+def args_fingerprint(args):
+    d = {k: v for k, v in sorted(vars(args).items()) if k not in _ARGS_EXCLUDED_FROM_FINGERPRINT}
+    blob = json.dumps(d, sort_keys=True, default=str).encode()
+    return hashlib.sha256(blob).hexdigest()[:16]
+
+
+def checkpoint_header(args):
+    """The small validity header stored alongside every checkpoint -- see module docstring. One
+    header per run, shared by every stage/chunk checkpoint (simpler than a per-stage subset of
+    args; any input change invalidates every checkpoint, which is the safe direction to err in)."""
+    return {"script_md5": script_md5(), "args_hash": args_fingerprint(args)}
+
+
+def checkpoint_dir(out_dir):
+    d = os.path.join(out_dir, CHECKPOINT_DIRNAME)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def save_checkpoint(out_dir, name, payload, header):
+    """Atomic write: a tmp file (unique per-process, so concurrent runs in different --out-dirs
+    never collide) written in full, then os.replace()'d over the final path -- a reader never sees
+    a partially-written checkpoint, and a crash mid-write leaves the OLD checkpoint (or none)
+    intact, never a corrupt one."""
+    d = checkpoint_dir(out_dir)
+    path = os.path.join(d, f"{name}.pkl")
+    tmp = os.path.join(d, f".{name}.tmp.{os.getpid()}")
+    with open(tmp, "wb") as f:
+        pickle.dump({"header": header, "payload": payload}, f, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, path)
+    log(f"[44][checkpoint] saved {name} -> {path}")
+
+
+def load_checkpoint(out_dir, name, header):
+    """Returns the checkpointed payload if a valid (header-matching) checkpoint exists, else None
+    (with a log line explaining why -- missing, unreadable, or stale). Never raises: a corrupt or
+    stale checkpoint is treated exactly like a missing one -- recompute, don't crash the run."""
+    path = os.path.join(checkpoint_dir(out_dir), f"{name}.pkl")
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+    except (OSError, EOFError, pickle.UnpicklingError, AttributeError) as e:
+        log(f"[44][checkpoint] {name}: unreadable checkpoint ({e}) -- ignoring, recomputing.")
+        return None
+    if data.get("header") != header:
+        log(f"[44][checkpoint] {name}: STALE checkpoint (script/args changed) -- ignoring, "
+            f"recomputing. old={data.get('header')} new={header}")
+        return None
+    log(f"[44][checkpoint] {name}: valid checkpoint found -- resuming from it.")
+    return data["payload"]
+
+
+def _process_people_with_checkpoint(name, pids, make_arg, worker_fn, init_fn, init_args,
+                                     workers, merge_fn, empty_state, out_dir=None, header=None,
+                                     resume=True, checkpoint_every=CHECKPOINT_EVERY_DEFAULT):
+    """Generic chunked/checkpointed per-person processing driver, shared by
+    build_kir_identity_sets and build_true_genomic_identity_sets (2026-09-27c). Runs `worker_fn`
+    (optionally via a `workers`-way multiprocessing.Pool, `init_fn`/`init_args` as its
+    initializer) over `make_arg(pid)` for every pid in `pids` not already recorded as done in a
+    resumed checkpoint, merging each result into an accumulator via `merge_fn(state, result)`
+    (`result[0]` must be the pid). Every `checkpoint_every` completed people, the accumulator +
+    the set of done pids is saved atomically to `<out_dir>/_checkpoints/<name>_progress.pkl` (see
+    save_checkpoint) -- so a crash loses at most one chunk's worth of people, not the whole stage.
+
+    `out_dir`/`header` of None disables checkpointing entirely (plain in-memory processing, no
+    disk I/O, no resume) -- used by unit tests and any caller that doesn't want VM-only disk
+    behavior; `resume=False` still writes checkpoints as it goes (so a LATER run with `--resume`
+    can pick them up) but ignores any existing one on entry."""
+    checkpointing = out_dir is not None and header is not None
+    state, done_pids = None, set()
+    if checkpointing and resume:
+        ckpt = load_checkpoint(out_dir, f"{name}_progress", header)
+        if ckpt is not None:
+            state, done_pids = ckpt["state"], set(ckpt["done_pids"])
+            log(f"[44][checkpoint] {name}: resuming with {len(done_pids)}/{len(pids)} people "
+                f"already done.")
+    if state is None:
+        state = empty_state()
+
+    remaining = [p for p in pids if p not in done_pids]
+    if not remaining:
+        log(f"[44] {name}: all {len(pids)} people already done (from checkpoint) -- nothing to "
+            f"compute.")
+        return state
+
+    if len(done_pids):
+        log(f"[44] {name}: processing {len(remaining)}/{len(pids)} remaining people "
+            f"({len(done_pids)} resumed from checkpoint).")
+    else:
+        log(f"[44] {name}: processing {len(remaining)} people.")
+
+    pool = None
+    if workers <= 1:
+        init_fn(*init_args)
+        results_iter = (worker_fn(make_arg(p)) for p in remaining)
+    else:
+        pool = mp.Pool(processes=workers, initializer=init_fn, initargs=init_args)
+        results_iter = pool.imap_unordered(worker_fn, (make_arg(p) for p in remaining),
+                                            chunksize=32)
+
+    since_checkpoint = 0
+    try:
+        for result in results_iter:
+            merge_fn(state, result)
+            done_pids.add(result[0])
+            since_checkpoint += 1
+            if checkpointing and since_checkpoint >= checkpoint_every:
+                save_checkpoint(out_dir, f"{name}_progress",
+                                 {"state": state, "done_pids": done_pids}, header)
+                write_status(out_dir,
+                             f"{name}: checkpoint at {len(done_pids)}/{len(pids)} people")
+                since_checkpoint = 0
+    finally:
+        if pool is not None:
+            pool.close()
+            pool.join()
+
+    if checkpointing:
+        save_checkpoint(out_dir, f"{name}_progress", {"state": state, "done_pids": done_pids},
+                         header)
+    return state
 
 
 # ---------------------------------------------------------------------------
@@ -1040,39 +1233,53 @@ def _genomic_worker_task(args):
                                               _id_gen_cache)
 
 
-def build_true_genomic_identity_sets(pids, hap_root, gene_names, gen_catalogue, workers):
+def _true_genomic_empty_state():
+    return {"sets_by_level": {"genomic": defaultdict(dict), "any_novel": defaultdict(dict)},
+            "qc": Counter(), "n_hap_seen": 0, "n_hap_trimmed_present": 0}
+
+
+def _true_genomic_merge(state, result):
+    pid, per_gene, qc, n_seen, n_trim = result
+    for gene, levels in per_gene.items():
+        for lvl in ("genomic", "any_novel"):
+            state["sets_by_level"][lvl][gene][pid] = levels[lvl]
+    state["qc"].update(qc)
+    state["n_hap_seen"] += n_seen
+    state["n_hap_trimmed_present"] += n_trim
+
+
+def build_true_genomic_identity_sets(pids, hap_root, gene_names, gen_catalogue, workers,
+                                      out_dir=None, header=None, resume=True,
+                                      checkpoint_every=CHECKPOINT_EVERY_DEFAULT,
+                                      checkpoint_name="true_genomic"):
     """Orchestrates build_person_true_genomic_identity over all `pids` -- species-agnostic; the
     SAME function drives KIR's and HLA's own per-person trees (see main()). Returns
     (sets_by_level: {'genomic': {gene: {pid: set}}, 'any_novel': {gene: {pid: set}}},
     qc: Counter, trimmed_available: bool, n_hap_seen: int, n_hap_trimmed_present: int).
     `trimmed_available` is False iff hap{N}.trimmed.fa was found for ZERO haplotypes across the
     whole cohort -- main() exports 'genomic'/'any_novel' as 'NA' (reason='no_trimmed_fasta') in
-    that case for this species, never a silent fallback."""
-    sets_by_level = {"genomic": defaultdict(dict), "any_novel": defaultdict(dict)}
-    qc_total = Counter()
-    n_hap_seen_total = n_hap_trimmed_present_total = 0
-    if workers <= 1:
-        cache = {}
-        results = (build_person_true_genomic_identity(pid, hap_root, gene_names, gen_catalogue,
-                                                       m24(), cache) for pid in pids)
-    else:
-        pool = mp.Pool(processes=workers, initializer=_genomic_worker_init,
-                       initargs=(gen_catalogue,))
-        results = pool.imap_unordered(
-            _genomic_worker_task, [(pid, hap_root, gene_names) for pid in pids], chunksize=32)
-    for pid, per_gene, qc, n_seen, n_trim in results:
-        for gene, levels in per_gene.items():
-            for lvl in ("genomic", "any_novel"):
-                sets_by_level[lvl][gene][pid] = levels[lvl]
-        qc_total.update(qc)
-        n_hap_seen_total += n_seen
-        n_hap_trimmed_present_total += n_trim
-    if workers > 1:
-        pool.close()
-        pool.join()
-    trimmed_available = n_hap_trimmed_present_total > 0
-    return (sets_by_level, qc_total, trimmed_available, n_hap_seen_total,
-            n_hap_trimmed_present_total)
+    that case for this species, never a silent fallback.
+
+    2026-09-27c: this per-person loop is one of the checkpointed stages (module docstring
+    "CHECKPOINTING / RESUME") -- `out_dir`/`header` given (main() passes both, with a species-
+    specific `checkpoint_name` so KIR's and HLA's own true-genomic passes don't collide) turns on
+    resumable, chunked (`checkpoint_every` people) checkpointing via
+    `_process_people_with_checkpoint`; left as None (the default, used by every existing caller/
+    test) reproduces the exact prior in-memory-only behavior."""
+    # _genomic_worker_init/_genomic_worker_task (module-level globals) are used for BOTH the
+    # workers<=1 and workers>1 paths so a single shared novelty_cache persists across the whole
+    # cohort either way -- matching the pre-checkpointing behavior exactly (previously the
+    # workers<=1 branch built one local `cache` dict and reused it across all `pids`).
+    state = _process_people_with_checkpoint(
+        checkpoint_name, pids,
+        make_arg=lambda pid: (pid, hap_root, gene_names),
+        worker_fn=_genomic_worker_task,
+        init_fn=_genomic_worker_init, init_args=(gen_catalogue,),
+        workers=workers, merge_fn=_true_genomic_merge, empty_state=_true_genomic_empty_state,
+        out_dir=out_dir, header=header, resume=resume, checkpoint_every=checkpoint_every)
+    trimmed_available = state["n_hap_trimmed_present"] > 0
+    return (state["sets_by_level"], state["qc"], trimmed_available, state["n_hap_seen"],
+            state["n_hap_trimmed_present"])
 
 
 def resolve_kir_cds_sequences(rows, cds_fa_path, m03mod):
@@ -1331,7 +1538,24 @@ def _identity_worker_task(args):
     return build_person_kir_identity(pid, kir_outroot, _id_kir, _id_m03, _id_m24, _id_kir_ref)
 
 
-def build_kir_identity_sets(pids, kir_outroot, workers, refdata=None):
+def _kir_identity_empty_state():
+    return {"sets_by_level": {lvl: defaultdict(dict) for lvl in LEVELS}, "qc": Counter(),
+            "n_hap_seen": 0, "n_hap_cds_present": 0}
+
+
+def _kir_identity_merge(state, result):
+    pid, per_level, qc, n_seen, n_cds = result
+    for lvl, gene_sets in per_level.items():
+        for gene, ids in gene_sets.items():
+            state["sets_by_level"][lvl][gene][pid] = ids
+    state["qc"].update(qc)
+    state["n_hap_seen"] += n_seen
+    state["n_hap_cds_present"] += n_cds
+
+
+def build_kir_identity_sets(pids, kir_outroot, workers, refdata=None, out_dir=None, header=None,
+                             resume=True, checkpoint_every=CHECKPOINT_EVERY_DEFAULT,
+                             checkpoint_name="kir_identity"):
     """Orchestrates build_person_kir_identity over all `pids` (optionally multiprocessed, mirroring
     43_kir_full_aggregate.parse_all's Pool(initializer=...) pattern). Returns
     (sets_by_level: {level: {gene: {pid: set(id)}}}, qc: Counter, cds_available: bool,
@@ -1342,29 +1566,21 @@ def build_kir_identity_sets(pids, kir_outroot, workers, refdata=None):
     `refdata`: passed through to each worker's own `_identity_worker_init` (not shared as a live
     object across process boundaries -- each worker loads its own KIR RefIndex, same pattern this
     file already uses for m41/m03/m24). None (the default) reproduces the pre-fix hash-only /
-    novelty_tier-heuristic behavior -- see build_person_kir_identity's docstring."""
-    sets_by_level = {lvl: defaultdict(dict) for lvl in LEVELS}
-    qc_total = Counter()
-    n_hap_seen_total = n_hap_cds_present_total = 0
-    if workers <= 1:
-        _identity_worker_init(refdata)
-        results = (_identity_worker_task((pid, kir_outroot)) for pid in pids)
-    else:
-        pool = mp.Pool(processes=workers, initializer=_identity_worker_init, initargs=(refdata,))
-        results = pool.imap_unordered(_identity_worker_task,
-                                       [(pid, kir_outroot) for pid in pids], chunksize=32)
-    for pid, per_level, qc, n_seen, n_cds in results:
-        for lvl, gene_sets in per_level.items():
-            for gene, ids in gene_sets.items():
-                sets_by_level[lvl][gene][pid] = ids
-        qc_total.update(qc)
-        n_hap_seen_total += n_seen
-        n_hap_cds_present_total += n_cds
-    if workers > 1:
-        pool.close()
-        pool.join()
-    cds_available = n_hap_cds_present_total > 0
-    return sets_by_level, qc_total, cds_available, n_hap_seen_total, n_hap_cds_present_total
+    novelty_tier-heuristic behavior -- see build_person_kir_identity's docstring.
+
+    2026-09-27c: checkpointed/resumable exactly like build_true_genomic_identity_sets -- see that
+    function's docstring and the module docstring "CHECKPOINTING / RESUME". `out_dir`/`header` of
+    None (the default, used by every existing caller/test) disables checkpointing entirely."""
+    state = _process_people_with_checkpoint(
+        checkpoint_name, pids,
+        make_arg=lambda pid: (pid, kir_outroot),
+        worker_fn=_identity_worker_task,
+        init_fn=_identity_worker_init, init_args=(refdata,),
+        workers=workers, merge_fn=_kir_identity_merge, empty_state=_kir_identity_empty_state,
+        out_dir=out_dir, header=header, resume=resume, checkpoint_every=checkpoint_every)
+    cds_available = state["n_hap_cds_present"] > 0
+    return (state["sets_by_level"], state["qc"], cds_available, state["n_hap_seen"],
+            state["n_hap_cds_present"])
 
 
 # ---------------------------------------------------------------------------
@@ -1717,10 +1933,24 @@ def main():
     ap.add_argument("--limit", type=int, default=None, help="smoke test: cap discovered KIR people")
     ap.add_argument("--no-extrapolate-2n", dest="extrapolate_2n", action="store_false")
     ap.add_argument("--skip-relatedness", action="store_true")
+    ap.add_argument("--resume", dest="resume", action="store_true", default=True,
+                     help="(default) resume from any valid checkpoint under "
+                          "<out-dir>/_checkpoints/ instead of recomputing a finished stage/chunk; "
+                          "a checkpoint whose script-md5+args-hash header doesn't match this run "
+                          "is ignored (logged), never silently reused.")
+    ap.add_argument("--no-resume", dest="resume", action="store_false",
+                     help="ignore any existing checkpoint and recompute everything from scratch "
+                          "(still WRITES fresh checkpoints as it goes, unless --out-dir is shared "
+                          "with a run you don't want to disturb).")
+    ap.add_argument("--checkpoint-every", type=int, default=CHECKPOINT_EVERY_DEFAULT,
+                     help="checkpoint the per-person identity loops every N people (default "
+                          f"{CHECKPOINT_EVERY_DEFAULT}) -- a crash loses at most one chunk.")
     args = ap.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
-    write_status(args.out_dir, f"START outroot={args.kir_outroot} out_dir={args.out_dir}")
+    header = checkpoint_header(args)
+    write_status(args.out_dir, f"START outroot={args.kir_outroot} out_dir={args.out_dir} "
+                                f"resume={args.resume} checkpoint_header={header}")
     t0 = time.perf_counter()
 
     kir = m41()
@@ -1738,7 +1968,19 @@ def main():
         relatedness_table=args.relatedness_table, kin_min=args.kin_min,
         strict_threshold=args.strict_threshold, skip_relatedness=args.skip_relatedness,
         refdata=args.refdata, outroot=args.hla_people_outroot, threads=args.threads)
-    calls, ref_catalogue_size, mstats, n_removed = m39mod.build_labeled_calls(hla_args)
+    # 2026-09-27c: whole-stage checkpoint (not chunked internally -- build_labeled_calls() is
+    # 39_saturation_by_ancestry's own pipeline, reused verbatim per this module's own convention,
+    # so it has no per-person loop exposed here to checkpoint WITHIN; see module docstring
+    # "CHECKPOINTING / RESUME"). A crash during this stage still loses the whole stage's progress,
+    # same as before this fix -- only a crash AFTER it completes is now protected.
+    hla_ckpt = load_checkpoint(args.out_dir, "hla_labeled_calls", header) if args.resume else None
+    if hla_ckpt is not None:
+        calls, ref_catalogue_size, mstats, n_removed = hla_ckpt
+    else:
+        with Timer(args.out_dir, "hla_labeled_calls"):
+            calls, ref_catalogue_size, mstats, n_removed = m39mod.build_labeled_calls(hla_args)
+        save_checkpoint(args.out_dir, "hla_labeled_calls",
+                         (calls, ref_catalogue_size, mstats, n_removed), header)
     calls = add_hla_genomic_id(calls, m24mod)
     hla_pids = sorted(calls["person_id"].unique())
     write_status(args.out_dir, f"HLA calls loaded: {len(hla_pids)} people")
@@ -1769,9 +2011,12 @@ def main():
     hla_genes = m39mod.CLASSICAL_GENES_BARE
 
     log("[44] building KIR identity sets (all 5 levels, one pass per person) ...")
-    (kir_sets_by_level, kir_qc, kir_cds_available,
-     n_hap_seen, n_hap_cds_present) = build_kir_identity_sets(
-        unrelated_pids, args.kir_outroot, args.workers, refdata=args.refdata)
+    with Timer(args.out_dir, "kir_identity"):
+        (kir_sets_by_level, kir_qc, kir_cds_available,
+         n_hap_seen, n_hap_cds_present) = build_kir_identity_sets(
+            unrelated_pids, args.kir_outroot, args.workers, refdata=args.refdata,
+            out_dir=args.out_dir, header=header, resume=args.resume,
+            checkpoint_every=args.checkpoint_every)
     if not kir_cds_available:
         log("[44] WARNING: cds.fa.gz was not found for ANY KIR haplotype -- 'cds'/'protein'/"
             "'protein_novel' will be exported as 'NA' for every KIR row. See module docstring "
@@ -1825,9 +2070,12 @@ def main():
             f"{kir_genes_in_cat}/{len(kir_genes)} KIR genes present.")
 
     log("[44] building KIR true-genomic identity sets (hap{N}.trimmed.fa + gen.fa.gz) ...")
-    (kir_gen_sets, kir_gen_qc, kir_trimmed_available,
-     n_hap_seen_gk, n_hap_trim_gk) = build_true_genomic_identity_sets(
-        unrelated_pids, args.kir_outroot, set(kir_genes), gen_catalogue, args.workers)
+    with Timer(args.out_dir, "kir_true_genomic"):
+        (kir_gen_sets, kir_gen_qc, kir_trimmed_available,
+         n_hap_seen_gk, n_hap_trim_gk) = build_true_genomic_identity_sets(
+            unrelated_pids, args.kir_outroot, set(kir_genes), gen_catalogue, args.workers,
+            out_dir=args.out_dir, header=header, resume=args.resume,
+            checkpoint_every=args.checkpoint_every, checkpoint_name="kir_true_genomic")
     kir_genomic_available = kir_trimmed_available and gen_catalogue is not None
     if not kir_trimmed_available:
         log("[44] WARNING: hap{N}.trimmed.fa was not found for ANY KIR haplotype -- KIR "
@@ -1842,9 +2090,12 @@ def main():
         kir_sets_by_level["any_novel"] = kir_gen_sets["any_novel"]
 
     log("[44] building HLA true-genomic identity sets (hap{N}.trimmed.fa + gen.fa.gz) ...")
-    (hla_gen_sets, hla_gen_qc, hla_trimmed_available,
-     n_hap_seen_gh, n_hap_trim_gh) = build_true_genomic_identity_sets(
-        unrelated_pids, args.hla_people_outroot, set(hla_genes), gen_catalogue, args.workers)
+    with Timer(args.out_dir, "hla_true_genomic"):
+        (hla_gen_sets, hla_gen_qc, hla_trimmed_available,
+         n_hap_seen_gh, n_hap_trim_gh) = build_true_genomic_identity_sets(
+            unrelated_pids, args.hla_people_outroot, set(hla_genes), gen_catalogue, args.workers,
+            out_dir=args.out_dir, header=header, resume=args.resume,
+            checkpoint_every=args.checkpoint_every, checkpoint_name="hla_true_genomic")
     hla_genomic_available = hla_trimmed_available and gen_catalogue is not None
     if not hla_trimmed_available:
         log("[44] WARNING: hap{N}.trimmed.fa was not found for ANY HLA haplotype -- HLA "
@@ -1855,8 +2106,28 @@ def main():
         hla_sets_by_level["genomic"] = hla_gen_sets["genomic"]
         hla_sets_by_level["any_novel"] = hla_gen_sets["any_novel"]
 
-    all_rec, all_curve, all_slope, all_cov = [], [], [], []
+    # 2026-09-27c: per-LEVEL checkpoint of the accumulated output rows (module docstring
+    # "CHECKPOINTING / RESUME", stage "each finished output table") -- this loop's per-gene work is
+    # in-memory-only (the expensive per-person disk work already happened, and was already
+    # checkpointed, in the three build_*_identity_sets() stages above), but it can still run for a
+    # while across 17+ KIR genes x ~7 HLA genes x 5 levels x up to 25 permutations each, so a level
+    # boundary is a natural, cheap place to persist progress: a crash mid-loop resumes at the next
+    # un-finished level instead of re-running every earlier one.
+    level_ckpt = load_checkpoint(args.out_dir, "gene_level_rows", header) if args.resume else None
+    if level_ckpt is not None:
+        levels_done = set(level_ckpt["levels_done"])
+        all_rec, all_curve, all_slope, all_cov = (
+            level_ckpt["all_rec"], level_ckpt["all_curve"], level_ckpt["all_slope"],
+            level_ckpt["all_cov"])
+        log(f"[44][checkpoint] gene_level_rows: resuming with levels already done = "
+            f"{sorted(levels_done)}")
+    else:
+        levels_done = set()
+        all_rec, all_curve, all_slope, all_cov = [], [], [], []
     for level in LEVELS:
+        if level in levels_done:
+            log(f"[44] level={level} already done (from checkpoint) -- skipping.")
+            continue
         for gene in kir_genes:
             if level in KIR_LEVELS_NEEDING_CDS_FASTA and not kir_cds_available:
                 rec, curve, slope, cov = build_na_rows(gene, level, "kir", pids_by_ancestry,
@@ -1889,6 +2160,11 @@ def main():
                 gene, level, "hla", full_gene_sets, pids_by_ancestry, orders_by_ancestry,
                 n_star_by_ancestry, args.curve_stride, args.extrapolate_2n)
             all_rec += rec; all_curve += curve; all_slope += slope; all_cov += cov
+        levels_done.add(level)
+        save_checkpoint(args.out_dir, "gene_level_rows",
+                         {"levels_done": sorted(levels_done), "all_rec": all_rec,
+                          "all_curve": all_curve, "all_slope": all_slope, "all_cov": all_cov},
+                         header)
         write_status(args.out_dir, f"level={level} done ({len(all_rec)} recurrence rows so far)")
 
     sanity_check_coverage(all_cov)

@@ -27,12 +27,21 @@ Covers:
      main() drives, without needing the VM-only refdata/cohort/relatedness inputs
      build_labeled_calls() itself requires. Then feeds the written TSVs through 45's figure
      functions and confirms they render without error.
+  10. Checkpoint/resume (2026-09-27c, after a ~1h VM run died at ~33min and lost everything):
+      save_checkpoint/load_checkpoint's atomic write (no leftover tmp file) and round-trip;
+      args_fingerprint's exclusion of workers/out_dir/resume/checkpoint_every; a checkpoint whose
+      header no longer matches is ignored (logged) and recomputed, not trusted; and -- the core
+      requirement -- injecting a simulated crash (an exception raised mid per-person loop) partway
+      through build_kir_identity_sets/build_true_genomic_identity_sets, then resuming, produces
+      IDENTICAL final identity sets to an uninterrupted run over the same people.
 
 Run: python3 scripts/hla_popgen/tests/test_44_kir_recurrence_saturation.py
 """
+import argparse
 import gzip
 import importlib.util
 import os
+import pickle
 import sys
 import tempfile
 import unittest
@@ -1572,6 +1581,207 @@ class TestCheckIdentityInvariants(unittest.TestCase):
             self._rec("kir", "KIR3DL1", "AFR", "any_novel", "<20"),
         ]
         m44.check_identity_invariants(cov, rec)  # must not raise -- nothing comparable
+
+
+class TestCheckpointResume(unittest.TestCase):
+    """2026-09-27c checkpoint/resume unit tests (module docstring "CHECKPOINTING / RESUME"): a
+    killed run mid identity-loop resumes to the EXACT SAME final result as an uninterrupted run,
+    and a checkpoint whose header (script md5 + args hash) no longer matches the current run is
+    ignored -- logged, recomputed -- never silently trusted."""
+
+    @staticmethod
+    def _make_kir_outroot(tmp, n_people=7):
+        outroot = os.path.join(tmp, "pipeline_outputs_kir")
+        pids = [f"{100000 + i}" for i in range(n_people)]
+        for i, pid in enumerate(pids):
+            person_dir = os.path.join(outroot, pid, "immuannot_output")
+            cons = "KIR3DL1*001" if i % 2 == 0 else "KIR3DL1*002new"
+            seq = "ATGAAATAG" if i % 2 == 0 else "ATGAAACAG"
+            _write_gtf_gz(os.path.join(person_dir, "hap1.gtf.gz"),
+                         [("KIR3DL1", cons)], contig="ctgA")
+            _write_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_cds_fasta_gz(os.path.join(person_dir, "hap1", "cds.fa.gz"),
+                               [("ctgA", "KIR3DL1", 1, seq)])
+        return outroot, pids
+
+    @staticmethod
+    def _fake_header(extra=None):
+        h = {"script_md5": "deadbeef", "args_hash": "cafef00d"}
+        if extra:
+            h.update(extra)
+        return h
+
+    @staticmethod
+    def _snapshot(sets_by_level, levels):
+        return {lvl: {g: dict(d) for g, d in sets_by_level[lvl].items()} for lvl in levels}
+
+    def test_resume_after_simulated_crash_matches_uninterrupted_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outroot, pids = self._make_kir_outroot(tmp, n_people=7)
+            out_dir = os.path.join(tmp, "results")
+            os.makedirs(out_dir, exist_ok=True)
+            header = self._fake_header()
+
+            ref_sets, _ref_qc, ref_cds_avail, ref_seen, ref_cds = m44.build_kir_identity_sets(
+                pids, outroot, workers=1)
+
+            # Inject a crash on the 5th person processed (checkpoint_every=2 -> checkpoints exist
+            # at 2 and 4 done before the crash on the 5th).
+            real_worker = m44._identity_worker_task
+            call_count = {"n": 0}
+
+            def flaky_worker(args):
+                call_count["n"] += 1
+                if call_count["n"] == 5:
+                    raise RuntimeError("simulated VM/app crash")
+                return real_worker(args)
+
+            m44._identity_worker_task = flaky_worker
+            try:
+                with self.assertRaises(RuntimeError):
+                    m44.build_kir_identity_sets(
+                        pids, outroot, workers=1, out_dir=out_dir, header=header,
+                        resume=True, checkpoint_every=2)
+            finally:
+                m44._identity_worker_task = real_worker
+
+            ckpt_dir = os.path.join(out_dir, "_checkpoints")
+            ckpt_path = os.path.join(ckpt_dir, "kir_identity_progress.pkl")
+            self.assertTrue(os.path.exists(ckpt_path))
+            leftover_tmp = [f for f in os.listdir(ckpt_dir) if ".tmp." in f]
+            self.assertEqual(leftover_tmp, [], "atomic write must leave no tmp file behind")
+
+            with open(ckpt_path, "rb") as f:
+                saved = pickle.load(f)
+            self.assertEqual(len(saved["payload"]["done_pids"]), 4)
+
+            (resumed_sets, _resumed_qc, resumed_cds_avail, resumed_seen,
+             resumed_cds) = m44.build_kir_identity_sets(
+                pids, outroot, workers=1, out_dir=out_dir, header=header, resume=True,
+                checkpoint_every=2)
+
+            self.assertEqual(resumed_cds_avail, ref_cds_avail)
+            self.assertEqual(resumed_seen, ref_seen)
+            self.assertEqual(resumed_cds, ref_cds)
+            self.assertEqual(self._snapshot(resumed_sets, m44.LEVELS),
+                             self._snapshot(ref_sets, m44.LEVELS))
+
+    def test_stale_checkpoint_ignored_on_args_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outroot, pids = self._make_kir_outroot(tmp, n_people=4)
+            out_dir = os.path.join(tmp, "results")
+            os.makedirs(out_dir, exist_ok=True)
+            header_v1 = self._fake_header({"args_hash": "v1"})
+            header_v2 = self._fake_header({"args_hash": "v2"})  # e.g. --limit/--kin-min changed
+
+            m44.build_kir_identity_sets(pids, outroot, workers=1, out_dir=out_dir,
+                                        header=header_v1, resume=True, checkpoint_every=1000)
+
+            (sets_v2, _qc_v2, cds_avail_v2, seen_v2, cds_v2) = m44.build_kir_identity_sets(
+                pids, outroot, workers=1, out_dir=out_dir, header=header_v2, resume=True,
+                checkpoint_every=1000)
+            ref_sets, _, ref_cds_avail, ref_seen, ref_cds = m44.build_kir_identity_sets(
+                pids, outroot, workers=1)
+
+            self.assertEqual(cds_avail_v2, ref_cds_avail)
+            self.assertEqual(seen_v2, ref_seen)
+            self.assertEqual(cds_v2, ref_cds)
+            self.assertEqual(self._snapshot(sets_v2, m44.LEVELS), self._snapshot(ref_sets, m44.LEVELS))
+
+            ckpt_path = os.path.join(out_dir, "_checkpoints", "kir_identity_progress.pkl")
+            with open(ckpt_path, "rb") as f:
+                saved = pickle.load(f)
+            self.assertEqual(saved["header"], header_v2, "the v1 checkpoint must have been "
+                             "replaced, not reused, once its header stopped matching")
+
+    def test_args_fingerprint_ignores_speed_only_flags_but_not_real_inputs(self):
+        ns1 = argparse.Namespace(kir_outroot="/a", workers=4, out_dir="/x", resume=True,
+                                 checkpoint_every=1000, limit=None)
+        ns2 = argparse.Namespace(kir_outroot="/b", workers=4, out_dir="/x", resume=True,
+                                 checkpoint_every=1000, limit=None)
+        self.assertNotEqual(m44.args_fingerprint(ns1), m44.args_fingerprint(ns2))
+
+        # workers/out_dir/resume/checkpoint_every don't affect the computed result -- changing
+        # ONLY those must NOT change the fingerprint (a checkpoint should survive e.g. --workers
+        # tuning between runs).
+        ns3 = argparse.Namespace(kir_outroot="/a", workers=99, out_dir="/y", resume=False,
+                                 checkpoint_every=5, limit=None)
+        self.assertEqual(m44.args_fingerprint(ns1), m44.args_fingerprint(ns3))
+
+    def test_save_checkpoint_is_atomic_no_tmp_left_and_load_roundtrips(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            header = self._fake_header()
+            m44.save_checkpoint(tmp, "widget", {"x": [1, 2, 3]}, header)
+            files = os.listdir(m44.checkpoint_dir(tmp))
+            self.assertEqual(files, ["widget.pkl"])
+            self.assertEqual(m44.load_checkpoint(tmp, "widget", header), {"x": [1, 2, 3]})
+
+    def test_load_checkpoint_missing_returns_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(m44.load_checkpoint(tmp, "nope", self._fake_header()))
+
+    def test_load_checkpoint_corrupt_file_returns_none_not_raise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = m44.checkpoint_dir(tmp)
+            with open(os.path.join(d, "broken.pkl"), "wb") as f:
+                f.write(b"not a pickle")
+            self.assertIsNone(m44.load_checkpoint(tmp, "broken", self._fake_header()))
+
+    def test_true_genomic_identity_resume_after_crash_matches_uninterrupted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outroot = os.path.join(tmp, "pipeline_outputs_kir")
+            pids = [f"{200000 + i}" for i in range(6)]
+            start, end = 10, 20
+            for i, pid in enumerate(pids):
+                hap_dir = os.path.join(outroot, pid, "immuannot_output")
+                cons = "KIR3DL1*001" if i % 2 == 0 else "KIR3DL1*002new"
+                letter = "A" if i % 2 == 0 else "G"
+                contig_seq = ["N"] * 40
+                contig_seq[start - 1:end] = list(letter * (end - start + 1))
+                _write_full_gtf_gz(
+                    os.path.join(hap_dir, "hap1.gtf.gz"),
+                    [{"gene": "KIR3DL1", "consensus": cons, "start": start, "end": end}],
+                    contig="ctgA")
+                _write_full_gtf_gz(os.path.join(hap_dir, "hap2.gtf.gz"), [], contig="ctgA")
+                _write_trimmed_fa(os.path.join(hap_dir, "hap1.trimmed.fa"),
+                                  {"ctgA": "".join(contig_seq)})
+
+            out_dir = os.path.join(tmp, "results")
+            os.makedirs(out_dir, exist_ok=True)
+            header = self._fake_header()
+
+            ref_sets, _ref_qc, ref_avail, ref_seen, ref_trim = (
+                m44.build_true_genomic_identity_sets(pids, outroot, {"KIR3DL1"}, None, workers=1))
+
+            real_worker = m44._genomic_worker_task
+            call_count = {"n": 0}
+
+            def flaky(args):
+                call_count["n"] += 1
+                if call_count["n"] == 4:
+                    raise RuntimeError("simulated crash")
+                return real_worker(args)
+
+            m44._genomic_worker_task = flaky
+            try:
+                with self.assertRaises(RuntimeError):
+                    m44.build_true_genomic_identity_sets(
+                        pids, outroot, {"KIR3DL1"}, None, workers=1, out_dir=out_dir,
+                        header=header, resume=True, checkpoint_every=1,
+                        checkpoint_name="kir_true_genomic_test")
+            finally:
+                m44._genomic_worker_task = real_worker
+
+            (resumed_sets, _resumed_qc, resumed_avail, resumed_seen,
+             resumed_trim) = m44.build_true_genomic_identity_sets(
+                pids, outroot, {"KIR3DL1"}, None, workers=1, out_dir=out_dir, header=header,
+                resume=True, checkpoint_every=1, checkpoint_name="kir_true_genomic_test")
+
+            self.assertEqual(resumed_avail, ref_avail)
+            self.assertEqual(resumed_seen, ref_seen)
+            self.assertEqual(resumed_trim, ref_trim)
+            self.assertEqual(self._snapshot(resumed_sets, ("genomic", "any_novel")),
+                             self._snapshot(ref_sets, ("genomic", "any_novel")))
 
 
 if __name__ == "__main__":
