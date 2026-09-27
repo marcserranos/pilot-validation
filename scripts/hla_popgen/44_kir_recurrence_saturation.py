@@ -897,10 +897,15 @@ def load_genomic_catalogue(refdata_dir, m24mod):
     catalogue = defaultdict(set)
     for g, name, seq, frame in m24mod.iter_fasta(path):
         if g and seq:
-            catalogue[g].add(seq.upper())
+            catalogue[_bare_gene(g)].add(seq.upper())
     if not catalogue:
         return None, "gen_fasta_empty"
     return dict(catalogue), "ok"
+
+
+def _bare_gene(g):
+    """'HLA-A' -> 'A'; KIR names and bare names pass through unchanged."""
+    return g[4:] if isinstance(g, str) and g.startswith("HLA-") else g
 
 
 def genomic_span_novel(obs_seq, ref_seqs):
@@ -965,7 +970,14 @@ def build_person_true_genomic_identity(pid, hap_root, gene_names, gen_catalogue,
     for hap in ("hap1", "hap2"):
         person_dir = os.path.join(hap_root, str(pid), "immuannot_output")
         gtf_path = os.path.join(person_dir, f"{hap}.gtf.gz")
-        rows = [r for r in parse_hap_gtf_transcript_minimal(gtf_path) if r["gene"] in gene_names]
+        # HLA GTFs name genes "HLA-A" while CLASSICAL_GENES_BARE is "A": compare bare names
+        # (bug found on the VM smoke test: every HLA row was dropped -> genomic level NA).
+        wanted = {_bare_gene(g) for g in gene_names}
+        rows = []
+        for r in parse_hap_gtf_transcript_minimal(gtf_path):
+            if _bare_gene(r["gene"]) in wanted:
+                r = dict(r, gene=_bare_gene(r["gene"]))
+                rows.append(r)
         if not rows:
             continue
         n_hap_seen += 1

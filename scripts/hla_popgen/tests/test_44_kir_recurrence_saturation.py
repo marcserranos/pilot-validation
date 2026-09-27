@@ -1421,6 +1421,27 @@ class TestTrueGenomicIdentity(unittest.TestCase):
             self.assertNotIn("KIR3DL1", per_gene)
             self.assertEqual(qc[("artifact_genomic", "KIR3DL1", "partial_cds")], 1)
 
+    def test_hla_prefixed_gtf_gene_names_match_bare_gene_set(self):
+        """VM smoke-test regression (2026-09-27): HLA GTFs say gene_name "HLA-A" while the caller
+        passes CLASSICAL_GENES_BARE ("A"); every HLA row was dropped -> genomic level NA."""
+        with tempfile.TemporaryDirectory() as tmp:
+            person_dir = os.path.join(tmp, "1", "immuannot_output")
+            _write_full_gtf_gz(
+                os.path.join(person_dir, "hap1.gtf.gz"),
+                [{"gene": "HLA-A", "consensus": "HLA-A*01:01:01:01", "start": 10, "end": 20}],
+                contig="ctgA")
+            _write_full_gtf_gz(os.path.join(person_dir, "hap2.gtf.gz"), [], contig="ctgA")
+            _write_trimmed_fa(os.path.join(person_dir, "hap1.trimmed.fa"),
+                              {"ctgA": "N" * 9 + "ACGTACGTACG" + "N" * 20})
+            cat = {"A": {"TTACGTACGTACGTT"}}  # contains the observed span -> known
+            pid, per_gene, qc, n_seen, n_trim = m44.build_person_true_genomic_identity(
+                "1", tmp, {"A", "B"}, cat, m24mod)
+            self.assertEqual(n_seen, 1)
+            self.assertEqual(len(per_gene["A"]["genomic"]), 1)
+            self.assertEqual(len(per_gene["A"]["any_novel"]), 0)
+            self.assertEqual(m44._bare_gene("HLA-DRB1"), "DRB1")
+            self.assertEqual(m44._bare_gene("KIR2DL1"), "KIR2DL1")
+
     def test_no_catalogue_for_gene_counts_toward_genomic_but_not_any_novel(self):
         with tempfile.TemporaryDirectory() as tmp:
             person_dir = os.path.join(tmp, "1", "immuannot_output")
