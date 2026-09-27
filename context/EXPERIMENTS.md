@@ -774,3 +774,30 @@ narrative in this file and in `context/DECISIONS.md` above this entry is left as
 the earlier repo-root move). `outputs/` (legacy, untracked/`.gitignore`d CSVs+plots, zero repo
 references) was deliberately left in place rather than folded into `scripts/legacy/` — re-tracking
 gitignored content in git wasn't this reorg's call to make (see DECISIONS.md entry, same date).
+
+## 2026-09-26/27 — S04: KIR recurrence/saturation, KIR vs HLA catalogue coverage, ligand co-occurrence, figure redesign, Cole package, repo reorg
+Pointer entry; full detail in `sprints/S04_kir_recurrence_style_share/{LOG.md,SPRINT.md,FIGURES_INDEX.md,FINDINGS_FOR_MARC.md}`.
+- 44/45 (KIR/HLA recurrence + saturation) and 46 (KIR vs HLA catalogue completeness): v1-v3
+  produced numbers (e.g. Chao2 completeness KIR 84.2% vs HLA 63.7% pooled) that were found to be
+  invalid — see the DECISIONS.md entry, same date — because "genomic identity" was name-based, not
+  sequence-based, and KIR protein calls lacked HLA's artifact filter. **v1-v3 numbers are
+  superseded and must not be cited.** Fixed (sequence-hash identity at genomic/CDS/protein for
+  both species, shared artifact gate, `check_identity_invariants()`), smoke-tested (300 people),
+  blocked on one more bug (HLA GTF `gene_name` is `HLA-`-prefixed) which is fixed but not yet run
+  at full cohort scale ("44 v4", pending as of this entry).
+- 47 (naive ML/QC battery) and 48 (KIR-HLA ligand co-occurrence): ran clean on the full cohort
+  (11,845 unrelated people), not affected by the identity bug above (independent code paths).
+  Ancestry AUROC 0.81-0.98 from HLA+KIR carriage; platform AUROC 0.573 pooled, shown to be an
+  ancestry echo (ancestry-adjusted delta +0.004) not a real batch effect; no KIR-HLA ligand pair
+  survives Bonferroni across 30 tests.
+- WS-C figure redesign: layout linter added to `scripts/hla_popgen/_viz_common.py`
+  (`check_layout`/`mark_marginal`/`mark_decoration`/`mark_label`); Figure 1 v5, DQ G1/G2, KIR
+  saturation (39), KIR full-cohort (43b) all redesigned to pass it; a real inherited bug (Figure 1
+  panel d bars vs gene labels reversed since S03) found and fixed with a regression test.
+- WS-E: Cole data-sharing package built and uploaded to
+  `gs://hla-calls-share-wb-cordial-leechee-9743/release_2026-09-25/` (6 files, ~10.65 MB,
+  checksum-verified). Package's own novelty numbers cross-checked clean against S03 (not affected
+  by the 44 identity bug).
+- WS-F: repo reorg executed (see the 2026-09-27 structural-note entry above, same file);
+  `s04-kir-recurrence-style-share` confirmed a strict superset of `main` and 3 other branches,
+  ready for Marc to merge/push.

@@ -4,6 +4,36 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-09-27 — Sprint S04 nearly complete; one VM run pending, rest ready for Marc
+
+Board: [`sprints/S04_kir_recurrence_style_share/SPRINT.md`](../sprints/S04_kir_recurrence_style_share/SPRINT.md);
+PI report: [`FINDINGS_FOR_MARC.md`](../sprints/S04_kir_recurrence_style_share/FINDINGS_FOR_MARC.md);
+log: `LOG.md`. Branch `s04-kir-recurrence-style-share` (off S03 @ 5d5ef99), **committed, not pushed**
+— it is a strict superset of `main`, `fig1-drafts-and-research-map`,
+`needle-view-cds-diversity-density`, and `s03-call8-figures-kir-prediction`.
+
+**Done:** WS-C (figure style + layout linter + redesign of Figure 1/DQ/39/43b), WS-D (47/48 naive
+ML + KIR-HLA ligand co-occurrence, full cohort), WS-E (Cole package built + uploaded + verified to
+`gs://hla-calls-share-wb-cordial-leechee-9743/release_2026-09-25/`), WS-F (repo reorg via `git mv`,
+37 legacy scripts + 3 call notes + 2 briefs relocated).
+
+**Pending — WS-A/WS-B (scripts 44/45/46), KIR recurrence & KIR-vs-HLA catalogue coverage:** v1-v3
+numbers are INVALID (name-based "genomic identity" + missing KIR artifact filter — see
+`context/DECISIONS.md` 2026-09-27 entries). Fix is committed (`e4211ad`); `44_v4` is deployed on
+the VM and smoke-tested (300 people, clean) but the full-cohort run has not been started yet.
+
+**Literal next commands:**
+1. Marc: run the VM cleanup in [`VM_CLEANUP_PLAN_v2.md`](../sprints/S04_kir_recurrence_style_share/VM_CLEANUP_PLAN_v2.md) (agent deletes are classifier-blocked).
+2. Next session: reattach the VM (app `AoU_Jupyter_ComputeEngine_..._big_run`, inner lab URL in
+   `VM_OPERATOR_HANDOFF.md`), remount/verify per quirk #14, then run
+   `44_kir_recurrence_saturation_v4.py` at full cohort scale (no `--limit`). Pull results, rerun
+   45/46 against the new export, update both READMEs' numbers, update `FINDINGS_FOR_MARC.md`'s
+   "pending 44 v4" section with real numbers.
+3. Marc: push and merge the branch per `FINDINGS_FOR_MARC.md` §6 (item 2), then delete the 3
+   subsumed branches.
+4. Marc: decide the 3 open items in `FINDINGS_FOR_MARC.md` §6 (`outputs/` tracking, small-cell
+   `s_obs` masking policy, Cole package README date re-upload).
+
 ## As of 2026-09-26 — Sprint S04 opened (not started)
 
 Next orchestrator: read [`sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md`](../sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md)

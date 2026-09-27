@@ -94,3 +94,45 @@
   folded into `scripts/legacy/experiments_outputs/` and added to git (predecessor's original
   proposal), or get deleted outright as superseded by the numbered `hla_popgen/` pipeline? Ask
   Marc before doing any of the three.
+
+- **Sequence-based identity at every matched level (genomic/CDS/protein), for both HLA and KIR, is
+  the only acceptable novelty/recurrence definition (2026-09-27, S04).** A "genomic identity"
+  defined by nearest-reference-allele *name* rather than actual sequence was found to silently
+  collapse distinct novel alleles into one recurrent bucket, biasing any KIR-vs-HLA catalogue
+  comparison built on it (caught via an impossible result: more distinct "novel" KIR proteins than
+  distinct KIR genomic alleles, which cannot happen if protein truly is a coarser grouping than
+  full sequence). Going forward: identity at any level must be a hash of the actual sequence at
+  that level, never a name/label, and any pipeline computing multi-level identity should assert the
+  containment invariant (protein <= CDS <= genomic distinct-allele counts) as a runtime check, not
+  just trust it. See `sprints/S04_kir_recurrence_style_share/LOG.md` (2026-09-27 entries) for the
+  full investigation.
+- **The same artifact-filtering gate must apply to both species before counting "novel," not just
+  to HLA (2026-09-27, S04).** KIR calls were being counted as novel proteins without the
+  partial-assembly / frameshift / homopolymer-indel screening HLA already had, inflating KIR's
+  apparent novelty with sequencing/assembly junk rather than real biology. Any future species
+  added to this pipeline's novelty accounting must go through the same gate from the start, not
+  have it retrofitted after a cross-species comparison is already published.
+- **The `<20` masking convention for allele/participant counts applies per-cell, and a genuine
+  suppression must be an empty field, never a printed `0` (reaffirmed 2026-09-27, S04).** Verified
+  clean this sprint (script 48's co-occurrence table: every masked 2x2 cell is a blank field, not
+  a 0, confirmed with `grep -P` against the raw TSV, not a formatted view). Still open (see
+  "Strategic"/small-cell entries above and `sprints/S04_kir_recurrence_style_share/LOG.md`,
+  2026-09-26 WS-B entry): whether *richness* columns (`s_obs`, distinct-allele counts — not
+  participant/carrier counts) are exempt from `<20` masking. Current practice leaves them unmasked
+  (e.g. `46_catalogue_metrics.tsv`'s per-gene `s_obs`); this is an extension of existing precedent,
+  not a newly ratified policy — a deliberate pass to write down the rule explicitly is still owed.
+- **Organise-before-delete is the standing posture for both VM and repo cleanup, not just this
+  pass (2026-09-27, Marc via S04 WS-F).** Lower the bar for deleting only evident trash (corrupted
+  files, one-off patch fragments, regenerable caches, exact duplicates) and raise the bar for
+  everything else: move it into a clearly labeled structure (`~/archive/` on the VM,
+  `scripts/legacy/` in the repo) rather than remove it. Applies to future cleanup passes by
+  default, not re-litigated each time.
+- **A figure is not "done" until it passes three independent checks: the automated layout linter,
+  a full-resolution human visual review, and (where the figure encodes specific numbers) a direct
+  binding test against the underlying data table (2026-09-27, S04).** Each check alone missed real
+  faults the other two caught this sprint: the linter missed text-on-data-point and
+  legend-over-title overlaps (both are Text-vs-non-Text or Text-vs-invisible-tick interactions it
+  doesn't model); two rounds of human visual review at whole-figure/thumbnail scale missed
+  sub-pixel misalignments and a reversed bar order that only showed up at full-resolution zoom or a
+  literal number check against the TSV. Standard from here forward for any new or redesigned figure
+  in this pipeline.
