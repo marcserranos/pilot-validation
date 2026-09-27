@@ -1,14 +1,13 @@
-2026-09-26 23:31:51 START outroot=/home/jupyter/pipeline_outputs_kir out_dir=/home/jupyter/s04/results/44_v3
-2026-09-26 23:32:04 discovered 12261 KIR people
-2026-09-26 23:34:26 HLA calls loaded: 12233 people
-2026-09-26 23:34:27 joint unrelated set: 11856
-2026-09-26 23:34:47 KIR identity sets built; cds_available=True (n_hap_seen=23637, n_hap_cds_present=23637)
-2026-09-26 23:35:14 level=genomic done (175 recurrence rows so far)
-2026-09-26 23:35:39 level=cds done (350 recurrence rows so far)
-2026-09-26 23:36:02 level=protein done (525 recurrence rows so far)
-2026-09-26 23:36:24 level=any_novel done (700 recurrence rows so far)
-2026-09-26 23:36:42 level=protein_novel done (875 recurrence rows so far)
-2026-09-26 23:36:43 DONE in 292s -- 5 tables written -- v3 (commit bca633e): kir_gene_protein_covered()
-fix -- 2/17 KIR genes (KIR2DP1, KIR3DP1, both pseudogenes) uncovered by the protein catalogue,
-exported as NA; sanity_check_coverage() ran with zero warnings (v2 had 6: KIR2DL2/KIR2DL5B/KIR2DP1
-pct_novel_protein>100%).
+2026-09-27 12:50:24 START outroot=/home/jupyter/pipeline_outputs_kir out_dir=/home/jupyter/s04/results/44_v4b
+2026-09-27 12:50:37 discovered 12261 KIR people
+2026-09-27 12:53:46 HLA calls loaded: 12233 people
+2026-09-27 12:53:46 joint unrelated set: 11856
+2026-09-27 12:54:56 KIR identity sets built; cds_available=True (n_hap_seen=23637, n_hap_cds_present=23637)
+2026-09-27 12:59:03 KIR true-genomic sets built; available=True (n_hap_seen=23637, n_hap_trimmed=23637)
+2026-09-27 13:34:21 HLA true-genomic sets built; available=True (n_hap_seen=23629, n_hap_trimmed=23629)
+2026-09-27 13:34:43 level=genomic done (175 recurrence rows so far)
+2026-09-27 13:35:06 level=cds done (350 recurrence rows so far)
+2026-09-27 13:35:26 level=protein done (525 recurrence rows so far)
+2026-09-27 13:35:46 level=any_novel done (700 recurrence rows so far)
+2026-09-27 13:36:03 level=protein_novel done (875 recurrence rows so far)
+2026-09-27 13:36:06 DONE in 2742s -- 9 tables written

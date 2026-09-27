@@ -1,2 +1,2 @@
-n_join_rows	n_matched	n_protein_gene_uncovered_calls	n_ambiguous_copy	n_missing_cds_record	n_hap_seen	n_hap_cds_fasta_present	cds_available
-222771	218982	41486	3627	162	23637	23637	True
+n_join_rows	n_matched	n_missing_cds_record	n_ambiguous_copy	n_protein_gene_uncovered_calls	n_hap_seen	n_hap_cds_fasta_present	cds_available
+222771	218982	162	3627	6	23637	23637	True

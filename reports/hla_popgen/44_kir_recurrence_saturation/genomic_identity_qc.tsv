@@ -1,0 +1,2 @@
+gen_catalogue_status	kir_genomic_available	hla_genomic_available	n_hap_seen_kir	n_hap_trimmed_present_kir	n_hap_seen_hla	n_hap_trimmed_present_hla
+ok	True	True	23637	23637	23629	23629
