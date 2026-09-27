@@ -51,19 +51,28 @@ import _viz_common as vc
 
 MIN_CARRIERS_FOR_FEATURE = 20
 
+# NOTE: platform_sequel2e[_EUR/_AFR] are omitted from the panel on purpose -- within a
+# two-valued platform subset, a one-vs-rest AUROC for "is revio" and "is sequel2e" are the same
+# ROC curve read from opposite ends and are numerically identical (verified: both 0.573 overall,
+# both 0.558 within EUR, both 0.489 within AFR in the v2 run). Plotting both would visually
+# double-count one effect; the README states the equivalence and both rows are still in
+# naive_ml_metrics.tsv for anyone who wants sequel2e's own row.
 TASK_ORDER = ["ancestry_AFR", "ancestry_AMR", "ancestry_EAS", "ancestry_EUR", "ancestry_MID",
-              "ancestry_SAS", "platform_revio", "platform_sequel2e", "cB_from_HLA"]
+              "ancestry_SAS", "platform_revio", "platform_revio_EUR", "platform_revio_AFR",
+              "cB_from_HLA", "cB_from_HLA_EUR"]
 TASK_LABEL = {
     "ancestry_AFR": "ancestry: AFR", "ancestry_AMR": "ancestry: AMR",
     "ancestry_EAS": "ancestry: EAS", "ancestry_EUR": "ancestry: EUR",
     "ancestry_MID": "ancestry: MID", "ancestry_SAS": "ancestry: SAS",
-    "platform_revio": "platform: revio", "platform_sequel2e": "platform: sequel2e",
-    "cB_from_HLA": "KIR cB\nfrom HLA",
+    "platform_revio": "platform\n(all)", "platform_revio_EUR": "platform\n(EUR only)",
+    "platform_revio_AFR": "platform\n(AFR only)",
+    "cB_from_HLA": "KIR cB\n(all)", "cB_from_HLA_EUR": "KIR cB\n(EUR only)",
 }
 TASK_GROUP = {
     "ancestry_AFR": "ancestry", "ancestry_AMR": "ancestry", "ancestry_EAS": "ancestry",
     "ancestry_EUR": "ancestry", "ancestry_MID": "ancestry", "ancestry_SAS": "ancestry",
-    "platform_revio": "platform", "platform_sequel2e": "platform", "cB_from_HLA": "cB_from_HLA",
+    "platform_revio": "platform", "platform_revio_EUR": "platform", "platform_revio_AFR": "platform",
+    "cB_from_HLA": "cB_from_HLA", "cB_from_HLA_EUR": "cB_from_HLA",
 }
 GROUP_COLOR = {"ancestry": vc.JOURNAL_PALETTES["nature"][0],
                "platform": vc.JOURNAL_PALETTES["nature"][1],
@@ -149,9 +158,11 @@ def fig_auroc_vs_null(metrics, feats, out_stem, min_carriers=MIN_CARRIERS_FOR_FE
             auroc = float(row["lr_auroc"])
             ax_a.scatter([xi], [auroc], s=16, color=color, zorder=3, edgecolor="white",
                          linewidth=0.4)
-            t_lab = ax_a.annotate(f"{auroc:.3f}", (xi, auroc), xytext=(0, 4),
-                                   textcoords="offset points", ha="center", fontsize=5.2,
-                                   color=color, fontweight="bold")
+            # Offset sideways (not straight up) so the label text doesn't sit on top of the
+            # vertical min/max whisker line, which is drawn at the same x position as the point.
+            t_lab = ax_a.annotate(f"{auroc:.3f}", (xi, auroc), xytext=(9, 0),
+                                   textcoords="offset points", ha="left", va="center",
+                                   fontsize=5.2, color=color, fontweight="bold")
             vc.mark_label(t_lab)
         ax_a.set_xlim(-0.6, len(tasks) - 0.4)
         ax_a.set_ylim(0.45, 1.03)
