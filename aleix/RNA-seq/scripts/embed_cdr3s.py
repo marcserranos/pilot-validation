@@ -39,10 +39,13 @@ below), then `conda run -n catELMo python3 embed_catelmo.py <pool.tsv>`, then
 compare_embeddings.py to fold all three into one table. See
 setup_repertoire_and_embedding_envs.sh for the one-shot environment setup.
 
-Usage:
-  pixi run python3 embed_cdr3s.py <cohort.tsv> [--pheno-dir ~/pipeline_outputs/rnaseq]
-      [--min-score 0.02] [--keep-imputed] [--outdir ../results]
-      [--local-outdir ~/pipeline_outputs/rnaseq/embeddings] [--max-per-person 500]
+Usage (from aleix/RNA-seq/, so pixi finds the env where sceptr is installed):
+  pixi run python3 scripts/embed_cdr3s.py <cohort.tsv> [--models sceptr,esmc]
+      [--sceptr-input v+cdr3|cdr3] [--max-per-person 500] [--min-score 0.02]
+      [--keep-imputed] [--allow-report-fallback] [--tag NAME]
+
+Per person: unique (chain, V, CDR3aa) clonotypes, canonical junctions only (C...F/W),
+ranked by summed read support, top --max-per-person kept.
 
 Needs (on top of the pixi env's pandas/scipy):
   pip install sceptr torch accelerate
@@ -98,8 +101,29 @@ def die(msg):
     sys.exit(1)
 
 
-def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed):
-    """One row per usable CDR3 for this person: research_id, chain, v_gene, cdr3aa, score."""
+CHAINS = {"TRA", "TRB", "TRG", "TRD", "IGH", "IGK", "IGL"}
+
+
+def _top_gene(s):
+    """TRUST4 lists up to 3 ranked candidates comma-separated ("TRBV6-2*01,TRBV6-3*01");
+    keep the top one. '*' / '.' / empty means no call."""
+    s = str(s).split(",")[0].strip()
+    return "" if s in ("", "*", ".", "nan") else s
+
+
+def _chain_of(v, j, c):
+    """Chain from the first gene that was actually called, V then J then C. V-only labelling
+    silently dropped CDR3s whose V wasn't called even when J/C clearly say TRB."""
+    for g in (v, j, c):
+        if g[:3] in CHAINS:
+            return g[:3]
+    return ""
+
+
+def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_report_fallback):
+    """One row per unique clonotype (chain, V gene, CDR3aa) for this person, ranked by
+    read support, highest first. Returns (df, source) where source is 'cdr3.out',
+    'report.tsv', or None if nothing usable."""
     base = os.path.join(os.path.expanduser(pheno_dir), research_id)
     cdr3_out = os.path.join(base, f"{research_id}_cdr3.out")
     report = os.path.join(base, f"{research_id}_report.tsv")
@@ -107,59 +131,86 @@ def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed):
     threshold = 0.01 if keep_imputed else min_score
 
     if os.path.exists(cdr3_out):
-        # cdr3.out is ALWAYS headerless (verified against TRUST4's own bundled example
-        # output, 2026-09-07) -- the real 13-field schema, straight from TRUST4's README:
-        #   consensus_id  index_within_consensus  V  D  J  C  CDR1  CDR2  CDR3(dna)
-        #   CDR3_score  read_fragment_count  CDR3_germline_similarity  complete_vdj_assembly
-        # NOTE: that CDR3 field is nucleotide, not amino acid -- cdr3.out has no AA column at
-        # all. We translate it ourselves below so both input paths end up with real cdr3aa.
-        cols = ["consensus_id", "V", "D", "J", "C", "CDR1", "CDR2", "CDR3_dna",
-                "CDR3_score", "read_fragment_count", "CDR3_germline_similarity",
+        # Headerless, 13 fields (TRUST4 README; verified against its bundled example
+        # 2026-09-07). CDR3 is nucleotide -- translated below. All 13 named explicitly: with
+        # 12 names pandas silently turns the first field into the index.
+        cols = ["consensus_id", "index_within_consensus", "V", "D", "J", "C", "CDR1",
+                "CDR2", "CDR3_dna", "score", "reads", "CDR3_germline_similarity",
                 "complete_vdj_assembly"]
-        df = pd.read_csv(cdr3_out, sep="\t", header=None, names=cols)
-        df = df.rename(columns={"CDR3_score": "score", "V": "v_gene"})
+        df = pd.read_csv(cdr3_out, sep="\t", header=None, names=cols, index_col=False)
         df["cdr3aa"] = df["CDR3_dna"].apply(translate_cdr3_dna)
         df = df[pd.to_numeric(df["score"], errors="coerce") >= threshold]
-    elif os.path.exists(report):
-        print(f"  [{research_id}] no cdr3.out, falling back to report.tsv (no CDR3_score "
-              f"available -- quality filter skipped, only stop-codon/ambiguous drop applies)",
-              file=sys.stderr)
+        source = "cdr3.out"
+    elif os.path.exists(report) and allow_report_fallback:
+        # No CDR3_score in report.tsv, so the quality filter can't be applied. Off by
+        # default: mixing filtered and unfiltered people makes the pool inhomogeneous.
         df = pd.read_csv(report, sep="\t")
-        # Real header (verified live): #count, frequency, CDR3nt, CDR3aa, V, D, J, C, cid,
-        # cid_full_length -- "CDR3aa", not "CDR3_amino_acids" (an earlier wrong assumption).
-        df = df.rename(columns={"CDR3aa": "cdr3aa", "V": "v_gene"})
+        df = df.rename(columns={"CDR3aa": "cdr3aa", "#count": "reads"})
         df["score"] = np.nan
+        source = "report.tsv"
     else:
-        return None
+        return None, None
 
-    if "cdr3aa" not in df.columns or "v_gene" not in df.columns:
-        print(f"  [{research_id}] !! unexpected columns, skipping: {list(df.columns)}",
-              file=sys.stderr)
-        return None
+    for g in ("V", "J", "C"):
+        df[g] = df[g].apply(_top_gene)
+    df["chain"] = [_chain_of(v, j, c) for v, j, c in zip(df["V"], df["J"], df["C"])]
+    df["reads"] = pd.to_numeric(df["reads"], errors="coerce").fillna(0)
 
-    # TRUST4 lists up to 3 ranked V-gene candidates comma-separated (e.g.
-    # "IGHV3-11*04,IGHV3-21*01,IGHV3-48*01" -- verified live in the real example output).
-    # Keep only the top-ranked candidate -- otherwise the same-V-gene-vs-diff-V-gene
-    # comparison silently breaks (two CDR3s sharing the top candidate but differing in
-    # ranked-2nd/3rd wouldn't match as "same V gene" on a raw string-equality basis).
-    df["v_gene"] = df["v_gene"].astype(str).str.split(",").str[0]
+    # Productive, canonical junctions only: valid residues, starts with the conserved C,
+    # ends with the conserved F/W (the format SCEPTR is trained on; also excludes the
+    # truncated CDR3s TRUST4 reports when an assembly doesn't span the whole junction).
+    aa = df["cdr3aa"].astype(str)
+    ok = aa.str.fullmatch(r"C[ACDEFGHIKLMNPQRSTVWY]{3,}[FW]")
+    df = df[ok & (df["chain"] != "")]
 
-    df = df[["v_gene", "cdr3aa", "score"]].dropna(subset=["cdr3aa"])
-    df = df[df["cdr3aa"].astype(str).apply(
-        lambda s: len(s) >= 5 and all(c in AA_VALID for c in s))]
+    # Collapse to unique clonotypes: the same CDR3 can appear in several TRUST4 consensus
+    # assemblies. Sum their read support, then rank so a per-person cap keeps the
+    # dominant clonotypes rather than whatever happened to come first in the file.
+    df = (df.groupby(["chain", "V", "cdr3aa"], as_index=False)
+            .agg(reads=("reads", "sum"), score=("score", "max"))
+            .sort_values("reads", ascending=False, kind="stable"))
+    df = df.rename(columns={"V": "v_gene"})
     df["research_id"] = research_id
-    df["chain"] = df["v_gene"].astype(str).str[:3]  # TRB/TRA/IGH/IGK/IGL/TRG/TRD
-    return df.reset_index(drop=True)
+    return df.reset_index(drop=True), source
 
 
-def embed_sceptr(seqs):
-    """SCEPTR -- TCR-specific, 153K params. Returns (embeddings ndarray, wall_seconds)."""
+def _imgt_gene(v):
+    """'TRBV10-3*01' -> 'TRBV10-3' (IMGT gene symbol, allele stripped)."""
+    return v.split("*")[0] if v else ""
+
+
+def sceptr_model(sceptr_input):
     from sceptr import variant
-    model = variant.default()
-    df = pd.DataFrame({"CDR3B": seqs})  # beta-only input, the mode we actually have
+    # b_sceptr: SCEPTR's beta-chain-only variant, the right model for unpaired bulk data.
+    # cdr3_only: CDR3 loop alone -- used for the V-gene benchmark, where feeding the V gene
+    # in would make the same-V vs diff-V check circular.
+    return variant.b_sceptr() if sceptr_input == "v+cdr3" else variant.cdr3_only()
+
+
+def accepted_trbv(model, v_genes):
+    """Which TRBV symbols SCEPTR accepts (IMGT-functional genes only, per its docs).
+    Probed one gene at a time so a single pseudogene/ORF call can't crash the whole run."""
+    good = set()
+    for v in sorted(set(v_genes) - {""}):
+        try:
+            model.calc_vector_representations(
+                pd.DataFrame({"TRBV": [v], "CDR3B": ["CASSLGQGAEAFF"]}))
+            good.add(v)
+        except Exception:
+            pass
+    return good
+
+
+def embed_sceptr(model, df_in, chunk=200_000):
+    """Returns (embeddings ndarray, wall_seconds). Chunked for progress + bounded memory."""
     t0 = time.time()
-    vecs = model.calc_vector_representations(df)
-    return np.asarray(vecs), time.time() - t0
+    out = []
+    for i in range(0, len(df_in), chunk):
+        out.append(np.asarray(model.calc_vector_representations(
+            df_in.iloc[i:i + chunk].reset_index(drop=True))))
+        print(f"    {min(i + chunk, len(df_in)):,}/{len(df_in):,} embedded "
+              f"({time.time() - t0:.0f}s)", file=sys.stderr)
+    return np.concatenate(out, axis=0), time.time() - t0
 
 
 def embed_esmc(seqs, model_name="esmc_300m"):
@@ -208,17 +259,24 @@ def embed_esmc(seqs, model_name="esmc_300m"):
 
 
 def same_vs_diff_vgene_contrast(embs, v_genes):
-    """Mean cosine similarity within the same V gene vs across different V genes.
-    A real embedding should score meaningfully higher same-V than diff-V -- V gene partly
-    determines CDR3 composition via the germline segment it contributes."""
+    """Mean cosine similarity over all same-V-gene pairs vs all different-V-gene pairs
+    (self-pairs excluded). A real embedding should score higher same-V than diff-V.
+
+    Exact, in O(n*d) memory: for unit vectors, the sum of pairwise cosine sims within a
+    group is ||sum of its vectors||^2 - n_group. The old n x n matrix needed ~60 TB at
+    the full-cohort pool size."""
     norm = embs / (np.linalg.norm(embs, axis=1, keepdims=True) + 1e-9)
-    sim = norm @ norm.T
-    v = np.asarray(v_genes)
-    same_mask = (v[:, None] == v[None, :])
-    np.fill_diagonal(same_mask, False)
-    diff_mask = ~same_mask
-    np.fill_diagonal(diff_mask, False)
-    return float(sim[same_mask].mean()), float(sim[diff_mask].mean())
+    n = len(norm)
+    total = float(np.sum(norm.sum(axis=0) ** 2)) - n
+    codes, groups = pd.factorize(pd.Series(v_genes))
+    same_sum, same_pairs = 0.0, 0
+    for g in range(len(groups)):
+        vecs = norm[codes == g]
+        k = len(vecs)
+        same_sum += float(np.sum(vecs.sum(axis=0) ** 2)) - k
+        same_pairs += k * (k - 1)
+    diff_pairs = n * (n - 1) - same_pairs
+    return same_sum / same_pairs, (total - same_sum) / diff_pairs
 
 
 def main():
@@ -240,8 +298,21 @@ def main():
     ap.add_argument("--keep-imputed", action="store_true",
                     help="also keep CDR3_score==0.01 (imputed/guessed) -- relaxes the filter")
     ap.add_argument("--max-per-person", type=int, default=500,
-                    help="cap CDR3s per person (highest read_count-weighted first would be "
-                         "better -- for now, first N after filtering) to keep the comparison fast")
+                    help="cap unique clonotypes per person, keeping the highest read-support "
+                         "ones (default 500)")
+    ap.add_argument("--sceptr-input", choices=["v+cdr3", "cdr3"], default="v+cdr3",
+                    help="v+cdr3 (default): b_sceptr, the beta-only variant, given TRBV + CDR3B "
+                         "-- the full beta-chain input, for HLA/disease work; clonotypes whose V "
+                         "SCEPTR can't use are excluded and reported. cdr3: cdr3_only variant, "
+                         "CDR3B alone -- use for the V-gene benchmark, where V as input would "
+                         "make the same-V vs diff-V check circular.")
+    ap.add_argument("--allow-report-fallback", action="store_true",
+                    help="use report.tsv for people with no cdr3.out. Off by default: report.tsv "
+                         "has no CDR3_score, so those people skip the quality filter and the "
+                         "pool becomes a mix of filtered and unfiltered people.")
+    ap.add_argument("--tag", default=None,
+                    help="label for output files (default: cohort file stem + sceptr input), so "
+                         "runs never overwrite each other's summaries or embeddings")
     ap.add_argument("--chain", default="TRB",
                     help="restrict the pool to one chain before embedding anything (default "
                          "TRB). SCEPTR is beta-chain-specific -- feeding it TRA/TRG/TRD/IGH/"
@@ -272,6 +343,7 @@ def main():
     bad = models - {"sceptr", "esmc"}
     if bad:
         die(f"--models: unknown model(s) {bad} -- choose from sceptr, esmc")
+    want_chain = args.chain.upper()
 
     if args.from_pool_tsv:
         pool = pd.read_csv(os.path.expanduser(args.from_pool_tsv), sep="\t")
@@ -283,6 +355,9 @@ def main():
                 f"adapter)")
         print(f"Using pre-built pool from {args.from_pool_tsv} (public/open dataset mode -- "
               f"no TRUST4 output needed).", file=sys.stderr)
+        for col in ("reads", "score"):
+            if col not in pool.columns:
+                pool[col] = np.nan
     else:
         if not args.cohort:
             die("need either a cohort.tsv (TRUST4 mode) or --from-pool-tsv (open-dataset mode)")
@@ -290,41 +365,41 @@ def main():
         if "research_id" not in cohort.columns:
             die(f"{args.cohort} has no research_id column -- expected build_rnaseq_cohort.py output")
 
-        n_no_chain = 0
+        n_missing, n_no_chain, sources = [], 0, {"cdr3.out": 0, "report.tsv": 0}
         all_rows = []
-        for rid in cohort["research_id"]:
-            df = load_person_cdr3s(args.pheno_dir, rid, args.min_score, args.keep_imputed)
+        for i, rid in enumerate(cohort["research_id"], 1):
+            df, source = load_person_cdr3s(args.pheno_dir, rid, args.min_score,
+                                           args.keep_imputed, args.allow_report_fallback)
             if df is None:
-                print(f"  [{rid}] !! no TRUST4 output found, skipping (run the repertoire batch first)",
-                      file=sys.stderr)
+                n_missing.append(rid)
                 continue
-            # Filter to --chain BEFORE the per-person cap, not after: capping first and
-            # filtering after means someone's cap gets spent on chains we're about to throw
-            # away, so people whose first N rows happen to have none of the target chain
-            # silently drop out of the comparison entirely. Filtering first means every
-            # person gets a fair shot at contributing up to --max-per-person of the chain
-            # we actually want. (Found live 2026-09-12: capping before filtering to TRB lost
-            # 83 of 500 people from the pool.)
-            if args.chain.lower() != "all":
-                df = df[df["chain"] == args.chain.upper()]
+            sources[source] += 1
+            # Chain filter BEFORE the per-person cap: capping first spends the cap on chains
+            # about to be thrown away (found live 2026-09-12: lost 83 of 500 people).
+            if want_chain != "ALL":
+                df = df[df["chain"] == want_chain]
             if len(df) == 0:
-                note = f" (chain={args.chain.upper()})" if args.chain.lower() != "all" else ""
-                print(f"  [{rid}] 0 CDR3s survived the quality filter{note}", file=sys.stderr)
-                if args.chain.lower() != "all":
-                    n_no_chain += 1
+                n_no_chain += 1
                 continue
             all_rows.append(df.head(args.max_per_person))
-            print(f"  [{rid}] {len(df)} CDR3s pass filter (using up to {args.max_per_person})",
-                  file=sys.stderr)
-        if args.chain.lower() != "all" and n_no_chain:
-            print(f"\n{n_no_chain} people had zero {args.chain.upper()} CDR3s and were dropped "
-                  f"entirely from the pool.", file=sys.stderr)
+            if i % 500 == 0:
+                print(f"  loaded {i:,}/{len(cohort):,} people", file=sys.stderr)
 
+        print(f"\nInput sources: {sources['cdr3.out']:,} cdr3.out (quality-filtered), "
+              f"{sources['report.tsv']:,} report.tsv (unfiltered fallback)", file=sys.stderr)
+        if n_missing:
+            print(f"!! {len(n_missing):,} people skipped: no cdr3.out"
+                  f"{'' if args.allow_report_fallback else ' (report.tsv fallback is off)'} "
+                  f"-- e.g. {n_missing[:3]}", file=sys.stderr)
+        if n_no_chain:
+            print(f"{n_no_chain:,} people had zero {want_chain} clonotypes after filtering",
+                  file=sys.stderr)
         if not all_rows:
-            die("no usable CDR3s across the whole cohort -- run repertoire calling first "
-                "(build_rnaseq_cohort.py + run_rnaseq_batch.sh)")
+            die("no usable CDR3s across the whole cohort -- run repertoire calling first")
 
         pool = pd.concat(all_rows, ignore_index=True)
+        if "ancestry" in cohort.columns:
+            pool = pool.merge(cohort[["research_id", "ancestry"]], on="research_id", how="left")
 
     if args.chain.lower() != "all":
         if "chain" not in pool.columns:
@@ -337,40 +412,72 @@ def main():
             die(f"no CDR3s left after restricting to chain={args.chain.upper()} -- check the "
                 f"'chain' values actually present, or pass --chain all")
 
-    seqs = pool["cdr3aa"].tolist()
-    v_genes = pool["v_gene"].tolist()
-    print(f"\n=== {len(seqs)} CDR3s pooled across {pool['research_id'].nunique()} people, "
-          f"{pool['v_gene'].nunique()} distinct V genes ===\n")
+    # V-gene grouping at gene level (allele stripped): allele calls from ~146 bp RNA reads
+    # are noisy, and SCEPTR takes IMGT gene symbols anyway.
+    pool["v_gene"] = pool["v_gene"].fillna("").astype(str)
+    pool["trbv"] = pool["v_gene"].map(_imgt_gene)
+    print(f"\n=== {len(pool):,} clonotypes pooled across {pool['research_id'].nunique():,} "
+          f"people, {pool.loc[pool['trbv'] != '', 'trbv'].nunique()} distinct V genes ===\n")
 
+    src = args.cohort or args.from_pool_tsv
+    tag = args.tag or (f"{os.path.splitext(os.path.basename(src))[0]}"
+                       f"_{args.sceptr_input.replace('+', '')}")
     outdir = os.path.abspath(os.path.expanduser(args.outdir))
     local_outdir = os.path.abspath(os.path.expanduser(args.local_outdir))
     os.makedirs(outdir, exist_ok=True)
     os.makedirs(local_outdir, exist_ok=True)
     results = []
 
+    def contrast(embs, frame):
+        has_v = (frame["trbv"] != "").to_numpy()
+        return same_vs_diff_vgene_contrast(embs[has_v], frame["trbv"].to_numpy()[has_v])
+
+    def report(name, sub, embs, secs, v_is_input):
+        same, diff = contrast(embs, sub)
+        print(f"  {secs:.1f}s wall, {embs.shape[1]}-dim vectors")
+        print(f"  same-V-gene cosine sim: {same:.4f}  |  diff-V-gene: {diff:.4f}  "
+              f"|  gap: {same - diff:+.4f}"
+              f"{'  (V gene is a model input: gap is circular, not a quality check)' if v_is_input else ''}")
+        np.save(os.path.join(local_outdir, f"embeddings_{name.lower()}_{tag}.npy"), embs)
+        sub[["research_id", "chain", "v_gene", "cdr3aa", "reads", "score"]
+            + (["ancestry"] if "ancestry" in sub.columns else [])].to_csv(
+            os.path.join(local_outdir, f"pool_{name.lower()}_{tag}.tsv"), sep="\t", index=False)
+        results.append((name, "TRBV+CDR3B" if v_is_input else "CDR3B", len(sub),
+                        sub["research_id"].nunique(), embs.shape[1], secs, same, diff, v_is_input))
+
     if "sceptr" in models:
-        print("--- SCEPTR (TCR-specific, 153K params) ---")
+        v_in = args.sceptr_input == "v+cdr3"
+        print(f"--- SCEPTR ({'b_sceptr: TRBV + CDR3B' if v_in else 'cdr3_only: CDR3B'}) ---")
         try:
-            sceptr_embs, sceptr_s = embed_sceptr(seqs)
-            same, diff = same_vs_diff_vgene_contrast(sceptr_embs, v_genes)
-            print(f"  {sceptr_s:.1f}s wall, {sceptr_embs.shape[1]}-dim vectors")
-            print(f"  same-V-gene cosine sim: {same:.4f}  |  diff-V-gene: {diff:.4f}  "
-                  f"|  gap: {same - diff:+.4f}")
-            np.save(os.path.join(local_outdir, "cdr3_embeddings_sceptr.npy"), sceptr_embs)
-            results.append(("SCEPTR", sceptr_embs.shape[1], sceptr_s, same, diff))
+            model = sceptr_model(args.sceptr_input)
+            sub = pool
+            if v_in:
+                if want_chain != "TRB":
+                    die("--sceptr-input v+cdr3 needs --chain TRB (b_sceptr is beta-only)")
+                good = accepted_trbv(model, pool["trbv"])
+                keep = pool["trbv"].isin(good)
+                print(f"  SCEPTR accepts {len(good)} of {pool['trbv'].nunique()} TRBV symbols; "
+                      f"{(~keep).sum():,} of {len(pool):,} clonotypes "
+                      f"({(~keep).mean():.1%}) excluded (no V call, or V not usable)")
+                if "ancestry" in pool.columns:
+                    by_anc = (~keep).groupby(pool["ancestry"]).mean()
+                    print("  excluded fraction by ancestry: "
+                          + ", ".join(f"{a} {f:.1%}" for a, f in by_anc.items()))
+                sub = pool[keep].reset_index(drop=True)
+                df_in = pd.DataFrame({"TRBV": sub["trbv"], "CDR3B": sub["cdr3aa"]})
+            else:
+                df_in = pd.DataFrame({"CDR3B": sub["cdr3aa"]})
+            embs, secs = embed_sceptr(model, df_in)
+            report("SCEPTR", sub, embs, secs, v_in)
         except Exception as e:
-            print(f"  !! SCEPTR failed: {e}\n  (pip install sceptr if missing)", file=sys.stderr)
+            print(f"  !! SCEPTR failed: {e}\n  (run with `pixi run python3` from "
+                  f"aleix/RNA-seq/ -- sceptr lives in the pixi env)", file=sys.stderr)
 
     if "esmc" in models:
-        print("\n--- ESMC-300M (general protein LM) ---")
+        print("\n--- ESMC-300M (general protein LM, CDR3 only) ---")
         try:
-            esmc_embs, esmc_s = embed_esmc(seqs)
-            same, diff = same_vs_diff_vgene_contrast(esmc_embs, v_genes)
-            print(f"  {esmc_s:.1f}s wall, {esmc_embs.shape[1]}-dim vectors")
-            print(f"  same-V-gene cosine sim: {same:.4f}  |  diff-V-gene: {diff:.4f}  "
-                  f"|  gap: {same - diff:+.4f}")
-            np.save(os.path.join(local_outdir, "cdr3_embeddings_esmc.npy"), esmc_embs)
-            results.append(("ESMC-300M", esmc_embs.shape[1], esmc_s, same, diff))
+            embs, secs = embed_esmc(pool["cdr3aa"].tolist())
+            report("ESMC-300M", pool, embs, secs, False)
         except Exception as e:
             print(f"  !! ESMC failed: {e}\n  "
                   f"(need: pip install accelerate && pip install "
@@ -378,24 +485,17 @@ def main():
                   f"old EsmcForMaskedLM path are both broken upstream, see embed_esmc() docstring)",
                   file=sys.stderr)
 
-    if results:
-        summary = pd.DataFrame(results, columns=[
-            "model", "dim", "wall_seconds", "same_vgene_cos_sim", "diff_vgene_cos_sim"])
-        summary["gap"] = summary["same_vgene_cos_sim"] - summary["diff_vgene_cos_sim"]
-        out = os.path.join(outdir, "cdr3_embedding_comparison.csv")
-        summary.to_csv(out, index=False)
-        print(f"\n=== Comparison written to {out} ===")
-        print("Larger 'gap' = the model separates CDR3s by V-gene more cleanly, i.e. captures "
-              "more biologically real structure. This is a floor check, not a full evaluation -- "
-              "a model could pass this and still be mediocre at the harder downstream task "
-              "(HLA/disease prediction). But failing it is disqualifying.")
-    else:
-        print("\nBoth models failed -- see errors above. Nothing to compare.", file=sys.stderr)
-
-    pool[["research_id", "chain", "v_gene", "cdr3aa", "score"]].to_csv(
-        os.path.join(local_outdir, "cdr3_pool_used_for_embedding.tsv"), sep="\t", index=False)
-    print(f"CDR3 pool used (VM-local, has real research_ids -- do not commit): "
-          f"{local_outdir}/cdr3_pool_used_for_embedding.tsv")
+    if not results:
+        die("every requested model failed -- see errors above")
+    summary = pd.DataFrame(results, columns=[
+        "model", "input", "n_clonotypes", "n_people", "dim", "wall_seconds",
+        "same_vgene_cos_sim", "diff_vgene_cos_sim", "v_is_input"])
+    summary["gap"] = summary["same_vgene_cos_sim"] - summary["diff_vgene_cos_sim"]
+    out = os.path.join(outdir, f"cdr3_embedding_summary_{tag}.csv")
+    summary.to_csv(out, index=False)
+    print(f"\n=== Summary (de-identified, safe to commit): {out} ===")
+    print(f"Embeddings + aligned pools (VM-local, real research_ids -- never commit): "
+          f"{local_outdir}/embeddings_*_{tag}.npy, pool_*_{tag}.tsv")
 
 
 if __name__ == "__main__":

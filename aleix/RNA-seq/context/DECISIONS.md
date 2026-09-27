@@ -73,6 +73,17 @@
   collapsed) in 3,666s (156x slower). Not a close call — SCEPTR wins on both signal and cost.
   ESMC is not planned to be re-run at full-cohort scale (would cost ~16 hours vs. SCEPTR's
   ~6 minutes for no discrimination benefit shown so far).
+- **Embedding input for HLA/disease work = `b_sceptr` on TRBV + CDR3B, top-500 clonotypes
+  per person by read support (2026-09-27).** SCEPTR's docs list a beta-chain-only variant
+  (`variant.b_sceptr`); we had been running the paired-chain `default()` on CDR3B alone,
+  which also discards CDR1/CDR2 (V-encoded, the loops that contact HLA). `cdr3_only` is kept
+  for the V-gene benchmark only, where V as input would make the check circular. Clonotype =
+  unique (chain, V, CDR3aa), canonical junction (C…F/W), CDR3_score ≥ 0.02 from `cdr3.out`;
+  people without `cdr3.out` are skipped, not silently run unfiltered via `report.tsv` (that
+  mix was ~70% of the first full-cohort pool — the shard VMs' `cdr3.out` were never pulled
+  back). Chain is assigned from V, then J, then C, so un-V-called TRB CDR3s aren't lost from
+  the counts; they are excluded from `b_sceptr` input (it needs a V) and the excluded fraction
+  is reported per ancestry.
 - **Copy-local BAM staging (not gcsfuse-direct reads) for the TRUST4 batch runner
   (2026-09-10).** gcsfuse streams a BAM at ~11 MB/s and doesn't parallelize (one shared fuse
   pipe); native `gcloud storage cp` pulls the same BAM at ~670 MB/s and bypasses the fuse
