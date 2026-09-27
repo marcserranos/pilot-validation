@@ -35,7 +35,7 @@ under nohup, log `~/embed_full.log`. Confirm the log's `Input sources:` line say
    reproducibility, ~10-20 min):
    ```bash
    cd ~/repos/pilot-validation && git pull
-   cd aleix/RNA-seq && nohup pixi run python3 scripts/01_sceptr_embedding_viz.py > ~/viz01.log 2>&1 &
+   cd aleix/RNA-seq && nohup pixi run python3 -u scripts/01_sceptr_embedding_viz.py > ~/viz01.log 2>&1 &
    ```
 3. Figures + `summary.csv` land in `~/pipeline_outputs/rnaseq/reports/01_sceptr_embedding_viz/`
    (VM-local). View in JupyterLab's file browser. Figure dots are individual clonotypes /
