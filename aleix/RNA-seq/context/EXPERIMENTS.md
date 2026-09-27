@@ -93,6 +93,13 @@ people not in the current cohort: 1000955, 1001121, 1002660, 1004700). Full loca
 confirmed: **7,922 / 7,922** report.tsv files present on the main VM
 (`00eb81c5cc77`, `~/pipeline_outputs/rnaseq/`).
 
+**Full-cohort aggregation** (`aggregate_rnaseq_results.py cohort_full.tsv`, commit
+`05e727f`, run from the VM): 7,922/7,922 people with a report. Mean CDR3s per person: AFR
+6,331 · SAS 5,998 · EAS 5,406 · AMR 5,230 · MID 5,209 · EUR 4,392. Per chain, AFR/EUR:
+TRB 1.06x · TRA 1.12x · IGH 1.68x · IGK 1.75x · IGL 1.75x. **Reverses two parts of the n=100
+story** — EUR (not EAS) is lowest, and the gap is Ig-chain-driven with TRB near-flat (see
+DECISIONS.md open question). Group means only; per-person test not yet run.
+
 **Post-batch cleanup (2026-09-2x):** confirmed every shard VM had zero `.sync.err` files and
 an empty `_staging/` before deleting its disk — nothing local was the only copy of anything.
 3 shard VMs deleted; main VM kept running (has `cohort_full.tsv` + all flattened reports,

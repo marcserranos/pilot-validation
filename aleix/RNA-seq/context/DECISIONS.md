@@ -13,12 +13,23 @@
   human reviews every byte leaving the controlled environment. Same class of issue as the
   root repo's "bare person_id in a public repo" open question — don't resolve independently,
   needs a joint call with Marc + supervisors.
-- **Ancestry recovery gap (AFR high / EAS low) — real but unexplained at n=100.** Depth
-  explains ~40%, remaining confounds (RQS, cell composition, 16 QC metrics) all ruled out.
-  Kruskal-Wallis was not significant at n=100 (p=0.18) despite the pattern looking consistent
-  across chain types. **Now testable at n=7,922** — 79x the sample. If it holds and reaches
-  significance, this becomes a real methodological finding (reference-genome/database bias
-  against non-European TCR/BCR sequences) worth its own writeup, not just a QC footnote.
+- **Ancestry recovery gap: reframed by the full cohort (2026-09-27), not yet tested.**
+  At n=100: AFR high / EAS low, 1.63x, "consistent across all 5 major chain types," KW p=0.18.
+  At n=7,922 (group means only, `results/rnaseq_cohort_ancestry_summary.csv`) **both halves of
+  that framing fail**: (1) EUR, not EAS, is now lowest (AFR/EUR 1.44x; EAS mid-pack); (2) the
+  gap is **carried by the B-cell chains** (IGH/IGK/IGL AFR/EUR 1.68-1.75x) while **TRB is
+  near-flat** (AFR/EUR 1.06x, all-group spread 1.19x, AFR not even highest). So "reference/
+  database bias against non-European receptor sequences" is now the *less* likely reading —
+  that would hit TRB too. Leading hypothesis to test, not assert: a biological Ig-expression
+  difference (plasmablast/plasma-cell Ig mRNA load; higher serum Ig in African-ancestry
+  populations is documented) rather than a TRUST4 artifact. **Not yet a result:** means only,
+  no dispersion, no per-person test, no depth normalization at this n. Needs the per-person
+  per-chain test (VM-local `batch_summary_detail.tsv` exists) before any claim.
+- **Group min/max in committed summaries are single-person values.** `cdr3_min`/`cdr3_max` in
+  `results/rnaseq_cohort_ancestry_summary.csv` are each one individual's count. Not an
+  identifier, but an n=1 statistic in a public repo — same small-cell disclosure class as the
+  root repo's open item. Flag for Marc/supervisors; don't decide here. Leaning: drop min/max
+  (or report p5/p95) in future committed summaries.
 - **Rarefaction vs. post-hoc depth normalization for the recovery metric.** Flagged in
   `reference/TRUST4_DEEP_DIVE.md` §8.5 as probably the most important methodological fix
   outstanding — post-hoc normalization only closed 40% of the ancestry gap, which itself
@@ -31,6 +42,30 @@
   external.
 
 ## Resolved decisions
+
+- **TRB is the primary chain for every HLA-facing analysis (Cole Shanks, 2026-09-27).**
+  Cole: what matters most are chains that undergo V(D)J recombination, and he's "most
+  interested specifically in the TCRBs." TRG/TRD don't really interact with HLA (γδ T cells
+  are largely not MHC-restricted) — ignore for now; possibly an interesting disease signal
+  later, not an immediate focus. Consequences: `--chain TRB` (already `embed_cdr3s.py`'s
+  default) is the headline for embeddings and HLA joins; every ancestry/recovery result is
+  reported per chain with TRB first, never only as an all-chain total (the all-chain total
+  is dominated by Ig chains and gave the wrong story at n=7,922 — see open question above).
+  TRA stays a secondary (it pairs with TRB, but bulk RNA-seq can't pair them). IG chains are
+  kept for the recovery-confound analysis, not the HLA aim.
+- **All figures use `cnsplots`, journal (Cell/Nature/Science) style (David Bonet,
+  2026-09-27).** Current figures read as AI-generated; David asked that every figure from now
+  on follow `github.com/faridrashidi/cnsplots` (matplotlib-based, BSD-3, `pip install
+  cnsplots`, bundled Claude skill via `cnsplots skill install --agent claude --scope
+  project`). Conventions to follow: sizes in points (`cns.figure(width, height)`),
+  `cns.multipanel(max_width=...)` with lettered panels, built-in stats annotation
+  (`test=`, `p_adjust=`) rather than hand-drawn asterisks, export SVG/PDF with editable text
+  (`cns.savefig`), PNG 300 dpi only as a preview. **Where figures get rendered:** figures
+  drawn purely from committed group-level CSVs can be built locally; any figure that needs
+  per-person values (box/violin/ECDF/scatter) is rendered **on the VM** with cnsplots
+  installed there, and only the finished figure leaves — no individual points drawn for
+  groups/bins under n=20, no per-person data file ever egresses. So cnsplots goes into
+  `aleix/RNA-seq/pixi.toml` (or the VM's base python) as well as locally.
 
 - **SCEPTR adopted as the embedding model (2026-09-10, EXPERIMENTS.md).** Compared against
   ESMC-300M on the same 500-person CDR3 pool: SCEPTR gap (same- vs diff-V-gene cosine
