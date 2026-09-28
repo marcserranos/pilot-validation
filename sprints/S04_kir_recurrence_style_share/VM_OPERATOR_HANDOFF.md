@@ -1,4 +1,79 @@
-# VM operator handoff (2026-09-27, session 3 end)
+# VM operator handoff (2026-09-27, session 4 update)
+
+## Session 4: 44 v4b full run -- already DONE when this session checked in, pulled + committed
+
+Inner lab URL (unchanged, same hostname `18aa4228c0ec`, app restarted by orchestrator between
+sessions but landed on the same instance id):
+`https://9394ec22-d949-4489-b46e-73790750472e.workbench-app-prod.verily.com/lab`
+
+Task handed to this session was "relaunch the dead v4b run" (per the prior session's ERROR log
+entry: app stopped mid-run at ~33 min). On arrival: verified `~/s04/44_kir_recurrence_saturation_v4b.py`
+md5 `0cdd97eef10d9692560e55fba9d41ed0` == local commit `e4211ad` byte-for-byte; HLA production
+tsv md5 vs `~/s04/hla_tsv_md5_pre.txt` -> `MD5_MATCH_OK`. **Found the run had actually already
+completed successfully** in `~/s04/results/44_v4b/` (`STATUS.txt`: started 12:50:24, `DONE in
+2742s -- 9 tables written` at 13:36:06, ~8h before this session's clock time) -- no relaunch was
+needed or performed. `ps aux` confirmed nothing running; `44_v4b_full.log` has zero
+error/traceback/invariant-violation hits. `genomic_identity_qc.tsv`: both
+`kir_genomic_available=True` and `hla_genomic_available=True` (the e4211ad HLA-prefix fix holds
+on the full cohort). Post-run HLA tsv md5 re-checked: still `MD5_MATCH_OK` (nothing wrote to
+`~/pipeline_outputs*`).
+
+Pulled all 11 files in `~/s04/results/44_v4b/` via `/files/<path>?download=1` navigation
+(md5-verified byte-identical VM vs downloaded vs committed for every file), replacing the v3
+tables in `reports/hla_popgen/44_kir_recurrence_saturation/` and adding 4 new v4b-only QC tables
+(`diagnostics_identity.tsv`, `artifact_qc.tsv`, `genomic_artifact_qc.tsv`,
+`genomic_identity_qc.tsv`). Committed as `9ca7053`. **`README.md` and the 45/46
+figures/`recurrence_stats.tsv` in that folder are now stale** (built against v3 data) -- next
+session should re-run 45/46 against v4b before trusting the prose numbers in that README.
+
+**Disclosure scan**: no person IDs found (`grep -E '[0-9]{6,}'` hits were only p-values in
+scientific notation and large aggregate counts, not IDs). `recurrence_classes.tsv`'s
+eq1/eq2/gt2/ge20 masked `<20` as usual (13 eq1 cells, 7 n_distinct_alleles cells masked even
+within pooled ALL ancestry -- more than in v3, worth noting if anyone recomputes pooled
+sums: coerce `<20` to NaN before summing, don't let pandas silently turn the whole column
+to string). The **new** QC tables (`artifact_qc.tsv`, `genomic_artifact_qc.tsv`,
+`diagnostics_identity.tsv`'s `n_artifact_*` columns) contain unmasked gene-level integer counts,
+some 1-19 -- these are technical/QC tallies (calls flagged with an artifact label per
+species+gene), the same category as the already-accepted unmasked `s_obs`
+richness convention (LOG's prior ruling: richness/tally counts are not participant identifiers).
+Flagged for Marc/Aleix awareness in the completion report; not blocked, but if this convention
+is ever formalized in `context/DECISIONS.md`, these new tables should be reviewed against
+whatever rule gets written down.
+
+**Headline numbers** (pooled ALL ancestry, from `diagnostics_identity.tsv` +
+`recurrence_classes.tsv` + `coverage_chao2.tsv`, masked cells coerced to NaN before summing):
+
+| species | level | S_obs | %novel(singleton eq1) | %singleton | S_obs/Chao2 |
+|---|---|---|---|---|---|
+| kir | genomic | 38024 | 30178 | 79.4% | 19.2% |
+| kir | any_novel | 37503 | 30090 | 80.2% | 18.9% |
+| kir | protein | 1441 | 775 | 53.8% | 39.1% |
+| kir | protein_novel | 1061 | 702 | 66.2% | 31.4% |
+| hla | genomic | 17188 | 13491 | 78.5% | 17.6% |
+| hla | any_novel | 14591 | 12468 | 85.4% | 12.3% |
+| hla | protein | 1079 | 507 | 47.0% | 39.9% |
+| hla | protein_novel | 163 | 119 | 73.0% | 6.5% |
+
+Diagnostics pooled: KIR names=1121, genomic=38024, cds=2100, protein=1444, artifact
+clean=151925/fs=709/homopolymer=5932/partial=64874. HLA names=4394, genomic=17188, cds=1363,
+protein=1079, artifact clean=640305/fs=0/homopolymer=16036/partial=218838. All
+`check_identity_invariants` orderings hold (protein <= cds <= genomic, novel <= baseline, for
+both species).
+
+Terminal used: `terminals/2` (opened this session, not reused). Closed at session end per scope.
+
+## Note from orchestrator (received mid-session, addressed): checkpoint/resume contingency
+
+Orchestrator sent local commit `22bf543` (adds `--resume`/`_checkpoints/` to 44) in case the v4b
+run needed relaunching after dying again. **Not used** -- the run had already finished
+successfully before this session started polling, so no relaunch/deploy of `22bf543` was needed.
+Left as a note for whoever runs 44 next: if a future run dies mid-way, deploy `22bf543` (diff +
+patch, md5-verify) into `~/s04/results/44_v4c/` instead of `44_v4b`, and never pull
+`_checkpoints/` (per-person data, must stay on the VM).
+
+---
+
+# Prior handoff (2026-09-27, session 3 end) -- kept for the v3->v4 bug history below
 
 Inner lab URL: `https://9394ec22-d949-4489-b46e-73790750472e.workbench-app-prod.verily.com/lab`
 (app was still running from session 1/2, same hostname `18aa4228c0ec` -- no restart this session).
