@@ -337,6 +337,14 @@ def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=(),
     # species landing on a label from the other (caught by re-running check_layout, not by eye:
     # 'HLA-DRB1 overlaps KIR3DS1' in panel a, two close points from different species).
     free_x, free_y, free_lab, free_col = [], [], [], []
+    # Chained column position: when MORE THAN ONE species is in `column_species` (panel a, v4b
+    # fix), each species' own default column position (`_label_curve_ends`'s xmax*1.04) would
+    # land at roughly the same x for both, since both species' genomic-level points cluster near
+    # x=90-100 -- the two columns of gene names would print on top of each other. Instead, chain
+    # them: the first species gets its own default column, and every subsequent one starts past
+    # the x-axis extent `_label_curve_ends` just widened the axes to (its return value), so the
+    # two (or more) columns sit side by side, never overlapping.
+    next_label_x = None
     for sp in SPECIES_ORDER:
         xs, ys, labs = per_species[sp]
         if not xs:
@@ -344,8 +352,21 @@ def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=(),
         if sp in column_species:
             ends = {lab: (x, y) for x, y, lab in zip(xs, ys, labs)}
             colors_by_label = {lab: SPECIES_COLOR[sp] for lab in labs}
+            # The chained `next_label_x` is a MINIMUM, never an absolute override: it must also
+            # clear THIS species' own rightmost point, or the column would sit to the left of
+            # some of its own data and the leader line would run backwards, potentially crossing
+            # through the previous species' label text (a real regression the synthetic-fixture
+            # test caught: with few, widely-spaced points -- unlike production's tight cluster --
+            # the naive chained value could land short of a later species' own xmax).
+            own_default_x = max(x for x, _ in ends.values()) * 1.04
+            this_label_x = max(next_label_x, own_default_x) if next_label_x is not None else None
             m45._label_curve_ends(ax, ends, colors_by_label, fontsize=column_fontsize,
-                                   min_gap_frac=column_min_gap_frac)
+                                   min_gap_frac=column_min_gap_frac, label_x=this_label_x)
+            # `_label_curve_ends` already widened `ax`'s xlim to fit THIS species' own longest
+            # label past its column (its own `label_x * 1.22` heuristic) -- anchor the next
+            # species' column there, so consecutive columns never overlap regardless of how wide
+            # either species' gene-name strings are.
+            next_label_x = ax.get_xlim()[1] * 1.02
         else:
             free_x += xs
             free_y += ys
@@ -385,7 +406,16 @@ def fig_catalogue_completeness(metrics, out_stem):
         axes[1].set_title("CDS identity (headline)", fontsize=6.5)
         axes[2].set_xlabel("% of distinct alleles novel (protein level)")
         axes[2].set_title("protein identity (headline)", fontsize=6.5)
-        handles = _scatter_panel(axes[0], metrics, "pct_novel_any", "completeness")
+        # Panel a (genomic, upper-bound context): BOTH species cluster densely near x=85-100
+        # (most genes of both species are >80% "novel" at the genomic/span level, see caveat 1),
+        # so free per-point label repulsion was landing ~20 gene names on top of each other and
+        # of the wrong data points (2026-09-28 full-size visual review finding -- not caught by
+        # `check_layout(strict=True)`, a text-vs-text/decoration-only linter, since these are
+        # text-vs-marker collisions). Both species now get their own chained shared-x-column
+        # (see `_scatter_panel` docstring / the `next_label_x` chaining above).
+        handles = _scatter_panel(axes[0], metrics, "pct_novel_any", "completeness",
+                                  column_species=("hla", "kir"), column_fontsize=5.0,
+                                  column_min_gap_frac=0.045)
         # CDS panel: both species' any-level-novelty values span a similar, overlapping range
         # here (unlike the protein panel), so gene labels are dropped for legibility (see
         # `_scatter_panel(..., label_genes=False)` docstring) -- values are in

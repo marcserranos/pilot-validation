@@ -121,6 +121,22 @@ paradox), not a contradiction or a bug; both numbers are correct for what they m
 robust version of "which catalogue is more complete," and flag the pooled near-tie as
 aggregation-sensitive** rather than picking one as "the" answer.
 
+**Mechanism check (critic pass, 2026-09-28): is this just unequal N per ancestry, or a genuine
+Chao2-pooling effect?** Tested directly — an N-weighted average of the 5 ancestries' own protein
+completeness (weights = each ancestry's `n_people` from `coverage_chao2.tsv`) gives **HLA 52.9% vs
+KIR 36.2%**, a 16.7-point HLA lead, essentially the same gap as the per-ancestry table itself. If
+the pooled-ALL near-tie (39.9% vs 39.2%, a 0.7-point gap) were just an artifact of unequal ancestry
+sample sizes, N-weighting the per-ancestry numbers should reproduce something close to that
+near-tie — it does not. **The reversal is therefore not explained by unequal N**: it is a genuine
+property of Chao2 (and S<sub>obs</sub>) computed on the union of ancestries' allele pools. Pooling
+"ALL" doesn't average the per-ancestry ratios, it recomputes S<sub>obs</sub>/Chao2 on a bigger,
+more diverse combined population — population structure (each ancestry carries a partly distinct
+allele set) inflates the pooled S<sub>obs</sub> and Chao2 for both species, but not in the same
+proportion for HLA and KIR, which is enough to erase HLA's consistent within-ancestry lead. This
+mechanism is not further decomposed here (e.g. into "how much of each species' pooled S<sub>obs</sub>
+is ancestry-private alleles") — flagged as a candidate follow-up, not asserted beyond what's
+verified above.
+
 ### Is novelty private or shared? (two-proportion z-test on singleton share)
 
 | level | HLA singleton share | KIR singleton share | z | p | direction |
@@ -230,9 +246,25 @@ haplotypes), but neither species' novelty is predominantly "shared" in any level
    Method). `coverage_chao2.tsv`'s per-gene s_obs is **not** masked (several KIR genes' s_obs at
    any_novel/protein_novel are below 20, e.g. KIR2DS3=51 at protein — check against
    `context/DECISIONS.md`'s open disclosure question before quoting an individual gene's
-   raw s_obs outside the team; the pooled sums used throughout this README are all ≥100).
-5. **No multiple-testing correction** across the 4 two-proportion z-tests reported above.
-6. **44's own equal-N-slope headline table doesn't match a direct sum of `equal_n_slope.tsv`'s
+   raw s_obs outside the team; the pooled sums used throughout this README are all ≥100). The QC
+   diagnostics tables (`artifact_qc.tsv`, `genomic_artifact_qc.tsv`, `diagnostics_identity.tsv`,
+   `kir_cds_match_qc.tsv`) are **not** used to source any headline number (those come from
+   `coverage_chao2.tsv`/`saturation_curves.tsv` only), so their small per-gene/per-category cells
+   (allele/call counts, e.g. a gene's `n_artifact_frameshift_or_stop`, never a person count) have
+   been masked to `<20` in-place (critic pass, 2026-09-28) as the cheap, consistent choice — this
+   does not affect any number quoted in this README, since none of them cite an individual masked
+   cell.
+5. **Reconciling this README's numbers against an earlier operator console printout** (LOG.md
+   2026-09-27 ~02:30 entries): an intermediate VM-run printout reported HLA protein_novel S_obs=163
+   and KIR protein=1,441/protein_novel=1,061, which do not match this README's 198/1,444/1,063.
+   Re-derived directly from the three committed v4b tables independently (`coverage_chao2.tsv`
+   summed, `diagnostics_identity.tsv` summed, and `saturation_curves.tsv` via
+   `pooled_recurrence_from_curves()`) — **all three agree exactly** on 198 (HLA protein_novel),
+   1,444 (KIR protein), 1,063 (KIR protein_novel), 1,079 (HLA protein). The operator's printed
+   163/1,441/1,061 are stale (from a console log captured before the final tables were written/
+   pulled, not from any committed artifact) — this README's numbers are the ones to use.
+6. **No multiple-testing correction** across the 4 two-proportion z-tests reported above.
+7. **44's own equal-N-slope headline table doesn't match a direct sum of `equal_n_slope.tsv`'s
    per-gene rows** (~18x off) — flagged, pre-existing (confirmed via `git show` predates v3), NOT
    fixed in this pass (out of scope for the WS-A/WS-B figures ask; a separate follow-up).
 

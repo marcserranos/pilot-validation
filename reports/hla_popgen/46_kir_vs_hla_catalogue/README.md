@@ -80,6 +80,14 @@ more trustworthy answer to "which catalogue is better represented"** — HLA, co
 pooled near-tie as an artifact of how the ancestries happen to mix, not evidence the two catalogues
 are actually comparable.
 
+**Confirmed NOT an unequal-N artifact** (critic pass, 2026-09-28; see `44`'s README for the
+worked check): N-weighting the 5 ancestries' own protein completeness by `n_people` gives HLA
+52.9% vs KIR 36.2% — essentially the same ~17-point HLA lead as the raw per-ancestry table, not
+the pooled-ALL near-tie. So unequal ancestry sample sizes alone cannot produce the reversal; it is
+a genuine effect of computing S<sub>obs</sub>/Chao2 on the pooled union of ancestries' allele pools
+(population structure changes the pooled numerator/denominator nonlinearly and species-specifically),
+not a weighting artifact.
+
 ### Per gene (`46_catalogue_metrics.tsv`, pooled ALL)
 
 HLA's 8 classical genes range 27.0%–57.3% protein-completeness (worst: HLA-DQA1 at 21.6%; best:
@@ -99,7 +107,11 @@ reference set relative to its real diversity.
   novel, y = Chao2 completeness, one point per gene, HLA (red) vs KIR (blue). **(a) genomic —
   upper-bound context only**, gene labels shown (dense cluster near x=100% is normal: most genes
   of both species are >80% "novel" at the genomic/span level — see Caveat 1, this is inflation, not
-  biology). **(b) CDS — headline.** Gene labels are deliberately omitted in this panel (both
+  biology). Both species get their own shared-column leader-line label layout here, one column
+  chained past the other (2026-09-28 fix: with both species' points this densely packed, free
+  per-point label repulsion was placing ~20 gene names on top of each other and on top of the
+  wrong data points — a text-vs-marker collision the layout linter's text-vs-text check cannot
+  catch, only found by viewing the PNG at full size). **(b) CDS — headline.** Gene labels are deliberately omitted in this panel (both
   species' any-level-novelty values overlap too much for either the free or column-leader-line
   label layout to place ~30 gene names without collisions — tried both, see the script's
   `_scatter_panel` docstring); per-gene values are in `46_catalogue_metrics.tsv`/
@@ -122,7 +134,11 @@ reference set relative to its real diversity.
    `protein_novel` s_obs are below 20 (e.g. KIR2DS3 protein S<sub>obs</sub>=36, at the edge). This
    script uses 44's committed numbers as-is (re-masking someone else's committed aggregate is out
    of scope for a local figure script) — flagged per `context/DECISIONS.md`'s open disclosure
-   question, not resolved here.
+   question, not resolved here. By contrast, `44`'s QC diagnostics tables (`artifact_qc.tsv` etc.,
+   not read by this script) had small per-gene call counts masked to `<20` directly in this critic
+   pass, since those tables are never used to source a headline number here or in `44`'s README —
+   see `44`'s Caveat 4 for why the two tables were treated differently (masking `coverage_chao2.tsv`
+   itself would break the headline-number sums, which are unmasked per-gene totals by necessity).
 4. The per-ancestry reversal (HLA ahead in every ancestry, near-tied pooled) is real and
    reproducible from the TSVs but its *mechanism* (why pooling reverses the ordering) is not
    investigated further in this pass — reported as an aggregation-sensitivity finding, not

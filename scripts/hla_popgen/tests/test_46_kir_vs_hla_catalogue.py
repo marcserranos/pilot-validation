@@ -85,6 +85,48 @@ def _synthetic_cov():
     return pd.DataFrame(rows)
 
 
+def _synthetic_cov_clustered():
+    """Same shape as `_synthetic_cov()` but with pct_novel_any clustered near 90-100% for BOTH
+    species -- representative of this pipeline's real genomic-level identity data (44's
+    `coverage_chao2.tsv`: every gene of both species is >60% novel at genomic level, see
+    `44`'s Caveat 1 / this script's own `fig_catalogue_completeness` panel-a docstring), unlike
+    `_synthetic_cov()`'s deliberately spread-out 20/50/80/25% (picked for hand-computable
+    arithmetic, not to model clustering). Used ONLY by the layout/rendering tests below: panel a's
+    two-species chained-column labeling (`_scatter_panel(column_species=("hla","kir"))`, added
+    2026-09-28) assumes each species' own points are reasonably close to its own rightmost point
+    -- true for real genomic-level data, not true for `_synthetic_cov()`'s wide artificial spread,
+    which was exposing a leader-line-sweep layout bug that never occurs on real inputs (verified
+    against the actual v4b `46_catalogue_metrics.tsv`, min pct_novel_any 61.9%)."""
+    rows = []
+
+    def add(gene, species, level, s_obs, chao2):
+        rows.append({"gene": gene, "ancestry": "ALL", "level": level, "species": species,
+                     "n_people": 1000, "s_obs": s_obs, "good_turing_coverage": 0.99,
+                     "chao2": chao2, "chao2_se": 1.0, "chao2_undetected_f0hat": chao2 - s_obs,
+                     "q1": "", "q2": "", "chao_new_by_2n": 0.0})
+
+    # genomic_chao2_mult varies per gene (unlike a fixed ratio) so completeness values are spread
+    # out on the y-axis too, not all identical -- an earlier version of this fixture used a fixed
+    # s_obs*2.0 for every gene, which put every point at completeness==0.5 and made the column
+    # labeler's vertical repulsion push labels into each other's leader lines (a fixture artifact,
+    # not a real bug; caught when this fixture itself was being debugged, 2026-09-28).
+    for gene, genomic, any_novel, protein, protein_novel, gmult in [
+        ("A", 100, 65, 90, 20, 2.0), ("B", 200, 190, 150, 60, 1.3),
+    ]:
+        add(gene, "hla", "genomic", genomic, genomic * gmult)
+        add(gene, "hla", "any_novel", any_novel, any_novel * 2.5)
+        add(gene, "hla", "protein", protein, protein * 2.2)
+        add(gene, "hla", "protein_novel", protein_novel, protein_novel * 2.8)
+    for gene, genomic, any_novel, protein, protein_novel, gmult in [
+        ("KIR2DL1", 50, 46, 50, 30, 1.8), ("KIR2DL2", 40, 39, 20, 15, 3.0),
+    ]:
+        add(gene, "kir", "genomic", genomic, genomic * gmult)
+        add(gene, "kir", "any_novel", any_novel, any_novel * 2.5)
+        add(gene, "kir", "protein", protein, protein * 2.2)
+        add(gene, "kir", "protein_novel", protein_novel, protein_novel * 2.8)
+    return pd.DataFrame(rows)
+
+
 def _synthetic_slope():
     rows = []
     for gene, species, slope in [("A", "hla", 5.0), ("B", "hla", 8.0),
@@ -206,7 +248,10 @@ class TestFiguresRenderAndLayout(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.cov = _synthetic_cov()
+        # Clustered fixture (not the wide-spread `_synthetic_cov()`): panel a's two-species
+        # chained column labeling needs realistically-clustered genomic-level novelty to exercise
+        # what it's actually built for (see `_synthetic_cov_clustered()` docstring).
+        self.cov = _synthetic_cov_clustered()
         self.slope = _synthetic_slope()
         self.metrics = m46.build_gene_metrics(self.cov, self.slope)
 
@@ -434,10 +479,10 @@ class TestColumnLabelStyleBinding(unittest.TestCase):
         plt.close(fig)
 
 
-def _synthetic_cov_with_cds():
-    """`_synthetic_cov()` plus a `cds` row per gene (v4b headline granularity) -- hand-computable
-    completeness_cds."""
-    cov = _synthetic_cov()
+def _synthetic_cov_with_cds(base=None):
+    """`_synthetic_cov()` (or `base`, if given) plus a `cds` row per gene (v4b headline
+    granularity) -- hand-computable completeness_cds."""
+    cov = base if base is not None else _synthetic_cov()
     rows = cov.to_dict("records")
 
     def add_cds(gene, species, s_obs, chao2):
@@ -493,7 +538,8 @@ class TestFigCatalogueCompletenessThreePanels(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.cov = _synthetic_cov_with_cds()
+        # Clustered base (see `TestFiguresRenderAndLayout.setUp`) + cds rows.
+        self.cov = _synthetic_cov_with_cds(base=_synthetic_cov_clustered())
         self.slope = _synthetic_slope()
         self.metrics = m46.build_gene_metrics(self.cov, self.slope)
 

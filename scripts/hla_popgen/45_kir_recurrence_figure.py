@@ -161,21 +161,29 @@ def compute_singleton_share_stats(curve):
 # Direct end-of-line labeling (adapted from 40_figure1_v5.draw_panel_e's shared-x-column pattern):
 # a shared x just past the rightmost curve, vertically repelled labels, dotted elbow leaders.
 # ---------------------------------------------------------------------------
-def _label_curve_ends(ax, ends, colors, fontsize, min_gap_frac=0.12):
+def _label_curve_ends(ax, ends, colors, fontsize, min_gap_frac=0.12, label_x=None):
     """Places one label per curve at a shared x-column past the rightmost curve endpoint, with
     vertical repulsion so labels never overlap. `min_gap_frac` is a fraction of the AXES' own
     plotted y-range (via `ax.get_ylim()` after the data is drawn), not of the spread between the
     label values themselves -- using only the label spread underestimates the needed gap when
     labels happen to cluster close together relative to a much larger axis range (observed in a
     synthetic-fixture test: two labels 8 apart on an axis spanning 0-6, i.e. yrange==label
-    spread, produced a gap far smaller than one line of 5-6pt text actually needs)."""
+    spread, produced a gap far smaller than one line of 5-6pt text actually needs).
+
+    `label_x`: override the column's x-position (data coords) instead of deriving it from this
+    call's own `ends` xmax. Used by 46_kir_vs_hla_catalogue.fig_catalogue_completeness panel (a),
+    where TWO species each need their own column in the same axes -- the second species' column
+    must start to the right of the first species' already-placed text, not at its own (smaller
+    or overlapping) xmax (2026-09-28 fix: both species are densely packed near x=90-100 in that
+    panel, so two independently-computed default columns landed on top of each other)."""
     if not ends:
         return
     xmax = max(x for x, _ in ends.values())
     ylo, yhi = ax.get_ylim()
     axis_span = (yhi - ylo) or 1.0
     min_gap = max(axis_span * min_gap_frac, 1e-6)
-    label_x = xmax * 1.04
+    if label_x is None:
+        label_x = xmax * 1.04
     order = sorted(ends, key=lambda k: ends[k][1])
     placed = []
     for k in order:
@@ -211,6 +219,7 @@ def _label_curve_ends(ax, ends, colors, fontsize, min_gap_frac=0.12):
             vc.mark_decoration(ln2)
     x0lo, x0hi = ax.get_xlim()
     ax.set_xlim(x0lo, max(x0hi, label_x * 1.22))
+    return label_x
 
 
 # ---------------------------------------------------------------------------
