@@ -120,7 +120,8 @@ def _chain_of(v, j, c):
     return ""
 
 
-def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_report_fallback):
+def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_report_fallback,
+                      max_len=30):
     """One row per unique clonotype (chain, V gene, CDR3aa) for this person, ranked by
     read support, highest first. Returns (df, source) where source is 'cdr3.out',
     'report.tsv', or None if nothing usable."""
@@ -159,8 +160,11 @@ def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_rep
     # Productive, canonical junctions only: valid residues, starts with the conserved C,
     # ends with the conserved F/W (the format SCEPTR is trained on; also excludes the
     # truncated CDR3s TRUST4 reports when an assembly doesn't span the whole junction).
+    # Length cap: on the full cohort, TRB CDR3 length is median 14 aa, 99.9% <= 22 aa, only
+    # 97 clonotypes in 26-40 aa, then a separate mode of ~2,000 at > 40 aa (up to ~100) --
+    # assembly artifacts that cluster together in embedding space. 30 aa sits in the gap.
     aa = df["cdr3aa"].astype(str)
-    ok = aa.str.fullmatch(r"C[ACDEFGHIKLMNPQRSTVWY]{3,}[FW]")
+    ok = aa.str.fullmatch(r"C[ACDEFGHIKLMNPQRSTVWY]{3,}[FW]") & (aa.str.len() <= max_len)
     df = df[ok & (df["chain"] != "")]
 
     # Collapse to unique clonotypes: the same CDR3 can appear in several TRUST4 consensus
@@ -295,6 +299,10 @@ def main():
                     help="dir containing <research_id>/ TRUST4 output subdirs")
     ap.add_argument("--min-score", type=float, default=0.02,
                     help="minimum CDR3_score to keep (default 0.02 = real motif strength only)")
+    ap.add_argument("--max-cdr3-len", type=int, default=30,
+                    help="drop CDR3s longer than this (aa), before the per-person cap. Default "
+                         "30 sits in the gap between real TRB CDR3s (99.9%% <= 22 aa) and a "
+                         "> 40 aa artifact mode seen on the full cohort")
     ap.add_argument("--keep-imputed", action="store_true",
                     help="also keep CDR3_score==0.01 (imputed/guessed) -- relaxes the filter")
     ap.add_argument("--max-per-person", type=int, default=500,
@@ -369,7 +377,8 @@ def main():
         all_rows = []
         for i, rid in enumerate(cohort["research_id"], 1):
             df, source = load_person_cdr3s(args.pheno_dir, rid, args.min_score,
-                                           args.keep_imputed, args.allow_report_fallback)
+                                           args.keep_imputed, args.allow_report_fallback,
+                                           args.max_cdr3_len)
             if df is None:
                 n_missing.append(rid)
                 continue

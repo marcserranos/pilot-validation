@@ -84,6 +84,20 @@
   back). Chain is assigned from V, then J, then C, so un-V-called TRB CDR3s aren't lost from
   the counts; they are excluded from `b_sceptr` input (it needs a V) and the excluded fraction
   is reported per ancestry.
+- **CDR3 length cap ≤ 30 aa, applied before the per-person top-500 (2026-09-28).** Found
+  via Fig 1B of report 01: one ≥20-person cell averaged ~100 aa. Full-cohort pool lengths:
+  median 14, 99.9% ≤ 22, only 97 clonotypes in 26–40 aa, then a separate mode of 2,036 at
+  > 40 aa (0.053% of clonotypes, 1,175 people) — assembly artifacts that cluster together
+  in embedding space. 30 aa sits in the empty gap, so it removes the artifact mode without
+  trimming the natural tail. Applied pre-cap so affected people get a real clonotype in the
+  freed slot; hence a full re-embed rather than dropping rows post hoc.
+- **Why top-500 clonotypes per person, by read support (recorded 2026-09-28).** (1)
+  Comparability: TRUST4 recovers hundreds to thousands of TRB clonotypes per person with
+  depth/T-cell content; a fixed-size sample keeps the person vector from tracking depth
+  (median 494 after V exclusion, 96% of people ≥ 400). (2) Top-by-reads keeps the most
+  reliably assembled and most expanded (antigen-driven) clones; 1–2-read clonotypes are the
+  noisiest part of bulk RNA-seq. (3) The value 500 itself is inherited, not tuned — a
+  robustness check across caps (100/250/500/all) is owed before any paper claim.
 - **Copy-local BAM staging (not gcsfuse-direct reads) for the TRUST4 batch runner
   (2026-09-10).** gcsfuse streams a BAM at ~11 MB/s and doesn't parallelize (one shared fuse
   pipe); native `gcloud storage cp` pulls the same BAM at ~670 MB/s and bypasses the fuse

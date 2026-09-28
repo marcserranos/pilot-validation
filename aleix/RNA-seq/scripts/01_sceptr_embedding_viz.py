@@ -72,14 +72,16 @@ def v_family(v):
     return v.split("-")[0] if v else ""
 
 
-def run_umap(x, seed, cache_path):
+def run_umap(x, seed, cache_stem):
     """Seeded (reproducible, so single-threaded). Cached, so restyling a figure doesn't
-    recompute it. The cache holds per-clonotype/per-person coordinates: VM-local only."""
+    recompute it; the cache key includes a hash of the input vectors, so re-embedded data
+    with the same row count can never pick up a stale map. VM-local only."""
+    import hashlib
+    digest = hashlib.sha1(np.ascontiguousarray(x).tobytes()).hexdigest()[:12]
+    cache_path = f"{cache_stem}_{digest}.npy"
     if os.path.exists(cache_path):
-        emb = np.load(cache_path)
-        if len(emb) == len(x):
-            print(f"  UMAP: cached {cache_path}", file=sys.stderr)
-            return emb
+        print(f"  UMAP: cached {cache_path}", file=sys.stderr)
+        return np.load(cache_path)
     import umap
     t0 = time.time()
     emb = umap.UMAP(n_neighbors=15, min_dist=0.3, metric="euclidean",
@@ -269,7 +271,7 @@ def main():
     x_sub = embs[sel]
     print(f"\nFig 1: {n:,} clonotypes (seed {args.seed})", file=sys.stderr)
     xy = run_umap(x_sub, args.seed,
-                  os.path.join(cache, f"umap_clonotype_{args.tag}_n{n}_s{args.seed}.npy"))
+                  os.path.join(cache, f"umap_clonotype_{args.tag}_n{n}_s{args.seed}"))
     pca_c = PCA(n_components=10, random_state=args.seed).fit(x_sub)
     pc_c = pca_c.transform(x_sub)[:, :2]
 
@@ -331,7 +333,7 @@ def main():
            if "ancestry" in pool.columns else np.full(len(people), ""))
     print(f"\nFig 2: {len(people):,} people", file=sys.stderr)
     xy_p = run_umap(person_vec, args.seed,
-                    os.path.join(cache, f"umap_person_{args.tag}_s{args.seed}.npy"))
+                    os.path.join(cache, f"umap_person_{args.tag}_s{args.seed}"))
     pca_p = PCA(n_components=10, random_state=args.seed).fit(person_vec)
     pc_p = pca_p.transform(person_vec)[:, :2]
     anc_order = [a for a in ANCESTRY_ORDER if a in set(anc)] + \
