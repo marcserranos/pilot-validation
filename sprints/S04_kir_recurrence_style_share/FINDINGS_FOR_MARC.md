@@ -419,3 +419,10 @@ with real start/stop timestamps in a future sprint if a firmer number is needed.
      it into a future sprint's margins again.
    - Nearest-neighbor rare-allele sharing check (a relatedness-filter sanity check suggested in
      WS-D's idea list) was not implemented.
+
+
+## Addendum 2026-09-28: Marc's decisions on the open items
+- `outputs/`: deleted locally, stays gitignored, history not scrubbed (Marc's call; see DECISIONS).
+- Package README date: left as is (the prefix is the version of record).
+- Small-cell policy: Marc wants it looser for allele/richness counts. A research agent is checking AoU policy and precedent; the outcome is recorded in DECISIONS.md.
+- Stray sprint downloads in ~/Downloads (25 aggregate TSVs, a STATUS.txt, 3 diff-chunk files) are deleted. Every one was either identical to the committed copy or a superseded version already in git history. Marc's own screenshots and notes are untouched.

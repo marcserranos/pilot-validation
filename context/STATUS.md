@@ -31,8 +31,8 @@ the VM and smoke-tested (300 people, clean) but the full-cohort run has not been
    "pending 44 v4" section with real numbers.
 3. Marc: push and merge the branch per `FINDINGS_FOR_MARC.md` §6 (item 2), then delete the 3
    subsumed branches.
-4. Marc: decide the 3 open items in `FINDINGS_FOR_MARC.md` §6 (`outputs/` tracking, small-cell
-   `s_obs` masking policy, Cole package README date re-upload).
+4. Marc (09-28) decided: outputs/ deleted + gitignored; README date left; small-cell
+   policy -> looser for non-participant counts, pending the AoU policy research agent (see DECISIONS.md 2026-09-28).
 
 ## As of 2026-09-26 — Sprint S04 opened (not started)
 

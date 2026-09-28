@@ -136,3 +136,7 @@
   sub-pixel misalignments and a reversed bar order that only showed up at full-resolution zoom or a
   literal number check against the TSV. Standard from here forward for any new or redesigned figure
   in this pipeline.
+
+- **Resolved (2026-09-28, Marc): legacy `outputs/` deleted locally, stays gitignored; history NOT scrubbed.** Commit `a03be3f` (on origin/main) contains `outputs/allele_freq_by_ancestry.csv`, whose freq × N implies 1–19 allele counts for ~3,243/4,863 rows. Marc judged this not serious enough for a history rewrite or a support ticket: "just delete it from the current version of the repo, gitignore it and that's it". It was already untracked (`3881a37`) and `outputs/` stays in `.gitignore`. Supersedes the open `outputs/` question in the WS-F entry above.
+- **Resolved (2026-09-28, Marc): the Cole package README date mismatch is left as is.** The bucket prefix `release_2026-09-25/` is the version of record, and the README header says 2026-09-26. No re-upload; `49 --release-tag` fixes future releases.
+- **Direction (2026-09-28, Marc), pending the policy research: the small-cell rule should be LOOSER for non-participant counts.** Marc's view: novel alleles are rare by definition, and that is the point; "how many new alleles did we find" is not like revealing a trait. He prefers showing low counts and letting supervisors flag what isn't publishable over losing insight. A research agent is checking AoU's Data and Statistics Dissemination Policy, FAQs and the forum for precedent. The final rule will be recorded here.
