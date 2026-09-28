@@ -4,7 +4,8 @@ people,7922.0
 clonotypes_in_map,200000.0
 seed,0.0
 median_clonotypes_per_person,494.0
-frac_people_at_cap,0.005175460742236809
+frac_people_lt_100_clonotypes,0.0011360767482958849
+frac_people_lt_400_clonotypes,0.04064630143903055
 frac_clonotypes_public_ge2,0.14331337179695006
 clonotype_pca_var_PC1,0.04519836604595184
 clonotype_pca_var_PC2,0.03841612860560417
@@ -14,6 +15,10 @@ spearman_person_PC1_vs_repertoire_size,-0.20737323704310046
 spearman_person_PC1_vs_repertoire_size_p,1.0947042171000564e-77
 spearman_person_PC2_vs_repertoire_size,0.11548611317394936
 spearman_person_PC2_vs_repertoire_size_p,6.231764798354279e-25
+hidden_frac_fig1_clonotype_umap,0.01093999999999995
+hidden_frac_fig2_person_umap,0.018555920222166122
+hidden_frac_figS1a_clonotype_pca,0.030320000000000014
+hidden_frac_figS1b_person_pca,0.04317091643524362
 people_AFR,1288.0
 people_AMR,1699.0
 people_EAS,1134.0
