@@ -333,8 +333,10 @@ class TestRowLabelBindingMatchesData(unittest.TestCase):
             if r["kind"] == "header":
                 self.assertEqual(tick_text_by_y[y], r["label"])
                 continue
-            # row label <-> the row's own identity
-            self.assertEqual(tick_text_by_y[y], r["gene_display"])
+            # row label <-> the row's own identity (a catalogue-uncovered gene's tick label is
+            # its gene_display PLUS the "(no protein ref.)" suffix -- see `row_label()`).
+            self.assertEqual(tick_text_by_y[y], m46.row_label(r))
+            self.assertTrue(tick_text_by_y[y].startswith(r["gene_display"]))
             # row label <-> the metrics table ("TSV"), independent of build_row_order's own
             # bookkeeping -- re-fetch the row fresh from `self.metrics` by (gene, species).
             tsv_row = self.metrics[(self.metrics.gene == r["gene"]) &
@@ -342,26 +344,22 @@ class TestRowLabelBindingMatchesData(unittest.TestCase):
             self.assertEqual(r["gene_display"], tsv_row["gene_display"])
             # plotted value <-> the metrics table, at the row's OWN y (not just "somewhere").
             matches = [ln for ln in protein_lines if abs(ln.get_ydata()[0] - y) < 1e-9]
-            self.assertEqual(len(matches), 1,
-                              f"expected exactly one protein-level marker at row {y!r} "
-                              f"({r['gene_display']}), found {len(matches)}")
-            ln = matches[0]
             if bool(tsv_row["protein_catalogue_covered"]):
-                self.assertNotEqual(ln.get_markerfacecolor(), "none",
-                                     f"{r['gene_display']} is catalogue-covered but was drawn "
-                                     "with a hollow (uncovered-style) marker")
-                self.assertAlmostEqual(ln.get_xdata()[0], tsv_row["completeness_protein"],
-                                        places=6,
+                self.assertEqual(len(matches), 1,
+                                  f"expected exactly one protein-level marker at row {y!r} "
+                                  f"({r['gene_display']}), found {len(matches)}")
+                self.assertAlmostEqual(matches[0].get_xdata()[0],
+                                        tsv_row["completeness_protein"], places=6,
                                         msg=f"{r['gene_display']}: plotted protein completeness "
                                             "does not match the metrics table")
             else:
-                self.assertEqual(ln.get_markerfacecolor(), "none",
-                                  f"{r['gene_display']} is catalogue-UNcovered but was drawn "
-                                  "with a filled (covered-style) marker")
-                self.assertAlmostEqual(ln.get_xdata()[0], 0.0,
-                                        msg=f"{r['gene_display']}: an uncovered gene's protein "
-                                            "marker must sit at the axis's own zero edge, not a "
-                                            "fabricated or stray value")
+                # A catalogue-uncovered gene gets NO protein-level marker at all (2026-09-28 fix:
+                # an earlier hollow-marker-at-x=0 design still read as "completeness 0") -- the
+                # row's own tick-label suffix carries the caveat instead.
+                self.assertEqual(len(matches), 0,
+                                  f"{r['gene_display']} is catalogue-UNcovered and must get NO "
+                                  f"protein-level marker, found {len(matches)}")
+                self.assertIn(m46.NO_PROTEIN_REF_SUFFIX, tick_text_by_y[y])
             n_checked += 1
         self.assertEqual(n_checked, len(self.metrics))
         plt.close(fig)
@@ -419,10 +417,11 @@ class TestProteinCatalogueQCMerge(unittest.TestCase):
 
 
 class TestNaGenesRenderedExplicitly(unittest.TestCase):
-    """Coordinator ask (carried over from the v4b scatter design): a gene whose protein-level
-    metrics are NaN (catalogue-uncovered, e.g. KIR2DP1/KIR3DP1) must be rendered explicitly --
-    a HOLLOW marker plus an in-panel "no catalogued protein" note -- never a fabricated 0 or a
-    normal filled marker."""
+    """Coordinator ask: a gene whose protein-level metrics are NaN (catalogue-uncovered, e.g.
+    KIR2DP1/KIR3DP1) must be rendered explicitly -- never a fabricated 0 or a normal filled
+    marker. 2026-09-28 fix: an earlier hollow-marker-at-x=0 design still read as "completeness 0"
+    at a glance despite the hollow styling, so it now gets NO protein-level marker at all; the
+    caveat lives in the row's own y-tick label instead (`NO_PROTEIN_REF_SUFFIX`)."""
 
     def _metrics_with_na_gene(self):
         cov = _synthetic_cov()
@@ -449,7 +448,7 @@ class TestNaGenesRenderedExplicitly(unittest.TestCase):
                             "reason": "no_catalogued_protein_entries"}])
         return m46.build_gene_metrics(cov2, slope, qc)
 
-    def test_na_gene_gets_hollow_marker_and_note_not_a_fabricated_zero(self):
+    def test_na_gene_gets_no_marker_and_a_labeled_row_not_a_fabricated_zero(self):
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
@@ -470,14 +469,13 @@ class TestNaGenesRenderedExplicitly(unittest.TestCase):
         kir2dp1_y = ys[rows.index(kir2dp1_row)]
         protein_lines = [ln for ln in ax.lines if ln.get_marker() == "o"
                           and abs(ln.get_ydata()[0] - kir2dp1_y) < 1e-9]
-        self.assertEqual(len(protein_lines), 1)
-        self.assertEqual(protein_lines[0].get_markerfacecolor(), "none",
-                          "a catalogue-uncovered gene must get a HOLLOW protein marker")
-        self.assertAlmostEqual(protein_lines[0].get_xdata()[0], 0.0)
+        self.assertEqual(len(protein_lines), 0,
+                          "a catalogue-uncovered gene must get NO protein-level marker at all "
+                          "(never a fabricated 0, never even a hollow marker at 0)")
 
-        note_texts = [t.get_text() for t in ax.texts]
-        self.assertTrue(any("no catalogued protein" in t for t in note_texts),
-                        f"expected an in-panel note naming the excluded gene, got: {note_texts}")
+        tick_texts = [t.get_text() for t in ax.get_yticklabels()]
+        self.assertTrue(any("KIR2DP1" in t and m46.NO_PROTEIN_REF_SUFFIX in t for t in tick_texts),
+                        f"expected KIR2DP1's own row label to carry the caveat, got: {tick_texts}")
         plt.close(fig)
 
 

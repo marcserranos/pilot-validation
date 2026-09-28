@@ -256,18 +256,33 @@ def build_row_order(metrics):
     return rows
 
 
+NO_PROTEIN_REF_SUFFIX = "  (no protein ref.)"
+
+
 def row_label(row):
     """The single y-tick-label string for one `build_row_order()` row -- a block header's own
     label, or a gene row's `gene_display` (e.g. "HLA-A", "KIR2DL1"). This IS the row's identity
-    label; there is no separate leader-lined text anywhere else in the figure."""
-    return row["label"] if row["kind"] == "header" else row["gene_display"]
+    label; there is no separate leader-lined text anywhere else in the figure.
+
+    A gene with no catalogued reference protein (KIR2DP1/KIR3DP1, `protein_catalogue_covered=
+    False`) gets `NO_PROTEIN_REF_SUFFIX` appended -- 2026-09-28 coordinator fix: an earlier
+    version instead drew a HOLLOW marker at x=0 for these two genes, which a reader could still
+    read as "completeness 0" at a glance despite the hollow styling; putting the caveat in the
+    row's own label removes any ambiguity and needs no marker or in-panel note at all."""
+    if row["kind"] == "header":
+        return row["label"]
+    if not row.get("protein_catalogue_covered", True):
+        return row["gene_display"] + NO_PROTEIN_REF_SUFFIX
+    return row["gene_display"]
 
 
 def _style_row_axis(ax, rows, ys):
     """Shared y-axis setup for panels a/b: tick at every row (header rows included), header rows
     rendered bold/grey as a thin block label, gene rows left at normal weight -- and a thin grey
     rule drawn through each header row (inside the axes, so it never touches the tick-label text
-    which lives outside the axes) as the visual block divider."""
+    which lives outside the axes) as the visual block divider. A gene with no catalogued protein
+    reference gets its WHOLE tick label (name + `NO_PROTEIN_REF_SUFFIX`) rendered in grey italic,
+    distinct from both the normal black gene rows and the bold grey block headers."""
     ax.set_yticks(ys)
     ax.set_yticklabels([row_label(r) for r in rows])
     for tick_label, r in zip(ax.get_yticklabels(), rows):
@@ -275,6 +290,10 @@ def _style_row_axis(ax, rows, ys):
             tick_label.set_fontweight("bold")
             tick_label.set_fontsize(6.0)
             tick_label.set_color("#555555")
+        elif not r.get("protein_catalogue_covered", True):
+            tick_label.set_fontsize(5.6)
+            tick_label.set_color("#888888")
+            tick_label.set_fontstyle("italic")
         else:
             tick_label.set_fontsize(5.6)
     for r, y in zip(rows, ys):
@@ -284,6 +303,20 @@ def _style_row_axis(ax, rows, ys):
     # left of the axes, not inside it) never has to fight the panel's own inline key / x-tick row
     # for vertical space -- found necessary on full-size review of the first draft.
     ax.set_ylim(min(ys) - 0.7, max(ys) + 0.9)
+
+
+def _row_shading(ax, rows, ys):
+    """Very faint alternating row shading behind the markers (never a full gridline elsewhere in
+    this figure) -- drawn identically on panels a and b from the SAME `rows`/`ys`, so a shaded (or
+    unshaded) band falls on the exact same gene in both panels and the eye can track one gene
+    across the shared y-axis without needing a leader line or a repeated label."""
+    gene_i = 0
+    for r, y in zip(rows, ys):
+        if r["kind"] != "gene":
+            continue
+        if gene_i % 2 == 1:
+            ax.axhspan(y - 0.5, y + 0.5, color="#F2F2F2", zorder=0, linewidth=0)
+        gene_i += 1
 
 
 def _inline_key(ax, items, y_offset_pt=24.0, fontsize=5.6, color="#444444", gap_pt=14.0,
@@ -357,9 +390,11 @@ def _inline_key(ax, items, y_offset_pt=24.0, fontsize=5.6, color="#444444", gap_
 def _plot_completeness_panel(ax, rows, ys):
     """Panel a: Chao2 completeness (S_obs/Chao2), 0-1 axis. One marker per identity level: a
     small grey genomic tick (context, "upper bound" -- 44's Caveat 1), a CDS square, and the
-    headline protein circle. KIR2DP1/KIR3DP1 (`protein_catalogue_covered=False`) get a HOLLOW
-    protein circle at the axis's own zero edge plus an explicit "no catalogued protein" note in
-    that row -- never a filled marker, never a fabricated 0 read as a real completeness value."""
+    headline protein circle. KIR2DP1/KIR3DP1 (`protein_catalogue_covered=False`) get NO protein
+    marker at all (2026-09-28 coordinator fix: an earlier hollow-marker-at-x=0 design still read
+    as "completeness 0" at a glance) -- the row's own y-tick label already carries
+    `NO_PROTEIN_REF_SUFFIX` (see `row_label()`), so no marker or in-panel note is needed here."""
+    _row_shading(ax, rows, ys)
     for r, y in zip(rows, ys):
         if r["kind"] == "header":
             continue
@@ -374,17 +409,6 @@ def _plot_completeness_panel(ax, rows, ys):
             ax.plot(r["completeness_protein"], y, marker=LEVEL_MARKER["protein"],
                      markersize=LEVEL_MARKERSIZE["protein"], color=color,
                      markeredgecolor="white", markeredgewidth=0.3, zorder=4)
-        else:
-            ax.plot(0.0, y, marker=LEVEL_MARKER["protein"], markersize=LEVEL_MARKERSIZE["protein"],
-                     markerfacecolor="none", markeredgecolor=color, markeredgewidth=0.9, zorder=4)
-            # x=0.13 (clear of both the hollow marker at 0 and the genomic tick at ~0.04-0.09),
-            # y+0.34 (clear of the CDS square, which check_layout cannot itself catch -- it is a
-            # plain scatter marker, not a Text -- and which KIR3DP1's own CDS square at x=0.40 is
-            # close enough to the default row height to visually collide with on full-size review
-            # once the note's font/width made it reach that far right).
-            t = ax.text(0.13, y + 0.34, "no catalogued protein", fontsize=5.0, color=color,
-                         style="italic", va="bottom", ha="left")
-            vc.mark_label(t)
     ax.set_xlim(0.0, 0.72)
     ax.set_xlabel(r"Chao2 completeness (S$_{obs}$/Chao2)")
 
@@ -403,8 +427,6 @@ def _completeness_panel_key_items():
         (dict(marker="s", markersize=LEVEL_MARKERSIZE["cds"], color="#444444"), "CDS"),
         (dict(marker="|", markersize=LEVEL_MARKERSIZE["genomic"], color=GENOMIC_COLOR),
          "genomic (upper bound)"),
-        (dict(marker="o", markersize=LEVEL_MARKERSIZE["protein"], markerfacecolor="none",
-              markeredgecolor="#444444"), "no catalogued protein"),
     ]
 
 
@@ -412,8 +434,9 @@ def _plot_novelty_panel(ax, rows, ys):
     """Panel b, sharing panel a's rows: % of distinct alleles novel at the protein level (the
     headline novelty granularity). KIR2DP1/KIR3DP1 have no protein-level alleles to be novel
     among (`pct_novel_protein` is NaN by construction) -- left blank in this panel (never 0);
-    panel a already names and explains them once, in the protein column, so this panel does not
-    repeat the note."""
+    the row's own y-tick label (shared with panel a) already carries the "(no protein ref.)"
+    caveat, so this panel repeats nothing."""
+    _row_shading(ax, rows, ys)
     for r, y in zip(rows, ys):
         if r["kind"] == "header" or not r["protein_catalogue_covered"]:
             continue
@@ -461,30 +484,50 @@ def build_ancestry_simpson_rows(cov):
     return rows
 
 
-def _plot_ancestry_simpson_panel(ax, sim_rows):
+PER_ANCESTRY_COLOR = "#555555"  # neutral dark grey -- NOT SPECIES_COLOR["kir"] (2026-09-28 fix:
+# the per-ancestry points are a HLA-minus-KIR DIFFERENCE, not a KIR value, so coloring them KIR
+# blue implied "this is about KIR" to a reader; only the pooled row gets the accent color).
+
+
+def _plot_ancestry_simpson_panel(ax, sim_rows, y_top, ylim):
     """Panel c (optional per-ancestry strip): HLA-minus-KIR protein-level Chao2 completeness per
     ancestry plus pooled, 0 as the reference line -- "HLA more complete in every ancestry, tied
-    when pooled." One accent-colored point per row (a single comparison, one hue, per
-    FIGURE_STYLE.md's de-AI checklist item 9); the pooled row is set off from the 5 per-ancestry
-    rows by a thin divider, echoing panels a/b's HLA/KIR block convention."""
+    when pooled." Per-ancestry points are a neutral dark grey (this is a DIFFERENCE, not a KIR
+    value -- coloring them KIR blue would misleadingly imply otherwise); the pooled row alone gets
+    the accent color, and is set off from the 5 per-ancestry rows by a thin divider, echoing panels
+    a/b's HLA/KIR block convention.
+
+    `y_top`/`ylim`: this panel's 6 rows start at `y_top` (the SAME y-value as panel a/b's HLA block
+    header) and this axes is given panel a/b's own `ylim` verbatim -- not just a visually similar
+    range -- so panel c's top row aligns EXACTLY with the top of the HLA block despite having far
+    fewer rows than panels a/b share (2026-09-28 coordinator fix: previously each panel used its
+    own independently-centered y-range, so panel c's content sat vertically centered in the middle
+    of the figure, disconnected from panel a/b's top-aligned HLA block)."""
     n = len(sim_rows)
-    ys = list(range(n - 1, -1, -1))
+    ys = [y_top - i for i in range(n)]
     ax.axvline(0.0, color="#999999", lw=0.8, linestyle="--", zorder=1)
     for r, y in zip(sim_rows, ys):
+        color = vc.ACCENT_COLOR if r["pooled"] else PER_ANCESTRY_COLOR
         ax.plot(r["diff"], y, marker="D" if r["pooled"] else "o", markersize=4.4,
-                 color=vc.ACCENT_COLOR, markeredgecolor="white", markeredgewidth=0.3, zorder=3)
+                 color=color, markeredgecolor="white", markeredgewidth=0.3, zorder=3)
     divider_y = ys[-1] + 0.5
     ax.axhline(divider_y, color="#DDDDDD", lw=0.7, zorder=0)
     ax.set_yticks(ys)
     labels = ax.set_yticklabels([r["label"] for r in sim_rows])
     labels[-1].set_fontweight("bold")
     labels[-1].set_fontstyle("italic")
-    ax.set_ylim(min(ys) - 0.7, max(ys) + 0.9)
+    ax.set_ylim(*ylim)
     diffs = [r["diff"] for r in sim_rows]
     pad = max(0.03, 0.15 * (max(diffs) - min(0.0, min(diffs))))
     ax.set_xlim(min(0.0, min(diffs)) - pad, max(diffs) + pad)
     ax.set_xlabel("HLA − KIR completeness\n(protein, Chao2)")
     ax.set_title("per-ancestry gap", fontsize=6.5, pad=14)
+    # Short direction cue to the right of the zero line, just above the top ("AFR") row -- ASCII
+    # "->" (not a unicode arrow glyph): this codebase has hit real font-rasterization crashes from
+    # unicode arrows under this environment's Helvetica/mathtext stack before (see 47's own
+    # ASCII-arrow fix, FIGURES_INDEX.md), so plain ASCII is used here too rather than re-risking it.
+    ax.text(0.02, y_top + 0.55, "HLA more complete ->", fontsize=5.2, color="#666666",
+             style="italic", ha="left", va="bottom")
 
 
 def fig_catalogue_completeness(metrics, cov, out_stem):
@@ -496,13 +539,18 @@ def fig_catalogue_completeness(metrics, cov, out_stem):
     Panel a: Chao2 completeness (S_obs/Chao2), 0-1 axis, one marker per identity level (protein =
     headline, CDS, genomic = small grey "upper bound" tick), explained by a compact inline key at
     the top of the panel rather than a legend box. KIR2DP1/KIR3DP1 (pseudogenes, no catalogued
-    reference protein) get a hollow protein marker and an explicit "no catalogued protein" note,
-    never a fabricated 0.
+    reference protein) get NO protein marker; their row's own y-tick label carries the caveat
+    instead (see `row_label()`), never a fabricated 0.
     Panel b, sharing panel a's rows: % of distinct alleles novel at the protein level (the other
     v4b headline granularity), 0-100% axis.
     Panel c: a per-ancestry strip -- HLA-minus-KIR protein-level Chao2 completeness for the 5
     well-powered ancestries plus pooled, 0 as the reference line (the Simpson's-paradox point from
-    the README: HLA ahead in every single ancestry, near-tied only when pooled).
+    the README: HLA ahead in every single ancestry, near-tied only when pooled). Top-aligned with
+    panel a/b's HLA block, not vertically centered in its own axes.
+
+    Width ratios ~2.2 : 1 : 1.1 with a small `wspace` (2026-09-28 coordinator fix): panels b and c
+    were previously thin columns separated by large empty gaps at the figure's full 183mm width;
+    the narrower gap and closer-to-content ratios make the three panels read as one figure.
     """
     rows = build_row_order(metrics)
     n = len(rows)
@@ -513,7 +561,7 @@ def fig_catalogue_completeness(metrics, cov, out_stem):
     with vc.nature_style():
         fig, (ax_a, ax_b, ax_c) = plt.subplots(
             1, 3, figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(fig_height_mm)), dpi=150,
-            gridspec_kw={"width_ratios": [2.5, 1.05, 1.15], "wspace": 0.62},
+            gridspec_kw={"width_ratios": [2.2, 1.0, 1.1], "wspace": 0.28},
             constrained_layout=True)
         ax_b.sharey(ax_a)
 
@@ -522,7 +570,10 @@ def fig_catalogue_completeness(metrics, cov, out_stem):
         _plot_novelty_panel(ax_b, rows, ys)
         plt.setp(ax_b.get_yticklabels(), visible=False)
         ax_b.tick_params(axis="y", length=0)
-        _plot_ancestry_simpson_panel(ax_c, sim_rows)
+        # Panel c's top row (AFR) aligns with panel a/b's top row (the "HLA" block header, y=n-1)
+        # -- pass that same y AND panel a/b's exact ylim (set inside `_style_row_axis`) through, so
+        # the alignment is exact, not merely visually close.
+        _plot_ancestry_simpson_panel(ax_c, sim_rows, y_top=n - 1, ylim=ax_a.get_ylim())
 
         vc.panel_letter(ax_a, "a", dx=-0.62, dy=1.16)
         vc.panel_letter(ax_b, "b", dy=1.16)

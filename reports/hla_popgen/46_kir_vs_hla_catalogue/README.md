@@ -105,26 +105,33 @@ reference set relative to its real diversity.
 
 ## How to read each figure
 
-- **`fig_catalogue_completeness.png`** (a–c, **Cleveland dot plot, rebuilt 2026-09-28** — the
-  orchestrator rejected the earlier per-gene scatter version for leader-line spaghetti, an axis
-  stretched past 100% to fit labels, a headline panel with no gene labels at all, labels still
-  touching dots, and a tiny far-away legend). **Rows = genes**, in two blocks with a thin block
-  label ("HLA · 8 classical genes" / "KIR · 17 genes"), each block ordered top-to-bottom by
-  protein-level Chao2 completeness — the row's own y-tick label IS the gene's identity, so there
-  are **no leader lines anywhere**; a gene's row means the same thing in every panel that shares
-  it. **(a) Chao2 completeness** (S<sub>obs</sub>/Chao2, 0–1 axis): one marker per identity level
-  — a filled circle for **protein (the headline)**, a filled square for **CDS**, and a small grey
-  tick for **genomic (context/upper bound only — see Caveat 1)** — explained by a compact inline
-  key at the top of the panel, never a legend box. KIR2DP1/KIR3DP1 (pseudogenes, no catalogued
-  reference protein) get a **hollow** protein marker plus an explicit "no catalogued protein" note
-  in that row — never a filled marker, never a fabricated 0. **(b) novelty (headline)**, sharing
-  panel a's rows: % of distinct alleles novel at the protein level, 0–100% axis; pseudogenes are
-  left blank here (already explained once, in panel a's protein column). **(c) per-ancestry gap**
-  (optional strip): HLA-minus-KIR protein-level Chao2 completeness for the 5 well-powered
-  ancestries plus a pooled row, 0 as the reference line — the Simpson's-paradox point from the
-  Results section above: **HLA is ahead of KIR in every single ancestry, and only looks tied once
-  pooled**. Species color (HLA red, KIR blue) is reinforcing, not load-bearing — the block grouping
-  already identifies species; the accent diamond in panel c marks the pooled row.
+- **`fig_catalogue_completeness.png`** (a–c, **Cleveland dot plot, rebuilt 2026-09-28, critiqued
+  and fixed same day** — the orchestrator rejected the earlier per-gene scatter version for
+  leader-line spaghetti, an axis stretched past 100% to fit labels, a headline panel with no gene
+  labels at all, labels still touching dots, and a tiny far-away legend). **Rows = genes**, in two
+  blocks with a thin block label ("HLA · 8 classical genes" / "KIR · 17 genes"), each block
+  ordered top-to-bottom by protein-level Chao2 completeness — the row's own y-tick label IS the
+  gene's identity, so there are **no leader lines anywhere**; a gene's row means the same thing in
+  every panel that shares it. Faint alternating row shading (no gridlines otherwise) runs behind
+  panels a and b, from the SAME row order, so the eye can track one gene across both panels.
+  **(a) Chao2 completeness** (S<sub>obs</sub>/Chao2, 0–1 axis): one marker per identity level — a
+  filled circle for **protein (the headline)**, a filled square for **CDS**, and a small grey tick
+  for **genomic (context/upper bound only — see Caveat 1)** — explained by a compact inline key at
+  the top of the panel, never a legend box. KIR2DP1/KIR3DP1 (pseudogenes, no catalogued reference
+  protein) get **no protein-level marker at all**; their row's own tick label instead reads
+  "KIR2DP1  (no protein ref.)" in grey italic — an earlier hollow-marker-at-x=0 design still read
+  as "completeness 0" at a glance, so the caveat now lives in the label, not a marker or in-panel
+  note. **(b) novelty (headline)**, sharing panel a's rows: % of distinct alleles novel at the
+  protein level, 0–100% axis; pseudogenes are left blank here (the row label already carries the
+  caveat). **(c) per-ancestry gap** (optional strip, top-aligned with panel a/b's HLA block so all
+  three panels read as one figure at 183mm — width ratios ~2.2:1:1.1, small `wspace`): HLA-minus-
+  KIR protein-level Chao2 completeness for the 5 well-powered ancestries plus a pooled row, 0 as
+  the reference line, with "HLA more complete ->" printed beside it. Per-ancestry points are a
+  **neutral dark grey** (a HLA-minus-KIR difference is not "a KIR value", so it is never colored
+  KIR blue); only the **pooled** row gets the accent-colored diamond. This is the Simpson's-paradox
+  point from the Results section above: **HLA is ahead of KIR in every single ancestry, and only
+  looks tied once pooled**. Species color in panels a/b (HLA red, KIR blue) is reinforcing, not
+  load-bearing — the block grouping already identifies species.
 - **`fig_recurrence_composition.png`** (a–b): stacked bars, % of S<sub>obs</sub> in each recurrence
   class (seen 1x/2x/>2x, `ge20` folded into `>2x` here to avoid double-drawing a subset), any-level
   vs protein-level novelty, HLA vs KIR. Uses the exact curve-derived pooled counts from `44`'s
