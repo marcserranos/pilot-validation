@@ -133,9 +133,14 @@ def colorbar(ax, mappable, label):
 
 
 def binned_continuous(ax, grid, values, title, cbar_label, vmin=None, vmax=None, cmap="parula"):
+    """Colour limits default to the 2nd-98th percentile of cell means, so one extreme cell
+    can't flatten the rest of the panel (a single ~100 aa cell did exactly that to CDR3
+    length). Cells beyond the limits saturate at the end colours; nothing is dropped."""
     df = pd.DataFrame({"cell": grid.cell, "v": values})[grid.shown]
-    mesh = grid.draw(ax, grid.raster(df.groupby("cell")["v"].mean()),
-                     cmap=cmap, vmin=vmin, vmax=vmax)
+    means = df.groupby("cell")["v"].mean()
+    lo, hi = np.quantile(means, [0.02, 0.98])
+    mesh = grid.draw(ax, grid.raster(means), cmap=cmap,
+                     vmin=lo if vmin is None else vmin, vmax=hi if vmax is None else vmax)
     ax.set(title=title, xticks=[], yticks=[])
     colorbar(ax, mesh, cbar_label)
 
