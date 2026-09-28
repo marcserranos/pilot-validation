@@ -1,8 +1,8 @@
 # S04 findings for Marc — KIR recurrence, KIR vs HLA catalogue, figure style, ligand co-occurrence, Cole package, cleanup
 
-*Sprint `s04-kir-recurrence-style-share`, opened 2026-09-26 off S03. Written 2026-09-27 by the
-WS-G report writer, from `LOG.md` (the primary source) and the other sprint docs — not from raw
-session transcripts.*
+*Sprint `s04-kir-recurrence-style-share`, opened 2026-09-26 off S03. Written 2026-09-27, updated
+2026-09-28 with the final WS-A/WS-B (v4b) numbers, by the WS-G report writer, from `LOG.md` (the
+primary source) and the other sprint docs — not from raw session transcripts.*
 
 ## 1. Summary
 
@@ -13,11 +13,13 @@ language explainer + ranked idea list for the repertoire (WS6) work, redid the f
 after you rejected the first attempt, built and uploaded the data-sharing package for Cole, and
 proposed (and partly executed) a VM and repo cleanup. The single most important thing to know:
 **the KIR-vs-HLA catalogue-coverage numbers went through three internal reversals** as real bugs
-were found in how "novel" was being counted, and the final, only-trustworthy version needs one
-more VM run (44 v4) that is not done yet — see section 2 below for what is solid now (the
-recurrence/singleton-sharing work, ligand co-occurrence, naive-ML QC) and section "WS-A/WS-B
-results — pending 44 v4" for what to treat as provisional. Everything genotype-derived stayed
-inside the Workbench; nothing with fewer than 20 people is reported anywhere.
+were found in how "novel" was being counted, before a fourth, checkpointed VM run (v4b) produced
+the final, trustworthy numbers — see section 2 below and "WS-A/WS-B results — final (v4b)" for
+what those numbers actually say (short version: neither region is fully catalogued, and once you
+look within each ancestry rather than at the pooled cohort, HLA's catalogue is consistently more
+complete than KIR's, the opposite of what the earlier, buggy runs suggested). Everything
+genotype-derived stayed inside the Workbench; nothing with fewer than 20 people is reported
+anywhere.
 
 ## 2. Per workstream
 
@@ -31,20 +33,23 @@ of strictness (genomic sequence, coding-sequence/CDS, and protein) and how many 
 carry it, bucketed into recurrence classes (seen by 1 / 2 / >2 / >=20 unrelated people — the >=20
 cutoff doubles as the disclosure floor, so that class can be described in more detail).
 
-**Results (as of the last completed full run, "v3"):** at the genomic level (all sequence
-differences), pooled over ancestries: HLA had 2,823 distinct alleles (28.5% novel), KIR had 1,460
-(51.6% novel). Good-Turing incidence coverage (chance a new person's allele has already been seen)
-was >=99% for both — a number that sounds like "done," but is not the same question as catalogue
-completeness (see the "coverage vs completeness" figure and the Chao2 numbers under WS-B).
+**Results (final, v4b, 11,856 unrelated people):** neither species' allele discovery curve
+saturates in this cohort at any identity level — the "seen once" line dominates every panel and
+keeps climbing, for both HLA and KIR, at every novelty definition, pooled and within every
+ancestry. Good-Turing incidence coverage (chance a new person's allele has already been seen) is
+high (92-99%) for both — a number that sounds like "done," but is a different, less informative
+question than catalogue completeness (Chao2, 8-42% depending on species/level — see WS-B). Novelty
+is mostly private (seen in only one unrelated person) at the coding-sequence and protein levels for
+both species. Full numbers are in the "WS-A/WS-B results — final (v4b)" section below.
 
 **Figures:** `reports/hla_popgen/44_kir_recurrence_saturation/fig_saturation_by_recurrence.png`,
-`fig_saturation_per_ancestry.png`, `fig_coverage_completeness.png` (+ matching `.pdf`).
+`fig_saturation_by_recurrence_ancestry_{kir,hla}.png`, `fig_saturation_per_ancestry.png`,
+`fig_coverage_completeness.png` (+ `_cds.png`, `_protein.png`, `_ancestry_protein.png`; all with
+matching `.pdf`).
 
-**Status: numbers superseded, method sound, final run pending — see the "WS-A/WS-B results —
-pending 44 v4" section.** The genomic/protein novelty *definitions* underneath these figures were
-found to be broken partway through the sprint (see Problem 2 below) and are being redone; a fixed
-version ("v4") is deployed on the VM but blocked on one more bug (Problem 4). Do not quote any
-genomic-level "KIR vs HLA" comparison from before that run completes.
+**Status: done.** v1-v3 were superseded by real bugs (name-based identity, the KIR artifact gap,
+the HLA protein-path bug, an HLA gene-name prefix mismatch — see Problems 2/3/4 below); v4b is the
+final, sequence-hash-identity, checkpointed run and its numbers are the ones to cite.
 
 ### WS-B — KIR vs HLA catalogue coverage (script 46)
 
@@ -54,33 +59,74 @@ cohort? Measured with Chao2 (a standard ecology method: estimates how many *tota
 alleles likely exist from how many singletons vs. doubletons you've already seen, then compares
 that to what you've actually observed).
 
-**Figures:** `reports/hla_popgen/46_kir_vs_hla_catalogue/fig_catalogue_completeness.png`,
+**Figures:** `reports/hla_popgen/46_kir_vs_hla_catalogue/fig_catalogue_completeness.png` (currently
+being redesigned for label-overlap fixes — same filename, will update in place),
 `fig_recurrence_composition.png` (+ `.pdf`).
 
-**Status: same as WS-A — pending 44 v4.** The early conclusion ("KIR's catalogue is better
-represented than HLA's") does not survive the bug found in Problem 2 and must not be repeated
-until the fixed run is in.
+**Status: done.** The early conclusion ("KIR's catalogue is better represented than HLA's, pooled")
+does not survive once the identity bug (Problem 2) is fixed and the comparison is done per
+ancestry rather than pooled — see below. The corrected, final answer is the opposite in the
+comparison that matters (per-ancestry): HLA's catalogue is the more complete one.
 
-#### WS-A/WS-B results — pending 44 v4
+#### WS-A/WS-B results — final (v4b)
 
-The method is right; the numbers are not final. **Do not cite any v1-v3 recurrence, novelty-rate,
-Chao2-completeness, or "KIR vs HLA catalogue" number from this sprint as a finding** — three
-different versions of this comparison were produced and each of the first three had a real,
-confirmed bug (detailed in Problem 2 below): identity at the "genomic" level was actually
-name-based rather than sequence-based, which artificially collapsed distinct novel alleles into
-one bucket and inflated "how well-represented" KIR looked; and KIR protein translations lacked the
-artifact-filtering (partial assemblies, homopolymer-indel garbage) that HLA already had, so some
-"novel proteins" were sequencing junk rather than real biology. The fix (committed, not yet run at
-full scale) makes identity a true sequence hash at three matched levels for both species (genomic,
-CDS, protein), applies the same artifact filter to both, and adds an automatic internal check that
-raises an error if protein-level novelty ever exceeds CDS-level, which would be a physical
-impossibility (protein is coarser than the sequence that encodes it) and was in fact how the bug
-was caught. A smoke test of this fixed version (300 people) completed cleanly except that it
-exported "genomic identity = NA" for every HLA record, traced to yet another bug (the HLA
-gene-annotation file labels genes as `HLA-A` while the code expected bare `A`) — also fixed but
-**not yet re-run on the full cohort**. The next and (hopefully) final action is: run 44 v4 on the
-VM at full scale, then regenerate 45/46's figures and numbers from that output. Until then, treat
-the "which catalogue is better represented" question as open.
+**Do not cite any v1-v3 recurrence, novelty-rate, Chao2-completeness, or "KIR vs HLA catalogue"
+number from this sprint** — those were built on a broken identity definition and a missing
+artifact filter (Problem 2/3) and are formally superseded. The numbers below are from the final
+run ("v4b"), reconciled two independent ways against the committed tables and reviewed by a
+fresh-context critic; use these.
+
+**Headline distinct-allele counts (S_obs), pooled over all ancestries, 11,856 unrelated people:**
+
+| identity level | HLA S_obs | KIR S_obs |
+|---|---:|---:|
+| genomic (upper bound — see caveat below) | 17,188 | 38,024 |
+| CDS (coding sequence) | 1,363 | 2,100 |
+| protein | 1,079 | 1,444 |
+| protein, novel-only | 198 | 1,063 |
+
+**Key findings:**
+- **Neither region is saturated.** At every identity level and in every ancestry, the "seen in
+  only one person" line keeps climbing as more people are added — this cohort has not come close
+  to exhausting either species' real allele diversity.
+- **Genomic-level identity is an upper bound, not a clean measurement**, and should not be used for
+  the KIR-vs-HLA comparison. It counts ~79% (KIR) and ~78% (HLA) of alleles as "singletons" and
+  produces implausibly large distinct-allele counts (38,024 for KIR, 17,188 for HLA) because it
+  can't yet tell apart a genuinely different allele from the same allele assembled with a slightly
+  different start/end boundary, or from leftover noise in the non-coding sequence around the gene.
+  The coding-sequence (CDS) and protein levels, which don't have this problem, are the levels the
+  real comparison is built on.
+- **Pooled across all ancestries, HLA and KIR's catalogues look nearly tied** (CDS completeness:
+  KIR 41.6% vs HLA 38.8%; protein: HLA 39.9% vs KIR 39.2%) — but **within every one of the 5
+  well-powered ancestry groups (African, Admixed American, East Asian, European, South Asian),
+  HLA's catalogue is more complete than KIR's**, at both levels, by a consistent 10-25 percentage
+  points (e.g. protein-level completeness: South Asian 66.9% HLA vs 40.5% KIR; European 47.7% vs
+  28.6%). **This was checked directly and is a genuine statistical effect of combining ancestries
+  with different allele pools (the same shape as Simpson's paradox), not an artifact of some
+  ancestries having more people than others** — weighting each ancestry's own completeness by its
+  sample size reproduces the same ~17-point HLA lead as the raw per-ancestry table, not the pooled
+  near-tie. **The per-ancestry result is the one to trust and cite: HLA's catalogue represents this
+  cohort's real diversity better than KIR's does**, even though a naive pooled-cohort number would
+  suggest they're about the same.
+- **Novelty is mostly private (found in only one unrelated person) for both species**, at the
+  coding-sequence level (50% of HLA's novel CDS alleles are singletons, 56% of KIR's) and,
+  especially, at the protein level (97% of HLA's 198 novel proteins are singletons, vs 69% of
+  KIR's 1,063) — i.e. most of what each catalogue is missing looks like ordinary rare variation,
+  not a systematic gap the catalogue could easily close. KIR's novel *proteins* recur across
+  unrelated people somewhat more often than HLA's (consistent with KIR's known gene-content/copy-
+  number diversity independently producing the same derived protein on different haplotypes), but
+  neither species' novelty is predominantly shared.
+- **Version history:** v1/v2 used a name-based, not sequence-based, "genomic identity" (collapsing
+  distinct novel alleles that shared a nearest-reference name) and had two further bugs — HLA's
+  protein path pointed at the wrong folder (returning 0 novel proteins for every gene) and KIR's
+  protein-catalogue coverage check was silently skipping some bundled reference files. v3 fixed
+  those but kept the name-based genomic identity and still lacked KIR's artifact filter, producing
+  an internally impossible number (more distinct "novel" KIR proteins than distinct KIR genomic
+  alleles) that triggered the final investigation. v4 replaced identity with a true sequence hash
+  at every level for both species and added the shared artifact gate; a subsequent full-cohort run
+  ("v4b") was killed mid-run by an app stop, and was resolved by adding per-checkpoint saves and
+  rerunning to completion (commit `22bf543`) rather than losing partial progress again — this is
+  the version behind all numbers in this section.
 
 ### WS-C — Figure style pass (rcParams port + redesign + layout linter)
 
@@ -119,10 +165,17 @@ check, not a scientific result) and 48, KIR receptor-HLA ligand co-occurrence by
 
 **Results:** 47 — ancestry is strongly predictable from HLA+KIR carriage (AUROC 0.81-0.98 across
 the six ancestry groups, as expected — HLA is the textbook ancestry-informative locus). Sequencing
-platform is only weakly predictable (AUROC 0.573 pooled), and a follow-up run that adjusted for
-ancestry showed that weak signal is essentially an ancestry echo, not a real platform batch effect
-(ancestry-adjusted platform effect ~0.004, within noise). HLA does not predict KIR gene-content
-class beyond chance (~0.55). 48 — across 30 receptor-ligand-pair-by-ancestry tests, no combination
+platform looked weakly predictable pooled across everyone (AUROC 0.574), but splitting by ancestry
+group settles the question: within European-ancestry people it's 0.558 (barely above its own
+chance-shuffled range), and within African-ancestry people it's 0.489 (no better than a coin flip),
+and a side-by-side model shows ancestry alone already explains almost all of the pooled signal
+(ancestry-adjusted platform effect only +0.004) — **the "guess the sequencing machine" result was
+mostly "different ancestry groups happened to run on different machines more often," not real
+sequencing-machine fingerprinting.** HLA does not predict KIR gene-content class (cA/cB) beyond
+chance either (pooled AUROC 0.550), and accounting for ancestry makes that guess very slightly
+*worse* (ancestry-adjusted effect −0.023) — about as clean a "no" as this kind of test can give,
+and consistent with HLA (chromosome 6) and KIR (chromosome 19) not having to travel together
+genetically. 48 — across 30 receptor-ligand-pair-by-ancestry tests, no combination
 survived the multiple-testing-corrected threshold; two nominally interesting signals (an East Asian
 and a European pairing) did not clear it once you account for testing 30 things at once, so they
 are leads, not findings. A side product, HLA-C1/C2 and Bw4/Bw6 epitope frequencies by ancestry, is
@@ -204,7 +257,14 @@ the science, not just the presentation:
    only ever be coarser (fewer distinct categories) than a full-sequence match, never finer. That
    contradiction is what triggered the investigation. The fix rebuilds identity as a true sequence
    hash at matched levels for both species and applies one shared artifact-filtering gate to both;
-   see the pending-results section above for what's still outstanding.
+   see "WS-A/WS-B results — final (v4b)" above for the corrected numbers. One more incident on the
+   way to the final run: the full-cohort v4b job was killed mid-run when the VM app stopped
+   unexpectedly (~33 minutes in, cause not fully confirmed — possibly the account-wide rate limit
+   and a Chrome-extension disconnect happening at the same time). Rather than just retrying and
+   risking losing progress again, the script was given per-checkpoint saving (every 1,000 people,
+   resumable) before the rerun — the successful rerun (commit `22bf543`) finished in one pass and
+   didn't end up needing to resume from a checkpoint, but the safeguard is now standard for any
+   future long VM job in this pipeline.
 
 3. **The KIR artifact gap.** Related to #2: KIR calls were never being screened for the same
    assembly-quality problems (partial coding sequence, frameshifts, homopolymer-run indels) that
@@ -217,8 +277,8 @@ the science, not just the presentation:
    nothing to compare against and defaulted every record to "not novel." Fixed; the corrected
    version found 198 distinct novel HLA proteins in the same cohort. A parallel VM run afterward
    found and fixed a second HLA-gene-naming mismatch (files call the gene `HLA-A`, code expected
-   bare `A`) that is what's currently blocking the final full-scale run (see pending-results
-   section).
+   bare `A`), which had been silently zeroing out HLA's true genomic-identity level specifically;
+   both fixes are in the final v4b run cited above.
 
 5. **Classifier refusals, and the resulting handoffs to you.** Several actions this sprint were
    refused outright by Claude Code's own safety classifier, categorized as things like "data
@@ -281,18 +341,21 @@ the science, not just the presentation:
 
 ## 5. Cost and time (estimate)
 
-VM: `AoU_Jupyter_ComputeEngine_..._big_run`, `n2-highmem-4`, billed at roughly $0.37/h while
-running (per `VM_RUNS.md`). The VM was started and left running across several work sessions
-spanning 09-25 evening through 09-27, with jobs for scripts 44 (multiple versions), 47, and 48. Based
-on the run durations recorded in `LOG.md` — 44 v1 in 282s, 44 v2 in 608s, 44 v3 in 292s, 47 v1 a
-few minutes, 47 v2 in 1,837s (~31 min), 48 a few minutes, plus the 44 v4 smoke test at 132s — the
-actual compute-job time sums to well under an hour, but **the VM was left running idle between
-jobs for review/debugging stretches across multiple sessions**, and it auto-stops after only 1 hour
-idle, so the true billed running time is higher than the job time alone and was not tracked
-end-to-end in `VM_RUNS.md` (only one session row was logged with a start time, no end time). **This
-is a rough estimate, not a reconciled bill: likely on the order of a few VM-hours total (roughly
-$1-3 at $0.37/h), but treat the actual number as unconfirmed** — `VM_RUNS.md` should be filled in
-with real start/stop timestamps if you want a firmer number.
+VM: `AoU_Jupyter_ComputeEngine_..._big_run`, `n2-highmem-4`, no resizes this sprint, billed at
+roughly $0.37/h while running (per `VM_RUNS.md`). **These are estimates, not a reconciled bill** —
+no session logged a precise stop time, so wall-clock windows below are read off `LOG.md`'s
+timestamped entries, not a billing record. Three broad sessions:
+
+| Session | Window | Jobs | Est. duration | Est. cost |
+|---|---|---|---|---|
+| 1 | 09-25 ~21:10 -> 09-26 early morning (ended by an account rate-limit hit, ~00:00) | 47 v1, 48, 44 v1 | ~2h50m | ~$1.05 |
+| 2 | 09-26 ~01:10 (restart) -> ~09-26 10:00 | 44 v1 pulls/debugging; a second rate-limit hit occurred within this window (~05:45), so the VM likely auto-stopped and was left stopped for part of it — this is an upper bound on wall-clock, not continuous billed time | up to ~8h50m | up to ~$3.27 |
+| 3 | 09-27, multiple restarts across the day | 44 v2, 47 v2, 44 v3, 44 v4 smoke test, 44 v4b (one run killed by an app stop, then a successful ~46-minute rerun after adding checkpointing) | actual job time sums to ~1h35m (608s+1837s+292s+132s+2742s); wall-clock across the restarts and debugging gaps was longer, roughly ~3h | ~$0.59 (job time only) to ~$1.11 (incl. gaps) |
+
+**Rough total: on the order of 13-15 VM-hours across the sprint, roughly $5-6 at $0.37/h** — this
+is a coarse upper-bound estimate built from log timestamps and known auto-stop behavior, not a
+reconciled bill; `VM_RUNS.md` now carries these rows with the same caveat, and should be replaced
+with real start/stop timestamps in a future sprint if a firmer number is needed.
 
 ## 6. Open items — exact actions for you to take
 
@@ -337,8 +400,14 @@ with real start/stop timestamps if you want a firmer number.
    for the *next* release either way).
 
 6. **Follow-ups noted but not done this sprint:**
-   - Run 44 v4 on the full cohort (VM is deployed and blocked only on the HLA gene-prefix fix,
-     which is already committed) — this is the actual final deliverable for WS-A/WS-B.
+   - A PAF-trimmed-core comparison for genomic-level identity (aligning each observed gene span to
+     the reference and trimming to the aligned core before hashing) would let the genomic level
+     move from "upper bound" to a real measurement by separating UTR/boundary differences from
+     true novel sequence — not done this pass, flagged as the natural next step if the genomic
+     level is ever needed as more than context.
+   - The mechanism behind the pooled-vs-per-ancestry completeness reversal (Simpson's-paradox
+     shape) was confirmed real but not decomposed further (e.g. how much of each species' pooled
+     allele count is ancestry-private) — a candidate follow-up analysis, not done here.
    - A dedicated disclosure-scanning script does not exist yet; checks this sprint were manual
      `awk`/`grep` passes. Worth building `scripts/hla_popgen/check_disclosure.py` (flags any bare
      1-19 count in a `.tsv` outside an explicit allowlist for richness/`s_obs`-style columns that
