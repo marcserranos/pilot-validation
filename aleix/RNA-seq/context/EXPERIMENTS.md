@@ -100,6 +100,33 @@ TRB 1.06x · TRA 1.12x · IGH 1.68x · IGK 1.75x · IGL 1.75x. **Reverses two pa
 story** — EUR (not EAS) is lowest, and the gap is Ig-chain-driven with TRB near-flat (see
 DECISIONS.md open question). Group means only; per-person test not yet run.
 
+## 2026-09-27/28 — full-cohort SCEPTR TRB embedding + first visualization (script 01)
+
+**Embedding** (`embed_cdr3s.py cohort_full.tsv --models sceptr`, commit `8d4a719`, main VM,
+n1-highmem-16, CPU): input 7,922/7,922 people from `cdr3.out` (0 unfiltered fallback — after
+pulling ~5,566 missing `cdr3.out` from the bucket). Pool: **3,882,613 TRB clonotypes**
+(unique TRBV+CDR3aa per person, canonical junction, score ≥ 0.02, top 500 by reads),
+59 distinct TRBV genes. `b_sceptr` accepts 48 of the TRBV symbols seen; **45,567 clonotypes
+(1.2%) excluded** for no/unusable V — **flat across ancestry (AFR 1.1%, all others 1.2%)**, so
+the V-usability filter introduces no ancestry bias. 3,837,046 embedded (64-dim) in ~57 min
+(~1,100 clonotypes/s single process). Summary:
+`results/cdr3_embedding_summary_cohort_full_vcdr3.csv` (V-gene gap is circular here — V is
+an input — recorded, not interpreted).
+
+**Visualization** (`01_sceptr_embedding_viz.py`, commit `39e9da3`): Fig 1 clonotype UMAP (200k
+seeded subsample), Fig 2 person UMAP (7,922, mean vector), S1 PCA versions. Figures VM-local
+(`~/pipeline_outputs/rnaseq/reports/01_sceptr_embedding_viz/`), not committed — disclosure
+question. Aggregate numbers:
+- Median 494 clonotypes/person: nearly everyone hit the 500 cap, so persons are compared on
+  a near-fixed-size sample (depth largely decoupled from the person vector for most people).
+- **14.3% of clonotypes are public** (identical TRBV+CDR3aa in ≥2 people). Higher than the
+  few-% often quoted — plausibly because we keep each person's most expanded clones and
+  match at amino-acid level across 7,922 people. Unverified; check vs CDR3 length.
+- Clonotype PCA: PC1 4.5%, PC2 3.8% — variance spread over many dimensions (expected).
+- Person PCA: PC1 18.5%, PC2 12.8%. Person PC1 vs repertoire size: Spearman ρ = −0.21
+  (p ≈ 1e-77); PC2 ρ = +0.12. A real but modest size effect on the main person axis — the
+  small-repertoire minority, consistent with noisier means over fewer vectors.
+
 **Post-batch cleanup (2026-09-2x):** confirmed every shard VM had zero `.sync.err` files and
 an empty `_staging/` before deleting its disk — nothing local was the only copy of anything.
 3 shard VMs deleted; main VM kept running (has `cohort_full.tsv` + all flattened reports,

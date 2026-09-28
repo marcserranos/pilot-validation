@@ -244,7 +244,10 @@ def main():
         ("clonotypes_in_map", n),
         ("seed", args.seed),
         ("median_clonotypes_per_person", float(np.median(n_clono))),
-        ("frac_people_at_cap", float(np.mean(n_clono == n_clono.max()))),
+        # The 500 cap is applied before V-usability exclusion, so "at cap" is ~490-500, not
+        # exactly 500 -- report the low tail instead of an exact-equality count.
+        ("frac_people_lt_100_clonotypes", float(np.mean(n_clono < 100))),
+        ("frac_people_lt_400_clonotypes", float(np.mean(n_clono < 400))),
         ("frac_clonotypes_public_ge2", float(np.mean(pool["n_people_sharing"] >= 2))),
         ("clonotype_pca_var_PC1", pca_c.explained_variance_ratio_[0]),
         ("clonotype_pca_var_PC2", pca_c.explained_variance_ratio_[1]),
