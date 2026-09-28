@@ -1,0 +1,2 @@
+model,input,n_clonotypes,n_people,dim,wall_seconds,same_vgene_cos_sim,diff_vgene_cos_sim,v_is_input,gap
+SCEPTR,TRBV+CDR3B,3837046,7922,64,3378.936572790146,0.25099571392742803,-0.004164791767869345,True,0.25516050569529736
