@@ -287,3 +287,25 @@ haplotypes), but neither species' novelty is predominantly "shared" in any level
 - KIR2DP1/KIR3DP1 protein = NA (pseudogenes), never 0.
 - v1–v3 numbers are all invalid (name-based identity collapsed distinct alleles; KIR lacked HLA's
   artifact gate). Use only this v4b table.
+
+## Disclosure
+
+`44_kir_recurrence_saturation.py` and `45_kir_recurrence_figure.py` route every output cell
+through `scripts/hla_popgen/_disclosure.py` (`--disclosure {public,internal}`, default `public`).
+See `context/DECISIONS.md`'s "two disclosure versions" entry (authoritative) and
+`reference/AOU_SMALL_CELL_POLICY.md` (the research behind it).
+
+| Column(s) | count_type | PUBLIC | INTERNAL |
+|---|---|---|---|
+| `n_distinct_alleles` (`recurrence_classes.tsv`), `s_obs` (`coverage_chao2.tsv`) | `allele_distinct` / `richness` | exact | exact |
+| `eq1`, `eq2`, `gt2`, `ge20` (`recurrence_classes.tsv`) | `recurrence_class` | exact, plus a `review_flag` column (True when the gene/ancestry/level's total unrelated carrier count is below `_disclosure.REVIEW_TOTAL_CARRIERS_FLOOR`, default 100) | exact, plus a per-class `<name>_lt20` flag column |
+| `q1`, `q2` (`coverage_chao2.tsv`) | project-specific stricter rule (not a general count_type) | blanked together whenever either is <20 (unchanged from pre-disclosure-layer behaviour — see module docstring "compute Chao on VM, export only the estimate if f1/f2 are small") | exact, plus `q1_lt20`/`q2_lt20` |
+| `artifact_qc.tsv`, `genomic_artifact_qc.tsv`, `kir_cds_match_qc.tsv`, `kir_protein_catalogue_qc.tsv`, `genomic_identity_qc.tsv`, `diagnostics_identity.tsv` | `qc_tally` | exact (pipeline/assay QC, no phenotype link) | exact |
+| `recurrence_stats.tsv` (45) | pooled-ALL curve-derived counts, already exact by construction | exact | exact |
+| Figure panels (45) | mirrors the underlying TSV cell's count_type | unchanged (no per-gene small-cell content currently plotted) | every figure gets the "INTERNAL — n<20 cells shown — do not export" watermark |
+
+Every stage's `_checkpoints/` (per-person identity sets) is UNCHANGED by `--disclosure` -- it is
+excluded from the args fingerprint (`_ARGS_EXCLUDED_FROM_FINGERPRINT`), so a completed PUBLIC run's
+checkpoints can be reused, with `--resume`, to re-export the identical run as INTERNAL (or vice
+versa) without recomputing any per-person identity set. See
+`sprints/S04_kir_recurrence_style_share/VM_OPERATOR_HANDOFF.md` for the exact re-export commands.

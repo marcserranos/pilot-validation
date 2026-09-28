@@ -298,8 +298,21 @@ import numpy as np
 import pandas as pd
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _THIS_DIR not in sys.path:
+    sys.path.insert(0, _THIS_DIR)
+import _disclosure as _disc
+
 SUPPRESS_BELOW = 20
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
+# Set once in main() from --disclosure; also propagated to m43()'s own module-level flag so
+# suppressed()/rate_row() below (which delegate to m43()) stay in sync -- see set_disclosure_mode().
+_DISCLOSURE_MODE = _disc.PUBLIC
+
+
+def set_disclosure_mode(mode):
+    global _DISCLOSURE_MODE
+    _DISCLOSURE_MODE = mode
+    m43()._DISCLOSURE_MODE = mode
 LEVELS = ["genomic", "cds", "protein", "any_novel", "protein_novel"]
 # 2026-09-27b TRUE-GENOMIC fix (supersedes the same-day genomic==cds alias): "genomic"/"any_novel"
 # are back to their OWN identity, now a hash of the ACTUAL genomic span (gene start-end, including
@@ -590,7 +603,12 @@ def script_md5():
 # Args that affect NOTHING about the computed result (only speed, I/O location, or the
 # resume/checkpoint machinery itself) -- excluded from the fingerprint so e.g. changing --workers
 # or --out-dir doesn't spuriously invalidate every checkpoint.
-_ARGS_EXCLUDED_FROM_FINGERPRINT = {"workers", "out_dir", "resume", "checkpoint_every"}
+# "disclosure" is excluded too: the export/masking layer never changes the underlying computed
+# per-person identity sets that _checkpoints/ hold, only how the final tables are rendered -- so a
+# checkpoint from a --disclosure public run is exactly as valid for a subsequent --disclosure
+# internal run (and vice versa), letting the VM re-export both versions without recomputation
+# (sprints/S04_kir_recurrence_style_share/VM_OPERATOR_HANDOFF.md's "44 INTERNAL re-export" plan).
+_ARGS_EXCLUDED_FROM_FINGERPRINT = {"workers", "out_dir", "resume", "checkpoint_every", "disclosure"}
 
 
 def args_fingerprint(args):
@@ -1668,12 +1686,33 @@ def joint_unrelated_set(kir_pids, hla_pids, relatedness_path, kin_min):
 # Table builders (apply disclosure masking here, at the export boundary).
 # ---------------------------------------------------------------------------
 def build_recurrence_row(gene, ancestry, level, species, unit_sets):
+    """n_distinct_alleles: count_type=ALLELE_DISTINCT (richness) -- exact in both disclosure
+    modes. eq1/eq2/gt2/ge20: count_type=RECURRENCE_CLASS -- exact in both modes too (the S04
+    two-disclosure-versions rule loosens recurrence-class counts even under PUBLIC), but PUBLIC
+    additionally carries a `review_flag` column (True when this gene/ancestry's total number of
+    unrelated carriers is below _disclosure.REVIEW_TOTAL_CARRIERS_FLOOR, i.e. even a handful of
+    eq1/eq2 alleles could plausibly account for most of a thin stratum's carriers -- see
+    AOU_SMALL_CELL_POLICY.md answer (2)) for a supervisor to check before treating the cell as
+    publishable as-is. INTERNAL mode never sets review_flag (not a PUBLIC concept) but does carry
+    per-class lt20 flags instead."""
     counts = carrier_counts(unit_sets)
     cls = classify_recurrence(counts)
-    return {"gene": gene, "ancestry": ancestry, "level": level, "species": species,
-            "n_people": len(unit_sets), "n_distinct_alleles": suppressed(len(counts)),
-            "eq1": suppressed(cls["eq1"]), "eq2": suppressed(cls["eq2"]),
-            "gt2": suppressed(cls["gt2"]), "ge20": suppressed(cls["ge20"])}
+    total_carriers = sum(1 for s in unit_sets.values() if len(s) > 0)
+    row = {"gene": gene, "ancestry": ancestry, "level": level, "species": species,
+           "n_people": len(unit_sets),
+           "n_distinct_alleles": _disc.mask(len(counts), _disc.ALLELE_DISTINCT,
+                                             _DISCLOSURE_MODE).display}
+    rec_results = {}
+    for key in ("eq1", "eq2", "gt2", "ge20"):
+        rec_results[key] = _disc.mask(cls[key], _disc.RECURRENCE_CLASS, _DISCLOSURE_MODE,
+                                       total_carriers=total_carriers)
+        row[key] = rec_results[key].display
+    if _DISCLOSURE_MODE == _disc.PUBLIC:
+        row["review_flag"] = any(r.review_flag for r in rec_results.values())
+    else:
+        for key, r in rec_results.items():
+            row[f"{key}_lt20"] = r.lt20
+    return row
 
 
 def build_coverage_chao2_row(gene, ancestry, level, species, unit_sets, extrapolate_2n=True):
@@ -1687,11 +1726,23 @@ def build_coverage_chao2_row(gene, ancestry, level, species, unit_sets, extrapol
            "good_turing_coverage": round(coverage, 4) if coverage == coverage else "",
            "chao2": round(chao, 1), "chao2_se": round(se, 1),
            "chao2_undetected_f0hat": round(chao - S_obs, 1)}
+    # s_obs above is richness (ALLELE_DISTINCT/RICHNESS) -- already exported exact unconditionally,
+    # correct in both disclosure modes. q1/q2 (raw Good-Turing f1/f2) are a stricter, PROJECT-
+    # SPECIFIC caveat on top of the general policy (module docstring "DISCLOSURE": "export only
+    # the estimate if f1/f2 are small" -- these raw incidence counts are closer to recurrence
+    # structure than a plain richness tally, so PUBLIC keeps the existing blank-both-together rule
+    # regardless of _DISCLOSURE_MODE's general looseness elsewhere). INTERNAL mode shows them
+    # exact (with lt20 flags), matching every other cell.
     q1, q2 = Q.get(1, 0), Q.get(2, 0)
-    row["q1"] = suppressed(q1) if q1 < SUPPRESS_BELOW else str(q1)
-    row["q2"] = suppressed(q2) if q2 < SUPPRESS_BELOW else str(q2)
-    if q1 < SUPPRESS_BELOW or q2 < SUPPRESS_BELOW:
-        row["q1"] = row["q2"] = ""  # blank both together, never one alone (back-reveal risk)
+    if _DISCLOSURE_MODE == _disc.INTERNAL:
+        row["q1"], row["q2"] = str(q1), str(q2)
+        row["q1_lt20"] = 0 < q1 < SUPPRESS_BELOW
+        row["q2_lt20"] = 0 < q2 < SUPPRESS_BELOW
+    else:
+        row["q1"] = suppressed(q1) if q1 < SUPPRESS_BELOW else str(q1)
+        row["q2"] = suppressed(q2) if q2 < SUPPRESS_BELOW else str(q2)
+        if q1 < SUPPRESS_BELOW or q2 < SUPPRESS_BELOW:
+            row["q1"] = row["q2"] = ""  # blank both together, never one alone (back-reveal risk)
     if extrapolate_2n:
         row["chao_new_by_2n"] = round(
             m04().chao2_extrapolate(S_obs, Q, m, 2 * m) - S_obs, 1) if m > 0 else ""
@@ -1945,7 +1996,14 @@ def main():
     ap.add_argument("--checkpoint-every", type=int, default=CHECKPOINT_EVERY_DEFAULT,
                      help="checkpoint the per-person identity loops every N people (default "
                           f"{CHECKPOINT_EVERY_DEFAULT}) -- a crash loses at most one chunk.")
+    _disc.add_disclosure_arg(ap)
     args = ap.parse_args()
+
+    if args.disclosure == _disc.INTERNAL and args.out_dir == ap.get_default("out_dir"):
+        args.out_dir = _disc.default_out_dir(_disc.INTERNAL, "44", args.out_dir)
+    if args.disclosure == _disc.INTERNAL:
+        _disc.assert_internal_path_allowed(args.out_dir)
+    set_disclosure_mode(args.disclosure)
 
     os.makedirs(args.out_dir, exist_ok=True)
     header = checkpoint_header(args)
@@ -2044,9 +2102,10 @@ def main():
         log(f"[44] WARNING: {len(uncovered)}/{len(kir.KIR_GENES)} KIR genes have no usable protein "
             f"catalogue entry -- their 'protein'/'protein_novel' rows will be exported as 'NA', "
             f"never a hash-based guess: {uncovered}")
-    pd.DataFrame([{"gene": g, "protein_catalogue_covered": ok, "reason": reason}
-                  for g, (ok, reason) in sorted(kir_protein_status.items())]).to_csv(
-        os.path.join(args.out_dir, "kir_protein_catalogue_qc.tsv"), sep="\t", index=False)
+    _kir_protein_qc_rows = [{"gene": g, "protein_catalogue_covered": ok, "reason": reason}
+                             for g, (ok, reason) in sorted(kir_protein_status.items())]
+    _disc.write_tsv(pd.DataFrame(_kir_protein_qc_rows),
+                     os.path.join(args.out_dir, "kir_protein_catalogue_qc.tsv"), _DISCLOSURE_MODE)
 
     log("[44] building HLA identity sets (cds/protein/protein_novel levels) ...")
     hla_sets_by_level = {lvl: hla_person_gene_sets(calls, lvl, hla_genes)
@@ -2174,31 +2233,32 @@ def main():
     # 2026-09-27 identity fix (KIR: 6,300 "proteins" > 1,460 "genomic" alleles).
     check_identity_invariants(all_cov, all_rec)
 
-    pd.DataFrame(all_rec).to_csv(os.path.join(args.out_dir, "recurrence_classes.tsv"),
-                                  sep="\t", index=False)
-    pd.DataFrame(all_curve).to_csv(os.path.join(args.out_dir, "saturation_curves.tsv"),
-                                    sep="\t", index=False)
-    pd.DataFrame(all_slope).to_csv(os.path.join(args.out_dir, "equal_n_slope.tsv"),
-                                    sep="\t", index=False)
-    pd.DataFrame(all_cov).to_csv(os.path.join(args.out_dir, "coverage_chao2.tsv"),
-                                  sep="\t", index=False)
+    _disc.write_tsv(pd.DataFrame(all_rec), os.path.join(args.out_dir, "recurrence_classes.tsv"),
+                     _DISCLOSURE_MODE)
+    _disc.write_tsv(pd.DataFrame(all_curve), os.path.join(args.out_dir, "saturation_curves.tsv"),
+                     _DISCLOSURE_MODE)
+    _disc.write_tsv(pd.DataFrame(all_slope), os.path.join(args.out_dir, "equal_n_slope.tsv"),
+                     _DISCLOSURE_MODE)
+    _disc.write_tsv(pd.DataFrame(all_cov), os.path.join(args.out_dir, "coverage_chao2.tsv"),
+                     _DISCLOSURE_MODE)
 
     (kir_qc_scalar, kir_n_calls_by_gene, kir_artifact_by_gene_label,
      kir_name_to_hashes) = split_kir_qc(kir_qc)
-    pd.DataFrame([{**kir_qc_scalar, "n_hap_seen": n_hap_seen,
-                   "n_hap_cds_fasta_present": n_hap_cds_present,
-                   "cds_available": kir_cds_available}]).to_csv(
-        os.path.join(args.out_dir, "kir_cds_match_qc.tsv"), sep="\t", index=False)
+    _disc.write_tsv(
+        pd.DataFrame([{**kir_qc_scalar, "n_hap_seen": n_hap_seen,
+                       "n_hap_cds_fasta_present": n_hap_cds_present,
+                       "cds_available": kir_cds_available}]),
+        os.path.join(args.out_dir, "kir_cds_match_qc.tsv"), _DISCLOSURE_MODE)
 
     # New (2026-09-27 identity-impossibility fix, task items 2/4): artifact counts and name/hash
     # collapse diagnostics, symmetric across species.
     artifact_rows = build_artifact_qc_rows(kir_artifact_by_gene_label, calls)
-    pd.DataFrame(artifact_rows).to_csv(os.path.join(args.out_dir, "artifact_qc.tsv"),
-                                        sep="\t", index=False)
+    _disc.write_tsv(pd.DataFrame(artifact_rows), os.path.join(args.out_dir, "artifact_qc.tsv"),
+                     _DISCLOSURE_MODE)
     diag_rows = build_diagnostics_identity_rows(
         all_cov, kir_n_calls_by_gene, kir_artifact_by_gene_label, kir_name_to_hashes, calls)
-    pd.DataFrame(diag_rows).to_csv(os.path.join(args.out_dir, "diagnostics_identity.tsv"),
-                                    sep="\t", index=False)
+    _disc.write_tsv(pd.DataFrame(diag_rows), os.path.join(args.out_dir, "diagnostics_identity.tsv"),
+                     _DISCLOSURE_MODE)
 
     # 2026-09-27b: genomic-span-level artifact counts (contig_edge_truncated, partial_cds,
     # inframe_stop, homopolymer_indel, unresolved, no_catalogue_for_gene, clean) -- separate from
@@ -2208,15 +2268,15 @@ def main():
         for qc, species in ((kir_gen_qc, "kir"), (hla_gen_qc, "hla"))
         for (kind, gene, label), n in qc.items() if kind == "artifact_genomic"
     ]
-    pd.DataFrame(genomic_artifact_rows).to_csv(
-        os.path.join(args.out_dir, "genomic_artifact_qc.tsv"), sep="\t", index=False)
-    pd.DataFrame([{"gen_catalogue_status": gen_catalogue_reason,
-                   "kir_genomic_available": kir_genomic_available,
-                   "hla_genomic_available": hla_genomic_available,
-                   "n_hap_seen_kir": n_hap_seen_gk, "n_hap_trimmed_present_kir": n_hap_trim_gk,
-                   "n_hap_seen_hla": n_hap_seen_gh, "n_hap_trimmed_present_hla": n_hap_trim_gh}]
-                 ).to_csv(os.path.join(args.out_dir, "genomic_identity_qc.tsv"),
-                          sep="\t", index=False)
+    _disc.write_tsv(pd.DataFrame(genomic_artifact_rows),
+                     os.path.join(args.out_dir, "genomic_artifact_qc.tsv"), _DISCLOSURE_MODE)
+    _disc.write_tsv(
+        pd.DataFrame([{"gen_catalogue_status": gen_catalogue_reason,
+                       "kir_genomic_available": kir_genomic_available,
+                       "hla_genomic_available": hla_genomic_available,
+                       "n_hap_seen_kir": n_hap_seen_gk, "n_hap_trimmed_present_kir": n_hap_trim_gk,
+                       "n_hap_seen_hla": n_hap_seen_gh, "n_hap_trimmed_present_hla": n_hap_trim_gh}]),
+        os.path.join(args.out_dir, "genomic_identity_qc.tsv"), _DISCLOSURE_MODE)
 
     write_status(args.out_dir, f"DONE in {time.perf_counter()-t0:.0f}s -- 9 tables written")
     log(f"[44] done in {time.perf_counter()-t0:.0f}s")

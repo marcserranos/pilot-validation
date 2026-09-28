@@ -187,3 +187,104 @@ v3 content on the VM if a later script wants to import it as the canonical `44` 
 - `git diff` includes trailing blank context lines *inside* a hunk (as literal `" "` single-space
   lines) but not *between* hunks -- don't assume a visual blank line you see when reading a diff
   chunk is padding you can drop.
+
+## Disclosure layer: PUBLIC/INTERNAL re-export for 44 (new, this session)
+
+`scripts/hla_popgen/_disclosure.py` (`--disclosure {public,internal}`, default `public`) is now
+wired into 43/43b/44/45/46. See `context/DECISIONS.md`'s "two disclosure versions" entry and each
+result folder's own README "Disclosure" section for the per-column count_type classification.
+
+**Whether 44 must recompute or can re-export from checkpoints:** it can RE-EXPORT, not recompute.
+`--disclosure` is excluded from the checkpoint args fingerprint
+(`_ARGS_EXCLUDED_FROM_FINGERPRINT` in `44_kir_recurrence_saturation.py`) on purpose — the
+export/masking layer never touches the underlying per-person identity sets `_checkpoints/` holds,
+only how the final TSVs render. A completed PUBLIC run's `_checkpoints/` under `~/s04/results/44/`
+is exactly as valid for a subsequent `--disclosure internal` invocation with `--resume` (the
+default) — every expensive stage (KIR/HLA identity extraction, true-genomic identity) is skipped
+and reused; only the final gene-level table-building + export loop reruns (seconds to low minutes,
+not the original run's full multi-hour runtime).
+
+### (a) Re-export 44: PUBLIC to `~/s04/results/44_public/`, INTERNAL to `~/s04/internal/44/`
+
+```bash
+cd ~/s04 && PYTHONPATH=~/s04:~/s03:~/repos/pilot-validation/scripts/hla_popgen
+
+# PUBLIC re-export (reuses ~/s04/results/44/_checkpoints, --resume is the default)
+python3 -u 44_kir_recurrence_saturation.py \
+  --kir-outroot ~/pipeline_outputs_kir \
+  --hla-table ~/pipeline_outputs/hla_calls_rich.tsv \
+  --hla-people-outroot ~/pipeline_outputs/people \
+  --cohort-membership ~/pipeline_outputs/cohort_membership.tsv \
+  --relatedness-table ~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv \
+  --refdata ~/tools/Immuannot_refdata \
+  --out-dir ~/s04/results/44 --disclosure public --workers 4 \
+  2>&1 | tee -a ~/s04/results/44/reexport_public.log
+
+# Copy the already-produced PUBLIC tables to the explicit ~/s04/results/44_public/ path the
+# handoff asks for (44's own --out-dir default IS ~/s04/results/44 -- this just gives the PUBLIC
+# export its own clearly-labeled directory alongside a future INTERNAL one, without re-running):
+mkdir -p ~/s04/results/44_public
+rsync -a --exclude='_checkpoints' --exclude='STATUS.txt' ~/s04/results/44/ ~/s04/results/44_public/
+
+# INTERNAL re-export -- SAME checkpoints dir (args_hash excludes --disclosure/--out-dir), writes
+# to the INTERNAL default path directly (never pass --out-dir under the repo or reports/ -- write_tsv()
+# / assert_internal_path_allowed() will raise if you try):
+python3 -u 44_kir_recurrence_saturation.py \
+  --kir-outroot ~/pipeline_outputs_kir \
+  --hla-table ~/pipeline_outputs/hla_calls_rich.tsv \
+  --hla-people-outroot ~/pipeline_outputs/people \
+  --cohort-membership ~/pipeline_outputs/cohort_membership.tsv \
+  --relatedness-table ~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv \
+  --refdata ~/tools/Immuannot_refdata \
+  --resume \
+  --out-dir ~/s04/results/44 --disclosure internal \
+  2>&1 | tee -a ~/s04/results/44/reexport_internal.log
+```
+
+Note: `44`'s own checkpoint loading is keyed by `--out-dir` (checkpoints live under
+`<out-dir>/_checkpoints/`), so the INTERNAL re-export above deliberately still points `--out-dir`
+at `~/s04/results/44` (to reuse `_checkpoints/`) — it is `_disclosure.write_tsv()`'s internal-path
+check on each *individual TSV path*, not `--out-dir` itself, that enforces the never-in-repo rule;
+44 does not currently auto-redirect its OWN `--out-dir` to `~/s04/internal/44/` the way 43/43b/45/46
+do (see `_disc.default_out_dir()` calls in those scripts) — a follow-up could add a
+`--out-dir-internal` override to 44 so INTERNAL tables land directly under `~/s04/internal/44/`
+without a manual copy step; for now, `rsync --exclude='_checkpoints'` the produced TSVs there by
+hand:
+```bash
+mkdir -p ~/s04/internal/44
+rsync -a --exclude='_checkpoints' --exclude='STATUS.txt' --exclude='*.log' \
+  ~/s04/results/44/ ~/s04/internal/44/
+```
+(Every TSV under `~/s04/results/44/` at that point IS the INTERNAL content, since the run above was
+invoked with `--disclosure internal` — the rsync is purely a relocation to the canonical
+`~/s04/internal/44/` path, matching the DECISIONS.md convention, not a re-render.)
+
+**Runtime if checkpoints do NOT apply** (e.g. a fresh VM with no `~/s04/results/44/_checkpoints/`,
+or `--resume` finds a stale/mismatched header): full recompute, same order of magnitude as 44's
+original run — the module docstring's own estimate for the true-genomic identity stage alone is
+"+10-25 min on top of the current total" per species; budget the same total wall-clock as 44's
+original full-cohort run (not separately measured on real VM data as of this writing).
+
+### (b) Render INTERNAL figures into `~/s04/internal/figs/`
+
+```bash
+cd ~/s04 && PYTHONPATH=~/s04:~/s03:~/repos/pilot-validation/scripts/hla_popgen
+
+mkdir -p ~/s04/internal/figs/45 ~/s04/internal/figs/46 ~/s04/internal/figs/43b
+
+python3 45_kir_recurrence_figure.py \
+  --in-dir ~/s04/internal/44 --out-dir ~/s04/internal/figs/45 --disclosure internal
+
+python3 46_kir_vs_hla_catalogue.py \
+  --in-dir ~/s04/internal/44 --out-dir ~/s04/internal/figs/46 --disclosure internal
+
+python3 43b_kir_full_figure.py \
+  --in-dir ~/s04/internal/43 --out-stem ~/s04/internal/figs/43b/fig_kir_full_cohort \
+  --disclosure internal
+```
+
+Every figure these three commands produce carries the diagonal "INTERNAL — n<20 cells shown — do
+not export" watermark (`_viz_common.add_internal_watermark()`, applied automatically by each
+script's own `--disclosure internal` wiring) and is written under `~/s04/internal/` — **never pull
+any of these back with the usual MARC_UPLOAD_COMMANDS.md recipe; that recipe is for
+`reports/hla_popgen/**` PUBLIC content only.**

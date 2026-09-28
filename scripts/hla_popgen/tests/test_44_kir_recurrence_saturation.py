@@ -262,12 +262,31 @@ class TestEqualNCurves(unittest.TestCase):
 
 
 class TestDisclosure(unittest.TestCase):
-    def test_recurrence_row_masks_small_counts(self):
+    def test_recurrence_row_reports_allele_distinct_and_recurrence_class_exact_public(self):
+        """Post S04-disclosure-layer policy (context/DECISIONS.md 'two disclosure versions'):
+        n_distinct_alleles (ALLELE_DISTINCT/richness) and eq1/eq2/gt2/ge20 (RECURRENCE_CLASS) are
+        BOTH reported exact under PUBLIC now, with a review_flag on thin strata -- superseding the
+        old blanket '<20' masking this test used to assert."""
         unit_sets = {f"p{i}": {"only_allele"} for i in range(5)}
         row = m44.build_recurrence_row("KIR3DL1", "MID", "any_novel", "kir", unit_sets)
-        self.assertEqual(row["n_distinct_alleles"], "<20")
+        self.assertEqual(row["n_distinct_alleles"], "1")
         self.assertEqual(row["eq1"], "0")
-        self.assertEqual(row["gt2"], "<20")
+        self.assertEqual(row["gt2"], "1")
+        # thin stratum (5 total carriers < REVIEW_TOTAL_CARRIERS_FLOOR) -> flagged for review
+        self.assertTrue(row["review_flag"])
+
+    def test_recurrence_row_internal_mode_exact_with_lt20_flags(self):
+        old_mode = m44._DISCLOSURE_MODE
+        try:
+            m44.set_disclosure_mode(m44._disc.INTERNAL)
+            unit_sets = {f"p{i}": {"only_allele"} for i in range(5)}
+            row = m44.build_recurrence_row("KIR3DL1", "MID", "any_novel", "kir", unit_sets)
+            self.assertEqual(row["n_distinct_alleles"], "1")
+            self.assertEqual(row["gt2"], "1")
+            self.assertTrue(row["gt2_lt20"])
+            self.assertNotIn("review_flag", row)
+        finally:
+            m44.set_disclosure_mode(old_mode)
 
     def test_recurrence_row_true_zero_not_masked(self):
         row = m44.build_recurrence_row("KIR2DS3", "EAS", "protein_novel", "kir", {})
@@ -720,13 +739,14 @@ class TestEndToEndSynthetic(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(out_dir, fname)))
 
         rec_df = pd.read_csv(os.path.join(out_dir, "recurrence_classes.tsv"), sep="\t", dtype=str)
+        # Post S04-disclosure-layer policy: n_distinct_alleles/eq1/eq2/gt2/ge20 are all reported
+        # exact under PUBLIC now (ALLELE_DISTINCT/RECURRENCE_CLASS types) -- just parseable as
+        # non-negative ints or the literal "NA" (unmatched KIR genomic/any_novel level here).
         for col in ("n_distinct_alleles", "eq1", "eq2", "gt2", "ge20"):
             for v in rec_df[col]:
-                # pandas' default na_values reads the literal "NA" string back as float NaN --
-                # expected (KIR genomic/any_novel are NA here, no trimmed.fa fixture provided).
-                if pd.isna(v) or v in ("0", "<20", "NA"):
+                if pd.isna(v) or v == "NA":
                     continue
-                self.assertGreaterEqual(int(v), 20, f"{col}={v} should have been masked")
+                self.assertGreaterEqual(int(v), 0, f"{col}={v} should be a non-negative int or NA")
 
         # KIR cds/protein levels should have produced REAL (non-NA) rows since a cds.fa.gz fixture
         # was provided for every call in this fixture.

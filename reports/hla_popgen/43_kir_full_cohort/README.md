@@ -222,3 +222,25 @@ the choice).
 - Novel-allele recurrence cross-validation (the equivalent of HLA's script-03 check) is still
   open — full-cohort scale is exactly what would make that check trustworthy, and it isn't done
   yet.
+
+## Disclosure
+
+`43_kir_full_aggregate.py` and `43b_kir_full_figure.py` (this figure) route every output cell
+through `scripts/hla_popgen/_disclosure.py` (`--disclosure {public,internal}`, default
+`public`). See `context/DECISIONS.md`'s "two disclosure versions" entry for the policy; summary:
+PUBLIC keeps `<20` masking for participant/carrier counts and small-back-calculable rates, but
+reports allele-distinct/richness/QC-tally counts exact; INTERNAL (VM-only, `~/s04/internal/43/`
+and `43b/`, never committed) shows everything exact with an `lt20` flag column.
+
+| Column(s) | count_type | PUBLIC | INTERNAL |
+|---|---|---|---|
+| `n_haplotypes_with_ge1_kir_call`, `n_novel_calls`, `n_undetermined_calls`, `n_haplotypes_cA/cB`, `n_haplotypes_carrying` (gene/ancestry presence), `n_novel_protein`, allele-freq `n_haplotypes` (named-allele carrier counts), `framework_gene_presence`/`cooccurrence`/`haplotypes_zero_kir_calls` rates | `participant` / `carrier_named_allele` / `rate_numerator/denominator` | `<20`-masked (0 stays 0) | exact + `lt20` flag |
+| `n_distinct_known_alleles`, `n_distinct_novel_protein_seqs` (`kir_gene_summary.tsv`) | `allele_distinct` (richness) | exact | exact |
+| `people_missing_or_corrupt_gtf` rate (`kir_qc.tsv`) | `qc_tally` | exact (pure technical QC, no phenotype link) | exact |
+| `framework_miss_classification` `n` (`kir_qc.tsv`) | `participant` (per-haplotype classification, treated conservatively as a phenotype-adjacent count) | `<20`-masked | exact + `lt20` flag |
+| Figure panels (`43b`) | mirrors the underlying TSV cell's count_type | hatched for masked cells (unchanged) | exact values, thin outline + watermark |
+
+Named-allele carrier counts (`kir_allele_freq.tsv`) are masked in PUBLIC regardless of the general
+looser rule (AOU_SMALL_CELL_POLICY.md answer (3): a named allele next to a small carrier count
+needs an RAB exception) — PUBLIC pools every allele with <20 carriers into an `"other (<20 each)"`
+row; INTERNAL lists every allele individually, exact, with `lt20`.

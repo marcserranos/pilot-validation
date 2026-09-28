@@ -79,6 +79,7 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _THIS_DIR not in sys.path:
     sys.path.insert(0, _THIS_DIR)
 import _viz_common as vc
+import _disclosure as _disc
 
 _m45 = None
 
@@ -634,13 +635,27 @@ def main():
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--in-dir", default="reports/hla_popgen/44_kir_recurrence_saturation")
     ap.add_argument("--out-dir", default="reports/hla_popgen/46_kir_vs_hla_catalogue")
+    _disc.add_disclosure_arg(ap)
     args = ap.parse_args()
+    if args.disclosure == _disc.INTERNAL and args.out_dir == ap.get_default("out_dir"):
+        args.out_dir = _disc.default_out_dir(_disc.INTERNAL, "46", args.out_dir)
+    if args.disclosure == _disc.INTERNAL:
+        _disc.assert_internal_path_allowed(args.out_dir)
     os.makedirs(args.out_dir, exist_ok=True)
+
+    # INTERNAL mode: watermark every figure this script saves (task item 3), via a thin wrapper
+    # around vc.save_fig() (same pattern as 45_kir_recurrence_figure.py).
+    _orig_save_fig = vc.save_fig
+    def _save_fig_disclosure_aware(fig, path_stem, *a, **kw):
+        if args.disclosure == _disc.INTERNAL:
+            vc.add_internal_watermark(fig)
+        return _orig_save_fig(fig, path_stem, *a, **kw)
+    vc.save_fig = _save_fig_disclosure_aware
 
     rec, curve, cov, slope, protein_qc = load_tables(args.in_dir)
     metrics = build_gene_metrics(cov, slope, protein_qc)
     metrics_path = os.path.join(args.out_dir, "46_catalogue_metrics.tsv")
-    metrics.to_csv(metrics_path, sep="\t", index=False)
+    _disc.write_tsv(metrics, metrics_path, args.disclosure)
     print(f"  wrote {metrics_path}", file=sys.stderr)
 
     # Per-ancestry gene metrics (Marc's ask: "check it per gene and per ancestry") -- one combined
@@ -654,7 +669,7 @@ def main():
         per_anc.append(m)
     metrics_ancestry = pd.concat(per_anc, ignore_index=True)
     metrics_ancestry_path = os.path.join(args.out_dir, "46_catalogue_metrics_by_ancestry.tsv")
-    metrics_ancestry.to_csv(metrics_ancestry_path, sep="\t", index=False)
+    _disc.write_tsv(metrics_ancestry, metrics_ancestry_path, args.disclosure)
     print(f"  wrote {metrics_ancestry_path}", file=sys.stderr)
 
     fig_catalogue_completeness(metrics, cov,

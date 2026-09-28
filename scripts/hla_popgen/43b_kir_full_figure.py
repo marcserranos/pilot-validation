@@ -41,7 +41,8 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _THIS_DIR)
 from _viz_common import (nature_style, mm, save_fig, panel_letter, ANCESTRY_ORDER,
                           ANCESTRY_COLORS, NATURE_DOUBLE_COL_MM, SUPPRESSED_COLOR,
-                          diverging_cmap, diverging_norm)
+                          diverging_cmap, diverging_norm, add_internal_watermark)
+import _disclosure as _disc
 
 # Standard published KIR gene map, centromeric -> telomeric (panel-ordering only; see module
 # docstring). Framework genes (present on ~all haplotypes) marked with a dagger in the figure.
@@ -323,7 +324,7 @@ def panel_f_qc(ax, qc):
     # `reports/hla_popgen/43_kir_full_cohort/README.md`'s "QC sanity checks" section.
 
 
-def build_figure(tables, out_stem):
+def build_figure(tables, out_stem, disclosure=_disc.PUBLIC):
     with nature_style():
         fig = plt.figure(figsize=(mm(NATURE_DOUBLE_COL_MM), mm(183)))
         # Pass 3 (orchestrator review, 2026-09-26): passes 1-2 anchored the panel-b legend by a
@@ -402,6 +403,8 @@ def build_figure(tables, out_stem):
         cbar_c.set_label("deviation from pooled (pct pts)", fontsize=5.3, labelpad=2)
         cbar_c.ax.tick_params(labelsize=5.0, length=1.5)
 
+        if disclosure == _disc.INTERNAL:
+            add_internal_watermark(fig)
         return save_fig(fig, out_stem)
 
 
@@ -411,12 +414,22 @@ def main():
     ap.add_argument("--in-dir", default=os.path.join(
         os.path.dirname(_THIS_DIR), "..", "reports", "hla_popgen", "43_kir_full_cohort"))
     ap.add_argument("--out-stem", default=None)
+    _disc.add_disclosure_arg(ap)
     args = ap.parse_args()
     in_dir = os.path.abspath(args.in_dir)
-    out_stem = args.out_stem or os.path.join(in_dir, "fig_kir_full_cohort")
+    if args.out_stem is not None:
+        out_stem = args.out_stem
+    elif args.disclosure == _disc.INTERNAL:
+        out_stem = os.path.join(_disc.default_out_dir(_disc.INTERNAL, "43b", in_dir),
+                                 "fig_kir_full_cohort")
+    else:
+        out_stem = os.path.join(in_dir, "fig_kir_full_cohort")
+    if args.disclosure == _disc.INTERNAL:
+        _disc.assert_internal_path_allowed(out_stem)
+        os.makedirs(os.path.dirname(out_stem), exist_ok=True)
 
     tables = load_tables(in_dir)
-    pdf_path, png_path = build_figure(tables, out_stem)
+    pdf_path, png_path = build_figure(tables, out_stem, disclosure=args.disclosure)
     print(f"wrote {pdf_path}\nwrote {png_path}", file=sys.stderr)
 
 

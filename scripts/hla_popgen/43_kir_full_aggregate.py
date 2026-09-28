@@ -43,8 +43,19 @@ import numpy as np
 import pandas as pd
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _THIS_DIR not in sys.path:
+    sys.path.insert(0, _THIS_DIR)
+import _disclosure as _disc
+
 SUPPRESS_BELOW = 20
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
+# Set once, at the top of main(), from --disclosure. Module-level (not threaded through every
+# call) so suppressed()/rate_row() keep their existing zero-argument call sites unchanged for
+# every caller (44_kir_recurrence_saturation.py's m43().suppressed()/m43().rate_row() included) --
+# see _disclosure.py / context/DECISIONS.md "two disclosure versions" for the policy this routes
+# through. Defaults to PUBLIC, matching this script's behaviour before the disclosure layer
+# existed.
+_DISCLOSURE_MODE = _disc.PUBLIC
 
 # Populated once per process (main process at import time; each worker via _worker_init) --
 # module-level so worker functions (which multiprocessing pickles by reference, not closure) can
@@ -72,15 +83,17 @@ def _worker_init(script_path):
 # ---------------------------------------------------------------------------
 # Disclosure helpers -- one place, applied uniformly to every output table.
 # ---------------------------------------------------------------------------
-def suppressed(n):
+def suppressed(n, count_type=_disc.PARTICIPANT):
     """A true zero is not a disclosure risk and must stay '0' (this project's own
     feedback_suppressed_counts_are_not_zero.md: a masked <20 count silently collapsing to 0 is
     the bug to avoid -- the converse, a genuine 0 getting masked to '<20', would be the same class
-    of information loss in the other direction and is equally wrong). Only 1-19 is masked."""
-    n = int(n)
-    if n == 0:
-        return "0"
-    return "<%d" % SUPPRESS_BELOW if n < SUPPRESS_BELOW else str(n)
+    of information loss in the other direction and is equally wrong). Only 1-19 is masked --
+    UNDER PUBLIC MODE and only for a disclosive count_type (default PARTICIPANT, this function's
+    historical behaviour). Routes through _disclosure.mask() so the two-disclosure-versions
+    policy (context/DECISIONS.md) lives in exactly one place; `count_type` lets a call site opt
+    into the loosened exact-reporting rule (e.g. ALLELE_DISTINCT/RICHNESS/QC_TALLY) without
+    duplicating the policy locally. `_DISCLOSURE_MODE` is set once in main() from --disclosure."""
+    return _disc.mask(n, count_type, _DISCLOSURE_MODE).display
 
 
 def wilson_ci(count, nobs, z=1.96):
@@ -100,16 +113,15 @@ def wilson_ci(count, nobs, z=1.96):
 
 
 def rate_row(n, d, pct_decimals=1):
-    """Returns (n_str, d_str, pct_str, lo_str, hi_str) with the hard disclosure rule applied: a
-    rate is blanked when either n or d falls in the disclosive 1-19 band, OR when d is 0
-    (undefined). A genuine n==0 with d>=20 is NOT disclosive (see suppressed()'s docstring) and
-    is reported as a real 0.0% rather than blanked."""
-    n, d = int(n), int(d)
-    if d == 0 or (0 < n < SUPPRESS_BELOW) or (0 < d < SUPPRESS_BELOW):
-        return suppressed(n), suppressed(d), "", "", ""
-    p, lo, hi = wilson_ci(n, d)
-    fmt = "%%.%df" % pct_decimals
-    return str(n), str(d), fmt % (100 * p), fmt % (100 * lo), fmt % (100 * hi)
+    """Returns (n_str, d_str, pct_str, lo_str, hi_str) with the hard disclosure rule applied
+    UNDER PUBLIC mode: a rate is blanked when either n or d falls in the disclosive 1-19 band,
+    OR when d is 0 (undefined). A genuine n==0 with d>=20 is NOT disclosive (see suppressed()'s
+    docstring) and is reported as a real 0.0% rather than blanked. Under INTERNAL mode (set via
+    --disclosure), returns exact n/d/pct/CI always (never blanked) -- see _disclosure.mask_rate().
+    Routes through _disclosure.mask_rate() (count_type=RATE_NUM_DENOM); `_DISCLOSURE_MODE` is set
+    once in main() from --disclosure."""
+    r = _disc.mask_rate(n, d, _DISCLOSURE_MODE, pct_decimals=pct_decimals)
+    return r["n"], r["d"], r["pct"], r["lo"], r["hi"]
 
 
 # ---------------------------------------------------------------------------
@@ -296,12 +308,13 @@ def build_gene_summary(bundle, kir):
             "pct_novel_cds_synonymous": syn_pct,
             "pct_novel_protein": prot_pct,
             "novel_protein_ci_lo": prot_lo, "novel_protein_ci_hi": prot_hi,
-            "n_distinct_known_alleles": suppressed(n_distinct_known)
-                                         if n_distinct_known < SUPPRESS_BELOW
-                                         else str(n_distinct_known),
-            "n_distinct_novel_protein_seqs": suppressed(n_distinct_novel_prot)
-                                              if n_distinct_novel_prot < SUPPRESS_BELOW
-                                              else str(n_distinct_novel_prot),
+            # allele/richness counts, not participant counts -- exact in BOTH disclosure modes
+            # per AOU_SMALL_CELL_POLICY.md's loosened rule (reference/AOU_SMALL_CELL_POLICY.md
+            # table: "Per-gene allele richness (distinct-allele counts)" -> allowed exact).
+            "n_distinct_known_alleles": _disc.mask(n_distinct_known, _disc.RICHNESS,
+                                                    _DISCLOSURE_MODE).display,
+            "n_distinct_novel_protein_seqs": _disc.mask(n_distinct_novel_prot, _disc.RICHNESS,
+                                                         _DISCLOSURE_MODE).display,
         })
     return pd.DataFrame(rows)
 
@@ -331,10 +344,23 @@ def build_gene_by_ancestry(bundles_by_ancestry, kir):
 
 
 def build_allele_freq(bundle, kir):
+    """count_type=CARRIER_NAMED_ALLELE (a named allele next to its carrier count) -- masked in
+    PUBLIC mode regardless of _DISCLOSURE_MODE's general looseness elsewhere
+    (AOU_SMALL_CELL_POLICY.md answer (3): "no, without an [RAB] exception"), so PUBLIC keeps the
+    original pool-under-20-into-'other' behaviour (never prints a named allele next to a <20
+    count, not even as the masked string). INTERNAL mode instead lists every allele individually,
+    exact, with an lt20 flag column -- that is the whole point of the VM-only INTERNAL view."""
     rows = []
     for gene in kir.KIR_GENES:
         counts = bundle["gene_known_allele_counts"].get(gene, {})
         total_known = sum(counts.values())
+        if _DISCLOSURE_MODE == _disc.INTERNAL:
+            for allele, c in sorted(counts.items(), key=lambda kv: -kv[1]):
+                r = _disc.mask_rate(c, total_known, _DISCLOSURE_MODE)
+                rows.append({"gene": gene, "allele": allele, "n_haplotypes": r["n"],
+                            "n_known_calls_total_gene": r["d"], "freq_pct": r["pct"],
+                            "freq_ci_lo": r["lo"], "freq_ci_hi": r["hi"], "lt20": r["lt20_n"]})
+            continue
         kept = {a: c for a, c in counts.items() if c >= SUPPRESS_BELOW}
         pooled = sum(c for a, c in counts.items() if c < SUPPRESS_BELOW)
         for allele, c in sorted(kept.items(), key=lambda kv: -kv[1]):
@@ -371,7 +397,17 @@ def build_qc(bundle, kir, n_missing_or_corrupt, n_people_total):
     n_str, d_str, pct, lo, hi = rate_row(n_zero, bundle["n_hap_valid"])
     rows.append({"metric": "haplotypes_zero_kir_calls", "item": "", "n": n_str, "d": d_str,
                 "pct": pct, "ci_lo": lo, "ci_hi": hi})
-    n_str, d_str, pct, lo, hi = rate_row(n_missing_or_corrupt, n_people_total)
+    # QC tally (pipeline/assay outcome, no link to any phenotype/trait) -- exact allowed under
+    # the loosened rule (AOU_SMALL_CELL_POLICY.md: "QC call tallies... no link to
+    # phenotype/trait -> allowed exact"). Report n/d exact and derive pct/CI directly rather than
+    # going through rate_row() (which is scoped to RATE_NUM_DENOM/participant-style rates).
+    n_str = _disc.mask(n_missing_or_corrupt, _disc.QC_TALLY, _DISCLOSURE_MODE).display
+    d_str = _disc.mask(n_people_total, _disc.QC_TALLY, _DISCLOSURE_MODE).display
+    if n_people_total > 0:
+        p, lo_f, hi_f = _disc.wilson_ci(n_missing_or_corrupt, n_people_total)
+        pct, lo, hi = "%.1f" % (100 * p), "%.1f" % (100 * lo_f), "%.1f" % (100 * hi_f)
+    else:
+        pct, lo, hi = "", "", ""
     rows.append({"metric": "people_missing_or_corrupt_gtf", "item": "", "n": n_str, "d": d_str,
                 "pct": pct, "ci_lo": lo, "ci_hi": hi})
     return pd.DataFrame(rows)
@@ -419,7 +455,17 @@ def main():
     ap.add_argument("--limit", type=int, default=None,
                     help="Smoke test: only process the first N discovered person directories "
                          "(sorted, deterministic).")
+    _disc.add_disclosure_arg(ap)
     args = ap.parse_args()
+
+    global _DISCLOSURE_MODE
+    _DISCLOSURE_MODE = args.disclosure
+    if args.disclosure == _disc.INTERNAL and args.out_dir == ap.get_default("out_dir"):
+        # caller didn't override --out-dir -- route to the INTERNAL default rather than the
+        # PUBLIC default (~/s03/results/43), per _disclosure.default_out_dir().
+        args.out_dir = _disc.default_out_dir(_disc.INTERNAL, "43", args.out_dir)
+    if args.disclosure == _disc.INTERNAL:
+        _disc.assert_internal_path_allowed(args.out_dir)
 
     os.makedirs(args.out_dir, exist_ok=True)
 
@@ -468,19 +514,19 @@ def main():
         n = len(pids_by_ancestry.get(a, []))
         log(f"[43]   {a}: {n} people (unrelated)")
 
-    log("[43] writing output tables ...")
-    build_run_summary({"all": bundle_all, "unrelated": bundle_unrelated}).to_csv(
-        os.path.join(args.out_dir, "kir_run_summary.tsv"), sep="\t", index=False)
-    build_gene_summary(bundle_unrelated, _kir).to_csv(
-        os.path.join(args.out_dir, "kir_gene_summary.tsv"), sep="\t", index=False)
-    build_gene_by_ancestry(bundles_by_ancestry, _kir).to_csv(
-        os.path.join(args.out_dir, "kir_gene_by_ancestry.tsv"), sep="\t", index=False)
-    build_allele_freq(bundle_unrelated, _kir).to_csv(
-        os.path.join(args.out_dir, "kir_allele_freq.tsv"), sep="\t", index=False)
-    build_qc(bundle_unrelated, _kir, n_missing_or_corrupt, n_people_total).to_csv(
-        os.path.join(args.out_dir, "kir_qc.tsv"), sep="\t", index=False)
-    build_content_by_ancestry(bundles_by_ancestry).to_csv(
-        os.path.join(args.out_dir, "kir_content_by_ancestry.tsv"), sep="\t", index=False)
+    log(f"[43] writing output tables (--disclosure {args.disclosure}) ...")
+    _disc.write_tsv(build_run_summary({"all": bundle_all, "unrelated": bundle_unrelated}),
+                     os.path.join(args.out_dir, "kir_run_summary.tsv"), _DISCLOSURE_MODE)
+    _disc.write_tsv(build_gene_summary(bundle_unrelated, _kir),
+                     os.path.join(args.out_dir, "kir_gene_summary.tsv"), _DISCLOSURE_MODE)
+    _disc.write_tsv(build_gene_by_ancestry(bundles_by_ancestry, _kir),
+                     os.path.join(args.out_dir, "kir_gene_by_ancestry.tsv"), _DISCLOSURE_MODE)
+    _disc.write_tsv(build_allele_freq(bundle_unrelated, _kir),
+                     os.path.join(args.out_dir, "kir_allele_freq.tsv"), _DISCLOSURE_MODE)
+    _disc.write_tsv(build_qc(bundle_unrelated, _kir, n_missing_or_corrupt, n_people_total),
+                     os.path.join(args.out_dir, "kir_qc.tsv"), _DISCLOSURE_MODE)
+    _disc.write_tsv(build_content_by_ancestry(bundles_by_ancestry),
+                     os.path.join(args.out_dir, "kir_content_by_ancestry.tsv"), _DISCLOSURE_MODE)
 
     log(f"[43] done in {time.perf_counter()-t0:.0f}s -- 6 tables written to {args.out_dir!r}")
 

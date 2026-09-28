@@ -55,6 +55,7 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _THIS_DIR not in sys.path:
     sys.path.insert(0, _THIS_DIR)
 import _viz_common as vc
+import _disclosure as _disc
 
 SPECIES_ORDER = ["hla", "kir"]
 SPECIES_LABEL = {"kir": "KIR", "hla": "HLA"}
@@ -456,9 +457,27 @@ def main():
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--in-dir", default="reports/hla_popgen/44_kir_recurrence_saturation")
     ap.add_argument("--out-dir", default=None)
+    _disc.add_disclosure_arg(ap)
     args = ap.parse_args()
-    out_dir = args.out_dir or args.in_dir
+    if args.out_dir is not None:
+        out_dir = args.out_dir
+    elif args.disclosure == _disc.INTERNAL:
+        out_dir = _disc.default_out_dir(_disc.INTERNAL, "45", args.in_dir)
+    else:
+        out_dir = args.in_dir
+    if args.disclosure == _disc.INTERNAL:
+        _disc.assert_internal_path_allowed(out_dir)
     os.makedirs(out_dir, exist_ok=True)
+
+    # INTERNAL mode: every figure this script saves gets the "do not export" watermark, applied
+    # via a thin wrapper around vc.save_fig() rather than touching each fig_*() function --
+    # task item 3 ("a diagonal light watermark ... goes on each figure" in INTERNAL mode).
+    _orig_save_fig = vc.save_fig
+    def _save_fig_disclosure_aware(fig, path_stem, *a, **kw):
+        if args.disclosure == _disc.INTERNAL:
+            vc.add_internal_watermark(fig)
+        return _orig_save_fig(fig, path_stem, *a, **kw)
+    vc.save_fig = _save_fig_disclosure_aware
 
     rec, curve, cov = load_tables(args.in_dir)
 
@@ -479,7 +498,7 @@ def main():
 
     stats = compute_singleton_share_stats(curve)
     stats_path = os.path.join(out_dir, "recurrence_stats.tsv")
-    stats.to_csv(stats_path, sep="\t", index=False)
+    _disc.write_tsv(stats, stats_path, args.disclosure)
     print(f"  wrote {stats_path}", file=sys.stderr)
 
     # Sanity-log the partition identity + the known recurrence_classes.tsv undercount, so a rerun

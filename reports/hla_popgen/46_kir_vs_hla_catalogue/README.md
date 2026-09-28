@@ -177,3 +177,19 @@ reference set relative to its real diversity.
 - KIR2DP1/KIR3DP1 protein metrics = NA (pseudogenes), never 0.
 - v1–v3 numbers (incl. the "KIR 6,300 novel proteins" / ">100%" bugs) are invalid — see `44`'s
   Version history.
+
+## Disclosure
+
+`46_kir_vs_hla_catalogue.py` routes every output cell through `scripts/hla_popgen/_disclosure.py`
+(`--disclosure {public,internal}`, default `public`) — see `context/DECISIONS.md`'s "two
+disclosure versions" entry.
+
+| Column(s) | count_type | PUBLIC | INTERNAL |
+|---|---|---|---|
+| `46_catalogue_metrics.tsv` / `46_catalogue_metrics_by_ancestry.tsv` (s_obs/richness/completeness per gene) | `allele_distinct` / `richness` | exact (already exact pre-disclosure-layer; this was existing precedent, not a new loosening) | exact |
+| Figure panels (`fig_catalogue_completeness`, `fig_recurrence_composition`) | mirrors the underlying metric's count_type (all richness-derived here) | unchanged | watermarked "INTERNAL — n<20 cells shown — do not export" |
+
+No column in this script's outputs is a participant/carrier count or a small-back-calculable rate
+— every number here is a richness/completeness statistic derived from `44`'s `coverage_chao2.tsv`
+and `saturation_curves.tsv`, so PUBLIC and INTERNAL currently produce numerically identical
+tables (INTERNAL differs only in output path/header comment and figure watermark).

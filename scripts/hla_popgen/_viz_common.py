@@ -868,6 +868,8 @@ def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
                 continue
             if id(t) in offview_tick_ids:
                 continue
+            if getattr(t, "_layout_watermark", False):
+                continue  # add_internal_watermark() -- deliberately crosses everything, exempt
             s = t.get_text()
             if s is None or s.strip() == "":
                 continue
@@ -1109,5 +1111,75 @@ def hatch_suppressed(ax, x, y, width, height, **kwargs):
     zorder = kwargs.pop("zorder", 4)
     rect = Rectangle((x, y), width, height, facecolor=SUPPRESSED_COLOR, edgecolor="#999999",
                      hatch="////", linewidth=0.3, zorder=zorder, **kwargs)
+    ax.add_patch(rect)
+    return rect
+
+
+# ---------------------------------------------------------------------------
+# Disclosure-aware figure marking (S04 disclosure layer, reference/AOU_SMALL_CELL_POLICY.md +
+# context/DECISIONS.md "two disclosure versions"). `_disclosure.py` (same directory) owns the
+# mask()/mode policy; these three helpers are purely the DRAWING side, used by 43b/45/46's figure
+# scripts. Kept here (not in _disclosure.py) so figure code has one obvious place -- alongside
+# hatch_suppressed()/save_fig() -- to look for figure-drawing helpers, matching this module's
+# existing "presentation-layer glue" scope (see file's own module docstring).
+# ---------------------------------------------------------------------------
+try:
+    import _disclosure as _disc
+except ImportError:  # pragma: no cover -- _THIS_DIR is normally already on sys.path
+    if _THIS_DIR not in sys.path:
+        sys.path.insert(0, _THIS_DIR)
+    import _disclosure as _disc
+
+INTERNAL_WATERMARK_TEXT = "INTERNAL — n<20 cells shown — do not export"
+
+
+def add_internal_watermark(fig, text=INTERNAL_WATERMARK_TEXT):
+    """Diagonal, light-grey, low-alpha watermark spanning the whole figure -- required on every
+    figure rendered in `--disclosure internal` mode (task item 3), so a screenshot or a stray
+    export of an INTERNAL PNG still visibly announces it must not be shared/committed even if the
+    filename/path convention is lost in transit. Purely decorative and DELIBERATELY spans (and so
+    visually crosses) real data/text/spines -- marked `_layout_watermark` so `check_layout()`
+    exempts it from the text-overlap/foreign-spine/clipped checks entirely (see that function's
+    `texts` collection step), the same way it already exempts off-view phantom tick labels. This
+    keeps `save_fig(..., strict=True)` (the default) working on every INTERNAL figure without
+    requiring every caller to special-case the watermark."""
+    t = fig.text(0.5, 0.5, text, transform=fig.transFigure, ha="center", va="center",
+                  fontsize=22, fontweight="bold", color="#B0B0B0", alpha=0.35, rotation=30,
+                  zorder=0.1, clip_on=False)
+    t._layout_watermark = True
+    return fig
+
+
+def mark_internal_lt20(ax, x, y, width, height, tag="n<20", **kwargs):
+    """INTERNAL-mode marking for a cell/point whose true value is in the disclosive 1-19 band:
+    drawn with its EXACT value already (by the caller, underneath this) but visibly flagged with
+    a thin, high-contrast outline (no fill -- unlike hatch_suppressed()'s opaque grey/hatch, which
+    would hide the real data drawn under it) plus a tiny "n<20" tag in the cell's corner. x, y,
+    width, height are data coordinates by default (pass transform=ax.transAxes via kwargs for
+    axes-fraction placement). Returns (patch, text_artist), both already added to ax."""
+    from matplotlib.patches import Rectangle
+    zorder = kwargs.pop("zorder", 5)
+    fontsize = kwargs.pop("fontsize", 4)
+    rect = Rectangle((x, y), width, height, facecolor="none", edgecolor="#CC3311",
+                      linewidth=0.6, linestyle=(0, (1, 1)), zorder=zorder, **kwargs)
+    ax.add_patch(rect)
+    txt = ax.text(x + width, y + height, tag, fontsize=fontsize, color="#CC3311",
+                   ha="right", va="bottom", zorder=zorder + 0.1,
+                   transform=kwargs.get("transform", ax.transData))
+    return rect, txt
+
+
+def mark_review_flag(ax, x, y, width, height, **kwargs):
+    """PUBLIC-mode marking for a `recurrence_class` cell whose `review_flag` is True (task item
+    3): an exact number is shown (this is PUBLIC/exact per the loosened rule), but the cell gets a
+    small outlined border so a reader/supervisor can spot-check it before it's treated as final --
+    deliberately NOT a hatch (hatch_suppressed() means 'value hidden'; this means 'value shown,
+    please review') and deliberately no dagger/symbol glyph (FIGURE_STYLE.md de-AI checklist item
+    12 flags dagger-style collisions) -- explain this marker in the figure's caption instead.
+    Returns the patch (already added to ax)."""
+    from matplotlib.patches import Rectangle
+    zorder = kwargs.pop("zorder", 5)
+    rect = Rectangle((x, y), width, height, facecolor="none", edgecolor="#333333",
+                      linewidth=0.8, linestyle="-", zorder=zorder, **kwargs)
     ax.add_patch(rect)
     return rect
