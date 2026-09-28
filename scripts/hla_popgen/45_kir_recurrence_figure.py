@@ -171,11 +171,11 @@ def _label_curve_ends(ax, ends, colors, fontsize, min_gap_frac=0.12, label_x=Non
     spread, produced a gap far smaller than one line of 5-6pt text actually needs).
 
     `label_x`: override the column's x-position (data coords) instead of deriving it from this
-    call's own `ends` xmax. Used by 46_kir_vs_hla_catalogue.fig_catalogue_completeness panel (a),
-    where TWO species each need their own column in the same axes -- the second species' column
-    must start to the right of the first species' already-placed text, not at its own (smaller
-    or overlapping) xmax (2026-09-28 fix: both species are densely packed near x=90-100 in that
-    panel, so two independently-computed default columns landed on top of each other)."""
+    call's own `ends` xmax -- for a caller that needs TWO (or more) columns in the same axes,
+    where a later column must start to the right of an earlier one's already-placed text, not at
+    its own (smaller or overlapping) xmax. (No longer used by `46_kir_vs_hla_catalogue.py` as of
+    its 2026-09-28 Cleveland-dot-plot rebuild, which dropped per-point leader-lined labels
+    entirely -- kept here for 45's own multi-column callers.)"""
     if not ends:
         return
     xmax = max(x for x, _ in ends.values())

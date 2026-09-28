@@ -42,9 +42,17 @@ this figure is shown outside the team.
 
 Deliverables:
   - `46_catalogue_metrics.tsv`: one row per gene x species, all metrics above.
-  - `fig_catalogue_completeness.{png,pdf}`: per-gene scatter, x = % novel (any level), y = Chao2
-    richness completeness, color = species, direct gene labels (no legend for genes; a small
-    2-entry species legend since color alone needs a key).
+  - `fig_catalogue_completeness.{png,pdf}`: Cleveland dot plot (rebuilt 2026-09-28 -- see
+    `build_row_order()`/`fig_catalogue_completeness()` docstrings for the full rationale; the
+    orchestrator rejected the earlier per-gene scatter version for leader-line spaghetti, an axis
+    stretched past 100% to fit labels, a headline panel with no gene labels at all, and a tiny
+    far-away legend). Rows = the 8 HLA classical genes + 17 KIR genes, in two blocks, ordered by
+    protein-level Chao2 completeness -- the row IS the gene's label, so there are no leader lines
+    anywhere. Panel a: Chao2 completeness per identity level (protein = headline, CDS, genomic =
+    small grey "upper bound" tick), explained by a compact inline key, not a legend box. Panel b,
+    sharing panel a's rows: % of distinct alleles novel at the protein level. Panel c: a
+    per-ancestry strip -- HLA-minus-KIR protein completeness per ancestry plus pooled (the
+    Simpson's-paradox point: HLA ahead in every single ancestry, near-tied only when pooled).
   - `fig_recurrence_composition.{png,pdf}`: paired recurrence-class composition bars (share of
     S_obs in each of eq1/eq2/gt2/ge20), KIR vs HLA, any-level vs protein-level novelty, using the
     corrected (curve-derived, exactly-partitioning) pooled counts from
@@ -200,237 +208,328 @@ def build_gene_metrics(cov, slope, protein_qc=None, ancestry="ALL"):
 
 
 # ---------------------------------------------------------------------------
-# Direct-labeling helper for scattered points: places each label at a small fixed offset from its
-# point, then iteratively pushes apart any pair of labels whose rendered bounding boxes actually
-# overlap (measured via the real renderer, not a heuristic distance threshold -- a fixed-distance
-# heuristic under/over-corrects depending on font metrics and DPI, and `check_layout()`'s own
-# overlap check (S04 WS-C) is exactly this kind of real-bbox measurement, so this helper mirrors
-# it rather than guessing at a "close enough" threshold that could still fail the linter).
+# Cleveland dot plot (2026-09-28 rebuild -- orchestrator rejected the v4b spaghetti-scatter
+# version of `fig_catalogue_completeness`: leader-line spaghetti, labels past 100% forcing a
+# 140%-wide axis, no gene labels on the headline CDS panel, labels still touching dots, and a
+# tiny far-away legend). Rows = genes; the y-axis tick label IS the gene identity, so there are
+# NO leader lines anywhere and no free-repulsion label placement to get wrong -- a gene's row
+# means the same thing in every panel that shares it, by construction, not by a repulsion pass
+# that could disagree with the data.
 # ---------------------------------------------------------------------------
-def _nudge_text_points(text_artist, dy_points):
-    x_off, y_off = text_artist.xyann
-    text_artist.xyann = (x_off, y_off + dy_points)
+GENE_BLOCKS = [("hla", "HLA  ·  8 classical genes"), ("kir", "KIR  ·  17 genes")]
+
+# Marker SHAPE encodes identity level (consistent across species); marker COLOR encodes species
+# (redundant with the block grouping, but keeps a reader oriented at a glance without a legend
+# box). Genomic is a small grey tick, not a species color -- it is explicitly a context/upper-
+# bound reference, not one of the two headline levels (44's Caveat 1; see README).
+LEVEL_MARKER = {"protein": "o", "cds": "s", "genomic": "|"}
+LEVEL_MARKERSIZE = {"protein": 4.6, "cds": 3.4, "genomic": 7.5}
+GENOMIC_COLOR = vc.MISSING_COLOR  # "#999999" -- grey, deliberately not a species color
 
 
-def _label_points(ax, xs, ys, labels, colors, fontsize=5.0, dx_pt=3.0, max_iter=200):
-    fig = ax.figure
-    texts = []
-    for x, y, lab, col in zip(xs, ys, labels, colors):
-        t = ax.annotate(lab, (x, y), xytext=(dx_pt, 2.0), textcoords="offset points",
-                         fontsize=fontsize, color=col, ha="left", va="center",
-                         annotation_clip=False)
-        vc.mark_label(t)
-        texts.append(t)
-    if not texts:
-        return texts
-    # Match _viz_common.check_layout()'s own dpi floor: on at least one dev machine, freetype
-    # raises "RuntimeError: failed to load glyph" rasterizing at fig.dpi<150 (matplotlib's default
-    # figure dpi is 100) but never at >=150 -- a font-rasterization floor, not an API misuse.
-    # save_fig() -> check_layout() will redraw at >=150 dpi anyway, so measuring at that same
-    # floor here also keeps the pixel geometry consistent with what check_layout() will verify.
-    _orig_dpi = fig.dpi
-    if fig.dpi < 150:
-        fig.dpi = 150
-    try:
-        fig.canvas.draw()
-        renderer = fig.canvas.get_renderer()
-        px_to_pt = 72.0 / fig.dpi
-        _label_points_repel(texts, renderer, px_to_pt, max_iter)
-    finally:
-        fig.dpi = _orig_dpi
-    return texts
+def build_row_order(metrics):
+    """Returns the ordered list of row dicts used by EVERY reader of this figure's shared y-axis
+    (the plotting code below, and this script's own binding test) -- one block-header dict per
+    species (`{"kind": "header", "species": ..., "label": ...}`), followed by that species' gene
+    rows sorted by protein-level Chao2 completeness (descending -- most-complete gene at the top
+    of its block), NaN last (KIR2DP1/KIR3DP1, pseudogenes with no catalogued reference protein --
+    never coerced to a fabricated 0, `na_position="last"` just puts them at the bottom of their
+    own block, which is where a NaN protein-completeness gene belongs on a "sorted by protein
+    completeness" axis). Plot and test share this ONE function so they cannot silently disagree
+    about which row a gene is drawn in.
+    """
+    rows = []
+    for species, header_label in GENE_BLOCKS:
+        rows.append({"kind": "header", "species": species, "label": header_label})
+        sub = metrics[metrics["species"] == species].sort_values(
+            "completeness_protein", ascending=False, na_position="last")
+        for _, r in sub.iterrows():
+            rows.append({
+                "kind": "gene", "species": species, "gene": r["gene"],
+                "gene_display": r["gene_display"],
+                "completeness": r["completeness"],
+                "completeness_cds": r["completeness_cds"],
+                "completeness_protein": r["completeness_protein"],
+                "pct_novel_protein": r["pct_novel_protein"],
+                "protein_catalogue_covered": bool(r["protein_catalogue_covered"]),
+            })
+    return rows
 
 
-def _label_points_repel(texts, renderer, px_to_pt, max_iter):
-    fig = texts[0].get_figure()
-    for _ in range(max_iter):
-        moved = False
-        boxes = [t.get_window_extent(renderer) for t in texts]
-        for i in range(len(texts)):
-            for j in range(i + 1, len(texts)):
-                bi, bj = boxes[i], boxes[j]
-                if not bi.overlaps(bj):
-                    continue
-                overlap_y = min(bi.y1, bj.y1) - max(bi.y0, bj.y0)
-                if overlap_y <= 0:
-                    continue
-                push_px = overlap_y / 2.0 + 6.0
-                push_pt = push_px * px_to_pt
-                if bi.y0 <= bj.y0:
-                    _nudge_text_points(texts[i], -push_pt)
-                    _nudge_text_points(texts[j], push_pt)
-                else:
-                    _nudge_text_points(texts[i], push_pt)
-                    _nudge_text_points(texts[j], -push_pt)
-                moved = True
-        if not moved:
-            break
-        fig.canvas.draw()
-        renderer = fig.canvas.get_renderer()
-    return texts
+def row_label(row):
+    """The single y-tick-label string for one `build_row_order()` row -- a block header's own
+    label, or a gene row's `gene_display` (e.g. "HLA-A", "KIR2DL1"). This IS the row's identity
+    label; there is no separate leader-lined text anywhere else in the figure."""
+    return row["label"] if row["kind"] == "header" else row["gene_display"]
 
 
-def _scatter_panel(ax, metrics, x_col, y_col, na_note=None, column_species=(),
-                    column_fontsize=5.0, column_min_gap_frac=0.05, label_genes=True):
-    """One completeness-vs-novelty scatter panel, direct-labeled, both species. Rows where
-    `x_col`/`y_col` is NaN (a catalogue-uncovered gene, e.g. KIR2DP1/KIR3DP1 at the protein level)
-    are NEVER silently dropped or plotted as 0 -- they are listed by name in an in-panel note
-    (`na_note`, e.g. "KIR2DP1, KIR3DP1: no catalogue protein (pseudogene)"), so a reader sees
-    explicitly which genes are missing and why, per the 2026-09-27 coordinator instruction.
-
-    Labeling is done PER SPECIES so a tight cluster of one species doesn't force the other
-    species' already-well-spaced labels into a shared far-away column. Species named in
-    `column_species` use 45's shared-x-column end-of-line labeling (`_label_curve_ends`,
-    originally built for curve endpoints but equally valid for any (x, y) point), positioned
-    just past THAT SPECIES' OWN rightmost point -- i.e. the KIR protein-level cluster (~13 genes
-    packed into x=90-100/y=0.06-0.25) gets a short local column with leader lines, not a
-    figure-spanning one. Every other species uses `_label_points()`'s free per-point repulsion,
-    which reads fine when points are already spread out (e.g. panel a, or panel b's HLA points).
-    The free style was tried for the KIR cluster first and passed `check_layout(strict=True)`
-    with zero TEXT-vs-TEXT violations yet still visually sat labels on top of marker dots --
-    `check_layout()`'s overlap check is text-vs-text/decoration only, it does not compare a label
-    against a plain scatter marker, so that failure mode is a real "text on data" violation
-    (FIGURE_STYLE.md) the mechanical linter cannot catch; caught only by rendering and viewing the
-    PNG at full size (2026-09-27 visual review)."""
-    handles = []
-    per_species = {}
-    na_genes = []
-    for sp in SPECIES_ORDER:
-        s_all = metrics[metrics["species"] == sp]
-        na_genes += s_all.loc[s_all[x_col].isna() | s_all[y_col].isna(), "gene_display"].tolist()
-        s = s_all.dropna(subset=[x_col, y_col])
-        h = ax.scatter(s[x_col], s[y_col], s=16, color=SPECIES_COLOR[sp],
-                        label=SPECIES_LABEL[sp], zorder=3, edgecolors="white", linewidths=0.3)
-        handles.append(h)
-        per_species[sp] = (s[x_col].tolist(), s[y_col].tolist(), s["gene_display"].tolist())
-    # Bottom padding (-0.04, not 0): a free-style label for a near-zero-completeness gene is
-    # offset only 2pt above its own point (`_label_points`' default), which can otherwise render
-    # low enough to collide with the x-tick-label row just below the axes' own spine (found on
-    # full-size review: 'KIR2DP1' over the '100' x-tick in the CDS panel -- the two are plain Text
-    # objects, and check (a3)'s own-axes-spine exemption doesn't cover a sibling tick LABEL). No
-    # real data point is ever negative, so this buffer band is always empty of data.
-    ax.set_ylim(-0.04, 1.05)
-    # Right-pad xlim past the data max (v4b, 3-panel layout): a free-style label offset a few
-    # points to the right of its point (`_label_points`' dx_pt=3.0) can otherwise land on top of
-    # the rightmost x-tick label itself (found on full-size review: 'KIR2DP1' over the '100'
-    # tick in the CDS panel) -- pad by 15% of the observed x-range so labels near the right edge
-    # have somewhere to go.
-    all_x_vals = [v for sp in SPECIES_ORDER for v in per_species[sp][0]]
-    xmax_data = max(all_x_vals) if all_x_vals else 100.0
-    ax.set_xlim(left=-2, right=max(xmax_data * 1.15, xmax_data + 10))
-    if not label_genes:
-        # Both species' any-level novelty ranges overlap substantially at the CDS granularity
-        # (unlike the protein panel, where KIR's cluster and HLA's cluster sit at very different
-        # x) -- neither the free-repulsion nor the column-leader style can place ~30 gene labels
-        # here without collisions between species (tried both, 2026-09-27: free-vs-free overlaps,
-        # and free HLA labels landing on KIR's column leader lines). Gene identities for this
-        # panel are in `46_catalogue_metrics.tsv`/`_by_ancestry.tsv`; the caption says so.
-        if na_genes:
-            note = na_note or (", ".join(na_genes) + ": no catalogue data at this level")
-            t = ax.text(0.02, 0.98, note, transform=ax.transAxes, fontsize=5.2, color="#666666",
-                         ha="left", va="top", style="italic", wrap=True)
-            vc.mark_label(t)
-        return handles
-    m45 = _load_45() if any(sp in column_species for sp in SPECIES_ORDER) else None
-    # Free-style species are repelled together in ONE pass (not one call per species) -- a
-    # per-species-only pass would resolve overlaps within each species but miss a label from one
-    # species landing on a label from the other (caught by re-running check_layout, not by eye:
-    # 'HLA-DRB1 overlaps KIR3DS1' in panel a, two close points from different species).
-    free_x, free_y, free_lab, free_col = [], [], [], []
-    # Chained column position: when MORE THAN ONE species is in `column_species` (panel a, v4b
-    # fix), each species' own default column position (`_label_curve_ends`'s xmax*1.04) would
-    # land at roughly the same x for both, since both species' genomic-level points cluster near
-    # x=90-100 -- the two columns of gene names would print on top of each other. Instead, chain
-    # them: the first species gets its own default column, and every subsequent one starts past
-    # the x-axis extent `_label_curve_ends` just widened the axes to (its return value), so the
-    # two (or more) columns sit side by side, never overlapping.
-    next_label_x = None
-    for sp in SPECIES_ORDER:
-        xs, ys, labs = per_species[sp]
-        if not xs:
-            continue
-        if sp in column_species:
-            ends = {lab: (x, y) for x, y, lab in zip(xs, ys, labs)}
-            colors_by_label = {lab: SPECIES_COLOR[sp] for lab in labs}
-            # The chained `next_label_x` is a MINIMUM, never an absolute override: it must also
-            # clear THIS species' own rightmost point, or the column would sit to the left of
-            # some of its own data and the leader line would run backwards, potentially crossing
-            # through the previous species' label text (a real regression the synthetic-fixture
-            # test caught: with few, widely-spaced points -- unlike production's tight cluster --
-            # the naive chained value could land short of a later species' own xmax).
-            own_default_x = max(x for x, _ in ends.values()) * 1.04
-            this_label_x = max(next_label_x, own_default_x) if next_label_x is not None else None
-            m45._label_curve_ends(ax, ends, colors_by_label, fontsize=column_fontsize,
-                                   min_gap_frac=column_min_gap_frac, label_x=this_label_x)
-            # `_label_curve_ends` already widened `ax`'s xlim to fit THIS species' own longest
-            # label past its column (its own `label_x * 1.22` heuristic) -- anchor the next
-            # species' column there, so consecutive columns never overlap regardless of how wide
-            # either species' gene-name strings are.
-            next_label_x = ax.get_xlim()[1] * 1.02
+def _style_row_axis(ax, rows, ys):
+    """Shared y-axis setup for panels a/b: tick at every row (header rows included), header rows
+    rendered bold/grey as a thin block label, gene rows left at normal weight -- and a thin grey
+    rule drawn through each header row (inside the axes, so it never touches the tick-label text
+    which lives outside the axes) as the visual block divider."""
+    ax.set_yticks(ys)
+    ax.set_yticklabels([row_label(r) for r in rows])
+    for tick_label, r in zip(ax.get_yticklabels(), rows):
+        if r["kind"] == "header":
+            tick_label.set_fontweight("bold")
+            tick_label.set_fontsize(6.0)
+            tick_label.set_color("#555555")
         else:
-            free_x += xs
-            free_y += ys
-            free_lab += labs
-            free_col += [SPECIES_COLOR[sp]] * len(xs)
-    if free_x:
-        _label_points(ax, free_x, free_y, free_lab, free_col)
-    if na_genes:
-        note = na_note or (", ".join(na_genes) + ": no catalogue data at this level")
-        # Top-left, not bottom-left: this data's y-range clusters low-to-mid (completeness
-        # 0.08-0.57), so the top of the panel is the reliably empty corner -- checked against the
-        # actual metrics range, not assumed.
-        t = ax.text(0.02, 0.98, note, transform=ax.transAxes, fontsize=5.2, color="#666666",
-                     ha="left", va="top", style="italic", wrap=True)
-        vc.mark_label(t)
-    return handles
+            tick_label.set_fontsize(5.6)
+    for r, y in zip(rows, ys):
+        if r["kind"] == "header":
+            ax.axhline(y, color="#DDDDDD", lw=0.7, zorder=0)
+    # Headroom above the top row / below the bottom row so a header's bold tick label (drawn just
+    # left of the axes, not inside it) never has to fight the panel's own inline key / x-tick row
+    # for vertical space -- found necessary on full-size review of the first draft.
+    ax.set_ylim(min(ys) - 0.7, max(ys) + 0.9)
 
 
-def fig_catalogue_completeness(metrics, out_stem):
-    """Three panels, left to right: (a) genomic (span-level) identity -- the UPPER-BOUND context
-    view (see README caveat 1: person-specific span/UTR boundaries and intronic assembly noise the
-    CDS-level artifact gate can't see likely inflate this one), (b) CDS-level completeness (a v4b
-    headline granularity), (c) protein-level completeness (the other v4b headline granularity).
-    Panel (b)'s x-axis reuses `pct_novel_any` (a genomic-level novelty measure) as the only novelty
-    percentage 44 exports that pairs with the CDS s_obs/chao2 identity granularity -- CDS itself
-    has no separate cds_novel/non-novel split in 44's tables, only its own identity-level
-    s_obs/chao2 (see `build_gene_metrics` docstring)."""
+def _inline_key(ax, items, y_offset_pt=24.0, fontsize=5.6, color="#444444", gap_pt=14.0,
+                 marker_text_gap_pt=7.0, row_gap_pt=11.0):
+    """A compact in-panel key for marker SHAPE, drawn along the top of `ax` (never a legend box,
+    per FIGURE_STYLE.md's de-AI checklist item 3 / the task's own 'not a legend box' instruction)
+    -- one real marker of each shape, followed by its label, each successive item starting where
+    the previous item's rendered text actually ended (measured with the real renderer, the same
+    draw-then-measure approach `check_layout()` itself uses) so the key never collides with itself
+    regardless of font metrics or DPI.
+
+    Added directly to the FIGURE (`fig.add_artist`/`fig.text`), not to `ax` (`ax.plot`/`ax.text`),
+    and positioned in DISPLAY (pixel) coordinates converted from one final snapshot of `ax`'s own
+    bbox -- deliberately not `ax.transAxes`. `constrained_layout` computes each axes' required
+    margin from the tight bbox of everything BELONGING to that axes, including artists drawn with
+    `transform=ax.transAxes` that stick out past its spines (e.g. this key's own rightmost items).
+    Adding the key straight to `ax` therefore fed back into `constrained_layout`'s own next-draw
+    margin computation, which kept shrinking `ax`'s width as more key items were added -- each
+    item's fraction-space offset (correct against the `ax` bbox it was computed from) no longer
+    matched the axes' NEW, narrower bbox by the time the next item (or `check_layout`'s own later
+    redraw) measured it, producing real, reproducible text-on-text overlap despite every individual
+    offset having been computed correctly at the time (found on first two render attempts: fixed
+    key text was actually non-monotonic, then monotonic-but-still-overlapping, once other axes'
+    content was also finalized after this key). A figure-level artist is invisible to
+    `constrained_layout`'s per-axes margin accounting, so it cannot destabilize `ax`, and pixel
+    coordinates (unlike `ax.transAxes` fractions) do not silently rescale if `ax`'s box does move
+    for an unrelated reason.
+
+    `items` is a list of (marker_kwargs, label) pairs, in the order plotted, left to right,
+    starting just above `ax`'s own top-left corner, WRAPPING onto a new row (row spacing
+    `row_gap_pt`) whenever the next item would extend past `ax`'s own right edge -- otherwise a
+    long key row can spill rightward into the NEXT panel's own column and collide with that
+    panel's title (both panels' titles sit at roughly the same absolute height, so this is a real
+    cross-axes collision, found on full-size review: "novelty (headline)" (panel b's title)
+    overlapped this key's own rightmost item once `gap_pt`/`marker_text_gap_pt` were widened to
+    fix the earlier too-tight spacing).
+    """
+    import matplotlib.lines as mlines
+
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    ax_bb = ax.get_window_extent(renderer=renderer)
+    pt_to_px = fig.dpi / 72.0
+    x0_px, y_px = ax_bb.x0, ax_bb.y1 + y_offset_pt * pt_to_px
+    x_px = x0_px
+    inv = fig.transFigure.inverted()
+    for marker_kwargs, label in items:
+        # Peek at this item's own rendered width BEFORE committing to placing it on the current
+        # row, using an off-screen probe text -- wrapping needs to know the width in advance,
+        # not just react after the fact.
+        probe = fig.text(-1.0, -1.0, label, fontsize=fontsize)
+        fig.canvas.draw()
+        probe_w = probe.get_window_extent(renderer=fig.canvas.get_renderer()).width
+        probe.remove()
+        item_end_px = x_px + marker_text_gap_pt * pt_to_px + probe_w
+        if x_px > x0_px and item_end_px > ax_bb.x1:
+            x_px = x0_px
+            y_px -= row_gap_pt * pt_to_px
+        mx, my = inv.transform((x_px, y_px))
+        ln = mlines.Line2D([mx], [my], transform=fig.transFigure, linestyle="none",
+                            markeredgewidth=0.8, **marker_kwargs)
+        fig.add_artist(ln)
+        tx, ty = inv.transform((x_px + marker_text_gap_pt * pt_to_px, y_px))
+        t = fig.text(tx, ty, label, fontsize=fontsize, color=color, va="center", ha="left")
+        fig.canvas.draw()
+        bb = t.get_window_extent(renderer=fig.canvas.get_renderer())
+        x_px = bb.x1 + gap_pt * pt_to_px
+
+
+def _plot_completeness_panel(ax, rows, ys):
+    """Panel a: Chao2 completeness (S_obs/Chao2), 0-1 axis. One marker per identity level: a
+    small grey genomic tick (context, "upper bound" -- 44's Caveat 1), a CDS square, and the
+    headline protein circle. KIR2DP1/KIR3DP1 (`protein_catalogue_covered=False`) get a HOLLOW
+    protein circle at the axis's own zero edge plus an explicit "no catalogued protein" note in
+    that row -- never a filled marker, never a fabricated 0 read as a real completeness value."""
+    for r, y in zip(rows, ys):
+        if r["kind"] == "header":
+            continue
+        color = SPECIES_COLOR[r["species"]]
+        ax.plot(r["completeness"], y, marker=LEVEL_MARKER["genomic"],
+                 markersize=LEVEL_MARKERSIZE["genomic"], color=GENOMIC_COLOR,
+                 markeredgewidth=1.1, zorder=2)
+        ax.plot(r["completeness_cds"], y, marker=LEVEL_MARKER["cds"],
+                 markersize=LEVEL_MARKERSIZE["cds"], color=color, markeredgecolor="white",
+                 markeredgewidth=0.3, zorder=3)
+        if r["protein_catalogue_covered"]:
+            ax.plot(r["completeness_protein"], y, marker=LEVEL_MARKER["protein"],
+                     markersize=LEVEL_MARKERSIZE["protein"], color=color,
+                     markeredgecolor="white", markeredgewidth=0.3, zorder=4)
+        else:
+            ax.plot(0.0, y, marker=LEVEL_MARKER["protein"], markersize=LEVEL_MARKERSIZE["protein"],
+                     markerfacecolor="none", markeredgecolor=color, markeredgewidth=0.9, zorder=4)
+            # x=0.13 (clear of both the hollow marker at 0 and the genomic tick at ~0.04-0.09),
+            # y+0.34 (clear of the CDS square, which check_layout cannot itself catch -- it is a
+            # plain scatter marker, not a Text -- and which KIR3DP1's own CDS square at x=0.40 is
+            # close enough to the default row height to visually collide with on full-size review
+            # once the note's font/width made it reach that far right).
+            t = ax.text(0.13, y + 0.34, "no catalogued protein", fontsize=5.0, color=color,
+                         style="italic", va="bottom", ha="left")
+            vc.mark_label(t)
+    ax.set_xlim(0.0, 0.72)
+    ax.set_xlabel(r"Chao2 completeness (S$_{obs}$/Chao2)")
+
+
+def _completeness_panel_key_items():
+    """The (marker_kwargs, label) pairs for panel a's inline key -- factored out of
+    `_plot_completeness_panel` so `fig_catalogue_completeness` can draw the key LAST, once every
+    axes (a, b, c) has its final content: `_inline_key`'s draw-then-measure positioning needs
+    constrained_layout to have already converged on ax_a's true final width, which it has not yet
+    done while ax_b/ax_c are still empty (found on first render -- drawing the key immediately
+    inside this function, before the other two panels existed, produced overlapping key text that
+    only appeared once the OTHER axes were populated and the layout engine reflowed ax_a again)."""
+    return [
+        (dict(marker="o", markersize=LEVEL_MARKERSIZE["protein"], color="#444444"),
+         "protein (headline)"),
+        (dict(marker="s", markersize=LEVEL_MARKERSIZE["cds"], color="#444444"), "CDS"),
+        (dict(marker="|", markersize=LEVEL_MARKERSIZE["genomic"], color=GENOMIC_COLOR),
+         "genomic (upper bound)"),
+        (dict(marker="o", markersize=LEVEL_MARKERSIZE["protein"], markerfacecolor="none",
+              markeredgecolor="#444444"), "no catalogued protein"),
+    ]
+
+
+def _plot_novelty_panel(ax, rows, ys):
+    """Panel b, sharing panel a's rows: % of distinct alleles novel at the protein level (the
+    headline novelty granularity). KIR2DP1/KIR3DP1 have no protein-level alleles to be novel
+    among (`pct_novel_protein` is NaN by construction) -- left blank in this panel (never 0);
+    panel a already names and explains them once, in the protein column, so this panel does not
+    repeat the note."""
+    for r, y in zip(rows, ys):
+        if r["kind"] == "header" or not r["protein_catalogue_covered"]:
+            continue
+        color = SPECIES_COLOR[r["species"]]
+        ax.plot(r["pct_novel_protein"], y, marker="o", markersize=LEVEL_MARKERSIZE["protein"],
+                 color=color, markeredgecolor="white", markeredgewidth=0.3, zorder=3)
+    ax.set_xlim(0.0, 100.0)
+    ax.set_xlabel("% of distinct alleles\nnovel (protein level)")
+    ax.set_title("novelty (headline)", fontsize=6.5, pad=14)
+
+
+ANCESTRY_ORDER_SIMPSON = ["AFR", "AMR", "EAS", "EUR", "SAS"]
+
+
+def _species_chao2_completeness(cov, ancestry, species, level="protein"):
+    """Species-level (not per-gene) Chao2 completeness: sum(s_obs) / sum(chao2) across every gene
+    of `species` at `level` within `ancestry`, straight from `coverage_chao2.tsv` -- the SAME
+    aggregation the README's per-ancestry headline table is built from (confirmed by
+    reproducing its numbers, e.g. AFR HLA protein 50.7-50.8%, to within rounding). Deliberately
+    NOT an average of `build_gene_metrics()`'s per-gene completeness ratios -- that is a
+    different (and not what this repo's committed headline numbers are) aggregation choice."""
+    sub = cov[(cov["ancestry"] == ancestry) & (cov["species"] == species) & (cov["level"] == level)]
+    s_obs = pd.to_numeric(sub["s_obs"], errors="coerce").sum()
+    chao2 = pd.to_numeric(sub["chao2"], errors="coerce").sum()
+    if chao2 == 0:
+        return float("nan")
+    return s_obs / chao2
+
+
+def build_ancestry_simpson_rows(cov):
+    """One row per well-powered ancestry (5, MID excluded per 44/46 precedent) plus a pooled
+    "ALL" row: HLA-minus-KIR protein-level Chao2 completeness -- the Simpson's-paradox point from
+    the README (HLA ahead of KIR in every single ancestry; pooled looks tied). Pooled is listed
+    last and flagged `pooled=True` so the plotting code can set it apart from the 5 per-ancestry
+    rows with its own thin divider, mirroring panel a/b's HLA/KIR block convention."""
+    rows = []
+    for anc in ANCESTRY_ORDER_SIMPSON:
+        hla = _species_chao2_completeness(cov, anc, "hla")
+        kir = _species_chao2_completeness(cov, anc, "kir")
+        rows.append({"label": anc, "hla": hla, "kir": kir, "diff": hla - kir, "pooled": False})
+    hla_all = _species_chao2_completeness(cov, "ALL", "hla")
+    kir_all = _species_chao2_completeness(cov, "ALL", "kir")
+    rows.append({"label": "Pooled (ALL)", "hla": hla_all, "kir": kir_all,
+                 "diff": hla_all - kir_all, "pooled": True})
+    return rows
+
+
+def _plot_ancestry_simpson_panel(ax, sim_rows):
+    """Panel c (optional per-ancestry strip): HLA-minus-KIR protein-level Chao2 completeness per
+    ancestry plus pooled, 0 as the reference line -- "HLA more complete in every ancestry, tied
+    when pooled." One accent-colored point per row (a single comparison, one hue, per
+    FIGURE_STYLE.md's de-AI checklist item 9); the pooled row is set off from the 5 per-ancestry
+    rows by a thin divider, echoing panels a/b's HLA/KIR block convention."""
+    n = len(sim_rows)
+    ys = list(range(n - 1, -1, -1))
+    ax.axvline(0.0, color="#999999", lw=0.8, linestyle="--", zorder=1)
+    for r, y in zip(sim_rows, ys):
+        ax.plot(r["diff"], y, marker="D" if r["pooled"] else "o", markersize=4.4,
+                 color=vc.ACCENT_COLOR, markeredgecolor="white", markeredgewidth=0.3, zorder=3)
+    divider_y = ys[-1] + 0.5
+    ax.axhline(divider_y, color="#DDDDDD", lw=0.7, zorder=0)
+    ax.set_yticks(ys)
+    labels = ax.set_yticklabels([r["label"] for r in sim_rows])
+    labels[-1].set_fontweight("bold")
+    labels[-1].set_fontstyle("italic")
+    ax.set_ylim(min(ys) - 0.7, max(ys) + 0.9)
+    diffs = [r["diff"] for r in sim_rows]
+    pad = max(0.03, 0.15 * (max(diffs) - min(0.0, min(diffs))))
+    ax.set_xlim(min(0.0, min(diffs)) - pad, max(diffs) + pad)
+    ax.set_xlabel("HLA − KIR completeness\n(protein, Chao2)")
+    ax.set_title("per-ancestry gap", fontsize=6.5, pad=14)
+
+
+def fig_catalogue_completeness(metrics, cov, out_stem):
+    """Cleveland dot plot, rebuilt 2026-09-28 (orchestrator rejection of the v4b scatter version
+    -- see the module-level comment above `GENE_BLOCKS`). Rows = the 8 HLA classical genes + 17
+    KIR genes, grouped into two blocks and ordered within each block by protein-level Chao2
+    completeness; the row itself is the gene's label, so there are no leader lines anywhere.
+
+    Panel a: Chao2 completeness (S_obs/Chao2), 0-1 axis, one marker per identity level (protein =
+    headline, CDS, genomic = small grey "upper bound" tick), explained by a compact inline key at
+    the top of the panel rather than a legend box. KIR2DP1/KIR3DP1 (pseudogenes, no catalogued
+    reference protein) get a hollow protein marker and an explicit "no catalogued protein" note,
+    never a fabricated 0.
+    Panel b, sharing panel a's rows: % of distinct alleles novel at the protein level (the other
+    v4b headline granularity), 0-100% axis.
+    Panel c: a per-ancestry strip -- HLA-minus-KIR protein-level Chao2 completeness for the 5
+    well-powered ancestries plus pooled, 0 as the reference line (the Simpson's-paradox point from
+    the README: HLA ahead in every single ancestry, near-tied only when pooled).
+    """
+    rows = build_row_order(metrics)
+    n = len(rows)
+    ys = [n - 1 - i for i in range(n)]
+    sim_rows = build_ancestry_simpson_rows(cov)
+
+    fig_height_mm = max(150.0, n * 4.6 + 34.0)
     with vc.nature_style():
-        fig, axes = plt.subplots(1, 3, figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(140)),
-                                  constrained_layout=True)
-        # Fix labels/limits BEFORE labeling points -- `_label_points()` measures real rendered
-        # pixel positions, which shift if axis decorations are added afterward.
-        axes[0].set_xlabel("% of distinct alleles novel (any level)")
-        axes[0].set_ylabel(r"Chao2 richness completeness (S$_{obs}$/Chao2)")
-        axes[0].set_title("genomic identity (upper bound)", fontsize=6.5)
-        axes[1].set_xlabel("% of distinct alleles novel (any level)")
-        axes[1].set_title("CDS identity (headline)", fontsize=6.5)
-        axes[2].set_xlabel("% of distinct alleles novel (protein level)")
-        axes[2].set_title("protein identity (headline)", fontsize=6.5)
-        # Panel a (genomic, upper-bound context): BOTH species cluster densely near x=85-100
-        # (most genes of both species are >80% "novel" at the genomic/span level, see caveat 1),
-        # so free per-point label repulsion was landing ~20 gene names on top of each other and
-        # of the wrong data points (2026-09-28 full-size visual review finding -- not caught by
-        # `check_layout(strict=True)`, a text-vs-text/decoration-only linter, since these are
-        # text-vs-marker collisions). Both species now get their own chained shared-x-column
-        # (see `_scatter_panel` docstring / the `next_label_x` chaining above).
-        handles = _scatter_panel(axes[0], metrics, "pct_novel_any", "completeness",
-                                  column_species=("hla", "kir"), column_fontsize=5.0,
-                                  column_min_gap_frac=0.045)
-        # CDS panel: both species' any-level-novelty values span a similar, overlapping range
-        # here (unlike the protein panel), so gene labels are dropped for legibility (see
-        # `_scatter_panel(..., label_genes=False)` docstring) -- values are in
-        # `46_catalogue_metrics.tsv`/`_by_ancestry.tsv`, and the caption says so explicitly.
-        _scatter_panel(axes[1], metrics, "pct_novel_any", "completeness_cds", label_genes=False)
-        # Protein-level panel: KIR2DP1/KIR3DP1 (pseudogenes, no catalogued reference protein --
-        # `kir_protein_catalogue_qc.tsv`) are NaN on both axes here and are named explicitly
-        # rather than silently vanishing from the plot.
-        _scatter_panel(axes[2], metrics, "pct_novel_protein", "completeness_protein",
-                       na_note="KIR2DP1, KIR3DP1: pseudogenes, no catalogued reference protein "
-                                "(excluded, not 0)", column_species=("kir",))
-        axes[0].legend(handles=handles, loc="lower left", **vc.LEGEND_KW)
-        vc.panel_letter(axes[0], "a")
-        vc.panel_letter(axes[1], "b")
-        vc.panel_letter(axes[2], "c")
+        fig, (ax_a, ax_b, ax_c) = plt.subplots(
+            1, 3, figsize=(vc.mm(vc.NATURE_DOUBLE_COL_MM), vc.mm(fig_height_mm)), dpi=150,
+            gridspec_kw={"width_ratios": [2.5, 1.05, 1.15], "wspace": 0.62},
+            constrained_layout=True)
+        ax_b.sharey(ax_a)
+
+        _style_row_axis(ax_a, rows, ys)
+        _plot_completeness_panel(ax_a, rows, ys)
+        _plot_novelty_panel(ax_b, rows, ys)
+        plt.setp(ax_b.get_yticklabels(), visible=False)
+        ax_b.tick_params(axis="y", length=0)
+        _plot_ancestry_simpson_panel(ax_c, sim_rows)
+
+        vc.panel_letter(ax_a, "a", dx=-0.62, dy=1.16)
+        vc.panel_letter(ax_b, "b", dy=1.16)
+        vc.panel_letter(ax_c, "c", dy=1.16)
+        # Drawn LAST, after every axes has its final content -- see `_completeness_panel_key_items`
+        # docstring for why the key must not be placed while ax_b/ax_c are still empty.
+        _inline_key(ax_a, _completeness_panel_key_items())
         vc.save_fig(fig, out_stem)
 
 
@@ -507,7 +606,8 @@ def main():
     metrics_ancestry.to_csv(metrics_ancestry_path, sep="\t", index=False)
     print(f"  wrote {metrics_ancestry_path}", file=sys.stderr)
 
-    fig_catalogue_completeness(metrics, os.path.join(args.out_dir, "fig_catalogue_completeness"))
+    fig_catalogue_completeness(metrics, cov,
+                                os.path.join(args.out_dir, "fig_catalogue_completeness"))
     fig_recurrence_composition(curve, os.path.join(args.out_dir, "fig_recurrence_composition"))
 
     print(f"[46] 2 figures + 46_catalogue_metrics.tsv written to {args.out_dir}", file=sys.stderr)

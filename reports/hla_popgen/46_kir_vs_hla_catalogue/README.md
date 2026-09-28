@@ -1,9 +1,11 @@
 # 46 — KIR vs HLA: which catalogue covers its region better? (v4b)
 
-**Status: v4b, 2026-09-27.** Supersedes every earlier number in this file. See
-`../44_kir_recurrence_saturation/README.md`'s "Version history" for the full v1→v4b lineage
-(name-based identity bug, missing KIR artifact gate, HLA `HLA-`/bare-gene-name bug) — not repeated
-here.
+**Status: v4b, 2026-09-27** (numbers) **+ figure rebuild, 2026-09-28** (`fig_catalogue_completeness`
+only, a Cleveland dot plot replacing the rejected per-gene scatter version — see "How to read each
+figure" below; no metric or number in this README changed). v4b numbers supersede every earlier
+number in this file. See `../44_kir_recurrence_saturation/README.md`'s "Version history" for the
+full v1→v4b lineage (name-based identity bug, missing KIR artifact gate, HLA
+`HLA-`/bare-gene-name bug) — not repeated here.
 
 ## Question
 
@@ -103,21 +105,26 @@ reference set relative to its real diversity.
 
 ## How to read each figure
 
-- **`fig_catalogue_completeness.png`** (a–c): three scatter panels, x = % of distinct alleles
-  novel, y = Chao2 completeness, one point per gene, HLA (red) vs KIR (blue). **(a) genomic —
-  upper-bound context only**, gene labels shown (dense cluster near x=100% is normal: most genes
-  of both species are >80% "novel" at the genomic/span level — see Caveat 1, this is inflation, not
-  biology). Both species get their own shared-column leader-line label layout here, one column
-  chained past the other (2026-09-28 fix: with both species' points this densely packed, free
-  per-point label repulsion was placing ~20 gene names on top of each other and on top of the
-  wrong data points — a text-vs-marker collision the layout linter's text-vs-text check cannot
-  catch, only found by viewing the PNG at full size). **(b) CDS — headline.** Gene labels are deliberately omitted in this panel (both
-  species' any-level-novelty values overlap too much for either the free or column-leader-line
-  label layout to place ~30 gene names without collisions — tried both, see the script's
-  `_scatter_panel` docstring); per-gene values are in `46_catalogue_metrics.tsv`/
-  `_by_ancestry.tsv`. **(c) protein — headline.** KIR's genes cluster tightly on the right
-  (65–92% novel) and use a shared-column leader-line label layout; KIR2DP1/KIR3DP1 (pseudogenes,
-  no catalogued protein) are named in an explicit in-panel note, never plotted as (0, 0).
+- **`fig_catalogue_completeness.png`** (a–c, **Cleveland dot plot, rebuilt 2026-09-28** — the
+  orchestrator rejected the earlier per-gene scatter version for leader-line spaghetti, an axis
+  stretched past 100% to fit labels, a headline panel with no gene labels at all, labels still
+  touching dots, and a tiny far-away legend). **Rows = genes**, in two blocks with a thin block
+  label ("HLA · 8 classical genes" / "KIR · 17 genes"), each block ordered top-to-bottom by
+  protein-level Chao2 completeness — the row's own y-tick label IS the gene's identity, so there
+  are **no leader lines anywhere**; a gene's row means the same thing in every panel that shares
+  it. **(a) Chao2 completeness** (S<sub>obs</sub>/Chao2, 0–1 axis): one marker per identity level
+  — a filled circle for **protein (the headline)**, a filled square for **CDS**, and a small grey
+  tick for **genomic (context/upper bound only — see Caveat 1)** — explained by a compact inline
+  key at the top of the panel, never a legend box. KIR2DP1/KIR3DP1 (pseudogenes, no catalogued
+  reference protein) get a **hollow** protein marker plus an explicit "no catalogued protein" note
+  in that row — never a filled marker, never a fabricated 0. **(b) novelty (headline)**, sharing
+  panel a's rows: % of distinct alleles novel at the protein level, 0–100% axis; pseudogenes are
+  left blank here (already explained once, in panel a's protein column). **(c) per-ancestry gap**
+  (optional strip): HLA-minus-KIR protein-level Chao2 completeness for the 5 well-powered
+  ancestries plus a pooled row, 0 as the reference line — the Simpson's-paradox point from the
+  Results section above: **HLA is ahead of KIR in every single ancestry, and only looks tied once
+  pooled**. Species color (HLA red, KIR blue) is reinforcing, not load-bearing — the block grouping
+  already identifies species; the accent diamond in panel c marks the pooled row.
 - **`fig_recurrence_composition.png`** (a–b): stacked bars, % of S<sub>obs</sub> in each recurrence
   class (seen 1x/2x/>2x, `ge20` folded into `>2x` here to avoid double-drawing a subset), any-level
   vs protein-level novelty, HLA vs KIR. Uses the exact curve-derived pooled counts from `44`'s

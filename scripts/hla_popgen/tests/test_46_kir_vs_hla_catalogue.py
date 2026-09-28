@@ -10,15 +10,13 @@ Covers:
      places.
   3. Figure rendering on synthetic data through `_viz_common.check_layout(strict=True)` (via
      `save_fig`) -- both figures must render with zero layout violations.
-  4. **Label <-> data binding test** (the task's explicit ask: "check that every plotted value <->
-     label binding matches the TSV"): renders `fig_catalogue_completeness` on a small synthetic
-     metrics table, reads back every `mark_label`-registered Annotation's anchor point (`xy`,
-     documented in `_viz_common.mark_label`'s own point-registration Annotation contract) and text,
-     and asserts each one's (x, y) matches the corresponding TSV row's
-     (pct_novel_any, completeness) to floating-point tolerance, and the text equals that row's
-     `gene_display`. This is a real regression guard against a mislabeled point (e.g. a repulsion
-     bug that nudges a label's anchor instead of its offset, or a gene/species mismatch in the
-     zip() ordering upstream).
+  4. **Row label <-> plotted value <-> TSV binding test** (2026-09-28 Cleveland-dot-plot rebuild):
+     `TestBuildRowOrder` checks `build_row_order()`'s gene ordering against an order independently
+     recomputed straight from the metrics table; `TestRowLabelBindingMatchesData` renders panel a
+     and, for every row, confirms the shared y-axis tick label, the metrics table's own
+     `gene_display` for that (gene, species), and the actual protein-level marker's (x, y) all
+     agree -- a real regression guard against a mislabeled row (e.g. a sort that disagrees between
+     the row builder and the plotting code, or a gene/species mismatch upstream).
 
 Run: python3 scripts/hla_popgen/tests/test_46_kir_vs_hla_catalogue.py
 """
@@ -82,48 +80,6 @@ def _synthetic_cov():
     add("KIR2DL2", "kir", "any_novel", 10, chao2=15.0)
     add("KIR2DL2", "kir", "protein", 20, chao2=25.0)
     add("KIR2DL2", "kir", "protein_novel", 2, chao2=3.0)
-    return pd.DataFrame(rows)
-
-
-def _synthetic_cov_clustered():
-    """Same shape as `_synthetic_cov()` but with pct_novel_any clustered near 90-100% for BOTH
-    species -- representative of this pipeline's real genomic-level identity data (44's
-    `coverage_chao2.tsv`: every gene of both species is >60% novel at genomic level, see
-    `44`'s Caveat 1 / this script's own `fig_catalogue_completeness` panel-a docstring), unlike
-    `_synthetic_cov()`'s deliberately spread-out 20/50/80/25% (picked for hand-computable
-    arithmetic, not to model clustering). Used ONLY by the layout/rendering tests below: panel a's
-    two-species chained-column labeling (`_scatter_panel(column_species=("hla","kir"))`, added
-    2026-09-28) assumes each species' own points are reasonably close to its own rightmost point
-    -- true for real genomic-level data, not true for `_synthetic_cov()`'s wide artificial spread,
-    which was exposing a leader-line-sweep layout bug that never occurs on real inputs (verified
-    against the actual v4b `46_catalogue_metrics.tsv`, min pct_novel_any 61.9%)."""
-    rows = []
-
-    def add(gene, species, level, s_obs, chao2):
-        rows.append({"gene": gene, "ancestry": "ALL", "level": level, "species": species,
-                     "n_people": 1000, "s_obs": s_obs, "good_turing_coverage": 0.99,
-                     "chao2": chao2, "chao2_se": 1.0, "chao2_undetected_f0hat": chao2 - s_obs,
-                     "q1": "", "q2": "", "chao_new_by_2n": 0.0})
-
-    # genomic_chao2_mult varies per gene (unlike a fixed ratio) so completeness values are spread
-    # out on the y-axis too, not all identical -- an earlier version of this fixture used a fixed
-    # s_obs*2.0 for every gene, which put every point at completeness==0.5 and made the column
-    # labeler's vertical repulsion push labels into each other's leader lines (a fixture artifact,
-    # not a real bug; caught when this fixture itself was being debugged, 2026-09-28).
-    for gene, genomic, any_novel, protein, protein_novel, gmult in [
-        ("A", 100, 65, 90, 20, 2.0), ("B", 200, 190, 150, 60, 1.3),
-    ]:
-        add(gene, "hla", "genomic", genomic, genomic * gmult)
-        add(gene, "hla", "any_novel", any_novel, any_novel * 2.5)
-        add(gene, "hla", "protein", protein, protein * 2.2)
-        add(gene, "hla", "protein_novel", protein_novel, protein_novel * 2.8)
-    for gene, genomic, any_novel, protein, protein_novel, gmult in [
-        ("KIR2DL1", 50, 46, 50, 30, 1.8), ("KIR2DL2", 40, 39, 20, 15, 3.0),
-    ]:
-        add(gene, "kir", "genomic", genomic, genomic * gmult)
-        add(gene, "kir", "any_novel", any_novel, any_novel * 2.5)
-        add(gene, "kir", "protein", protein, protein * 2.2)
-        add(gene, "kir", "protein_novel", protein_novel, protein_novel * 2.8)
     return pd.DataFrame(rows)
 
 
@@ -244,16 +200,29 @@ class TestTwoProportionZTestReuse(unittest.TestCase):
         self.assertLess(pval, 1e-30)
 
 
+def _ancestry_expand(cov, ancestries=("AFR", "AMR", "EAS", "EUR", "SAS")):
+    """Copies every `ancestry == "ALL"` row of a synthetic `coverage_chao2.tsv`-shaped frame to
+    each of `ancestries` too (same values -- a smoke-test fixture, not meant to be realistic),
+    so `build_ancestry_simpson_rows()`/panel c has real (non-NaN) numbers to plot when rendering
+    the full figure end to end in a test."""
+    all_rows = cov[cov["ancestry"] == "ALL"]
+    extra = []
+    for anc in ancestries:
+        sub = all_rows.copy()
+        sub["ancestry"] = anc
+        extra.append(sub)
+    return pd.concat([cov] + extra, ignore_index=True)
+
+
 class TestFiguresRenderAndLayout(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        # Clustered fixture (not the wide-spread `_synthetic_cov()`): panel a's two-species
-        # chained column labeling needs realistically-clustered genomic-level novelty to exercise
-        # what it's actually built for (see `_synthetic_cov_clustered()` docstring).
-        self.cov = _synthetic_cov_clustered()
+        self.cov = _ancestry_expand(_synthetic_cov_with_cds())
         self.slope = _synthetic_slope()
-        self.metrics = m46.build_gene_metrics(self.cov, self.slope)
+        self.qc = pd.DataFrame([{"gene": "KIR2DL2", "protein_catalogue_covered": False,
+                                 "reason": "no_catalogued_protein_entries"}])
+        self.metrics = m46.build_gene_metrics(self.cov, self.slope, self.qc)
 
     def _synthetic_curve(self):
         """Minimal saturation_curves.tsv-shaped frame so pooled_recurrence_from_curves() (used by
@@ -269,8 +238,11 @@ class TestFiguresRenderAndLayout(unittest.TestCase):
         return pd.DataFrame(rows)
 
     def test_fig_catalogue_completeness_renders(self):
+        # `fig_catalogue_completeness` calls `vc.save_fig(..., strict=True)` internally, which
+        # raises RuntimeError on any check_layout() error-severity violation -- a clean return
+        # here already means "0 layout violations", not just "no Python exception".
         out_stem = os.path.join(self.tmp.name, "fig_catalogue_completeness")
-        m46.fig_catalogue_completeness(self.metrics, out_stem)
+        m46.fig_catalogue_completeness(self.metrics, self.cov, out_stem)
         self.assertTrue(os.path.exists(out_stem + ".png"))
         self.assertTrue(os.path.exists(out_stem + ".pdf"))
 
@@ -281,48 +253,118 @@ class TestFiguresRenderAndLayout(unittest.TestCase):
         self.assertTrue(os.path.exists(out_stem + ".pdf"))
 
 
-class TestLabelBindingMatchesData(unittest.TestCase):
-    """The task's explicit ask: verify plotted value <-> label binding for at least one panel,
-    against the source TSV/DataFrame -- not just "the figure rendered without an exception"."""
+class TestBuildRowOrder(unittest.TestCase):
+    """`build_row_order()` is the SINGLE source of truth for which gene sits in which row, shared
+    by the plotting code and this test -- but that only guards against the plotting code
+    disagreeing with `build_row_order()`. This class checks `build_row_order()` ITSELF against an
+    order independently recomputed straight from the metrics table, so a bug inside
+    `build_row_order()` (e.g. an ascending/descending flip, or NaN sorted first instead of last)
+    cannot pass just because the plotting code faithfully reproduces whatever it returns."""
 
-    def test_catalogue_completeness_labels_match_metrics_rows(self):
+    def setUp(self):
+        self.cov = _synthetic_cov_with_cds()
+        self.slope = _synthetic_slope()
+        self.qc = pd.DataFrame([{"gene": "KIR2DL2", "protein_catalogue_covered": False,
+                                 "reason": "no_catalogued_protein_entries"}])
+        self.metrics = m46.build_gene_metrics(self.cov, self.slope, self.qc)
+        self.rows = m46.build_row_order(self.metrics)
+
+    def test_two_block_headers_present_first_in_each_block(self):
+        headers = [r for r in self.rows if r["kind"] == "header"]
+        self.assertEqual(len(headers), 2)
+        self.assertEqual(headers[0]["species"], "hla")
+        self.assertEqual(headers[1]["species"], "kir")
+        self.assertEqual(self.rows[0]["kind"], "header")
+
+    def test_gene_rows_sorted_by_protein_completeness_descending_nan_last(self):
+        for species in ("hla", "kir"):
+            got = [r["gene_display"] for r in self.rows
+                   if r["kind"] == "gene" and r["species"] == species]
+            expected = self.metrics[self.metrics.species == species].sort_values(
+                "completeness_protein", ascending=False, na_position="last"
+            )["gene_display"].tolist()
+            self.assertEqual(got, expected,
+                              f"{species} row order does not match an independent "
+                              "sort of the metrics table")
+
+    def test_pseudogene_with_nan_protein_completeness_sorts_last_in_its_block(self):
+        # KIR2DL2 is flagged catalogue-uncovered by the qc fixture -> completeness_protein is NaN
+        # -> must be the LAST kir gene row, never dropped and never placed as if complete.
+        kir_genes = [r["gene_display"] for r in self.rows
+                     if r["kind"] == "gene" and r["species"] == "kir"]
+        self.assertEqual(kir_genes[-1], "KIR2DL2")
+        self.assertIn("KIR2DL2", kir_genes)
+
+
+class TestRowLabelBindingMatchesData(unittest.TestCase):
+    """The task's explicit ask: a binding test tying row label <-> plotted value <-> the metrics
+    table (this script's "TSV") together, for the new Cleveland-dot-plot design -- there are no
+    leader-lined point labels left to check (the whole point of the redesign), so what must be
+    verified instead is that the SHARED y-axis tick label at a given row is the same gene as the
+    marker plotted at that row's y position, and that marker's x is the metrics table's own value
+    for that gene, not a stale or mismatched one."""
+
+    def setUp(self):
+        self.cov = _synthetic_cov_with_cds()
+        self.slope = _synthetic_slope()
+        self.qc = pd.DataFrame([{"gene": "KIR2DL2", "protein_catalogue_covered": False,
+                                 "reason": "no_catalogued_protein_entries"}])
+        self.metrics = m46.build_gene_metrics(self.cov, self.slope, self.qc)
+
+    def test_tick_label_and_protein_marker_match_metrics_table_row_by_row(self):
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
-        cov = _synthetic_cov()
-        slope = _synthetic_slope()
-        metrics = m46.build_gene_metrics(cov, slope)
+        rows = m46.build_row_order(self.metrics)
+        n = len(rows)
+        ys = [n - 1 - i for i in range(n)]
 
-        fig, ax = plt.subplots(figsize=(4, 3), constrained_layout=True)
-        all_x, all_y, all_lab, all_col = [], [], [], []
-        for sp in m46.SPECIES_ORDER:
-            s = metrics[metrics["species"] == sp]
-            ax.scatter(s["pct_novel_any"], s["completeness"], color=m46.SPECIES_COLOR[sp])
-            all_x += s["pct_novel_any"].tolist()
-            all_y += s["completeness"].tolist()
-            all_lab += s["gene_display"].tolist()
-            all_col += [m46.SPECIES_COLOR[sp]] * len(s)
-        texts = m46._label_points(ax, all_x, all_y, all_lab, all_col)
+        fig, ax = plt.subplots(figsize=(4, 6), constrained_layout=True)
+        m46._style_row_axis(ax, rows, ys)
+        m46._plot_completeness_panel(ax, rows, ys)
+        fig.canvas.draw()
+
+        tick_text_by_y = {y: t.get_text() for t, y in zip(ax.get_yticklabels(), ys)}
+        protein_lines = [ln for ln in ax.lines if ln.get_marker() == "o"]
+
+        n_checked = 0
+        for r, y in zip(rows, ys):
+            if r["kind"] == "header":
+                self.assertEqual(tick_text_by_y[y], r["label"])
+                continue
+            # row label <-> the row's own identity
+            self.assertEqual(tick_text_by_y[y], r["gene_display"])
+            # row label <-> the metrics table ("TSV"), independent of build_row_order's own
+            # bookkeeping -- re-fetch the row fresh from `self.metrics` by (gene, species).
+            tsv_row = self.metrics[(self.metrics.gene == r["gene"]) &
+                                    (self.metrics.species == r["species"])].iloc[0]
+            self.assertEqual(r["gene_display"], tsv_row["gene_display"])
+            # plotted value <-> the metrics table, at the row's OWN y (not just "somewhere").
+            matches = [ln for ln in protein_lines if abs(ln.get_ydata()[0] - y) < 1e-9]
+            self.assertEqual(len(matches), 1,
+                              f"expected exactly one protein-level marker at row {y!r} "
+                              f"({r['gene_display']}), found {len(matches)}")
+            ln = matches[0]
+            if bool(tsv_row["protein_catalogue_covered"]):
+                self.assertNotEqual(ln.get_markerfacecolor(), "none",
+                                     f"{r['gene_display']} is catalogue-covered but was drawn "
+                                     "with a hollow (uncovered-style) marker")
+                self.assertAlmostEqual(ln.get_xdata()[0], tsv_row["completeness_protein"],
+                                        places=6,
+                                        msg=f"{r['gene_display']}: plotted protein completeness "
+                                            "does not match the metrics table")
+            else:
+                self.assertEqual(ln.get_markerfacecolor(), "none",
+                                  f"{r['gene_display']} is catalogue-UNcovered but was drawn "
+                                  "with a filled (covered-style) marker")
+                self.assertAlmostEqual(ln.get_xdata()[0], 0.0,
+                                        msg=f"{r['gene_display']}: an uncovered gene's protein "
+                                            "marker must sit at the axis's own zero edge, not a "
+                                            "fabricated or stray value")
+            n_checked += 1
+        self.assertEqual(n_checked, len(self.metrics))
         plt.close(fig)
-
-        self.assertEqual(len(texts), len(metrics))
-        # Build the expected (gene_display -> (x, y)) mapping straight from the metrics
-        # DataFrame (the "TSV" this script would otherwise write), independent of plotting order.
-        expected = {row["gene_display"]: (row["pct_novel_any"], row["completeness"])
-                    for _, row in metrics.iterrows()}
-        seen_labels = set()
-        for t in texts:
-            label = t.get_text()
-            self.assertIn(label, expected, f"unexpected label {label!r} not in metrics table")
-            exp_x, exp_y = expected[label]
-            got_x, got_y = t.xy  # the anchor point passed to ax.annotate(label, (x, y), ...)
-            self.assertAlmostEqual(got_x, exp_x, places=6,
-                                    msg=f"{label}: plotted x does not match metrics table")
-            self.assertAlmostEqual(got_y, exp_y, places=6,
-                                    msg=f"{label}: plotted y does not match metrics table")
-            seen_labels.add(label)
-        self.assertEqual(seen_labels, set(expected))
 
 
 class TestProteinCatalogueQCMerge(unittest.TestCase):
@@ -377,13 +419,13 @@ class TestProteinCatalogueQCMerge(unittest.TestCase):
 
 
 class TestNaGenesRenderedExplicitly(unittest.TestCase):
-    """2026-09-27 coordinator ask: 'Render NA genes explicitly ... never as 0.' A gene whose
-    protein-level metrics are NaN (catalogue-uncovered) must produce an in-panel text note naming
-    it, and must NOT appear as a plotted point at (0, 0) or any other fabricated position."""
+    """Coordinator ask (carried over from the v4b scatter design): a gene whose protein-level
+    metrics are NaN (catalogue-uncovered, e.g. KIR2DP1/KIR3DP1) must be rendered explicitly --
+    a HOLLOW marker plus an in-panel "no catalogued protein" note -- never a fabricated 0 or a
+    normal filled marker."""
 
     def _metrics_with_na_gene(self):
         cov = _synthetic_cov()
-        # Add a third KIR gene with NaN protein-level columns (simulating KIR2DP1/KIR3DP1).
         rows = cov.to_dict("records")
         rows.append({"gene": "KIR2DP1", "ancestry": "ALL", "level": "genomic", "species": "kir",
                      "n_people": 1000, "s_obs": 30, "good_turing_coverage": 0.99, "chao2": 35.0,
@@ -407,7 +449,7 @@ class TestNaGenesRenderedExplicitly(unittest.TestCase):
                             "reason": "no_catalogued_protein_entries"}])
         return m46.build_gene_metrics(cov2, slope, qc)
 
-    def test_na_gene_excluded_from_scatter_points_not_plotted_at_zero(self):
+    def test_na_gene_gets_hollow_marker_and_note_not_a_fabricated_zero(self):
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
@@ -417,66 +459,27 @@ class TestNaGenesRenderedExplicitly(unittest.TestCase):
         self.assertTrue(math.isnan(row["pct_novel_protein"]))
         self.assertTrue(math.isnan(row["completeness_protein"]))
 
-        fig, ax = plt.subplots(figsize=(4, 3), constrained_layout=True)
-        handles = m46._scatter_panel(ax, metrics, "pct_novel_protein", "completeness_protein",
-                                      na_note="KIR2DP1: pseudogene, no catalogued reference "
-                                               "protein (excluded, not 0)")
-        # The NaN row must not appear as a scattered point at all -- collect every point actually
-        # drawn and confirm none sits at (0, 0) (the fabricated-zero failure mode this test
-        # guards against) and that the point count equals only the non-NaN rows.
-        n_plotted = sum(len(h.get_offsets()) for h in handles)
-        n_non_na = metrics[["pct_novel_protein", "completeness_protein"]].dropna().shape[0]
-        self.assertEqual(n_plotted, n_non_na)
-        for h in handles:
-            for (x, y) in h.get_offsets():
-                self.assertFalse(x == 0.0 and y == 0.0,
-                                  "an NA gene must never be plotted as a (0, 0) point")
-        # The explicit note naming the excluded gene must be present as a real text artist.
+        rows = m46.build_row_order(metrics)
+        n = len(rows)
+        ys = [n - 1 - i for i in range(n)]
+        fig, ax = plt.subplots(figsize=(4, 4), constrained_layout=True)
+        m46._style_row_axis(ax, rows, ys)
+        m46._plot_completeness_panel(ax, rows, ys)
+
+        kir2dp1_row = next(r for r in rows if r.get("gene") == "KIR2DP1")
+        kir2dp1_y = ys[rows.index(kir2dp1_row)]
+        protein_lines = [ln for ln in ax.lines if ln.get_marker() == "o"
+                          and abs(ln.get_ydata()[0] - kir2dp1_y) < 1e-9]
+        self.assertEqual(len(protein_lines), 1)
+        self.assertEqual(protein_lines[0].get_markerfacecolor(), "none",
+                          "a catalogue-uncovered gene must get a HOLLOW protein marker")
+        self.assertAlmostEqual(protein_lines[0].get_xdata()[0], 0.0)
+
         note_texts = [t.get_text() for t in ax.texts]
-        self.assertTrue(any("KIR2DP1" in t for t in note_texts),
-                        f"expected an in-panel note naming KIR2DP1, got texts: {note_texts}")
+        self.assertTrue(any("no catalogued protein" in t for t in note_texts),
+                        f"expected an in-panel note naming the excluded gene, got: {note_texts}")
         plt.close(fig)
 
-
-class TestColumnLabelStyleBinding(unittest.TestCase):
-    """fig_catalogue_completeness's protein-level panel uses column_species=('kir',) to avoid
-    labels sitting on top of densely-clustered marker dots (2026-09-27 visual-review fix). Confirm
-    the column-style leader lines still connect each label to ITS OWN gene's real data point."""
-
-    def test_column_style_leaders_match_data_points(self):
-        """The column style (`_label_curve_ends`, reused from 45) deliberately moves each label's
-        OWN text position away from its data point (vertical repulsion + shared x-column) and
-        connects the two with a leader line -- so `.xy` is not expected to equal the data point
-        here (unlike the 'free' `_label_points` style, covered by TestLabelBindingMatchesData).
-        What this test guards against instead: `_scatter_panel` building the `ends` dict from the
-        WRONG row when constructing column-style input (e.g. a species/gene mismatch upstream) --
-        checked two ways: (a) every plotted MARKER sits exactly at its metrics row's data point,
-        and (b) the set of column-style labels drawn is exactly the set of KIR gene_display names
-        with non-NaN data, no more, no fewer."""
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        cov = _synthetic_cov()
-        slope = _synthetic_slope()
-        metrics = m46.build_gene_metrics(cov, slope)
-        kir = metrics[metrics.species == "kir"].dropna(
-            subset=["pct_novel_protein", "completeness_protein"])
-
-        fig, ax = plt.subplots(figsize=(4, 3), constrained_layout=True)
-        handles = m46._scatter_panel(ax, metrics, "pct_novel_protein", "completeness_protein",
-                                      column_species=("kir",))
-        kir_handle = handles[m46.SPECIES_ORDER.index("kir")]
-        plotted = {tuple(round(v, 6) for v in pt) for pt in kir_handle.get_offsets()}
-        expected_points = {(round(row["pct_novel_protein"], 6),
-                             round(row["completeness_protein"], 6))
-                            for _, row in kir.iterrows()}
-        self.assertEqual(plotted, expected_points)
-
-        drawn_labels = {t.get_text() for t in ax.texts
-                        if hasattr(t, "_layout_direct_label") and t.get_text().startswith("KIR")}
-        self.assertEqual(drawn_labels, set(kir["gene_display"]))
-        plt.close(fig)
 
 
 def _synthetic_cov_with_cds(base=None):
@@ -529,38 +532,68 @@ class TestCdsLevelMetrics(unittest.TestCase):
         self.assertAlmostEqual(row["completeness"], 0.5)
 
 
-class TestFigCatalogueCompletenessThreePanels(unittest.TestCase):
-    """v4b: `fig_catalogue_completeness` grew a third (CDS) panel between the pre-existing genomic
-    and protein panels. Confirms it still renders through `check_layout(strict=True)` and that the
-    CDS panel's `label_genes=False` path draws NO per-gene direct labels (only an na_note, if any)
-    -- the busy CDS panel deliberately omits gene labels (see `_scatter_panel` docstring)."""
+class TestAncestrySimpsonPanel(unittest.TestCase):
+    """Panel c (the optional per-ancestry strip): HLA-minus-KIR protein-level Chao2 completeness,
+    aggregated straight from `coverage_chao2.tsv` (sum(s_obs)/sum(chao2) per species x ancestry,
+    NOT an average of per-gene ratios -- see `_species_chao2_completeness()` docstring), for the
+    5 well-powered ancestries plus a pooled row."""
+
+    def test_rows_cover_five_ancestries_plus_pooled_in_order(self):
+        cov = _ancestry_expand(_synthetic_cov())
+        rows = m46.build_ancestry_simpson_rows(cov)
+        self.assertEqual([r["label"] for r in rows],
+                          ["AFR", "AMR", "EAS", "EUR", "SAS", "Pooled (ALL)"])
+        self.assertFalse(rows[0]["pooled"])
+        self.assertTrue(rows[-1]["pooled"])
+
+    def test_diff_is_hla_minus_kir_aggregated_from_coverage_table(self):
+        # Hand-computable: one HLA gene (genomic=100, protein s_obs=80, chao2=100 -> 0.8) and one
+        # KIR gene (protein s_obs=40, chao2=100 -> 0.4) in a single ancestry -> diff = 0.4.
+        rows = []
+
+        def add(gene, species, level, s_obs, chao2, ancestry="AFR"):
+            rows.append({"gene": gene, "ancestry": ancestry, "level": level, "species": species,
+                         "n_people": 500, "s_obs": s_obs, "good_turing_coverage": 0.95,
+                         "chao2": chao2, "chao2_se": 1.0, "chao2_undetected_f0hat": chao2 - s_obs,
+                         "q1": "", "q2": "", "chao_new_by_2n": 0.0})
+
+        add("A", "hla", "protein", 80, 100.0)
+        add("KIR2DL1", "kir", "protein", 40, 100.0)
+        cov = pd.DataFrame(rows)
+        result = m46._species_chao2_completeness(cov, "AFR", "hla")
+        self.assertAlmostEqual(result, 0.8)
+        result_kir = m46._species_chao2_completeness(cov, "AFR", "kir")
+        self.assertAlmostEqual(result_kir, 0.4)
+
+    def test_missing_ancestry_level_yields_nan_not_a_fabricated_zero(self):
+        cov = pd.DataFrame([{"gene": "A", "ancestry": "AFR", "level": "protein", "species": "hla",
+                             "n_people": 500, "s_obs": 10, "good_turing_coverage": 0.9,
+                             "chao2": 20.0, "chao2_se": 1.0, "chao2_undetected_f0hat": 10.0,
+                             "q1": "", "q2": "", "chao_new_by_2n": 0.0}])
+        # No KIR rows at all for AFR -> sum(chao2)==0 -> must be NaN, not a divide-by-zero 0/0->0.
+        result = m46._species_chao2_completeness(cov, "AFR", "kir")
+        self.assertTrue(math.isnan(result))
+
+
+class TestFigCatalogueCompletenessFullFigure(unittest.TestCase):
+    """End-to-end render of the Cleveland dot plot (all three panels together) on a small but
+    ancestry-aware synthetic fixture -- confirms `check_layout(strict=True)` passes (via
+    `vc.save_fig`'s own internal call) for the full figure, not just an isolated panel."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        # Clustered base (see `TestFiguresRenderAndLayout.setUp`) + cds rows.
-        self.cov = _synthetic_cov_with_cds(base=_synthetic_cov_clustered())
+        self.cov = _ancestry_expand(_synthetic_cov_with_cds())
         self.slope = _synthetic_slope()
-        self.metrics = m46.build_gene_metrics(self.cov, self.slope)
+        self.qc = pd.DataFrame([{"gene": "KIR2DL2", "protein_catalogue_covered": False,
+                                 "reason": "no_catalogued_protein_entries"}])
+        self.metrics = m46.build_gene_metrics(self.cov, self.slope, self.qc)
 
-    def test_renders_three_panels_without_layout_violation(self):
+    def test_renders_without_layout_violation(self):
         out_stem = os.path.join(self.tmp.name, "fig_catalogue_completeness")
-        m46.fig_catalogue_completeness(self.metrics, out_stem)
+        m46.fig_catalogue_completeness(self.metrics, self.cov, out_stem)
         self.assertTrue(os.path.exists(out_stem + ".png"))
         self.assertTrue(os.path.exists(out_stem + ".pdf"))
-
-    def test_label_genes_false_draws_no_gene_labels(self):
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots(figsize=(4, 3), constrained_layout=True)
-        m46._scatter_panel(ax, self.metrics, "pct_novel_any", "completeness_cds",
-                            label_genes=False)
-        gene_names = set(self.metrics["gene_display"])
-        drawn = {t.get_text() for t in ax.texts}
-        self.assertFalse(drawn & gene_names, f"expected no gene labels, found: {drawn}")
-        plt.close(fig)
 
 
 class TestMainWritesPerAncestryMetrics(unittest.TestCase):
