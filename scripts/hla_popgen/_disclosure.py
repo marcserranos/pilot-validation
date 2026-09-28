@@ -27,7 +27,21 @@ import os
 import numpy as np
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))
+def _find_repo_root(start):
+    """Nearest ancestor containing .git (the real repo root). A flattened VM deploy
+    (~/s04/_disclosure.py) has none, so no path is "inside the repo" there; the old
+    two-levels-up guess made ~ the "repo" and refused every INTERNAL path (S04 VM run, 09-28)."""
+    d = start
+    while True:
+        if os.path.exists(os.path.join(d, ".git")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
+_REPO_ROOT = _find_repo_root(_THIS_DIR)
 
 # ---------------------------------------------------------------------------
 # Count-type / mode vocabulary
@@ -215,8 +229,8 @@ def assert_internal_path_allowed(path):
     committed"). No-op for a path that passes.
     """
     abspath = os.path.abspath(os.path.expanduser(str(path)))
-    repo_root_abs = os.path.abspath(_REPO_ROOT)
-    if abspath == repo_root_abs or abspath.startswith(repo_root_abs + os.sep):
+    repo_root_abs = os.path.abspath(_REPO_ROOT) if _REPO_ROOT else None
+    if repo_root_abs and (abspath == repo_root_abs or abspath.startswith(repo_root_abs + os.sep)):
         raise ValueError(
             f"_disclosure: refusing to write INTERNAL disclosure output to {path!r} -- it is "
             f"inside the repo working tree ({repo_root_abs}). INTERNAL (uncensored, n<20-visible) "

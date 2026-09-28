@@ -76,9 +76,9 @@ def _to_censored(series):
 
 
 def load_tables(in_dir):
-    rec = pd.read_csv(os.path.join(in_dir, "recurrence_classes.tsv"), sep="\t", dtype=str)
-    curve = pd.read_csv(os.path.join(in_dir, "saturation_curves.tsv"), sep="\t")
-    cov = pd.read_csv(os.path.join(in_dir, "coverage_chao2.tsv"), sep="\t")
+    rec = pd.read_csv(os.path.join(in_dir, "recurrence_classes.tsv"), sep="\t", comment="#", dtype=str)
+    curve = pd.read_csv(os.path.join(in_dir, "saturation_curves.tsv"), sep="\t", comment="#")
+    cov = pd.read_csv(os.path.join(in_dir, "coverage_chao2.tsv"), sep="\t", comment="#")
     return rec, curve, cov
 
 

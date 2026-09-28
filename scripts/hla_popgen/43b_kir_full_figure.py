@@ -89,7 +89,7 @@ def load_tables(in_dir):
         path = os.path.join(in_dir, name + ".tsv")
         if not os.path.exists(path):
             die(f"missing input table {path!r}")
-        out[name] = pd.read_csv(path, sep="\t", dtype=str)
+        out[name] = pd.read_csv(path, sep="\t", comment="#", dtype=str)
     return out
 
 

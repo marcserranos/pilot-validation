@@ -109,12 +109,12 @@ RECUR_LABEL = {"eq1": "seen 1x", "eq2": "seen 2x", "gt2": "seen >2x (incl. ≥20
 
 
 def load_tables(in_dir):
-    rec = pd.read_csv(os.path.join(in_dir, "recurrence_classes.tsv"), sep="\t", dtype=str)
-    curve = pd.read_csv(os.path.join(in_dir, "saturation_curves.tsv"), sep="\t")
-    cov = pd.read_csv(os.path.join(in_dir, "coverage_chao2.tsv"), sep="\t")
-    slope = pd.read_csv(os.path.join(in_dir, "equal_n_slope.tsv"), sep="\t")
+    rec = pd.read_csv(os.path.join(in_dir, "recurrence_classes.tsv"), sep="\t", comment="#", dtype=str)
+    curve = pd.read_csv(os.path.join(in_dir, "saturation_curves.tsv"), sep="\t", comment="#")
+    cov = pd.read_csv(os.path.join(in_dir, "coverage_chao2.tsv"), sep="\t", comment="#")
+    slope = pd.read_csv(os.path.join(in_dir, "equal_n_slope.tsv"), sep="\t", comment="#")
     qc_path = os.path.join(in_dir, "kir_protein_catalogue_qc.tsv")
-    protein_qc = pd.read_csv(qc_path, sep="\t") if os.path.exists(qc_path) else pd.DataFrame(
+    protein_qc = pd.read_csv(qc_path, sep="\t", comment="#") if os.path.exists(qc_path) else pd.DataFrame(
         columns=["gene", "protein_catalogue_covered", "reason"])
     return rec, curve, cov, slope, protein_qc
 
