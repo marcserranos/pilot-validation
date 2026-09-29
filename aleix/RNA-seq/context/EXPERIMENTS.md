@@ -127,6 +127,50 @@ question. Aggregate numbers:
   (p ≈ 1e-77); PC2 ρ = +0.12. A real but modest size effect on the main person axis — the
   small-repertoire minority, consistent with noisier means over fewer vectors.
 
+## 2026-09-29 — reports 04-07 on real data: two replications, two negative results
+
+**04 antigen specificity — the decoy null settles it, negatively.** Naive VDJdb matching:
+88% of people "carry" CMV, but 69% HBV (US prevalence <1%), 27% HIV-1, 71% human
+self-peptides; carriage *falls* with age, tracking repertoire size. With the OLGA decoy null
+(249,616 synthetic TCRs, matched per reference TCR on TRBV gene, CDR3 length and Pgen, 3
+replicates), **every pathogen stays enriched, including the negative controls**: EBV 7.6x,
+MCPyV 6.2x, CMV 5.5x, HCV 5.1x (prevalence ~1%), HBV 4.4x, InfluenzaA 3.9x, DENV 3.4x,
+**self-peptides 2.9x**, HIV-1 2.5x. Enrichment does not track seroprevalence. Excess CMV
+matches vs age: +0.007/decade, p = 0.12 (InfluenzaA is significantly *negative*). Conclusion:
+at ~2,076 median TRB reads/person, database matching cannot separate exposure from chance
+recombination. The Pgen-matched null controls recombination but not thymic selection or the
+"observed in a real human" filter, so it is still too permissive. Reported as a quantified
+limit on the method.
+  - The benchmark half is positive: SCEPTR (TRBV+CDR3) pairwise AUROC 0.580 and 5-NN balanced
+    accuracy 0.380 over 45 epitopes (chance 0.022), ahead of CDR3-only 0.552, 3-mer 0.554 and
+    V-only 0.553.
+
+**05 metaclusters.** 60 clusters over 3.84M clonotypes, mean 74% dominated by one TRBV family;
+centroid PC1-3 = 13.9/12.0/8.6%. 5,651 clonotypes exactly match a VDJdb TCR; 150 of 347
+cluster x pathogen tests significant at BH q<0.05 (InfluenzaA cluster 14 OR 26, EBV cluster 51
+OR 16). **Caveat: self-peptides also concentrate (OR 28.6)**, so clusters capture sequence
+motif, not shared target. Cluster stability across seeds is moderate (mean best Jaccard 0.41)
+— treat cluster identity as approximate.
+
+**06 person representation — hypothesis refuted.** 4,000 people, 2.29M clonotypes, 14
+representations. Split-half identifiability (own second half nearest of 4,000; chance 0.025%):
+**SCEPTR mean + TRBV usage 19.6%** (age R2 0.291, MAE 12.5 y, sex AUROC 0.656, ancestry 0.750,
+depth R2 0.411) > **TRBV usage alone 16.0%** (age R2 0.202, depth R2 0.175 — much cleaner on
+nuisance) > clusters k=300 7.8% > k=100/k=30 6.1% > SCEPTR mean alone 4.8% > 3-mer 1.9% >
+read-weighted 0.5%. Permuted control: 0.025% / age R2 -0.028 / sex 0.490. **Cluster profiles,
+predicted to win, came third — behind a 48-dimensional frequency vector with no model.**
+Read-weighting and CLR both hurt badly. Signal and nuisance travel together: the best
+representations also encode the most sequencing depth.
+
+**07 embedding settings.** 13 settings, 1,000 people x 250 clonotypes. All SCEPTR variants fall
+in a narrow band on epitope AUROC: blosum 0.579, b_sceptr 0.579, **synthetic_data 0.577**,
+large 0.576, default 0.575, average_pooling 0.574, shuffled_data 0.572, tiny 0.567, small
+0.566, mlm_only 0.566; non-learned: TRBV one-hot 0.551, cdr3_only 0.550, 3-mer 0.539.
+**The variant trained only on OLGA-generated sequences is statistically indistinguishable from
+the real model** — the epitope-relevant structure is largely recombination statistics, not
+learned immunology. tiny (16-d) reaches 96% of full performance at a quarter the dimensions.
+Pooling choice dominates embedding choice throughout (panel f).
+
 ## 2026-09-28 — report 01 re-run: CDR3 length cap, binned figures, writeup
 
 The first-pass Fig 1B had one ≥20-person cell averaging about 100 aa. The length

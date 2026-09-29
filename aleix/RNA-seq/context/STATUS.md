@@ -3,65 +3,41 @@
 > **Role:** where we are *right now*, plus the literal next commands. The only file fully
 > rewritten each session. Anything durable graduates to ENVIRONMENT, DECISIONS or EXPERIMENTS.
 
-## As of 2026-09-28 — reports 01–03 have real results; 04 rewritten around a null; 05 new
+## As of 2026-09-29 — reports 01-07 all complete on real data; deliverables built
 
-**01 embedding maps** — done, committed with README.
+All seven reports have run on the full cohort and their outputs are committed under
+`aleix/RNA-seq/reports/`. Full results in EXPERIMENTS.md. Headlines:
 
-**02 atlas** — done on real data. **Immunosenescence replicated at n=7,105**: rarefied
-diversity −3.3%/decade (95% CI −3.5 to −3.1, p≈2e-168), top-10 clonal share +1.91 pp/decade
-(p≈4e-186). Depth-adjusted effect is unchanged (−3.2%/decade). Median 1,136 TRB clonotypes
-per person; 7.2% of clonotypes shared by ≥2 people.
+- **02 replicates immunosenescence at n=7,105**: rarefied diversity -3.3%/decade
+  (95% CI -3.5 to -3.1), top-10 clonal share +1.9 pp/decade. Strongest result we have.
+- **03 replicates the publicness mechanism** (Spearman 0.66 sharing vs log10 Pgen) and
+  exposed that mean-pooled person vectors were unstable, which motivated 06.
+- **04 is a rigorous negative**: even against a Pgen-matched generative null, self-peptide
+  and low-prevalence-pathogen controls enrich as much as real pathogens. TCR-database
+  matching cannot infer exposure at this depth.
+- **05**: 60 reproducible motif-organised metaclusters; specificity concentrates, but so do
+  self-peptides. Stability 0.41.
+- **06**: best person representation is SCEPTR mean + TRBV usage (19.6% split-half
+  identifiability vs 0.025% chance); TRBV usage alone gets 16.0%. Read-weighting destroys it.
+- **07**: all SCEPTR variants within 0.550-0.579 on epitope structure; the synthetic-data-
+  trained variant matches the real one; 16-d reaches 96% of full.
 
-**03 publicness/robustness** — done on real data. **Publicness mechanism replicated**:
-Spearman 0.66 between sharing level and log10 Pgen, spanning −9.3 (private) to −6.6 (≥100
-people). **Negative result that changes the plan**: the mean-pooled person vector is not
-stable — top-250 vs top-500 gives pairwise-distance ρ = 0.35 and 10-NN overlap 0.08;
-read-weighting gives ρ = 0.18. Ancestry is predictable (macro AUROC 0.717) but plain TRBV
-usage does as well (0.722), so the person vector's ancestry signal is germline V-gene
-composition, not CDR3 chemistry.
+**Deliverables (2026-09-29):** 15-slide .pptx deck (figures embedded) handed to Aleix for
+Drive import — the Drive connector cannot take a 700KB file inline. Explainer artifact:
+https://claude.ai/artifact/XZJaR66fV9bn5MVbRVnrAa (private; share from the page's Share menu).
 
-**04 antigen specificity** — first real run exposed that naive VDJdb matching measures
-chance: 88% of people "matched" CMV, but 69% matched HBV (US prevalence <1%), 27% HIV-1 and
-71% human self-peptides, and carriage *fell* with age tracking repertoire size. Rewritten
-(`68aaf18`): exact matching only, against a null of OLGA-generated decoy TCRs matched to
-each VDJdb TCR on TRBV gene, CDR3 length and Pgen; reported as enrichment over that null,
-with published seroprevalence and negative-control pathogens as references, and age tested
-on excess (observed − expected). **Not yet re-run on the VM.**
-
-**05 embedding metaclusters** — new, tested on synthetic data only. Partitions the 3.84M
-clonotypes, describes what separates clusters, and tests whether known specificities
-concentrate in particular clusters (Fisher, BH). Writes `clusters_3d.csv` for an interactive
-3-d cluster map.
+**Backups:** embeddings are in `gs://aleix-rnaseq-wb-cordial-leechee-9743/embeddings/` as well
+as on the main VM disk.
 
 ## Pick up here
 
-1. Run 02→05 on the main VM (~30 min; 02/03 reuse caches):
-   ```bash
-   cd ~/repos/pilot-validation && git pull
-   nohup bash aleix/RNA-seq/scripts/run_reports_02_05.sh > ~/reports.log 2>&1 &
-   tail -5 ~/reports.log
-   ```
-2. When the log ends with `all reports done`, push the de-identified outputs:
-   ```bash
-   cd ~/repos/pilot-validation && for r in 02_repertoire_atlas 03_publicness_and_robustness 04_antigen_specificity 05_embedding_clusters; do mkdir -p aleix/RNA-seq/reports/$r && cp ~/pipeline_outputs/rnaseq/reports/$r/*.{png,pdf,svg,csv} aleix/RNA-seq/reports/$r/; done && git add aleix/RNA-seq/reports && git commit -m "Reports 02-05: VM outputs" && git push
-   ```
-3. Locally: per-report READMEs, the interactive 3-d cluster map from `clusters_3d.csv`, and
-   `reports/COMPREHENSIVE_REPORT.md` (the narrative across 01–05). Append EXPERIMENTS.md.
-
-**Owed regardless:** back up the embeddings, which exist only on the main VM's disk.
-```bash
-gcloud storage cp ~/pipeline_outputs/rnaseq/embeddings/*cohort_full_vcdr3* gs://aleix-rnaseq-wb-cordial-leechee-9743/embeddings/
-```
-
-## Decisions this opens (for Aleix / supervisors)
-
-- **Person representation must change before the HLA phase** (03d). Mean pooling is unstable
-  and mostly encodes V-gene usage. Candidates: V-usage profile as an explicit baseline to
-  beat; per-cluster abundance profiles from 05; or supervised pooling trained against HLA.
-- **Depth is the binding constraint** for anything clonotype-specific (median 2,076 TRB
-  reads/person). It caps what 04 can ever detect; worth stating as a limit rather than
-  fighting.
-- **Small-cell disclosure** for figures with individual-level dots — still unresolved with
-  Marc; all current figures avoid it by aggregating.
+1. **Write up the aging result (02)** as the lead finding. Sensitivity analyses are scripted;
+   what is owed is the cap-robustness check across top-N (100/250/500/all) noted in
+   DECISIONS.md.
+2. **Improve the person representation.** 06 gives a benchmark and a baseline to beat
+   (TRBV usage, 16.0%). Candidates: supervised pooling; features from clonal structure rather
+   than averages; explicitly removing the depth component that tracks the signal.
+3. **HLA and disease join**, when Aleix wants it. Constraints now known: adjust for ancestry
+   (AUROC 0.72 from repertoire alone) and repertoire size; TRBV usage is the baseline to beat.
 
 Related: [[../../context/STATUS.md]] (root, Marc's).
