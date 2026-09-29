@@ -1,0 +1,21 @@
+metric,value
+vdjdb_tcr_epitope_pairs,8204.0
+benchmark_tcrs,4193.0
+benchmark_epitopes,45.0
+people,7922.0
+pgen_q75_cutoff,1.8635087835795208e-08
+pairwise_auroc_SCEPTR (TRBV + CDR3),0.5795174394557043
+pairwise_auroc_SCEPTR (CDR3 only),0.5518156273923482
+pairwise_auroc_CDR3 3-mer,0.5539220885888448
+pairwise_auroc_TRBV gene only,0.5528285227081101
+knn5_bal_acc_SCEPTR (TRBV + CDR3),0.3797725669513639
+knn5_bal_acc_SCEPTR (CDR3 only),0.32832663222713854
+knn5_bal_acc_CDR3 3-mer,0.26698099217828186
+knn5_bal_acc_TRBV gene only,0.10581276447527443
+cmv_or_per_decade,0.9685013130705676
+cmv_or_per_decade_lo,0.9296776294903715
+cmv_or_per_decade_hi,1.0089462881166684
+cmv_age_p,0.12519970349829732
+ebv_or_per_decade,1.004239092742258
+ebv_or_per_decade_lo,0.9742068160887752
+ebv_or_per_decade_hi,1.0351971868157135

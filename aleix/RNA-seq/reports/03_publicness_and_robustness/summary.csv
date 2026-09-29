@@ -1,0 +1,22 @@
+metric,value
+clonotypes_unique,8151801.0
+pgen_sampled,19006.0
+pgen_zero_frac,0.00026307481847837527
+spearman_sharing_vs_log10_pgen,0.6595040561519394
+spearman_p,0.0
+people_distance_subsample,1500.0
+robust_spearman_top-25,0.08094173578148901
+robust_spearman_top-50,0.15203551034793314
+robust_spearman_top-100,0.24932706835138546
+robust_spearman_top-250,0.3544794426880398
+robust_spearman_top-500,1.0
+"robust_spearman_top-500, read-weighted",0.18248474767773762
+robust_knn10_top-25,0.009933333333333334
+robust_knn10_top-50,0.014600000000000002
+robust_knn10_top-100,0.02546666666666667
+robust_knn10_top-250,0.0788
+robust_knn10_top-500,1.0
+"robust_knn10_top-500, read-weighted",0.0752
+auroc_macro_SCEPTR person vector,0.7171844420703284
+auroc_macro_TRBV usage,0.721846352732561
+auroc_macro_null_mean,0.49869568880900206
