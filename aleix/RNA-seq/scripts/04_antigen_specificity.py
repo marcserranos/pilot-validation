@@ -1,41 +1,43 @@
 #!/usr/bin/env python3
-"""04 -- Known antigen specificities: does the embedding see them, and can we find them in
-the cohort? (report: reports/04_antigen_specificity/)
+"""04 -- Known antigen specificities: does the embedding see them, and can we detect them
+in the cohort? (report: reports/04_antigen_specificity/)
 
 PART 1, BENCHMARK (public data only). VDJdb human TRB TCRs with a known epitope. Does SCEPTR
-place TCRs that recognize the same epitope closer together than TCRs that don't?
+place TCRs recognising the same epitope closer together than TCRs that do not?
   a  pairwise AUROC (same- vs different-epitope pairs, score = -distance)
   b  per-epitope AUROC, SCEPTR (TRBV+CDR3) vs a non-learned CDR3 3-mer baseline
-  (also written: leave-one-out 5-nearest-neighbour epitope classification, balanced accuracy)
+  (also written: 5-nearest-neighbour epitope classification, balanced accuracy vs chance)
 Compared: b_sceptr on TRBV+CDR3 (our production setting), SCEPTR cdr3_only, CDR3 3-mer
 composition (cosine), TRBV identity alone. SCEPTR's pretraining is unsupervised (no epitope
-labels, per its paper), but public sequences may overlap its training repertoires -- treat
-absolute numbers as optimistic, the method ranking as the result.
+labels), but public sequences may overlap its training repertoires -- treat absolute numbers
+as optimistic and the ranking of methods as the result.
 
-PART 2, THE COHORT. Match every person's full TRB repertoire (02's cache) to VDJdb TCRs of
-known specificity: exact (same TRBV gene + identical CDR3) and near (same TRBV gene, same
-length, <= 1 amino-acid difference -- the usual "same specificity group" radius).
-  c  % of people carrying >= 1 TCR matching each pathogen
-  d  CMV-matched TCR carriage by age decade, EBV and influenza A alongside
-  e  adjusted odds ratios for CMV carriage (age, sex, ancestry, log repertoire size)
-  f  the CMV epitopes carried in the cohort, with their restricting HLA allele
+PART 2, THE COHORT -- and the null that the naive version needs. Matching each person's
+repertoire (02's cache) to VDJdb TCRs looks easy and is badly misleading: with ~1,100
+clonotypes per person and 8,000 reference TCRs, most "matches" are recombination
+coincidences, not evidence of exposure.
+  c  the artifact, made explicit: observed carriage vs published US adult seroprevalence.
+     A working assay would track the diagonal. Chance matching does not.
+  d  the null: for every VDJdb TCR, decoy TCRs drawn from OLGA's generative model and
+     matched on TRBV gene, CDR3 length and generation probability (repfig.matched_decoys),
+     run through the identical matching pipeline. Shown as enrichment
+     (observed / decoy-expected, 95% CI) per pathogen, with high-prevalence
+     pathogens (EBV, CMV, influenza A) separated from internal negative controls (HIV-1,
+     HCV, HBV, dengue, HTLV-1, and human self-peptides -- no exposure at all).
+  e  excess matches (observed - expected) vs age for CMV and EBV, the biological test:
+     CMV seroprevalence climbs steeply with age while EBV is near-universal from childhood
+     (Bate et al. 2010 Clin Infect Dis; Dowd et al. 2013 PLoS One), so CMV excess should
+     rise and EBV excess should not.
+  f  CMV epitopes carried, with the HLA allele that restricts each -- the bridge to the HLA
+     phase: whether a person can carry these TCRs at all depends on their HLA type, so no
+     ancestry difference in carriage is interpretable until HLA is in the model.
 
-Known biology tested in d/e: CMV seroprevalence rises steeply with age, and CMV drives large,
-persistent CD8 expansions ("memory inflation"); EBV infects ~90-95% of adults early in life,
-so its carriage should be far flatter with age (NHANES: Bate et al. 2010 Clin Infect Dis;
-Emerson et al. 2017 Nat Genet for CMV-associated public TCRs). A matched TCR is evidence of
-exposure only if it is not something everyone makes anyway, so a sensitivity model drops the
-highest-generation-probability quartile of VDJdb TCRs (OLGA), which are public "by chance".
-Carriage here is sensitivity-limited (bulk RNA-seq, whole blood) -- not a serostatus call;
-the trends, not absolute prevalence, are the result.
-
-Panel f is the bridge to the HLA phase: VDJdb's CMV TCRs are dominated by a few restricting
-alleles (e.g. HLA-A*02:01 for NLVPMVATV). Whether a person can carry these TCRs depends on
-their HLA type -- which is why any ancestry difference in (e) cannot be read as a difference
-in CMV exposure until HLA is in the model.
+Exact matching only (same TRBV gene, identical CDR3 amino acid sequence). A <= 1 aa variant
+is also computed and is reported as a failure mode, not a result: it matches the majority of
+people for every pathogen including the negative controls.
 
 Usage (from aleix/RNA-seq/, after 02; needs sceptr, olga):
-  pixi run python3 -u scripts/04_antigen_specificity.py [--vdjdb path/to/vdjdb.slim.txt|.zip]
+  pixi run python3 -u scripts/04_antigen_specificity.py [--decoy-reps 3] [--decoy-pool 400000]
 """
 import argparse
 import io
@@ -51,6 +53,15 @@ import pandas as pd  # noqa: E402
 from scipy.spatial.distance import cdist  # noqa: E402
 
 import repfig as R  # noqa: E402
+
+# Published US adult seroprevalence, for reference only -- literature values, nothing here
+# measures serostatus. EBV: Dowd 2013 PLoS One (~95% adults). CMV: Bate 2010 Clin Infect Dis
+# (NHANES, ~50% age-adjusted). Influenza A: near-universal lifetime exposure. MCPyV: ~65%.
+# HBV ever-infected ~4.3%, HCV ~1.0%, HIV-1 ~0.4%, HTLV-1 <0.1%, dengue <1% (continental US).
+SEROPREVALENCE = {"EBV": 95.0, "InfluenzaA": 98.0, "CMV": 50.0, "MCPyV": 65.0, "HBV": 4.3,
+                  "HCV": 1.0, "HIV-1": 0.4, "DENV": 0.5, "HTLV-1": 0.05}
+POSITIVES = ["EBV", "InfluenzaA", "CMV"]
+NEGATIVE_CONTROLS = ["HIV-1", "HCV", "HBV", "DENV", "HTLV-1", "HomoSapiens"]
 
 MIN_TCR_PER_EPITOPE = 30
 MAX_TCR_PER_EPITOPE = 300
@@ -192,6 +203,10 @@ def main():
     ap.add_argument("--pheno-dir", default="~/pipeline_outputs/rnaseq/pheno")
     ap.add_argument("--cache-dir", default="~/pipeline_outputs/rnaseq/atlas")
     ap.add_argument("--outdir", default="~/pipeline_outputs/rnaseq/reports/04_antigen_specificity")
+    ap.add_argument("--decoy-reps", type=int, default=3,
+                    help="matched decoy TCR sets per real VDJdb TCR (the null)")
+    ap.add_argument("--decoy-pool", type=int, default=250_000,
+                    help="synthetic TCRs drawn from OLGA to sample decoys from")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--workers", type=int, default=os.cpu_count())
     args = ap.parse_args()
@@ -241,121 +256,166 @@ def main():
     clono["research_id"] = clono["research_id"].astype(str)
     uniq = clono[["trbv", "cdr3aa"]].drop_duplicates().reset_index(drop=True)
     uniq["uid"] = np.arange(len(uniq))
-    t0 = time.time()
-    pairs = match_cohort(uniq, vdj)
-    print(f"Matched {pairs['uid'].nunique():,} unique cohort clonotypes to VDJdb "
-          f"({pairs['exact'].sum():,} exact pairs) in {time.time() - t0:.0f}s", file=sys.stderr)
-
-    vdj["pgen"] = R.olga_pgen(vdj["cdr3aa"], args.workers)
-    pgen_cut = vdj["pgen"].quantile(0.75)
-    pairs = pairs.merge(vdj[["vid", "pathogen", "epitope", "hla", "pgen"]], on="vid")
-    hits = (clono[["research_id", "trbv", "cdr3aa"]]
-            .merge(uniq, on=["trbv", "cdr3aa"]).merge(pairs, on="uid"))
+    cohort_keys = clono[["research_id", "trbv", "cdr3aa"]]
 
     people = R.load_people(args.cohort, args.pheno_dir)
     n_clono = clono.groupby("research_id").size().rename("n_clonotypes")
     people = people.merge(n_clono, left_on="research_id", right_index=True, how="inner")
     n_people = len(people)
 
+    t0 = time.time()
+    vdj["pgen"] = R.olga_pgen(vdj["cdr3aa"], args.workers)
+    print(f"Pgen for {len(vdj):,} VDJdb TCRs: {time.time() - t0:.0f}s", file=sys.stderr)
+
+    # Decoy null: same TRBV gene, same CDR3 length, same generation probability, but drawn
+    # from OLGA's recombination model instead of from an antigen-selected repertoire.
+    t0 = time.time()
+    pool_dec = R.olga_generate(args.decoy_pool, seed=args.seed)
+    pool_dec = pool_dec.drop_duplicates(["trbv", "cdr3aa"])
+    pool_dec = pool_dec[~pool_dec.set_index(["trbv", "cdr3aa"]).index.isin(
+        vdj.set_index(["trbv", "cdr3aa"]).index)]
+    pool_dec["pgen"] = R.olga_pgen(pool_dec["cdr3aa"], args.workers)
+    print(f"Decoy pool {len(pool_dec):,} synthetic TCRs + Pgen: {time.time() - t0:.0f}s",
+          file=sys.stderr)
+    decoys = R.matched_decoys(vdj[["trbv", "cdr3aa", "pgen", "vid"]], pool_dec,
+                              args.decoy_reps, seed=args.seed)
+    decoys = decoys.merge(vdj[["vid", "pathogen"]].rename(columns={"vid": "vid_real"}),
+                          on="vid_real")
+
+    def exact_hits(ref):
+        """People x pathogen exact matches for a reference TCR set."""
+        return cohort_keys.merge(ref[["trbv", "cdr3aa", "pathogen"]].drop_duplicates(),
+                                 on=["trbv", "cdr3aa"])
+
+    obs = exact_hits(vdj)
+    obs_people = obs.groupby("pathogen")["research_id"].nunique()
+    obs_count = obs.groupby(["research_id", "pathogen"]).size().rename("n").reset_index()
+
+    exp_people, exp_count = [], []
+    for rep, d in decoys.groupby("rep"):
+        h = exact_hits(d)
+        exp_people.append(h.groupby("pathogen")["research_id"].nunique())
+        exp_count.append(h.groupby(["research_id", "pathogen"]).size().rename("n").reset_index())
+    exp_people = pd.concat(exp_people, axis=1).reindex(obs_people.index).fillna(0)
+    exp_mean = exp_people.mean(axis=1)
+    exp_sd = exp_people.std(axis=1)
+
+    # near (<=1 aa) matching, kept only to document that it fails
+    near_pairs = (match_cohort(uniq, vdj)
+                  .merge(vdj[["vid", "pathogen"]], on="vid")[["uid", "pathogen"]]
+                  .drop_duplicates())
+    near = (cohort_keys.merge(uniq, on=["trbv", "cdr3aa"])
+                       .merge(near_pairs, on="uid"))
+    near_people = near.groupby("pathogen")["research_id"].nunique()
+
     path_counts = vdj["pathogen"].value_counts()
     pathogens = [p for p in path_counts.index if path_counts[p] >= PATHOGEN_MIN_TCR]
-
-    def carriers(h):
-        return set(h["research_id"])
-
-    rows = []
-    for p in pathogens:
-        h = hits[hits["pathogen"] == p]
-        for level, hh in (("exact", h[h["exact"]]), ("near", h)):
-            k = len(carriers(hh))
-            rows.append((p, level, path_counts[p], hh["uid"].nunique(), k,
-                         k if k >= R.MIN_PEOPLE else np.nan))
-    carriage = pd.DataFrame(rows, columns=["pathogen", "match", "vdjdb_tcrs",
-                                           "cohort_clonotypes_matched", "people_raw",
-                                           "people"])
-    carriage["pct_people"] = 100 * carriage["people"] / n_people
-    carriage.drop(columns="people_raw").to_csv(os.path.join(outdir, "carriage_by_pathogen.csv"),
-                                               index=False)
+    car = pd.DataFrame({"vdjdb_tcrs": path_counts.reindex(pathogens),
+                        "observed_people": obs_people.reindex(pathogens).fillna(0),
+                        "expected_people": exp_mean.reindex(pathogens).fillna(0),
+                        "expected_sd": exp_sd.reindex(pathogens).fillna(0),
+                        "near_people": near_people.reindex(pathogens).fillna(0)})
+    car.index.name = "pathogen"
+    car = car[car["observed_people"] >= R.MIN_PEOPLE]
+    for c in ("observed", "expected", "near"):
+        car[f"pct_{c}"] = 100 * car[f"{c}_people"] / n_people
+    k = car["observed_people"].to_numpy()
+    e = np.maximum(car["expected_people"].to_numpy(), 0.5)
+    car["enrichment"] = k / e
+    # Poisson-style CI on the observed count, holding the expectation fixed
+    car["enr_lo"] = np.maximum(k - 1.96 * np.sqrt(k), 0.5) / e
+    car["enr_hi"] = (k + 1.96 * np.sqrt(k)) / e
+    car["seroprevalence_pct"] = [SEROPREVALENCE.get(p, np.nan) for p in car.index]
+    car["role"] = ["positive" if p in POSITIVES else
+                   ("negative control" if p in NEGATIVE_CONTROLS else "other")
+                   for p in car.index]
+    car.to_csv(os.path.join(outdir, "carriage_by_pathogen.csv"))
 
     epi_rows = []
-    for (p, e), h in hits.groupby(["pathogen", "epitope"]):
-        k = h["research_id"].nunique()
-        if k >= R.MIN_PEOPLE:
-            epi_rows.append((p, e, h["hla"].mode().iat[0], k, 100 * k / n_people))
+    obs_epi = cohort_keys.merge(vdj[["trbv", "cdr3aa", "pathogen", "epitope", "hla"]]
+                                .drop_duplicates(["trbv", "cdr3aa"]), on=["trbv", "cdr3aa"])
+    for (p, ep), h in obs_epi.groupby(["pathogen", "epitope"]):
+        n = h["research_id"].nunique()
+        if n >= R.MIN_PEOPLE:
+            epi_rows.append((p, ep, h["hla"].mode().iat[0], n, 100 * n / n_people))
     epi_car = (pd.DataFrame(epi_rows, columns=["pathogen", "epitope", "hla", "people",
                                                "pct_people"])
                  .sort_values("people", ascending=False))
     epi_car.to_csv(os.path.join(outdir, "carriage_by_epitope.csv"), index=False)
 
-    # ---------------- epidemiology ----------------
-    ref = {"sex": "Male", "ancestry": "EUR"}
-    models, bins = {}, {}
+    # ---------------- excess matches vs age ----------------
     m = people.dropna(subset=["age", "sex", "ancestry"]).copy()
     m = m[m["age"] >= 18]
     m["age_decade"] = m["age"] / 10
     m["log_repertoire"] = np.log(m["n_clonotypes"])
+    ref = {"sex": "Male", "ancestry": "EUR"}
     X = R.design(m, ["age_decade", "log_repertoire"], ["sex", "ancestry"], ref)
-    for p in [q for q in ("CMV", "EBV", "InfluenzaA") if q in pathogens]:
-        for variant, h in (("all", hits[hits["pathogen"] == p]),
-                           ("low-Pgen", hits[(hits["pathogen"] == p)
-                                             & (hits["pgen"] < pgen_cut)])):
-            y = m["research_id"].isin(carriers(h)).astype(float)
-            models[(p, variant)] = R.logit(y, X)
-            if variant == "all":
-                b = m.assign(y=y).groupby("age_bin", observed=True)["y"].agg(["sum", "size"])
-                b = b[b["size"] >= R.MIN_PEOPLE].reindex(
-                    [a for a in R.AGE_LABELS if a in b.index])
-                pr, lo, hi = R.wilson(b["sum"], b["size"])
-                bins[p] = pd.DataFrame({"n": b["size"], "pct": 100 * pr, "lo": 100 * lo,
-                                        "hi": 100 * hi}, index=b.index)
-    pd.concat(models, names=["pathogen", "variant", "term"]).to_csv(
-        os.path.join(outdir, "carriage_models.csv"))
+    models, bins = {}, {}
+    for p in [q for q in ("CMV", "EBV", "InfluenzaA") if q in car.index]:
+        o = (obs_count[obs_count["pathogen"] == p].set_index("research_id")["n"]
+             .reindex(m["research_id"]).fillna(0).to_numpy())
+        ex = np.zeros(len(m))
+        for ec in exp_count:
+            ex += (ec[ec["pathogen"] == p].set_index("research_id")["n"]
+                   .reindex(m["research_id"]).fillna(0).to_numpy())
+        ex /= len(exp_count)
+        excess = o - ex
+        models[p] = R.ols(excess, X)
+        d = m.assign(excess=excess).groupby("age_bin", observed=True)["excess"]
+        agg = pd.DataFrame({"n": d.size(), "mean": d.mean(),
+                            "se": d.std() / np.sqrt(d.size())})
+        bins[p] = agg[agg["n"] >= R.MIN_PEOPLE].reindex(
+            [a for a in R.AGE_LABELS if a in agg.index])
+    pd.concat(models, names=["pathogen", "term"]).to_csv(
+        os.path.join(outdir, "excess_vs_age_models.csv"))
     pd.concat(bins, names=["pathogen", "age_bin"]).to_csv(
-        os.path.join(outdir, "carriage_by_age.csv"))
-
-    cmv_hla = (hits[hits["pathogen"] == "CMV"][["research_id", "uid", "hla"]]
-               .drop_duplicates())
-    hla_share = (cmv_hla.groupby("hla")["research_id"].nunique().sort_values(ascending=False))
-    hla_share = hla_share[hla_share >= R.MIN_PEOPLE]
-    hla_share.rename("people").to_csv(os.path.join(outdir, "cmv_matches_by_hla.csv"))
+        os.path.join(outdir, "excess_by_age.csv"))
 
     # ---------------- figure ----------------
     import cnsplots as cns
     from matplotlib.ticker import FixedLocator, NullLocator
     mp = cns.multipanel(max_width=540)
     pal = R.nature()
-    W, H, GAP = 100, 100, 34
+    W, H, GAP = 105, 100, 34
     mcol = dict(zip(methods, [pal[3], pal[1], pal[5], "0.6"]))
     short = {"SCEPTR (TRBV + CDR3)": "SCEPTR V+CDR3", "SCEPTR (CDR3 only)": "SCEPTR CDR3",
              "CDR3 3-mer": "CDR3 3-mer", "TRBV gene only": "TRBV only"}
+    rcol = {"positive": pal[0], "negative control": pal[3], "other": "0.7"}
 
-    def subtitle(ax, text):
-        ax.text(0.5, 1.02, text, transform=ax.transAxes, ha="center", va="bottom",
-                fontsize=5.5)
+    def sub(ax, t):
+        ax.text(0.5, 1.02, t, transform=ax.transAxes, ha="center", va="bottom", fontsize=5.5)
 
-    ax = mp.panel("a", width=W, height=H, margin_right=15, margin_bottom=GAP)
+    def logticks(ax, axis="x"):
+        lo, hi = (ax.get_xlim() if axis == "x" else ax.get_ylim())
+        t = [v for v in (0.01, 0.1, 0.25, 0.5, 1, 2, 4, 10, 25, 100) if lo <= v <= hi]
+        ax_ = ax.xaxis if axis == "x" else ax.yaxis
+        ax_.set_major_locator(FixedLocator(t))
+        ax_.set_minor_locator(NullLocator())
+        (ax.set_xticklabels if axis == "x" else ax.set_yticklabels)([f"{v:g}" for v in t])
+
+    ax = mp.panel("a", width=W, height=H, margin_right=12, margin_bottom=GAP)
     y = np.arange(len(bres))[::-1]
     ax.barh(y, bres["pairwise_auroc"] - 0.5, left=0.5, height=0.65, linewidth=0,
             color=[mcol[k] for k in bres["method"]])
     ax.axvline(0.5, color="0.5", lw=0.5, ls="--")
     ax.set_yticks(y)
     ax.set_yticklabels([short[k] for k in bres["method"]])
-    ax.set_xlim(0.4, 1.0)
+    ax.set_xlim(0.4, 0.75)
     ax.set_title("Same-epitope TCR pairs", pad=11)
-    subtitle(ax, f"{len(bench):,} VDJdb TCRs, {bench['epitope'].nunique()} epitopes")
+    sub(ax, f"{len(bench):,} VDJdb TCRs, {bench['epitope'].nunique()} epitopes")
     R.style(ax, None, "Pairwise AUROC", None)
 
-    ax = mp.panel("b", width=W, height=H, margin_right=65, margin_bottom=GAP)
+    ax = mp.panel("b", width=W, height=H, margin_right=58, margin_bottom=GAP)
     top_path = per_epi["pathogen"].value_counts().head(5).index.tolist()
     pcol = {"CMV": pal[0], "EBV": pal[2], "InfluenzaA": pal[1], "SARS-CoV-2": pal[4],
-            "HIV-1": pal[6], "HomoSapiens": pal[3]}
+            "HIV-1": pal[6], "HomoSapiens": pal[3], "HCV": pal[8]}
     for p in top_path + ["other"]:
         s_ = (per_epi[per_epi["pathogen"] == p] if p != "other"
               else per_epi[~per_epi["pathogen"].isin(top_path)])
         if len(s_):
-            ax.scatter(s_["CDR3 3-mer"], s_["SCEPTR (TRBV + CDR3)"], s=12, linewidths=0,
-                       color=pcol.get(p, pal[8]),
-                       label=p.replace("HomoSapiens", "Self (human)"), zorder=3)
+            ax.scatter(s_["CDR3 3-mer"], s_["SCEPTR (TRBV + CDR3)"], s=11, linewidths=0,
+                       color=pcol.get(p, "0.7"),
+                       label=p.replace("HomoSapiens", "Self"), zorder=3)
     lim = [min(0.45, per_epi[["CDR3 3-mer", "SCEPTR (TRBV + CDR3)"]].min().min()), 1.0]
     ax.plot(lim, lim, color="0.6", lw=0.5, ls="--", zorder=0)
     ax.set(xlim=lim, ylim=lim)
@@ -363,86 +423,87 @@ def main():
     cns.take_legend_out(title="Pathogen", ax=ax)
     better = (per_epi["SCEPTR (TRBV + CDR3)"] > per_epi["CDR3 3-mer"]).mean()
     ax.set_title("Per epitope", pad=11)
-    subtitle(ax, f"SCEPTR ahead for {100 * better:.0f}% of epitopes")
+    sub(ax, f"SCEPTR ahead for {100 * better:.0f}% of epitopes")
     R.style(ax, None, "AUROC, CDR3 3-mer", "AUROC, SCEPTR V+CDR3")
 
-    ax = mp.panel("c", width=W, height=H, margin_right=15, margin_bottom=GAP)
-    cp = carriage.pivot(index="pathogen", columns="match", values="pct_people")
-    cp = cp.reindex([p for p in pathogens if p in cp.index]).head(6)
-    y = np.arange(len(cp))[::-1]
-    ax.barh(y + 0.18, cp["near"].fillna(0), height=0.36, color=pal[3], linewidth=0,
-            label="≤1 aa, same V")
-    ax.barh(y - 0.18, cp["exact"].fillna(0), height=0.36, color=pal[1], linewidth=0,
-            label="Exact")
-    ax.set_yticks(y)
-    ax.set_yticklabels([p.replace("HomoSapiens", "Self (human)") for p in cp.index])
-    ax.legend(frameon=False, loc="lower right", fontsize=5.5, handlelength=0.8)
-    ax.set_title("Cohort carriage", pad=11)
-    subtitle(ax, "people with ≥1 matching TCR")
-    R.style(ax, None, "People (%)", None)
+    ax = mp.panel("c", width=W, height=H, margin_right=12, margin_bottom=GAP)
+    cc = car.dropna(subset=["seroprevalence_pct"])
+    for role, g_ in cc.groupby("role"):
+        ax.scatter(g_["seroprevalence_pct"], g_["pct_near"], s=13, marker="^",
+                   linewidths=0, color=rcol[role], alpha=0.85)
+        ax.scatter(g_["seroprevalence_pct"], g_["pct_observed"], s=13, linewidths=0,
+                   color=rcol[role], label=role)
+    ax.plot([0.03, 100], [0.03, 100], color="0.6", lw=0.5, ls="--", zorder=0)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    logticks(ax, "x")
+    logticks(ax, "y")
+    ax.legend(frameon=False, fontsize=5, loc="upper left")
+    ax.set_title("Carriage vs seroprevalence", pad=11)
+    sub(ax, "● exact   ▲ ≤1 aa   (dashed = agreement)")
+    R.style(ax, None, "Published seroprevalence (%)", "People with ≥1 match (%)")
 
-    ax = mp.panel("d", width=W, height=H, margin_right=15)
-    for p, colr in (("CMV", pal[0]), ("EBV", pal[2]), ("InfluenzaA", pal[1])):
+    ax = mp.panel("d", width=W, height=H, margin_right=12)
+    ce = car.sort_values("enrichment", ascending=False).iloc[::-1]
+    y = np.arange(len(ce))
+    for i, r in enumerate(ce.itertuples()):
+        c = rcol[r.role]
+        ax.plot([r.enr_lo, r.enr_hi], [i, i], color=c, lw=1.0)
+        ax.scatter([r.enrichment], [i], s=15, color=c, zorder=3)
+    ax.axvline(1, color="0.6", lw=0.5, ls="--")
+    ax.set_xscale("log")
+    logticks(ax, "x")
+    ax.set_yticks(y)
+    ax.set_yticklabels([f"{p.replace('HomoSapiens', 'Self')} "
+                        f"({r.pct_observed:.0f}% vs {r.pct_expected:.0f}%)"
+                        for p, r in zip(ce.index, ce.itertuples())], fontsize=5)
+    ax.set_title("Enrichment over null", pad=11)
+    sub(ax, "observed vs decoy-expected carriage")
+    R.style(ax, None, "Enrichment (95% CI)", None)
+
+    ax = mp.panel("e", width=W, height=H, margin_right=12)
+    for p, colr in (("CMV", pal[0]), ("EBV", pal[2])):
         if p not in bins:
             continue
-        b = bins[p]
-        xx = np.array([R.AGE_LABELS.index(a) for a in b.index])
-        ax.errorbar(xx, b["pct"], yerr=[b["pct"] - b["lo"], b["hi"] - b["pct"]], color=colr,
-                    lw=0.9, ms=3, marker="o", capsize=0, label=p)
+        b_ = bins[p]
+        xx = np.array([R.AGE_LABELS.index(a) for a in b_.index])
+        ax.errorbar(xx, b_["mean"], yerr=1.96 * b_["se"], color=colr, lw=0.9, ms=3,
+                    marker="o", capsize=0, label=p)
+    ax.axhline(0, color="0.6", lw=0.5, ls="--")
     ax.set_xticks(np.arange(len(R.AGE_LABELS)))
     ax.set_xticklabels(R.AGE_LABELS, rotation=45)
-    ax.legend(frameon=False, fontsize=5.5, loc="upper left")
-    R.style(ax, "Carriage by age", "Age (years)", "People with ≥1 match (%)")
+    ax.legend(frameon=False, fontsize=5.5)
+    if "CMV" in models:
+        c_ = models["CMV"].loc["age_decade"]
+        sub(ax, f"CMV {c_['coef']:+.2f} per decade (P = {c_['p']:.2g})".replace("-", "−"))
+    ax.set_title("Excess matches vs age", pad=11)
+    R.style(ax, None, "Age (years)", "Observed − expected matches")
 
-    ax = mp.panel("e", width=W, height=H, margin_right=15)
-    t = models.get(("CMV", "all"))
-    if t is not None:
-        terms = {"age_decade": "Age (+10 y)", "sex[Female]": "Female vs male"}
-        terms.update({f"ancestry[{a}]": f"{a} vs EUR" for a in R.ANCESTRY_ORDER
-                      if f"ancestry[{a}]" in t.index})
-        R.forest(ax, t, terms, color=pal[0], xlabel="Odds ratio (95% CI)")
-        ts = models[("CMV", "low-Pgen")].loc[list(terms)]
-        yy = np.arange(len(terms))[::-1] - 0.28
-        ax.hlines(yy, np.exp(ts["lo"]), np.exp(ts["hi"]), color=pal[0], lw=0.6, alpha=0.6)
-        ax.scatter(np.exp(ts["coef"]), yy, s=10, marker="D", facecolors="white",
-                   edgecolors=pal[0], linewidths=0.8, zorder=3)
-        ax.set_xscale("log")
-        lo_, hi_ = ax.get_xlim()
-        ticks = [v for v in (0.125, 0.25, 0.5, 1, 2, 4, 8) if lo_ <= v <= hi_]
-        ax.xaxis.set_major_locator(FixedLocator(ticks))
-        ax.xaxis.set_minor_locator(NullLocator())
-        ax.set_xticklabels([f"{v:g}" for v in ticks])
-    ax.set_title("CMV carriage, adjusted", pad=11)
-    subtitle(ax, "● all VDJdb TCRs   ◇ low-P$_{gen}$ TCRs only")
-
-    ax = mp.panel("f", width=W, height=H, margin_right=15)
+    ax = mp.panel("f", width=W, height=H, margin_right=12)
     cmv_epi = epi_car[epi_car["pathogen"] == "CMV"].head(6)
     y = np.arange(len(cmv_epi))[::-1]
-    ax.barh(y, cmv_epi["pct_people"], color=pal[0], height=0.65, linewidth=0)
+    ax.barh(y, cmv_epi["pct_people"], color=pal[0], height=0.62, linewidth=0)
     ax.set_yticks(y)
-    ax.set_yticklabels([f"{e}  {h}" for e, h in zip(cmv_epi["epitope"], cmv_epi["hla"])],
-                       fontsize=5.5)
+    ax.set_yticklabels([f"{e_}  {h}" for e_, h in zip(cmv_epi["epitope"], cmv_epi["hla"])],
+                       fontsize=5)
     ax.set_title("CMV epitopes carried", pad=11)
-    subtitle(ax, "with restricting HLA allele")
-    R.style(ax, None, "People (%)", None)
+    sub(ax, "with restricting HLA allele")
+    R.style(ax, None, "People with ≥1 exact match (%)", None)
     R.save("fig_antigen_specificity", outdir)
 
-    cmv = models.get(("CMV", "all"))
-    ebv = models.get(("EBV", "all"))
     rows = [("vdjdb_tcr_epitope_pairs", len(vdj)), ("benchmark_tcrs", len(bench)),
-            ("benchmark_epitopes", bench["epitope"].nunique()),
-            ("people", n_people), ("pgen_q75_cutoff", pgen_cut)]
+            ("benchmark_epitopes", bench["epitope"].nunique()), ("people", n_people),
+            ("decoy_reps", args.decoy_reps), ("decoy_pool", len(pool_dec))]
     rows += [(f"pairwise_auroc_{r.method}", r.pairwise_auroc) for r in bres.itertuples()]
     rows += [(f"knn5_bal_acc_{r.method}", r.knn5_balanced_acc) for r in bres.itertuples()]
-    if cmv is not None:
-        rows += [("cmv_or_per_decade", np.exp(cmv.loc["age_decade", "coef"])),
-                 ("cmv_or_per_decade_lo", np.exp(cmv.loc["age_decade", "lo"])),
-                 ("cmv_or_per_decade_hi", np.exp(cmv.loc["age_decade", "hi"])),
-                 ("cmv_age_p", cmv.loc["age_decade", "p"])]
-    if ebv is not None:
-        rows += [("ebv_or_per_decade", np.exp(ebv.loc["age_decade", "coef"])),
-                 ("ebv_or_per_decade_lo", np.exp(ebv.loc["age_decade", "lo"])),
-                 ("ebv_or_per_decade_hi", np.exp(ebv.loc["age_decade", "hi"]))]
+    for p in car.index:
+        rows += [(f"pct_observed_{p}", car.loc[p, "pct_observed"]),
+                 (f"pct_expected_{p}", car.loc[p, "pct_expected"]),
+                 (f"pct_near_{p}", car.loc[p, "pct_near"]),
+                 (f"enrichment_{p}", car.loc[p, "enrichment"])]
+    for p, t in models.items():
+        rows += [(f"excess_per_decade_{p}", t.loc["age_decade", "coef"]),
+                 (f"excess_per_decade_p_{p}", t.loc["age_decade", "p"])]
     summary = pd.DataFrame(rows, columns=["metric", "value"])
     summary.to_csv(os.path.join(outdir, "summary.csv"), index=False)
     print("\n" + summary.to_string(index=False))

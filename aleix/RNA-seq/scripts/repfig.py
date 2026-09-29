@@ -73,6 +73,14 @@ def style(ax, title=None, xlabel=None, ylabel=None):
         ax.set_ylabel(ylabel)
 
 
+def colorbar(ax, mappable, label):
+    cax = ax.inset_axes([1.06, 0.15, 0.05, 0.7])
+    cb = plt.colorbar(mappable, cax=cax)
+    cb.set_label(label)
+    cb.outline.set_linewidth(0.5)
+    return cb
+
+
 def quantile_summary(df, group, value, min_n=MIN_PEOPLE, order=None):
     """Per-group n, median, IQR, 5-95% of a per-person value; groups under min_n dropped."""
     g = df.dropna(subset=[group, value]).groupby(group, observed=True)[value]
@@ -233,3 +241,59 @@ def olga_pgen(seqs, workers):
     chunks = [seqs[i:i + 500] for i in range(0, len(seqs), 500)]
     with ProcessPoolExecutor(max_workers=workers, initializer=_init_olga) as ex:
         return np.concatenate([np.asarray(c, float) for c in ex.map(_pgen_chunk, chunks)])
+
+
+def olga_generate(n, seed=0):
+    """Draw n productive TRB CDR3s from OLGA's human generative model.
+    Returns DataFrame(trbv, cdr3aa) -- the recombination null: what the V(D)J machinery
+    makes by chance, before any antigen selection."""
+    import olga
+    import olga.load_model as lm
+    import olga.sequence_generation as sq
+    d = os.path.join(os.path.dirname(olga.__file__), "default_models", "human_T_beta")
+    g = lm.GenomicDataVDJ()
+    g.load_igor_genomic_data(os.path.join(d, "model_params.txt"),
+                             os.path.join(d, "V_gene_CDR3_anchors.csv"),
+                             os.path.join(d, "J_gene_CDR3_anchors.csv"))
+    m = lm.GenerativeModelVDJ()
+    m.load_and_process_igor_model(os.path.join(d, "model_marginals.txt"))
+    gen = sq.SequenceGenerationVDJ(m, g)
+    np.random.seed(seed)
+    rows = [gen.gen_rnd_prod_CDR3() for _ in range(n)]
+    return pd.DataFrame({"trbv": [g.genV[r[2]][0].split("*")[0] for r in rows],
+                         "cdr3aa": [r[1] for r in rows]})
+
+
+def matched_decoys(real, pool, n_per, seed=0, tol=0.25):
+    """For each row of `real` (trbv, cdr3aa, pgen), draw n_per decoys from `pool`
+    (trbv, cdr3aa, pgen) with the SAME TRBV gene and CDR3 length and log10 Pgen within
+    `tol`, widening the tolerance if needed. Controls the three properties that drive
+    chance matching, so any excess of real over decoy matches is antigen-driven, not
+    recombination-driven. Returns DataFrame(rep, trbv, cdr3aa, vid_real)."""
+    rng = np.random.default_rng(seed)
+    pool = pool[pool["pgen"] > 0].copy()
+    pool["L"] = pool["cdr3aa"].str.len()
+    pool["lp"] = np.log10(pool["pgen"])
+    idx = {k: (g["lp"].to_numpy(), g["cdr3aa"].to_numpy(), g["trbv"].to_numpy())
+           for k, g in pool.groupby(["trbv", "L"], observed=True)}
+    real = real[real["pgen"] > 0]
+    out = []
+    unmatched = 0
+    for r in real.itertuples():
+        key = (r.trbv, len(r.cdr3aa))
+        if key not in idx:
+            unmatched += 1
+            continue
+        lp, seqs, vs = idx[key]
+        target = np.log10(r.pgen)
+        for t in (tol, 2 * tol, 4 * tol, np.inf):
+            ok = np.abs(lp - target) <= t if np.isfinite(t) else np.ones(len(lp), bool)
+            if ok.sum() >= 1:
+                break
+        pick = rng.choice(np.flatnonzero(ok), size=n_per, replace=ok.sum() < n_per)
+        for rep, j in enumerate(pick):
+            out.append((rep, vs[j], seqs[j], r.vid))
+    if unmatched:
+        print(f"  decoys: {unmatched:,} real TCRs had no same-V/length pool entry",
+              file=sys.stderr)
+    return pd.DataFrame(out, columns=["rep", "trbv", "cdr3aa", "vid_real"])
