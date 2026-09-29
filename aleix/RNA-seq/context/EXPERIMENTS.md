@@ -127,6 +127,38 @@ question. Aggregate numbers:
   (p ≈ 1e-77); PC2 ρ = +0.12. A real but modest size effect on the main person axis — the
   small-repertoire minority, consistent with noisier means over fewer vectors.
 
+## 2026-09-28 — report 01 re-run: CDR3 length cap, binned figures, writeup
+
+The first-pass Fig 1B had one ≥20-person cell averaging about 100 aa. The length
+distribution on the pool showed median 14 aa, 99.9% ≤ 22 aa, 97 clonotypes in 26–40 aa, and
+then 2,036 clonotypes (0.053%, 1,175 people) above 40 aa. That is a separate artifact mode.
+
+Fixes:
+- Added `--max-cdr3-len 30`, applied before the top-500 cap (DECISIONS.md), then re-embedded.
+- Figures switched to the disclosure-safe binned style: cells need ≥ 20 distinct people,
+  ancestry is drawn as KDE contours.
+- Robust color limits (2nd–98th percentile of cell values).
+- UMAP cache now keyed on a hash of the input vectors. Previously it was keyed on row count
+  only, so it would have silently reused the stale map after the re-embed.
+
+Re-run results:
+- 3,836,906 clonotypes embedded, 140 fewer than the first run: freed slots are refilled from
+  each person's next-ranked clonotypes.
+- Embedding took 2,981 s.
+- The V-gene gap is unchanged (0.255, circular).
+- Hidden-cell fractions: 1.1% / 2.1% / 2.7% / 4.1%.
+
+Findings (descriptive):
+- Clonotype space is organized by V family, then by a CDR3-length gradient within each V
+  island.
+- Public clonotypes sit at the short-CDR3 end of their islands.
+- Expansion differs between V islands.
+- Person map: ancestries overlap heavily, with modest center shifts.
+- A repertoire-size region, the expected small-repertoire effect, affects the 4.1% of people
+  under 400 clonotypes.
+
+Writeup: `reports/01_sceptr_embedding_viz/README.md`. Figures committed from the VM in `56d0138`.
+
 **Post-batch cleanup (2026-09-2x):** confirmed every shard VM had zero `.sync.err` files and
 an empty `_staging/` before deleting its disk — nothing local was the only copy of anything.
 3 shard VMs deleted; main VM kept running (has `cohort_full.tsv` + all flattened reports,
