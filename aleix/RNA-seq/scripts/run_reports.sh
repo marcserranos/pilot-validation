@@ -1,6 +1,6 @@
 #!/bin/bash
-# Reports 02 -> 03 -> 04 -> 05 in order; stops at the first failure. Run from anywhere on the VM:
-#   nohup bash ~/repos/pilot-validation/aleix/RNA-seq/scripts/run_reports_02_05.sh > ~/reports.log 2>&1 &
+# Reports 02..07 in order; stops at the first failure. Run from anywhere on the VM:
+#   nohup bash ~/repos/pilot-validation/aleix/RNA-seq/scripts/run_reports.sh > ~/reports.log 2>&1 &
 # Then copy the de-identified outputs into the repo (figures + CSVs only) -- see STATUS.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -10,7 +10,7 @@ PERSON=~/pipeline_outputs/rnaseq/pheno/person.tsv
 [[ -s ~/pipeline_outputs/rnaseq/embeddings/embeddings_sceptr_cohort_full_vcdr3.npy ]] || { echo "FATAL: SCEPTR embeddings missing -- run embed_cdr3s.py first"; exit 1; }
 
 pixi run pip install --quiet olga scikit-learn
-for s in 02_repertoire_atlas 03_publicness_and_robustness 04_antigen_specificity 05_embedding_clusters; do
+for s in 02_repertoire_atlas 03_publicness_and_robustness 04_antigen_specificity 05_embedding_clusters 06_person_representation 07_embedding_settings; do
   echo "==== $s :: $(date) ===="
   pixi run python3 -u "scripts/$s.py"
 done
