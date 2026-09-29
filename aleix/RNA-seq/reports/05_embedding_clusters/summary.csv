@@ -1,0 +1,13 @@
+metric,value
+clonotypes,3836906.0
+k,60.0
+clusters_kept,60.0
+cluster_stability_jaccard,0.4089742033603123
+centroid_pc1_var,0.13881869614124298
+centroid_pc2_var,0.11998939514160156
+centroid_pc3_var,0.0857124850153923
+median_cluster_size,53815.5
+mean_top_trbv_frac,0.7397992862656171
+vdjdb_exact_matched_clonotypes,5651.0
+enrichment_tests,347.0
+enrichment_significant_q05,150.0

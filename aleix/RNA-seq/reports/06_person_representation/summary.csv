@@ -1,0 +1,7 @@
+metric,value
+people,4000
+clonotypes,2294966
+best_by_identifiability,SCEPTR mean + TRBV
+permuted_age_r2,-0.028247644199982824
+permuted_sex_auroc,0.49032750835894334
+permuted_identifiability_top1,0.00025
