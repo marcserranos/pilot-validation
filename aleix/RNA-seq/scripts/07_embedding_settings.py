@@ -12,9 +12,19 @@ two independent kinds of evidence:
   may overlap public TCR databases, so absolute values are optimistic for every SCEPTR
   variant equally; the ranking is the result.
 
-  PERSON LEVEL, no label needed. The pooling that won report 06, applied to each embedding:
-  split-half identifiability (does a person's own second half come back as their nearest
-  neighbour) and out-of-fold age R^2. Plus log-depth R^2 as the nuisance axis.
+  PERSON LEVEL, no label needed. Two poolings, both scored with z-scored split-half
+  identifiability (does a person's own second half come back as their nearest neighbour,
+  features standardised first; report 06) and out-of-fold age R^2, plus log-depth R^2 as
+  the nuisance axis:
+    mean pooling        the embedding alone -- the column that actually compares embeddings
+    mean + TRBV usage   block-balanced (repfig.balanced_concat), report 06's best family;
+                        TRBV usage is identical for every setting, so differences here are
+                        diluted by construction
+  (Until 2026-10-04 this axis used k=100 CLR cluster profiles, which scored 0.5% in report
+  06 and left every setting near the floor; those columns are gone.)
+
+  Epitope scores carry 95% CIs from an epitope-level bootstrap (repfig.epitope_bootstrap,
+  500 replicates) and paired CIs for the difference from b_sceptr on the same replicates.
 
 Settings swept (whatever the installed sceptr exposes; failures are reported, not fatal):
   input          b_sceptr on TRBV+CDR3  vs  cdr3_only  vs  the paired-chain default fed
@@ -42,7 +52,6 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from scipy.spatial.distance import pdist  # noqa: E402
 from scipy.stats import spearmanr  # noqa: E402
-from sklearn.cluster import MiniBatchKMeans  # noqa: E402
 from sklearn.metrics import roc_auc_score  # noqa: E402
 
 import repfig as R  # noqa: E402
@@ -60,14 +69,14 @@ VARIANTS = [
     ("synthetic_data", "synthetic_data", True),
     ("shuffled_data", "shuffled_data", True),
 ]
-K_CLUSTERS = 100
 MIN_TCR_PER_EPITOPE = 30
 MAX_TCR_PER_EPITOPE = 300
 SVD_DIM = 100
 
 
 def epitope_scores(X, epi, rng, max_pairs=2_000_000):
-    """Pairwise AUROC (same- vs different-epitope) and 5-NN balanced accuracy."""
+    """Pairwise AUROC (same- vs different-epitope) and 5-NN balanced accuracy, plus the
+    distance matrix and per-epitope recall that the bootstrap reuses."""
     from scipy.spatial.distance import cdist
     D = cdist(X, X)
     same = epi[:, None] == epi[None, :]
@@ -78,8 +87,9 @@ def epitope_scores(X, epi, rng, max_pairs=2_000_000):
     Dk = D + np.diag(np.full(len(epi), np.inf))
     nn = np.argsort(Dk + rng.uniform(0, 1e-9, Dk.shape), axis=1)[:, :5]
     pred = np.array([pd.Series(epi[r]).value_counts().idxmax() for r in nn])
-    recall = [np.mean(pred[epi == e] == e) for e in sorted(set(epi))]
-    return auc, float(np.mean(recall))
+    cats = sorted(set(epi))
+    recall = [np.mean(pred[epi == e] == e) for e in cats]
+    return auc, float(np.mean(recall)), D, dict(zip(cats, recall))
 
 
 def main():
@@ -102,7 +112,7 @@ def main():
 
     import importlib
     m06 = importlib.import_module("06_person_representation")
-    from embed_cdr3s import accepted_trbv, embed_sceptr
+    from embed_cdr3s import accepted_trbv, embed_sceptr, sceptr_model
     from prep_vdjdb_pool import DEFAULT_URL
     load_vdjdb = importlib.import_module("04_antigen_specificity").load_vdjdb
 
@@ -121,9 +131,13 @@ def main():
     people = people.sort_values("research_id").reset_index(drop=True)
     pid = pd.Series(np.arange(len(people)), index=people["research_id"])
     clono = clono[clono["research_id"].isin(pid.index)]
-    clono = (clono.sort_values("reads", ascending=False)
+    # rank by reads, ties broken by the same seeded per-person key as embed_cdr3s.py
+    clono["_tb"] = pd.util.hash_pandas_object(
+        clono["research_id"] + "|" + clono["trbv"] + "|" + clono["cdr3aa"].astype(str),
+        index=False).to_numpy()
+    clono = (clono.sort_values(["reads", "_tb"], ascending=[False, True], kind="stable")
                   .groupby("research_id", observed=True).head(args.per_person)
-                  .reset_index(drop=True))
+                  .drop(columns="_tb").reset_index(drop=True))
     person_idx = pid.reindex(clono["research_id"]).to_numpy()
     n_people = len(people)
     age = people["age"].to_numpy(float)
@@ -141,36 +155,60 @@ def main():
     bench = (uni[uni["epitope"].isin(cnt[cnt >= MIN_TCR_PER_EPITOPE].index)]
              .sample(frac=1, random_state=args.seed)
              .groupby("epitope").head(MAX_TCR_PER_EPITOPE).reset_index(drop=True))
+    # Same TCRs for every setting (TRBV accepted by b_sceptr), so bootstrap replicates are
+    # shared and differences between settings are paired.
+    bench = bench[bench["trbv"].isin(accepted_trbv(sceptr_model("v+cdr3"), bench["trbv"]))]
+    cnt = bench["epitope"].value_counts()
+    bench = bench[bench["epitope"].isin(cnt[cnt >= MIN_TCR_PER_EPITOPE].index)]
+    bench = bench.reset_index(drop=True)
+    boot = R.epitope_bootstrap(bench["epitope"].to_numpy(), seed=args.seed)
+    ref_reps = {}
+    vcode_all, _ = pd.factorize(clono["trbv"])
     print(f"Benchmark: {len(bench):,} TCRs, {bench['epitope'].nunique()} epitopes",
           file=sys.stderr)
 
     # ---------------- evaluate each setting ----------------
-    def evaluate(name, Xc, pi, hm, Xb, epi, seconds, dim):
-        """Xc: cohort clonotype vectors, with person index `pi` and split-half mask `hm`.
-        Xb/epi: benchmark vectors and their epitope labels (both already filtered)."""
-        auc = knn = np.nan
+    def evaluate(name, Xc, pi, hm, vc, Xb, bidx, seconds, dim):
+        """Xc: cohort clonotype vectors, with person index `pi`, split-half mask `hm` and
+        TRBV codes `vc`. Xb: benchmark vectors for bench rows `bidx`."""
+        row = dict(setting=name, dim=dim, seconds=seconds)
         if Xb is not None and len(Xb) > 50:
-            auc, knn = epitope_scores(Xb, epi, rng)
-        cl = MiniBatchKMeans(K_CLUSTERS, random_state=args.seed, batch_size=10_000,
-                             n_init=3).fit_predict(Xc)
+            epi = bench["epitope"].to_numpy()[bidx]
+            auc, knn, D, rec = epitope_scores(Xb, epi, rng)
+            paired = len(bidx) == len(bench)
+            b_ = boot if paired else R.epitope_bootstrap(epi, seed=args.seed)
+            ra, rk = R.boot_scores(D, rec, b_)
+            row.update(epitope_auroc=auc, epitope_knn5=knn)
+            row["epitope_auroc_lo"], row["epitope_auroc_hi"] = R.ci(ra)
+            row["epitope_knn5_lo"], row["epitope_knn5_hi"] = R.ci(rk)
+            if paired and not ref_reps:
+                ref_reps.update(name=name, auc=ra, knn=rk)
+            if paired and ref_reps:
+                row["auroc_diff_vs_ref_lo"], row["auroc_diff_vs_ref_hi"] = R.ci(ra - ref_reps["auc"])
+                row["knn5_diff_vs_ref_lo"], row["knn5_diff_vs_ref_hi"] = R.ci(rk - ref_reps["knn"])
+                row["reference_setting"] = ref_reps["name"]
+            del D
 
-        def prof(m):
-            return m06.clr(m06.profile(cl[m], K_CLUSTERS, pi[m], n_people))
+        def pooled(m):
+            mean = m06.mean_pool(Xc[m], pi[m], n_people)
+            trbv = m06.profile(vc[m], vc.max() + 1, pi[m], n_people)
+            return mean, trbv
 
-        t1, pr = m06.identifiability(prof(hm), prof(~hm))
-        P = prof(np.ones(len(Xc), bool))
-        r2_age, mae = m06.cv_regress(P, age, args.seed)
-        r2_depth, _ = m06.cv_regress(P, depth, args.seed)
-        t1m, _ = m06.identifiability(m06.mean_pool(Xc[hm], pi[hm], n_people),
-                                     m06.mean_pool(Xc[~hm], pi[~hm], n_people))
-        r2_age_mean, _ = m06.cv_regress(m06.mean_pool(Xc, pi, n_people), age, args.seed)
-        print(f"  {name:24s} dim {dim:4d}  {seconds:6.0f}s  epitope AUROC {auc:.3f}  "
-              f"ID {100 * t1:5.1f}%  age R2 {r2_age:+.3f}", file=sys.stderr)
-        return dict(setting=name, dim=dim, seconds=seconds, epitope_auroc=auc,
-                    epitope_knn5=knn, identifiability_top1=t1,
-                    identifiability_pct_rank=pr, age_r2=r2_age, age_mae=mae,
-                    depth_r2=r2_depth, identifiability_meanpool=t1m,
-                    age_r2_meanpool=r2_age_mean)
+        (mA, tA), (mB, tB), (mF, tF) = pooled(hm), pooled(~hm), pooled(np.ones(len(Xc), bool))
+        row["id_meanpool_z"], row["id_meanpool_z_pct_rank"] = m06.identifiability(
+            R.zscore_like(mA, mF), R.zscore_like(mB, mF))
+        cA, cB = R.balanced_concat([mA, tA], [mF, tF]), R.balanced_concat([mB, tB], [mF, tF])
+        cF = R.balanced_concat([mF, tF], [mF, tF])
+        row["id_combined_z"], _ = m06.identifiability(R.zscore_like(cA, cF),
+                                                      R.zscore_like(cB, cF))
+        row["age_r2_meanpool"], row["age_mae_meanpool"] = m06.cv_regress(mF, age, args.seed)
+        row["depth_r2_meanpool"], _ = m06.cv_regress(mF, depth, args.seed)
+        row["age_r2_combined"], _ = m06.cv_regress(cF, age, args.seed)
+        print(f"  {name:24s} dim {dim:4d}  {seconds:6.0f}s  epitope AUROC "
+              f"{row.get('epitope_auroc', np.nan):.3f}  ID(mean,z) "
+              f"{100 * row['id_meanpool_z']:5.1f}%  ID(+TRBV,z) {100 * row['id_combined_z']:5.1f}%"
+              f"  age R2 {row['age_r2_meanpool']:+.3f}", file=sys.stderr)
+        return row
 
     rows = []
     for label, fn, use_v in VARIANTS:
@@ -203,8 +241,8 @@ def main():
         except Exception as e:
             print(f"  !! {label}: failed ({type(e).__name__}: {e})", file=sys.stderr)
             continue
-        rows.append(evaluate(label, Xc, person_idx[cm], half[cm], Xb,
-                             bench["epitope"].to_numpy()[bm], secs, Xc.shape[1]))
+        rows.append(evaluate(label, Xc, person_idx[cm], half[cm], vcode_all[cm], Xb,
+                             np.flatnonzero(bm), secs, Xc.shape[1]))
         del Xc, Xb
 
     # ---------------- non-learned baselines ----------------
@@ -228,8 +266,8 @@ def main():
             allv = pd.concat([clono["trbv"], bench["trbv"]]).map(idx).to_numpy()
             Z = np.eye(len(cats), dtype=np.float32)[allv]
         secs = time.time() - t0
-        rows.append(evaluate(label, Z[:len(clono)], person_idx, half, Z[len(clono):],
-                             bench["epitope"].to_numpy(), secs, Z.shape[1]))
+        rows.append(evaluate(label, Z[:len(clono)], person_idx, half, vcode_all,
+                             Z[len(clono):], np.arange(len(bench)), secs, Z.shape[1]))
 
     res = pd.DataFrame(rows)
     res.to_csv(os.path.join(outdir, "embedding_settings.csv"), index=False)
@@ -272,15 +310,21 @@ def main():
 
     ax = mp.panel("a", width=145, height=H + 25, margin_right=12, margin_bottom=GAP)
     barh(ax, "epitope_auroc", "Known-epitope structure", "Pairwise AUROC", ref=0.5,
-         sub=f"{len(bench):,} VDJdb TCRs, {bench['epitope'].nunique()} epitopes")
+         sub=f"{len(bench):,} VDJdb TCRs, {bench['epitope'].nunique()} epitopes, 95% CI")
+    r_ = res.dropna(subset=["epitope_auroc"]).sort_values("epitope_auroc")
+    ax.errorbar(r_["epitope_auroc"], np.arange(len(r_)),
+                xerr=[np.maximum(r_["epitope_auroc"] - r_["epitope_auroc_lo"], 0),
+                      np.maximum(r_["epitope_auroc_hi"] - r_["epitope_auroc"], 0)],
+                fmt="none", ecolor="0.2", elinewidth=0.5, capsize=1.2)
 
     ax = mp.panel("b", width=W, height=H + 25, margin_right=12, margin_bottom=GAP)
-    barh(ax, "identifiability_top1", "Split-half identity", "Correct (%)",
-         sub="cluster profile pooling")
+    res["id_meanpool_z_pct"] = 100 * res["id_meanpool_z"]
+    barh(ax, "id_meanpool_z_pct", "Split-half identity", "Correct (%)",
+         sub="mean pooling, z-scored")
     ax.set_yticklabels([])
 
     ax = mp.panel("c", width=W, height=H + 25, margin_right=55, margin_bottom=GAP)
-    barh(ax, "age_r2", "Age prediction", "R²")
+    barh(ax, "age_r2_meanpool", "Age prediction", "R² (mean pooling)")
     ax.set_yticklabels([])
     from matplotlib.patches import Patch
     ax.legend(handles=[Patch(color=c, label=g) for g, c in gcol.items()], frameon=False)
@@ -302,25 +346,25 @@ def main():
 
     ax = mp.panel("e", width=W, height=H, margin_right=12)
     ok = res.dropna(subset=["epitope_auroc"])
-    ax.scatter(ok["epitope_auroc"], ok["identifiability_top1"] * 100, s=16, linewidths=0,
+    ax.scatter(ok["epitope_auroc"], ok["id_meanpool_z"] * 100, s=16, linewidths=0,
                color=[gcol[g] for g in ok["group"]])
-    rho = spearmanr(ok["epitope_auroc"], ok["identifiability_top1"])[0] if len(ok) > 2 else np.nan
+    rho = spearmanr(ok["epitope_auroc"], ok["id_meanpool_z"])[0] if len(ok) > 2 else np.nan
     ax.set_title("Do the two axes agree?", pad=11)
     ax.text(0.5, 1.02, f"Spearman ρ = {rho:.2f}", transform=ax.transAxes, ha="center",
             va="bottom", fontsize=5.5)
     R.style(ax, None, "Epitope AUROC (clonotype level)", "Identifiability (%)")
 
     ax = mp.panel("f", width=W, height=H, margin_right=12)
-    r = res.dropna(subset=["identifiability_top1"]).sort_values("identifiability_top1")
+    r = res.dropna(subset=["id_combined_z"]).sort_values("id_combined_z")
     y = np.arange(len(r))
-    ax.barh(y - 0.2, 100 * r["identifiability_top1"], height=0.38, color=pal[0],
-            linewidth=0, label="cluster profile")
-    ax.barh(y + 0.2, 100 * r["identifiability_meanpool"], height=0.38, color=pal[3],
+    ax.barh(y - 0.2, 100 * r["id_meanpool_z"], height=0.38, color=pal[3],
             linewidth=0, label="mean pooling")
+    ax.barh(y + 0.2, 100 * r["id_combined_z"], height=0.38, color=pal[0],
+            linewidth=0, label="mean + TRBV usage")
     ax.set_yticks(y)
     ax.set_yticklabels(r["setting"], fontsize=4.5)
     ax.legend(frameon=False, fontsize=5.5, loc="lower right")
-    ax.set_title("Pooling still dominates", pad=3)
+    ax.set_title("Pooling vs embedding", pad=3)
     R.style(ax, None, "Identifiability (%)", None)
     R.save("fig_embedding_settings", outdir)
 
@@ -330,8 +374,8 @@ def main():
         "value": [n_people, len(clono), len(bench), len(res),
                   res.loc[res["epitope_auroc"].idxmax(), "setting"]
                   if res["epitope_auroc"].notna().any() else "none",
-                  res.loc[res["identifiability_top1"].idxmax(), "setting"],
-                  res.loc[res["age_r2"].idxmax(), "setting"]]})
+                  res.loc[res["id_meanpool_z"].idxmax(), "setting"],
+                  res.loc[res["age_r2_meanpool"].idxmax(), "setting"]]})
     summary.to_csv(os.path.join(outdir, "summary.csv"), index=False)
     print("\n" + res.to_string(index=False))
     print(f"\nAll outputs in {outdir}")

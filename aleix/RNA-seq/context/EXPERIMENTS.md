@@ -207,3 +207,23 @@ Writeup: `reports/01_sceptr_embedding_viz/README.md`. Figures committed from the
 an empty `_staging/` before deleting its disk — nothing local was the only copy of anything.
 3 shard VMs deleted; main VM kept running (has `cohort_full.tsv` + all flattened reports,
 needed for aggregation/embeddings).
+
+## 2026-10-04 — methods review: code fixes and the polish run (launched, results pending)
+
+Reading every script to build the methods artifact (https://claude.ai/artifact/DR6G9cPp4DKPeBSVyeZ1vi)
+surfaced nine issues; see DECISIONS.md (2026-10-04) for each fix and why. Correction to the
+2026-09-29 entry above: "statistically indistinguishable" for synthetic_data was not backed
+by a test; the accurate statement was "within 0.002 epitope AUROC".
+
+New: `08_methods_audit.py` (filter-step counts, tie audit, BAM-cap QC comparison),
+`embed_full_cache.py`, `freeze_env.sh`, `run_polish.sh`. Changed: `embed_cdr3s.py`
+(tie-break, step counts), `repfig.py` (bootstrap, MH, balanced concat, residualize,
+decoy tolerance), reports 04-07, `aggregate_rnaseq_results.py`.
+
+Synthetic end-to-end test (600 people, planted effects, stand-in SCEPTR): all steps run;
+the audit reproduces the old-rule pool exactly (0 per-gene count differences) and recovers
+the planted alphabetical skew (TRBV10-12 over, TRBV7/9 under; total variation 4.3 pp);
+aggregation recovers the planted 10% of CDR3s without a V call (+11%); MH, residualize
+and balanced concat checked against known answers.
+
+VM run: `run_polish.sh` — results to be appended here.

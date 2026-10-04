@@ -143,12 +143,20 @@ def main():
                ["trbv", "cdr3aa"]), on=["trbv", "cdr3aa"]))
     print(f"{len(hit):,} cohort clonotypes exactly match a VDJdb TCR", file=sys.stderr)
 
+    # Crude test: Fisher exact, cluster vs rest. V-adjusted test: Mantel-Haenszel across TRBV
+    # strata, i.e. "within the same V gene, are matches over-represented in this cluster?".
+    # Clusters are ~74% one V family and VDJdb's V usage is skewed, so a crude enrichment can
+    # be V-gene bias; the stratified one is the CDR3-motif part.
+    ct_all = pd.crosstab(pool["cluster"], pool["trbv"])
     rows = []
     tot = len(pool)
     for path, h in hit.groupby("pathogen"):
         if len(h) < MIN_MATCHES_PER_TEST:
             continue
         per = h["cluster"].value_counts()
+        ct_hit = pd.crosstab(h["cluster"], h["trbv"]).reindex(
+            index=ct_all.index, columns=ct_all.columns, fill_value=0)
+        H_v, N_v = ct_hit.sum(0).to_numpy(), ct_all.sum(0).to_numpy()
         for cl in stats.index[kept]:
             a = int(per.get(cl, 0))
             if a == 0:
@@ -157,13 +165,16 @@ def main():
             table = [[a, len(h) - a], [n_cl - a, tot - n_cl - (len(h) - a)]]
             orr, p = fisher_exact(table, alternative="two-sided")
             se = np.sqrt(sum(1 / max(v, 0.5) for row in table for v in row))
+            av, cv = ct_hit.loc[cl].to_numpy(), ct_all.loc[cl].to_numpy()
+            or_mh, p_mh = R.mantel_haenszel(av, H_v - av, cv - av, N_v - cv - (H_v - av))
             rows.append((path, cl, a, len(h), n_cl, orr, np.exp(np.log(max(orr, 1e-9)) - 1.96 * se),
-                         np.exp(np.log(max(orr, 1e-9)) + 1.96 * se), p))
+                         np.exp(np.log(max(orr, 1e-9)) + 1.96 * se), p, or_mh, p_mh))
     enr = pd.DataFrame(rows, columns=["pathogen", "cluster", "matches_in_cluster",
                                       "matches_total", "cluster_clonotypes", "odds_ratio",
-                                      "or_lo", "or_hi", "p"])
+                                      "or_lo", "or_hi", "p", "or_mh_trbv", "p_cmh_trbv"])
     if len(enr):
         enr["q"] = bh(enr["p"])
+        enr["q_cmh_trbv"] = bh(enr["p_cmh_trbv"].fillna(1.0))
         enr = enr.sort_values("p")
     enr.to_csv(os.path.join(outdir, "vdjdb_cluster_enrichment.csv"), index=False)
 
@@ -228,6 +239,13 @@ def main():
             c = pc[r.pathogen]
             ax.plot([r.or_lo, r.or_hi], [i, i], color=c, lw=1.0)
             ax.scatter([r.odds_ratio], [i], s=16, color=c, zorder=3)
+            if np.isfinite(r.or_mh_trbv) and r.or_mh_trbv > 0:
+                ax.scatter([r.or_mh_trbv], [i], s=14, facecolors="none", edgecolors=c,
+                           marker="D", linewidths=0.7, zorder=4)
+        ax.scatter([], [], s=16, color="0.3", label="crude")
+        ax.scatter([], [], s=14, facecolors="none", edgecolors="0.3", marker="D",
+                   linewidths=0.7, label="within TRBV gene")
+        ax.legend(frameon=False, fontsize=5, loc="lower right")
         ax.axvline(1, color="0.6", lw=0.5, ls="--")
         ax.set_xscale("log")
         ax.set_yticks(y)
@@ -246,7 +264,19 @@ def main():
             ("mean_top_trbv_frac", float(s["top_trbv_frac"].mean())),
             ("vdjdb_exact_matched_clonotypes", len(hit)),
             ("enrichment_tests", len(enr)),
-            ("enrichment_significant_q05", int((enr["q"] < 0.05).sum()) if len(enr) else 0)]
+            ("enrichment_significant_q05", int((enr["q"] < 0.05).sum()) if len(enr) else 0),
+            ("enrichment_significant_q05_within_trbv",
+             int((enr["q_cmh_trbv"] < 0.05).sum()) if len(enr) else 0),
+            ("enrichment_significant_both",
+             int(((enr["q"] < 0.05) & (enr["q_cmh_trbv"] < 0.05)).sum()) if len(enr) else 0)]
+    if len(enr):
+        for path in ("HomoSapiens", "CMV", "EBV", "InfluenzaA"):
+            e_ = enr[(enr["pathogen"] == path) & (enr["odds_ratio"] > 1)]
+            if len(e_):
+                top_ = e_.sort_values("p").iloc[0]
+                rows += [(f"top_or_{path}", top_["odds_ratio"]),
+                         (f"top_or_{path}_within_trbv", top_["or_mh_trbv"]),
+                         (f"top_q_{path}_within_trbv", top_["q_cmh_trbv"])]
     summary = pd.DataFrame(rows, columns=["metric", "value"])
     summary.to_csv(os.path.join(outdir, "summary.csv"), index=False)
     print("\n" + summary.to_string(index=False))

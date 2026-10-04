@@ -120,11 +120,24 @@ def _chain_of(v, j, c):
     return ""
 
 
+def tie_key(research_id, v_genes, cdr3s):
+    """Deterministic pseudo-random tie-break key per clonotype, salted with the person, so
+    clonotypes with equal read support are ranked in an order unrelated to their V-gene name
+    or sequence. Replaces the old implicit tie-break, which was alphabetical by (chain, V,
+    CDR3) because groupby sorts its keys and the read sort was stable: with most clonotypes
+    at 1-2 reads, a per-person cap then preferred TRBV10-x..TRBV12-x over TRBV7-x / TRBV9.
+    Same inputs -> same key on every machine (pandas' fixed default hash key)."""
+    keys = pd.Series([f"{research_id}|{v}|{c}" for v, c in zip(v_genes, cdr3s)], dtype=object)
+    return pd.util.hash_pandas_object(keys, index=False).to_numpy()
+
+
 def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_report_fallback,
-                      max_len=30):
+                      max_len=30, stats=None):
     """One row per unique clonotype (chain, V gene, CDR3aa) for this person, ranked by
-    read support, highest first. Returns (df, source) where source is 'cdr3.out',
-    'report.tsv', or None if nothing usable."""
+    read support, highest first, ties broken by tie_key(). Returns (df, source) where source
+    is 'cdr3.out', 'report.tsv', or None if nothing usable. If `stats` is a dict, the row
+    count after each filtering step is written into it (for the methods audit)."""
+    st = stats if stats is not None else {}
     base = os.path.join(os.path.expanduser(pheno_dir), research_id)
     cdr3_out = os.path.join(base, f"{research_id}_cdr3.out")
     report = os.path.join(base, f"{research_id}_report.tsv")
@@ -139,8 +152,10 @@ def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_rep
                 "CDR2", "CDR3_dna", "score", "reads", "CDR3_germline_similarity",
                 "complete_vdj_assembly"]
         df = pd.read_csv(cdr3_out, sep="\t", header=None, names=cols, index_col=False)
+        st["rows_raw"] = len(df)
         df["cdr3aa"] = df["CDR3_dna"].apply(translate_cdr3_dna)
         df = df[pd.to_numeric(df["score"], errors="coerce") >= threshold]
+        st["rows_score"] = len(df)
         source = "cdr3.out"
     elif os.path.exists(report) and allow_report_fallback:
         # No CDR3_score in report.tsv, so the quality filter can't be applied. Off by
@@ -164,15 +179,24 @@ def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_rep
     # 97 clonotypes in 26-40 aa, then a separate mode of ~2,000 at > 40 aa (up to ~100) --
     # assembly artifacts that cluster together in embedding space. 30 aa sits in the gap.
     aa = df["cdr3aa"].astype(str)
-    ok = aa.str.fullmatch(r"C[ACDEFGHIKLMNPQRSTVWY]{3,}[FW]") & (aa.str.len() <= max_len)
+    canon = aa.str.fullmatch(r"C[ACDEFGHIKLMNPQRSTVWY]{3,}[FW]").fillna(False)
+    ok = canon & (aa.str.len() <= max_len)
+    st["rows_canonical"] = int(canon.sum())
+    st["rows_len_ok"] = int(ok.sum())
     df = df[ok & (df["chain"] != "")]
+    st["rows_chain_called"] = len(df)
 
     # Collapse to unique clonotypes: the same CDR3 can appear in several TRUST4 consensus
     # assemblies. Sum their read support, then rank so a per-person cap keeps the
-    # dominant clonotypes rather than whatever happened to come first in the file.
+    # dominant clonotypes rather than whatever happened to come first in the file. Ties
+    # (most clonotypes have 1-2 reads) are broken by tie_key(), not by name.
     df = (df.groupby(["chain", "V", "cdr3aa"], as_index=False)
-            .agg(reads=("reads", "sum"), score=("score", "max"))
-            .sort_values("reads", ascending=False, kind="stable"))
+            .agg(reads=("reads", "sum"), score=("score", "max")))
+    df["_tb"] = tie_key(research_id, df["V"], df["cdr3aa"])
+    df = (df.sort_values(["reads", "_tb"], ascending=[False, True], kind="stable")
+            .drop(columns="_tb"))
+    st["clonotypes"] = len(df)
+    st["clonotypes_trb"] = int((df["chain"] == "TRB").sum())
     df = df.rename(columns={"V": "v_gene"})
     df["research_id"] = research_id
     return df.reset_index(drop=True), source

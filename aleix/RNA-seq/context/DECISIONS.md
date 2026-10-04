@@ -29,7 +29,13 @@
   `results/rnaseq_cohort_ancestry_summary.csv` are each one individual's count. Not an
   identifier, but an n=1 statistic in a public repo — same small-cell disclosure class as the
   root repo's open item. Flag for Marc/supervisors; don't decide here. Leaning: drop min/max
-  (or report p5/p95) in future committed summaries.
+  (or report p5/p95) in future committed summaries. **2026-10-04: the leaning is implemented
+  going forward** (`aggregate_rnaseq_results.py` now writes `cdr3_p05`/`cdr3_p95`); the old
+  values remain in git history, which is the part still for Marc/supervisors.
+- **Which identifiability variant is the headline (2026-10-04).** Report 06 now gives raw
+  cosine, z-scored, and z-scored with half-depth removed. Raw cosine is dominated by the
+  shared mean direction of non-negative profiles; z-scored is the principled default.
+  Decide after the polish run, from the numbers, and say which one in every write-up.
 - **Rarefaction vs. post-hoc depth normalization for the recovery metric.** Flagged in
   `reference/TRUST4_DEEP_DIVE.md` §8.5 as probably the most important methodological fix
   outstanding — post-hoc normalization only closed 40% of the ancestry gap, which itself
@@ -42,6 +48,36 @@
   external.
 
 ## Resolved decisions
+
+- **Methods review fixes (2026-10-04), from reading the code for the methods artifact.**
+  All implemented, tested on synthetic data with planted effects, run on the VM via
+  `scripts/run_polish.sh`:
+  - *Top-500 tie-break.* Ties at the per-person cap were broken alphabetically by (chain,
+    V, CDR3): `groupby` sorts its keys and the read sort was stable. Most clonotypes have
+    1-2 reads, so the cutoff is almost always inside a tie and the pool favoured TRBV10-12
+    over TRBV7/9. Now a seeded per-person hash (`embed_cdr3s.tie_key`). The old pool and
+    embedding are kept in `embeddings/v1_alphabetical_ties/`; report 08 measures the shift.
+  - *Report 06 covers whole repertoires.* It looked vectors up from the top-500 pool, so only
+    sequences in somebody's top 500 had one. `embed_full_cache.py` embeds every distinct
+    (TRBV, CDR3) of the full cache once; 06 uses it and writes the coverage.
+  - *Concatenations are block-balanced* (`repfig.balanced_concat`). A raw `np.hstack`
+    lets the larger-magnitude block dominate the cosine: in a synthetic check a perfectly
+    identifying 48-d block went from 100% alone to 0.1% when hstacked with a 64-d
+    large-magnitude noise block, and back to 50% balanced. Raw versions kept for comparison.
+  - *Report 07 person axis.* It used k=100 CLR cluster profiles (0.5% in 06), not 06's
+    winner as its docstring said. Now mean pooling (embedding only) and mean + TRBV usage,
+    both z-scored.
+  - *Confidence intervals.* Epitope AUROC / 5-NN in 04 and 07 get an epitope-level bootstrap
+    (epitopes are the independent units) with paired differences vs the production model;
+    06 identifiability gets Wilson CIs. The earlier "statistically indistinguishable" for
+    synthetic_data in EXPERIMENTS.md had no test behind it.
+  - *Report 05* adds a Mantel-Haenszel test stratified by TRBV gene, separating CDR3 motif
+    from V-gene bias. *Report 04* writes how often the decoy Pgen tolerance had to widen.
+  - *Aggregation* assigns chain from V, then J, then C, as the clonotype step does.
+- **Correction (2026-10-04): the top-N cap-robustness check does not gate report 02.** 02
+  uses the full clonotype cache, not the top-500 pool, so the cap cannot affect the ageing
+  result. The cap matters for the embedding pool (01, 03, 05) and is covered by 03's
+  robustness panel.
 
 - **TRB is the primary chain for every HLA-facing analysis (Cole Shanks, 2026-09-27).**
   Cole: what matters most are chains that undergo V(D)J recombination, and he's "most

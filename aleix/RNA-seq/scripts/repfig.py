@@ -267,9 +267,12 @@ def olga_generate(n, seed=0):
 def matched_decoys(real, pool, n_per, seed=0, tol=0.25):
     """For each row of `real` (trbv, cdr3aa, pgen), draw n_per decoys from `pool`
     (trbv, cdr3aa, pgen) with the SAME TRBV gene and CDR3 length and log10 Pgen within
-    `tol`, widening the tolerance if needed. Controls the three properties that drive
-    chance matching, so any excess of real over decoy matches is antigen-driven, not
-    recombination-driven. Returns DataFrame(rep, trbv, cdr3aa, vid_real)."""
+    `tol`, widening the tolerance if needed (2x, 4x, then unlimited). Controls the three
+    properties that drive chance matching, so any excess of real over decoy matches is
+    antigen-driven, not recombination-driven. Returns DataFrame(rep, trbv, cdr3aa,
+    vid_real, tol): `tol` is the log10-Pgen tolerance that was actually needed for that real
+    TCR (inf = any same-V, same-length decoy). Real TCRs with no same-V/length decoy at all
+    are listed in .attrs["unmatched_vids"]."""
     rng = np.random.default_rng(seed)
     pool = pool[pool["pgen"] > 0].copy()
     pool["L"] = pool["cdr3aa"].str.len()
@@ -278,11 +281,11 @@ def matched_decoys(real, pool, n_per, seed=0, tol=0.25):
            for k, g in pool.groupby(["trbv", "L"], observed=True)}
     real = real[real["pgen"] > 0]
     out = []
-    unmatched = 0
+    unmatched = []
     for r in real.itertuples():
         key = (r.trbv, len(r.cdr3aa))
         if key not in idx:
-            unmatched += 1
+            unmatched.append(r.vid)
             continue
         lp, seqs, vs = idx[key]
         target = np.log10(r.pgen)
@@ -292,8 +295,107 @@ def matched_decoys(real, pool, n_per, seed=0, tol=0.25):
                 break
         pick = rng.choice(np.flatnonzero(ok), size=n_per, replace=ok.sum() < n_per)
         for rep, j in enumerate(pick):
-            out.append((rep, vs[j], seqs[j], r.vid))
+            out.append((rep, vs[j], seqs[j], r.vid, t))
     if unmatched:
-        print(f"  decoys: {unmatched:,} real TCRs had no same-V/length pool entry",
+        print(f"  decoys: {len(unmatched):,} real TCRs had no same-V/length pool entry",
               file=sys.stderr)
-    return pd.DataFrame(out, columns=["rep", "trbv", "cdr3aa", "vid_real"])
+    res = pd.DataFrame(out, columns=["rep", "trbv", "cdr3aa", "vid_real", "tol"])
+    res.attrs["unmatched_vids"] = unmatched
+    return res
+
+
+# ------------------------------------------------------------------ epitope bootstrap
+
+def epitope_bootstrap(epi, n_boot=500, n_pairs=100_000, seed=0):
+    """Resampling plan for confidence intervals on epitope-structure scores. Epitopes, not
+    TCRs, are the independent units (TCRs of one epitope are correlated), so each replicate
+    draws epitopes with replacement and keeps all of their TCRs. For pairwise AUROC it also
+    fixes n_pairs random TCR pairs within the replicate, excluding a TCR paired with its own
+    copy. Build once and reuse for every method, so method differences are paired."""
+    rng = np.random.default_rng(seed)
+    epi = np.asarray(epi)
+    cats = np.unique(epi)
+    members = [np.flatnonzero(epi == e) for e in cats]
+    plan = []
+    for _ in range(n_boot):
+        draw = rng.integers(len(cats), size=len(cats))
+        idx = np.concatenate([members[d] for d in draw])
+        a = rng.integers(len(idx), size=int(n_pairs * 1.1))
+        b = rng.integers(len(idx), size=int(n_pairs * 1.1))
+        keep = idx[a] != idx[b]
+        plan.append((draw, idx[a][keep][:n_pairs], idx[b][keep][:n_pairs]))
+    return {"epi": epi, "cats": cats, "plan": plan}
+
+
+def boot_scores(D, recall_by_epi, boot):
+    """Bootstrap replicates of pairwise AUROC (score = -distance, from the full distance
+    matrix D) and of 5-NN balanced accuracy (mean per-epitope recall, recall computed once
+    on the full set and averaged over the resampled epitopes). Returns two arrays."""
+    from sklearn.metrics import roc_auc_score
+    epi = boot["epi"]
+    rec = np.array([recall_by_epi[c] for c in boot["cats"]])
+    aucs, accs = [], []
+    for draw, i, j in boot["plan"]:
+        y = epi[i] == epi[j]
+        aucs.append(roc_auc_score(y, -D[i, j]) if 0 < y.sum() < len(y) else np.nan)
+        accs.append(float(rec[draw].mean()))
+    return np.array(aucs), np.array(accs)
+
+
+def ci(x, level=0.95):
+    x = np.asarray(x, float)
+    x = x[np.isfinite(x)]
+    if not len(x):
+        return np.nan, np.nan
+    a = (1 - level) / 2
+    return float(np.quantile(x, a)), float(np.quantile(x, 1 - a))
+
+
+# ------------------------------------------------------------------ stratified 2x2 tests
+
+def mantel_haenszel(a, b, c, d):
+    """Mantel-Haenszel common odds ratio and continuity-corrected CMH test over strata.
+    a, b, c, d: arrays, one 2x2 table per stratum ([[a, b], [c, d]]). Strata with fewer
+    than 2 observations carry no information and are dropped. Returns (OR_MH, p)."""
+    a, b, c, d = (np.asarray(x, float) for x in (a, b, c, d))
+    n = a + b + c + d
+    m = n > 1
+    a, b, c, d, n = a[m], b[m], c[m], d[m], n[m]
+    if not len(n):
+        return np.nan, np.nan
+    num, den = np.sum(a * d / n), np.sum(b * c / n)
+    orr = num / den if den > 0 else np.inf
+    ea = (a + b) * (a + c) / n
+    va = (a + b) * (c + d) * (a + c) * (b + d) / (n ** 2 * (n - 1))
+    if va.sum() <= 0:
+        return orr, np.nan
+    chi = (abs(a.sum() - ea.sum()) - 0.5) ** 2 / va.sum()
+    return float(orr), float(stats.chi2.sf(chi, 1))
+
+
+# ------------------------------------------------------------------ person vectors
+
+def zscore_like(X, ref):
+    """Standardise X with the column means / SDs of `ref` (constant columns left at 0)."""
+    mu = ref.mean(axis=0)
+    sd = ref.std(axis=0)
+    return (X - mu) / np.where(sd > 1e-12, sd, 1.0)
+
+
+def balanced_concat(blocks, refs):
+    """Concatenate feature blocks so each contributes equally to a cosine similarity:
+    standardise every column (statistics from the matching block in `refs`, the full-data
+    representation), then divide each block by sqrt(its width) so its expected squared norm
+    is the same whatever its dimension or units. Raw np.hstack lets whichever block has the
+    larger magnitude dominate, a weighting nobody chose."""
+    return np.hstack([zscore_like(X, R_) / np.sqrt(X.shape[1]) for X, R_ in zip(blocks, refs)])
+
+
+def residualize(X, covariate):
+    """Remove the linear effect of one covariate from every column of X (OLS with intercept)."""
+    z = np.asarray(covariate, float)
+    z = z - z.mean()
+    Xc = X - X.mean(axis=0)
+    beta = (z @ Xc) / max(float(z @ z), 1e-12)
+    return Xc - np.outer(z, beta)
+

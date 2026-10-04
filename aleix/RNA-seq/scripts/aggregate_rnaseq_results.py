@@ -9,6 +9,12 @@
   2. A DE-IDENTIFIED, ancestry-GROUP-level summary (no individual research_ids) -- the
      only thing this script writes into the repo, under ../results/.
 
+Chain is assigned from the first gene TRUST4 actually called -- V, then J, then C -- the
+same rule as embed_cdr3s.py's clonotype step (2026-10-04; previously V only, which left
+CDR3s without a V call out of every per-chain count). The V-only counts are still computed
+and written side by side to ../results/chain_assignment_check.csv so the change is visible.
+Group spread is reported as 5th/95th percentiles: min and max are single-person values.
+
 Usage:
   python3 aggregate_rnaseq_results.py <cohort.tsv> [--outdir ~/pipeline_outputs/rnaseq]
 """
@@ -17,6 +23,9 @@ import os
 import sys
 
 import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from embed_cdr3s import _chain_of, _top_gene  # noqa: E402
 
 CHAINS = ["TRA", "TRB", "TRG", "TRD", "IGH", "IGK", "IGL"]
 
@@ -41,9 +50,14 @@ def main():
             df = pd.read_csv(report, sep="\t", dtype=str)
             row["status"] = "ok"
             row["n_cdr3"] = len(df)
-            chain = df["V"].astype(str).str[:3]
+            genes = {g: (df[g].map(_top_gene) if g in df.columns else pd.Series("", index=df.index))
+                     for g in ("V", "J", "C")}
+            chain = pd.Series([_chain_of(v, j, c) for v, j, c in
+                               zip(genes["V"], genes["J"], genes["C"])], index=df.index)
+            chain_v = genes["V"].str[:3]
             for c in CHAINS:
                 row[f"n_{c}"] = int((chain == c).sum())
+                row[f"n_{c}_vonly"] = int((chain_v == c).sum())
         rows.append(row)
 
     detail = pd.DataFrame(rows)
@@ -66,8 +80,8 @@ def main():
         n_people=("research_id", "count"),
         cdr3_mean=("n_cdr3", "mean"),
         cdr3_median=("n_cdr3", "median"),
-        cdr3_min=("n_cdr3", "min"),
-        cdr3_max=("n_cdr3", "max"),
+        cdr3_p05=("n_cdr3", lambda x: x.quantile(0.05)),
+        cdr3_p95=("n_cdr3", lambda x: x.quantile(0.95)),
     ).round(1)
     for c in CHAINS:
         group[f"{c}_mean"] = ok.groupby("ancestry")[f"n_{c}"].mean().round(1)
@@ -77,6 +91,18 @@ def main():
     group.to_csv(summary_path)
     print(f"\nDe-identified group summary (safe to commit): {summary_path}", file=sys.stderr)
     print(group.to_string(), file=sys.stderr)
+
+    check = pd.DataFrame({
+        "chain": CHAINS,
+        "mean_v_only": [ok[f"n_{c}_vonly"].mean() for c in CHAINS],
+        "mean_v_j_c": [ok[f"n_{c}"].mean() for c in CHAINS],
+    })
+    check["pct_gained"] = 100 * (check["mean_v_j_c"] / check["mean_v_only"] - 1)
+    check = check.round(2)
+    check_path = os.path.join(args.repo_results, "chain_assignment_check.csv")
+    check.to_csv(check_path, index=False)
+    print(f"\nChain assignment, V-only vs V/J/C (safe to commit): {check_path}", file=sys.stderr)
+    print(check.to_string(index=False), file=sys.stderr)
 
 
 if __name__ == "__main__":

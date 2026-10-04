@@ -25,11 +25,24 @@ Judged on four axes, none of which needs a disease label:
      target: 03 showed plain TRBV usage already reaches it, so it is largely germline
      V-gene composition.
 
-Representations compared (all built from 02's full clonotype cache, so none is limited to
-the top-500 sample): TRBV usage, CDR3-length profile, CDR3 3-mer composition, mean and
+Representations compared, built from 02's full clonotype cache: TRBV usage, CDR3-length profile, CDR3 3-mer composition, mean and
 read-weighted mean SCEPTR vectors, SCEPTR metacluster abundance profiles at several
 cluster counts, their centred-log-ratio transforms, and concatenations. A label-permuted
 control is run through the identical pipeline.
+
+Which clonotypes: every full-cache clonotype that has a SCEPTR vector. With
+embed_full_cache.py's output present (the default since 2026-10-04) that is every clonotype
+with a usable TRBV; without it, vectors are looked up from the top-500 embedding pool, which
+covers only clonotypes whose sequence is in somebody's top 500 (biased toward expanded and
+public sequences). The coverage actually achieved is written to summary.csv.
+
+Identifiability is reported three ways (2026-10-04): on the raw vectors (cosine), on
+z-scored features (each column standardised with full-data statistics, so cosine becomes a
+correlation and a shared mean direction cannot dominate), and on z-scored features with the
+linear effect of that half's log sequencing depth removed (how much identity survives once
+depth is taken out). Concatenated representations are given both as a raw np.hstack and
+block-balanced (each block standardised and scaled by 1/sqrt(width), repfig.balanced_concat),
+because a raw hstack lets the block with the larger magnitude dominate the cosine.
 
 Compositional profiles are also given as CLR (centred log-ratio) because abundance profiles
 are compositional: raw proportions are constrained to sum to one, which induces spurious
@@ -61,6 +74,10 @@ import repfig as R  # noqa: E402
 MIN_CLONOTYPES = 100      # need enough to split in half
 KS = (30, 100, 300)       # metacluster counts to test
 SVD_DIM = 100
+COMBOS = {                # concatenations: raw hstack here, block-balanced added after build
+    "SCEPTR mean + TRBV": ("SCEPTR mean", "TRBV usage"),
+    "TRBV + clusters k=100 (CLR)": ("_TRBV usage, CLR", "SCEPTR clusters k=100, CLR"),
+}
 
 
 def clr(P, eps=1e-6):
@@ -147,22 +164,30 @@ def main():
     clono["research_id"] = clono["research_id"].astype(str)
     clono["trbv"] = clono["trbv"].astype(str)
     edir = os.path.expanduser(args.embeddings_dir)
-    embs_pool = np.load(os.path.join(edir, f"embeddings_sceptr_{args.tag}.npy"))
-    pool = pd.read_csv(os.path.join(edir, f"pool_sceptr_{args.tag}.tsv"), sep="\t",
-                       dtype={"research_id": str}, keep_default_na=False)
-    pool["trbv"] = pool["v_gene"].astype(str).str.split("*").str[0]
+    full_npy = os.path.join(edir, "embeddings_sceptr_fullcache.npy")
+    full_keys = os.path.join(edir, "keys_sceptr_fullcache.tsv")
+    if os.path.exists(full_npy) and os.path.exists(full_keys):
+        embs_pool = np.load(full_npy, mmap_mode="r")
+        pool = pd.read_csv(full_keys, sep="\t", keep_default_na=False)
+        vector_source = "full cache (embed_full_cache.py)"
+    else:
+        embs_pool = np.load(os.path.join(edir, f"embeddings_sceptr_{args.tag}.npy"))
+        pool = pd.read_csv(os.path.join(edir, f"pool_sceptr_{args.tag}.tsv"), sep="\t",
+                           dtype={"research_id": str}, keep_default_na=False)
+        pool["trbv"] = pool["v_gene"].astype(str).str.split("*").str[0]
+        vector_source = "top-500 embedding pool (lookup)"
 
     # One vector per distinct (TRBV, CDR3): SCEPTR is deterministic, so the embedding of a
-    # sequence is the same whoever carries it. This lifts vectors from the top-500 pool to
-    # every clonotype in the full cache that shares a sequence with it.
+    # sequence is the same whoever carries it.
     key = pool["trbv"] + "|" + pool["cdr3aa"]
     first = ~key.duplicated()
     lut = pd.Series(np.flatnonzero(first), index=key[first])
     ck = clono["trbv"] + "|" + clono["cdr3aa"]
     row = lut.reindex(ck).to_numpy()
     have = ~pd.isna(row)
-    print(f"{len(clono):,} clonotypes; {have.sum():,} ({100 * have.mean():.1f}%) have a "
-          f"SCEPTR vector from the top-500 pool", file=sys.stderr)
+    coverage = float(have.mean())
+    print(f"{len(clono):,} clonotypes; {have.sum():,} ({100 * coverage:.1f}%) have a "
+          f"SCEPTR vector from the {vector_source}", file=sys.stderr)
     clono = clono[have].copy()
     emb_idx = row[have].astype(int)
 
@@ -183,7 +208,7 @@ def main():
     print(f"Benchmark cohort: {n_people:,} people, {len(clono):,} clonotypes",
           file=sys.stderr)
 
-    embs = embs_pool[emb_idx]
+    embs = np.asarray(embs_pool[emb_idx], dtype=np.float32)
     reads = clono["reads"].to_numpy(float)
     half = rng.random(len(clono)) < 0.5      # split-half assignment, fixed across methods
 
@@ -227,15 +252,25 @@ def main():
             if k == KS[1]:
                 out[f"SCEPTR clusters k={k}, read-wt"] = profile(clusters[k][m], k, pi,
                                                                  n_people, w)
-        out["TRBV + clusters k=100 (CLR)"] = np.hstack([
-            clr(profile(vcode[m], len(vcats), pi, n_people)),
-            out[f"SCEPTR clusters k={KS[1]}, CLR"]])
-        out["SCEPTR mean + TRBV"] = np.hstack([out["SCEPTR mean"], out["TRBV usage"]])
+        out["_TRBV usage, CLR"] = clr(profile(vcode[m], len(vcats), pi, n_people))
+        out["_log depth"] = np.log(np.maximum(
+            np.bincount(pi, weights=w, minlength=n_people), 1.0))
+        for name, parts in COMBOS.items():
+            out[name] = np.hstack([out[p_] for p_ in parts])
         return out
 
     t0 = time.time()
     full = build(np.ones(len(clono), bool))
     A, B = build(half), build(~half)
+    # block-balanced versions of the concatenations (statistics from the full build)
+    for name, parts in COMBOS.items():
+        for D_ in (full, A, B):
+            D_[f"{name} (balanced)"] = R.balanced_concat([D_[p_] for p_ in parts],
+                                                         [full[p_] for p_ in parts])
+    depth_half = {"A": A.pop("_log depth"), "B": B.pop("_log depth")}
+    full.pop("_log depth")
+    for D_ in (full, A, B):
+        D_.pop("_TRBV usage, CLR")
     print(f"Built {len(full)} representations x3: {time.time() - t0:.0f}s", file=sys.stderr)
 
     # ---------------- evaluate ----------------
@@ -250,21 +285,33 @@ def main():
     rows_out = []
     for name in full:
         t1, pr = identifiability(A[name], B[name])
+        Az, Bz = R.zscore_like(A[name], full[name]), R.zscore_like(B[name], full[name])
+        t1z, prz = identifiability(Az, Bz)
+        t1zd, _ = identifiability(R.residualize(Az, depth_half["A"]),
+                                  R.residualize(Bz, depth_half["B"]))
         r2_age, mae_age = cv_regress(full[name], age, args.seed)
         r2_depth, _ = cv_regress(full[name], depth, args.seed)
         auc_sex = cv_auroc_binary(full[name], sex, args.seed)
         auc_anc = cv_auroc_macro(full[name][anc_ok], anc[anc_ok], classes, args.seed)
-        rows_out.append((name, full[name].shape[1], t1, pr, r2_age, mae_age, auc_sex,
-                         auc_anc, r2_depth))
+        rows_out.append((name, full[name].shape[1], t1, pr, t1z, prz, t1zd, r2_age, mae_age,
+                         auc_sex, auc_anc, r2_depth))
         print(f"  {name:34s} dim {full[name].shape[1]:4d}  ID {100 * t1:5.1f}%  "
               f"age R2 {r2_age:+.3f}  sex {auc_sex:.3f}  depth R2 {r2_depth:+.3f}",
               file=sys.stderr)
 
     # permuted-label control on the best representation by identifiability
     res = pd.DataFrame(rows_out, columns=["representation", "dim", "identifiability_top1",
-                                          "identifiability_pct_rank", "age_r2", "age_mae",
-                                          "sex_auroc", "ancestry_auroc", "depth_r2"])
+                                          "identifiability_pct_rank", "identifiability_top1_z",
+                                          "identifiability_pct_rank_z",
+                                          "identifiability_top1_z_depthres", "age_r2",
+                                          "age_mae", "sex_auroc", "ancestry_auroc",
+                                          "depth_r2"])
+    for col in ("identifiability_top1", "identifiability_top1_z",
+                "identifiability_top1_z_depthres"):
+        _, lo, hi = R.wilson(np.round(res[col].to_numpy() * n_people), n_people)
+        res[f"{col}_lo"], res[f"{col}_hi"] = lo, hi
     best = res.sort_values("identifiability_top1", ascending=False).iloc[0]["representation"]
+    best_z = res.sort_values("identifiability_top1_z", ascending=False).iloc[0]["representation"]
     perm = rng.permutation(n_people)
     ctrl = {
         "age_r2": cv_regress(full[best], age[perm], args.seed)[0],
@@ -281,12 +328,12 @@ def main():
     W, H, GAP = 105, 105, 34
 
     def fam(n):
+        if " + " in n:
+            return "combined"
         if n.startswith("SCEPTR clusters"):
             return "SCEPTR clusters"
         if n.startswith("SCEPTR mean"):
             return "SCEPTR mean"
-        if n.startswith("TRBV +") or n == "SCEPTR mean + TRBV":
-            return "combined"
         return "simple baseline"
     fcol = {"SCEPTR clusters": pal[0], "SCEPTR mean": pal[3], "combined": pal[2],
             "simple baseline": "0.65"}
@@ -298,7 +345,12 @@ def main():
     ax = mp.panel("a", width=180, height=H + 30, margin_right=12, margin_bottom=GAP)
     y = np.arange(len(r))
     ax.barh(y, 100 * r["identifiability_top1"], height=0.68,
-            color=[fcol[f] for f in r["family"]], linewidth=0)
+            color=[fcol[f] for f in r["family"]], linewidth=0, label="raw cosine")
+    ax.scatter(100 * r["identifiability_top1_z"], y, s=9, color="0.1", zorder=3,
+               linewidths=0, label="z-scored")
+    ax.scatter(100 * r["identifiability_top1_z_depthres"], y, s=9, facecolors="none",
+               edgecolors="0.1", linewidths=0.6, zorder=3, label="z-scored, depth removed")
+    ax.legend(frameon=False, fontsize=5, loc="lower right")
     ax.axvline(100 / n_people, color="0.5", lw=0.5, ls="--")
     ax.set_yticks(y)
     ax.set_yticklabels([short[n] for n in r["representation"]], fontsize=5)
@@ -356,8 +408,9 @@ def main():
     ax.axvline(0.5, color="0.5", lw=0.5, ls="--")
     ax.set_yticks(y)
     ax.set_yticklabels([short[n] for n in rs["representation"]], fontsize=4.5)
-    ax.legend(frameon=False, fontsize=5.5, loc="lower right")
-    ax.set_title("Demographics", pad=11)
+    ax.legend(frameon=False, fontsize=5.5, loc="lower center", ncol=2,
+              bbox_to_anchor=(0.5, 1.0))
+    ax.set_title("Demographics", pad=16)
     R.style(ax, None, "AUROC", None)
 
     ax = mp.panel("f", width=W, height=H, margin_right=12)
@@ -376,8 +429,10 @@ def main():
     R.save("fig_person_representation", outdir)
 
     summary = pd.concat([
-        pd.DataFrame({"metric": ["people", "clonotypes", "best_by_identifiability"],
-                      "value": [n_people, len(clono), best]}),
+        pd.DataFrame({"metric": ["people", "clonotypes", "vector_source",
+                                 "frac_cache_clonotypes_with_vector",
+                                 "best_by_identifiability", "best_by_identifiability_z"],
+                      "value": [n_people, len(clono), vector_source, coverage, best, best_z]}),
         pd.DataFrame({"metric": [f"permuted_{k}" for k in ctrl],
                       "value": list(ctrl.values())})])
     summary.to_csv(os.path.join(outdir, "summary.csv"), index=False)

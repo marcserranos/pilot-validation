@@ -135,7 +135,8 @@ def benchmark(bench, methods, rng):
     take = rng.choice(len(iu[0]), size=min(2_000_000, len(iu[0])), replace=False)
     pi, pj = iu[0][take], iu[1][take]
     epis = sorted(set(y))
-    res, per_epi = [], {}
+    boot = R.epitope_bootstrap(y, seed=int(rng.integers(1 << 31)))
+    res, per_epi, reps = [], {}, {}
     for m in methods:
         D = distances(m, bench)
         auc = roc_auc_score(same[pi, pj], -D[pi, pj] + rng.normal(0, 1e-9, len(pi)))
@@ -143,6 +144,7 @@ def benchmark(bench, methods, rng):
         nn = np.argsort(Dk + rng.uniform(0, 1e-9, Dk.shape), axis=1)[:, :5]
         pred = [pd.Series(y[r]).value_counts().idxmax() for r in nn]
         recall = [np.mean(np.asarray(pred)[y == e] == e) for e in epis]
+        reps[m] = R.boot_scores(D, dict(zip(epis, recall)), boot)
         res.append((m, auc, float(np.mean(recall))))
         per = {}
         for e in epis:
@@ -155,8 +157,17 @@ def benchmark(bench, methods, rng):
         per_epi[m] = per
         print(f"  {m}: pairwise AUROC {auc:.3f}, 5-NN balanced accuracy "
               f"{np.mean(recall):.3f}", file=sys.stderr)
-    return (pd.DataFrame(res, columns=["method", "pairwise_auroc", "knn5_balanced_acc"]),
-            pd.DataFrame(per_epi))
+    out = pd.DataFrame(res, columns=["method", "pairwise_auroc", "knn5_balanced_acc"])
+    # 95% CIs from an epitope-level bootstrap (epitopes are the independent units), and
+    # paired differences against the first (production) method on the same replicates.
+    ref = methods[0]
+    for col, k in (("pairwise_auroc", 0), ("knn5_balanced_acc", 1)):
+        out[f"{col}_lo"], out[f"{col}_hi"] = zip(*[R.ci(reps[m][k]) for m in out["method"]])
+        out[f"{col}_diff_vs_ref_lo"], out[f"{col}_diff_vs_ref_hi"] = zip(
+            *[R.ci(reps[m][k] - reps[ref][k]) for m in out["method"]])
+    out["reference_method"] = ref
+    out["bootstrap_replicates"] = len(boot["plan"])
+    return out, pd.DataFrame(per_epi)
 
 
 # ------------------------------------------------------------------ Part 2: cohort matching
@@ -279,6 +290,23 @@ def main():
           file=sys.stderr)
     decoys = R.matched_decoys(vdj[["trbv", "cdr3aa", "pgen", "vid"]], pool_dec,
                               args.decoy_reps, seed=args.seed)
+    # How often the Pgen match had to be loosened, per pathogen: a decoy matched only on
+    # V and length (tol = inf) controls recombination less well than one within 0.25.
+    tol_by_tcr = decoys.drop_duplicates("vid_real").set_index("vid_real")["tol"]
+    tv = vdj[["vid", "pathogen"]].copy()
+    tv["tol"] = tv["vid"].map(tol_by_tcr)
+    tv.loc[tv["vid"].isin(decoys.attrs.get("unmatched_vids", [])), "tol"] = -1.0
+    tv["tier"] = tv["tol"].map({0.25: "<=0.25", 0.5: "<=0.5", 1.0: "<=1.0",
+                                np.inf: "V+length only", -1.0: "no decoy"}).fillna("Pgen = 0")
+    tiers = ["<=0.25", "<=0.5", "<=1.0", "V+length only", "no decoy", "Pgen = 0"]
+    tol_tab = (pd.crosstab(tv["pathogen"], tv["tier"]).reindex(columns=tiers, fill_value=0))
+    tol_tab.loc["ALL"] = tol_tab.sum()
+    tol_tab = tol_tab.div(tol_tab.sum(axis=1), axis=0).mul(100).round(2)
+    tol_tab.insert(0, "vdjdb_tcrs", pd.crosstab(tv["pathogen"], tv["tier"]).sum(axis=1)
+                   .reindex(tol_tab.index).fillna(len(tv)).astype(int))
+    tol_tab.to_csv(os.path.join(outdir, "decoy_tolerance.csv"))
+    print("Decoy Pgen tolerance actually used (% of VDJdb TCRs):\n"
+          + tol_tab.loc[["ALL"]].to_string(), file=sys.stderr)
     decoys = decoys.merge(vdj[["vid", "pathogen"]].rename(columns={"vid": "vid_real"}),
                           on="vid_real")
 
@@ -397,6 +425,10 @@ def main():
     y = np.arange(len(bres))[::-1]
     ax.barh(y, bres["pairwise_auroc"] - 0.5, left=0.5, height=0.65, linewidth=0,
             color=[mcol[k] for k in bres["method"]])
+    ax.errorbar(bres["pairwise_auroc"], y,
+                xerr=[np.maximum(bres["pairwise_auroc"] - bres["pairwise_auroc_lo"], 0),
+                      np.maximum(bres["pairwise_auroc_hi"] - bres["pairwise_auroc"], 0)],
+                fmt="none", ecolor="0.2", elinewidth=0.6, capsize=1.5)
     ax.axvline(0.5, color="0.5", lw=0.5, ls="--")
     ax.set_yticks(y)
     ax.set_yticklabels([short[k] for k in bres["method"]])
@@ -495,7 +527,10 @@ def main():
             ("benchmark_epitopes", bench["epitope"].nunique()), ("people", n_people),
             ("decoy_reps", args.decoy_reps), ("decoy_pool", len(pool_dec))]
     rows += [(f"pairwise_auroc_{r.method}", r.pairwise_auroc) for r in bres.itertuples()]
+    rows += [(f"pairwise_auroc_{r.method}_lo", r.pairwise_auroc_lo) for r in bres.itertuples()]
+    rows += [(f"pairwise_auroc_{r.method}_hi", r.pairwise_auroc_hi) for r in bres.itertuples()]
     rows += [(f"knn5_bal_acc_{r.method}", r.knn5_balanced_acc) for r in bres.itertuples()]
+    rows += [(f"decoy_tol_pct_{t}", tol_tab.loc["ALL", t]) for t in tiers]
     for p in car.index:
         rows += [(f"pct_observed_{p}", car.loc[p, "pct_observed"]),
                  (f"pct_expected_{p}", car.loc[p, "pct_expected"]),
