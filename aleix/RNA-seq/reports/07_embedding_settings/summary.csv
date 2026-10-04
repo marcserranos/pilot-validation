@@ -1,8 +1,8 @@
 metric,value
 people,1000
 clonotypes_per_variant,250000
-benchmark_tcrs,4246
+benchmark_tcrs,4193
 settings_ok,13
-best_epitope_auroc,blosum
-best_identifiability,shuffled_data
+best_epitope_auroc,b_sceptr (TRBV+CDR3)
+best_identifiability,mlm_only
 best_age_r2,TRBV one-hot

@@ -5,14 +5,28 @@ benchmark_epitopes,45.0
 people,7922.0
 decoy_reps,3.0
 decoy_pool,249616.0
-pairwise_auroc_SCEPTR (TRBV + CDR3),0.5795174394557043
+pairwise_auroc_SCEPTR (TRBV + CDR3),0.579517439581991
 pairwise_auroc_SCEPTR (CDR3 only),0.5518156273923482
 pairwise_auroc_CDR3 3-mer,0.5539220885888448
 pairwise_auroc_TRBV gene only,0.5528285227081101
+pairwise_auroc_SCEPTR (TRBV + CDR3)_lo,0.526872425255738
+pairwise_auroc_SCEPTR (CDR3 only)_lo,0.5172578061387407
+pairwise_auroc_CDR3 3-mer_lo,0.5112032805042606
+pairwise_auroc_TRBV gene only_lo,0.5140133552476628
+pairwise_auroc_SCEPTR (TRBV + CDR3)_hi,0.6406044757589513
+pairwise_auroc_SCEPTR (CDR3 only)_hi,0.5959680474941966
+pairwise_auroc_CDR3 3-mer_hi,0.6049801468965339
+pairwise_auroc_TRBV gene only_hi,0.6109560084178519
 knn5_bal_acc_SCEPTR (TRBV + CDR3),0.3797725669513639
 knn5_bal_acc_SCEPTR (CDR3 only),0.32832663222713854
 knn5_bal_acc_CDR3 3-mer,0.26698099217828186
 knn5_bal_acc_TRBV gene only,0.10581276447527443
+decoy_tol_pct_<=0.25,97.85
+decoy_tol_pct_<=0.5,0.3
+decoy_tol_pct_<=1.0,0.26
+decoy_tol_pct_V+length only,0.37
+decoy_tol_pct_no decoy,0.89
+decoy_tol_pct_Pgen = 0,0.33
 pct_observed_InfluenzaA,17.255743499116384
 pct_expected_InfluenzaA,4.443322393335016
 pct_near_InfluenzaA,87.31380964402929
