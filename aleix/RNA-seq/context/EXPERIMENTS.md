@@ -263,3 +263,15 @@ Pulled and read 2026-10-06. Outputs in `reports/08_methods_audit/` plus reruns o
   raw, = raw once z-scored. Depth leakage was mostly the partial coverage.
 - **07**: no SCEPTR variant differs from b_sceptr (all paired CIs include 0); TRBV one-hot and
   3-mer significantly worse. Person axis near floor at 250 clonotypes (0.3-3.1%).
+
+### 2026-10-06 — BAM-cap check (08 rerun with RNA-SeQC2 metrics, commit b38b48f)
+
+RNA-SeQC2 table copied from `v9/multiomics/rnaseq/rnaseqc2/aou_rnaseq_20260413.metrics.txt.gz`
+(QC ids translated via a local copy of the manifest). The 404 people excluded by the 12 GB
+cap are the deep tail: median mapped reads 277 M vs 109 M kept (2.5x), library complexity
+2.1x, genes detected 35,569 vs 30,626, mapping rate 86.3% vs 90.9%, duplicate rate 44.6% vs
+39.8% (all p < 1e-3, Mann-Whitney). Excluded by ancestry: EAS 3.2%, SAS 4.2%, EUR 5.0%,
+AMR 5.1%, MID 5.4%, AFR 5.9%. Reading: results describe typical-depth samples; 02 is
+protected by rarefaction; raw-count analyses are biased slightly downward. TRUST4 was never
+run on the 404, so inclusion is testable only by running it (~4-6 h, one VM). Tie audit
+reproduced identically.
