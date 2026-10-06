@@ -10,8 +10,10 @@ median_tied_kept_of_block,199.0
 mean_frac_top500_changed,0.18932316076294278
 median_frac_top500_changed,0.19799999999999995
 total_variation_old_vs_new_pool_pct,13.624799999999999
-old_pool_file,embeddings/pool_sceptr_cohort_full_vcdr3.tsv
+old_pool_file,v1_alphabetical_ties/pool_sceptr_cohort_full_vcdr3.tsv
 old_pool_rows,3836906
 old_pool_reconstruction_max_abs_diff_per_gene,0.0
 old_pool_reconstruction_total_abs_diff,0.0
-bam_cap,skipped: need /home/jupyter/pipeline_outputs/rnaseq/lr_rnaseq_overlap_cohort.tsv and /home/jupyter/pipeline_outputs/rnaseq/qc/aou_rnaseq_20260413.metrics.txt.gz
+bam_cap_depth_metric,Mapped Reads
+bam_cap_pct_excluded_overall,4.852269997597887
+bam_cap_pct_excluded_in_top_depth_decile,48.49939975990396
