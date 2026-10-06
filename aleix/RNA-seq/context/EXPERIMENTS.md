@@ -273,5 +273,6 @@ cap are the deep tail: median mapped reads 277 M vs 109 M kept (2.5x), library c
 39.8% (all p < 1e-3, Mann-Whitney). Excluded by ancestry: EAS 3.2%, SAS 4.2%, EUR 5.0%,
 AMR 5.1%, MID 5.4%, AFR 5.9%. Reading: results describe typical-depth samples; 02 is
 protected by rarefaction; raw-count analyses are biased slightly downward. TRUST4 was never
-run on the 404, so inclusion is testable only by running it (~4-6 h, one VM). Tie audit
+run on the 404, so inclusion is testable only by running it (~4-6 h, one VM). Overall 4.9% excluded,
+but 48.5% of the top depth decile (by mapped reads) was excluded. Tie audit
 reproduced identically.
