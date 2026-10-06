@@ -19,10 +19,9 @@ One-pager: https://claude.ai/artifact/CyJ3ktfg3xuJeJWogCZRMv
 
 ## Pick up here
 
-1. Decide the identifiability headline (DECISIONS open item; recommendation: z-scored).
+1. DONE 2026-10-06: identifiability headline = z-scored 27.0% (25.6-28.4%); cap stays 500 (DECISIONS).
 2. Rewrite `reports/01_sceptr_embedding_viz/README.md` (still describes the old size region).
 3. BAM-cap comparison: DONE 2026-10-06 (excluded = 2.5x deeper; see EXPERIMENTS). Optional: TRUST4 on the 404.
-4. Consider a cap near 300 for the pool (~200 of 500 slots are random among 1-2-read clonotypes).
 5. Then the official methods document, the ageing write-up, and the HLA/disease join.
 
 Related: [[../../context/STATUS.md]] (root, Marc's).

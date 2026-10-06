@@ -32,10 +32,6 @@
   (or report p5/p95) in future committed summaries. **2026-10-04: the leaning is implemented
   going forward** (`aggregate_rnaseq_results.py` now writes `cdr3_p05`/`cdr3_p95`); the old
   values remain in git history, which is the part still for Marc/supervisors.
-- **Which identifiability variant is the headline (2026-10-04).** Report 06 now gives raw
-  cosine, z-scored, and z-scored with half-depth removed. Raw cosine is dominated by the
-  shared mean direction of non-negative profiles; z-scored is the principled default.
-  Decide after the polish run, from the numbers, and say which one in every write-up.
 - **Rarefaction vs. post-hoc depth normalization for the recovery metric.** Flagged in
   `reference/TRUST4_DEEP_DIVE.md` §8.5 as probably the most important methodological fix
   outstanding — post-hoc normalization only closed 40% of the ancestry gap, which itself
@@ -48,6 +44,27 @@
   external.
 
 ## Resolved decisions
+
+- **Identifiability headline = z-scored (decided 2026-10-06).** Quote report 06 as: SCEPTR
+  mean + TRBV usage, **27.0% (95% CI 25.6-28.4%)** of 4,000 people matched to their own
+  split-half repertoire, chance 0.025%; TRBV usage alone 16.5% (15.4-17.7%); SCEPTR mean
+  alone 11.5% (10.6-12.6%). Reasons: (1) raw cosine on non-negative profiles is dominated
+  by the mean direction every person shares, so it rewards whichever block has the larger
+  magnitude (raw TRBV usage 23.8% drops to 16.5% once standardised, while the combination
+  barely moves); (2) z-scoring makes the comparison scale-free, so raw and block-balanced
+  concatenations agree exactly; (3) it is the conservative choice (27.0% < 29.4% raw);
+  (4) removing depth leaves 26.9%, so the headline is not a depth effect. Raw and
+  depth-removed values stay in the table as sensitivity analyses.
+- **Per-person cap stays at 500 (decided 2026-10-06); no rerun.** After the tie-break fix
+  the 500 are: every clonotype above the cutoff read count, then a seeded random sample of
+  the clonotypes at the cutoff (1 read for 78% of people, 2 for 20%). A random sample of
+  the low-count tail is unbiased, so the old objection was to the alphabetical fill, not the
+  size. Lowering to ~300 would not remove ties (the median person's tied block is 625) and
+  would leave each person's vector noisier. Stability supports 500: top-250 vs top-500
+  distance correlation 0.76. The cap now only affects the descriptive pool reports (01, 03
+  robustness panel, 05); 02, 04 and 06 use whole repertoires. Methods wording: "up to 500
+  TRB clonotypes per person, ranked by read support; ties at the cutoff sampled at random
+  (seeded)". This replaces the 2026-09-28 "500 is inherited, robustness check owed" item.
 
 - **Methods review fixes (2026-10-04), from reading the code for the methods artifact.**
   All implemented, tested on synthetic data with planted effects, run on the VM via
