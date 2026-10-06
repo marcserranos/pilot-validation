@@ -3,27 +3,27 @@
 > **Role:** where we are *right now*, plus the literal next commands. The only file fully
 > rewritten each session. Anything durable graduates to ENVIRONMENT, DECISIONS or EXPERIMENTS.
 
-## As of 2026-10-04 — methods week: review done, polish run ready for the VM
+## As of 2026-10-06 — methods week: polish run done, methods artifact updated
 
-This week is methods consolidation, not new analysis. The methods artifact documents every
-stage (https://claude.ai/artifact/DR6G9cPp4DKPeBSVyeZ1vi). Building it found nine code issues;
-all are fixed in code and tested on synthetic data (DECISIONS.md, 2026-10-04). The VM run
-that applies them is `scripts/run_polish.sh`.
+The polish run finished 2026-10-04 (commit 5b83486); results in EXPERIMENTS.md. Methods
+artifact (v2): https://claude.ai/artifact/DR6G9cPp4DKPeBSVyeZ1vi
 
-Results through 2026-09-29 (EXPERIMENTS.md) stand except where the polish run changes them:
-01, 03, 05, 06 depend on the top-500 pool (tie-break fix); 06 and 07 person-level numbers
-change by design; 04/07 gain CIs. Report 02 (ageing, the lead result) is unaffected.
+Numbers that changed and must be used from now on:
+- 06 headline: SCEPTR mean + TRBV usage **27.0% z-scored** (29.4% raw), depth R2 0.17.
+- 03 person-vector stability: 0.76 (not 0.35).
+- 01: no repertoire-size effect on the person map (the old one was a tie-break artifact).
+- 05: report crude and within-V enrichment side by side.
+- 07: SCEPTR variants statistically indistinguishable; baselines worse.
+Report 02 (ageing) unchanged.
 
 ## Pick up here
 
-1. On the VM:
-   `cd ~/repos/pilot-validation && git pull && nohup bash aleix/RNA-seq/scripts/run_polish.sh > ~/polish.log 2>&1 &`
-   Progress: `grep '^====' ~/polish.log`. Resumable: rerun the same command after a failure.
-   Expected ~6-8 h (full-cache embedding ~2 h, pool re-embed ~50 min, 04 and 07 ~1 h each).
-2. When it finishes (it commits and pushes): pull, read 08 first (how big was the tie skew?),
-   then compare 01/03/05/06/07 with the v1 numbers, append results to EXPERIMENTS.md, update
-   the methods artifact (software versions from `reports/08_methods_audit/environment.txt`,
-   open issues 1-9 to resolved), and decide the identifiability headline (DECISIONS open item).
-3. Then the ageing write-up (02), and the HLA/disease join when Aleix wants it.
+1. Decide the identifiability headline (DECISIONS open item; recommendation: z-scored).
+2. Rewrite `reports/01_sceptr_embedding_viz/README.md` (still describes the old size region).
+3. BAM-cap comparison: rerun only 08 with the right paths, e.g.
+   `pixi run python3 -u scripts/08_methods_audit.py --overlap <path to lr_rnaseq_overlap_cohort.tsv> --qc <path to RNA-SeQC2 metrics>`
+   (find them with `ls ~/pipeline_outputs/rnaseq/ ~/pipeline_outputs/rnaseq/qc/`).
+4. Consider a cap near 300 for the pool (~200 of 500 slots are random among 1-2-read clonotypes).
+5. Then the official methods document, the ageing write-up, and the HLA/disease join.
 
 Related: [[../../context/STATUS.md]] (root, Marc's).

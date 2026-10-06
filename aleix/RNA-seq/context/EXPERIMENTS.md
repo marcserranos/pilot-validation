@@ -227,3 +227,39 @@ aggregation recovers the planted 10% of CDR3s without a V call (+11%); MH, resid
 and balanced concat checked against known answers.
 
 VM run: `run_polish.sh` — results to be appended here.
+
+### 2026-10-04 polish run — results (run_polish.sh, all steps done 18:17-22:36 UTC, pushed 5b83486)
+
+Pulled and read 2026-10-06. Outputs in `reports/08_methods_audit/` plus reruns of 01, 03-07.
+
+- **Environment** (`environment.txt`): TRUST4 **v1.1.5-r573** (bioconda), references from repo
+  commit 4032f90 (2026-08-03); STAR 2.7.11b confirmed on 3 more BAMs; sceptr 1.2.0, olga 1.3.0,
+  scikit-learn 1.9.1, umap-learn 0.5.12, cnsplots 0.7.0, torch 2.14.0, pandas 2.3.3, scipy
+  1.18.0; numpy present twice (conda 2.5.3, pip 2.4.6). trust4 now pinned in pixi.toml.
+- **Filter steps** (51.3 M cdr3.out rows): score >= 0.02 keeps 82.7%; canonical junction 92.2%
+  of those; length cap 99.96%; collapse to clonotypes 89.1%; TRB = 27.1% of clonotypes
+  (9,444,810).
+- **Tie audit**: cutoff inside a tie for 98.8% of the 7,340 people with > 500 TRB clonotypes
+  (78% at 1 read, 20% at 2). Median tied block 625, of which 199 kept: ~200 of 500 slots were
+  tie-decided. Random tie-break changed 19% of each top 500; pool V composition shifted 13.6 pp
+  (TRBV12-3 old/new 1.62x, TRBV10-3 1.77x, TRBV11-2 1.72x; TRBV7-9 0.65x, TRBV7-2 0.68x). Old
+  pool reproduced exactly (0 differences). BAM-cap check skipped (overlap/QC files not at the
+  default paths).
+- **Aggregation chain fix**: negligible (TRB +0.00%, IGH +0.66%).
+- **01**: person PC1 vs repertoire size Spearman -0.21 -> **0.004 (p 0.71)**. The
+  "small-repertoire region" was a tie-break artifact, not averaging noise.
+- **03**: top-250 vs top-500 person-distance correlation 0.35 -> **0.76**, 10-NN overlap 7.9%
+  -> 18.9%. Pgen result unchanged (0.66). Ancestry AUROC SCEPTR 0.730, TRBV usage 0.741.
+- **04**: benchmark CIs (500 epitope-bootstrap reps): b_sceptr 0.580 (0.527-0.641); paired
+  differences: cdr3_only and TRBV-only significantly lower, 3-mer lower on 5-NN only. Decoys:
+  97.9% within 0.25 log10 Pgen; exceptions MCPyV (12.8% no decoy), wheat (9.7% Pgen = 0).
+- **05**: stability 0.41 -> 0.47; mean top-TRBV share 74% -> 63%. 169/364 crude, 126 within-V
+  (MH), 89 both. Strongest influenza A (cl. 50, OR 29.8) and self-peptide (cl. 12, OR 23.8)
+  hits are V-gene effects (n.s. within V); CMV/EBV hold within V; 2 self-peptide clusters
+  still enriched within V (cl. 36, OR 19).
+- **06**: full-cache vectors, 98.9% coverage, 4,724,280 clonotypes. SCEPTR mean + TRBV: **29.4%
+  raw (CI 28.0-30.9), 27.0% z-scored, 26.9% depth removed**; age R2 0.34; depth R2 **0.17**
+  (was 0.41). TRBV usage 23.8% raw / 16.5% z. SCEPTR mean alone 11.2%. Balanced concat 27.6%
+  raw, = raw once z-scored. Depth leakage was mostly the partial coverage.
+- **07**: no SCEPTR variant differs from b_sceptr (all paired CIs include 0); TRBV one-hot and
+  3-mer significantly worse. Person axis near floor at 250 clonotypes (0.3-3.1%).
