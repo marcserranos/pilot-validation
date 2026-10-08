@@ -49,8 +49,9 @@
   every disease/ancestry analysis; exclusions are flags, never deletions.
   - *Relatedness resolved within our cohort* from AoU's pairwise `samples_relatedness.tsv`
     (kin >= 0.0884, second degree), not AoU's global flagged list, which also removes people
-    whose relative is not in our 7,922. Greedy maximal unrelated set keeps the relative with
-    more TRB reads. `family_id` is kept too, so models can use grouped CV and keep relatives.
+    whose relative is not in our 7,922. Greedy maximal unrelated set keeps, in order of priority,
+    the relative who passes the other main filters, then the one with more TRB reads (so a
+    pair never loses its only usable member). `family_id` is kept too, so models can use grouped CV and keep relatives.
   - *Read floor = 823 TRB reads*, the same fixed depth as report 02's rarefaction, so every
     depth-normalised metric uses one number. The cost of 250-2,000 is reported by ancestry.
   - *Diversity at fixed depth*: exact rarefied richness, and Shannon / e^H / inverse

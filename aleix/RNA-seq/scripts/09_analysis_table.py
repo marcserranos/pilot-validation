@@ -110,10 +110,11 @@ def load_ancestry(path, ids):
 
 # ------------------------------------------------------------------ relatedness
 
-def resolve_relatedness(path, people, kin):
+def resolve_relatedness(path, people, kin, eligible):
     """family_id = connected component; unrelated = greedy maximal set within the cohort.
-    Greedy: repeatedly drop the person with most remaining relatives (ties: fewer TRB reads,
-    then larger id), which keeps more people than dropping arbitrarily."""
+    Greedy: first drop relatives who fail the other main filters (`eligible` False), so a
+    pair never loses its only usable member; then repeatedly drop the person with most
+    remaining relatives (ties: fewer TRB reads, then larger id)."""
     ids = set(people["research_id"])
     rel = pd.read_csv(p(path), sep="\t", dtype={"i.s": str, "j.s": str})
     for c in ("i.s", "j.s", "kin"):
@@ -138,11 +139,12 @@ def resolve_relatedness(path, people, kin):
             fam[x] = fid
             stack.extend(adj[x] - fam.keys())
     reads = people.set_index("research_id")["trb_reads"].fillna(0).to_dict()
+    elig = dict(zip(people["research_id"], np.asarray(eligible, bool)))
     live = {k: set(v) for k, v in adj.items()}
     dropped = set()
     while any(live.values()):
         x = max((k for k, v in live.items() if v),
-                key=lambda k: (len(live[k]), -reads.get(k, 0), k))
+                key=lambda k: (not elig.get(k, False), len(live[k]), -reads.get(k, 0), k))
         dropped.add(x)
         for y in live.pop(x):
             live[y].discard(x)
@@ -318,10 +320,18 @@ def main():
     else:
         note(f"!! no rnaseq_metadata.tsv at {meta_path}")
 
+    # ---- flags (before relatedness, which prefers to keep the eligible relative)
+    people["pass_read_floor"] = people["trb_reads"] >= args.depth
+    people["has_ehr_window"] = people["ehr_years"] > 0
+    people["adult"] = people["age"] >= 18
+    people["has_sex"] = people["sex"].isin(["Female", "Male"])
+    eligible = (people["pass_read_floor"] & people["has_ehr_window"] & people["adult"]
+                & people["has_sex"])
+
     # ---- relatedness
     rel_path = os.path.join(aou, "wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv")
     if os.path.exists(rel_path):
-        rs = resolve_relatedness(rel_path, people, args.kin)
+        rs = resolve_relatedness(rel_path, people, args.kin, eligible)
         summary += list(rs.items())
         note(f"Relatedness: {rs}")
     else:
@@ -330,11 +340,6 @@ def main():
         people["unrelated"] = True
         summary.append(("relatedness", "missing"))
 
-    # ---- flags
-    people["pass_read_floor"] = people["trb_reads"] >= args.depth
-    people["has_ehr_window"] = people["ehr_years"] > 0
-    people["adult"] = people["age"] >= 18
-    people["has_sex"] = people["sex"].isin(["Female", "Male"])
     people["analysis_main"] = (people["pass_read_floor"] & people["has_ehr_window"]
                                & people["adult"] & people["has_sex"] & people["unrelated"])
 
