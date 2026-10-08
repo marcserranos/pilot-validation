@@ -19,6 +19,12 @@ One-pager: https://claude.ai/artifact/CyJ3ktfg3xuJeJWogCZRMv
 
 ## Pick up here
 
+0. **2026-10-08 plan (call of 10-06): we own everything RNA-seq/TRB; map disease and ancestry
+   onto it.** W0 analysis table (report 09, `scripts/run_w0.sh`) -> W1 V/J usage by ancestry
+   -> W2 curate ~30 chronic diseases -> W3 feature sets -> W4 association at fixed depth ->
+   W5 classification v0 (gain over age/sex/ancestry/depth baseline) -> W6 handover notes.
+   W0 launched on the VM 2026-10-08.
+
 1. DONE 2026-10-06: identifiability headline = z-scored 27.0% (25.6-28.4%); cap stays 500 (DECISIONS).
 2. Rewrite `reports/01_sceptr_embedding_viz/README.md` (still describes the old size region).
 3. BAM-cap comparison: DONE 2026-10-06 (excluded = 2.5x deeper; see EXPERIMENTS). Optional: TRUST4 on the 404.

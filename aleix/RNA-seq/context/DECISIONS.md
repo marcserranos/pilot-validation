@@ -45,6 +45,24 @@
 
 ## Resolved decisions
 
+- **W0 analysis table (report 09), design decisions (2026-10-08).** One row per person for
+  every disease/ancestry analysis; exclusions are flags, never deletions.
+  - *Relatedness resolved within our cohort* from AoU's pairwise `samples_relatedness.tsv`
+    (kin >= 0.0884, second degree), not AoU's global flagged list, which also removes people
+    whose relative is not in our 7,922. Greedy maximal unrelated set keeps the relative with
+    more TRB reads. `family_id` is kept too, so models can use grouped CV and keep relatives.
+  - *Read floor = 823 TRB reads*, the same fixed depth as report 02's rarefaction, so every
+    depth-normalised metric uses one number. The cost of 250-2,000 is reported by ancestry.
+  - *Diversity at fixed depth*: exact rarefied richness, and Shannon / e^H / inverse
+    Simpson / public fraction averaged over 10 seeded subsamples of 823 reads. Raw versions
+    kept to compare with Cole's PheWAS (which uses raw entropy + total reads).
+  - *Ancestry purity (0.90 / 0.95) only for ancestry-stratified figures*; models use AoU
+    PC1-10 instead, so admixed people are not dropped.
+  - *Ancestry probability order* (AFR, AMR, EAS, EUR, MID, SAS) is asserted, then checked
+    (argmax must reproduce ancestry_pred for >= 99%).
+  - *rnaseq_metadata.tsv is profiled, not interpreted*: the draw-date column is chosen after
+    seeing its fill rate (Cole: ~3,700 people have an RNA-seq date).
+
 - **Identifiability headline = z-scored (decided 2026-10-06).** Quote report 06 as: SCEPTR
   mean + TRBV usage, **27.0% (95% CI 25.6-28.4%)** of 4,000 people matched to their own
   split-half repertoire, chance 0.025%; TRBV usage alone 16.5% (15.4-17.7%); SCEPTR mean
