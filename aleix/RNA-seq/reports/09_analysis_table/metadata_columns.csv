@@ -1,0 +1,9 @@
+column,pct_filled,n_distinct,looks_like_date
+alignment_rate_pct,100.0,1620,False
+rqs,100.0,360,False
+mrna_bases_pct,100.0,3187,False
+ribosomal_bases_pct,100.0,598,False
+processing_status,100.0,1,False
+reads_aligned_in_pairs,100.0,7922,False
+mean_insert_size,100.0,167,False
+pipeline_id,100.0,1,False
