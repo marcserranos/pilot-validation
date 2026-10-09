@@ -132,11 +132,12 @@ def tie_key(research_id, v_genes, cdr3s):
 
 
 def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_report_fallback,
-                      max_len=30, stats=None):
+                      max_len=30, stats=None, keep_j=False):
     """One row per unique clonotype (chain, V gene, CDR3aa) for this person, ranked by
     read support, highest first, ties broken by tie_key(). Returns (df, source) where source
     is 'cdr3.out', 'report.tsv', or None if nothing usable. If `stats` is a dict, the row
-    count after each filtering step is written into it (for the methods audit)."""
+    count after each filtering step is written into it (for the methods audit). keep_j adds
+    a j_gene column (J call of the clonotype's best-supported assembly)."""
     st = stats if stats is not None else {}
     base = os.path.join(os.path.expanduser(pheno_dir), research_id)
     cdr3_out = os.path.join(base, f"{research_id}_cdr3.out")
@@ -190,8 +191,14 @@ def load_person_cdr3s(pheno_dir, research_id, min_score, keep_imputed, allow_rep
     # assemblies. Sum their read support, then rank so a per-person cap keeps the
     # dominant clonotypes rather than whatever happened to come first in the file. Ties
     # (most clonotypes have 1-2 reads) are broken by tie_key(), not by name.
-    df = (df.groupby(["chain", "V", "cdr3aa"], as_index=False)
-            .agg(reads=("reads", "sum"), score=("score", "max")))
+    if keep_j:
+        # J of the best-supported assembly; the clonotype key stays (chain, V, CDR3 aa)
+        df = df.sort_values("reads", ascending=False, kind="stable")
+        df = (df.groupby(["chain", "V", "cdr3aa"], as_index=False)
+                .agg(reads=("reads", "sum"), score=("score", "max"), j_gene=("J", "first")))
+    else:
+        df = (df.groupby(["chain", "V", "cdr3aa"], as_index=False)
+                .agg(reads=("reads", "sum"), score=("score", "max")))
     df["_tb"] = tie_key(research_id, df["V"], df["cdr3aa"])
     df = (df.sort_values(["reads", "_tb"], ascending=[False, True], kind="stable")
             .drop(columns="_tb"))

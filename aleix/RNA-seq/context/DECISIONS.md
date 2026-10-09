@@ -45,6 +45,20 @@
 
 ## Resolved decisions
 
+- **W1 V/J usage by ancestry (report 10), design decisions (2026-10-08).**
+  - *Usage counted on unique clonotypes, not reads*: reads measure expansion and
+    transcription; clonotype counts measure which genes recombine and pass selection, which
+    is what germline or HLA effects on usage would change.
+  - *Common genes only* (mean usage >= 0.1%, present in >= 50% of people).
+  - *Compositional handling*: CLR per composition (V and J separately, +0.5 pseudocount),
+    Aitchison PCA (centred, unscaled). Known consequence, documented in the script: a
+    strong change in one gene echoes as small opposite changes in all others.
+  - *Subcohorts*: features/PCA on read-floor people (7,527); figure on ancestry probability
+    >= 0.90; ancestry prediction on read floor + unrelated with family-grouped CV, compared
+    with a covariate-only model (age, sex, depth) and permuted labels.
+  - *J genes*: `load_person_cdr3s(keep_j=True)` takes the J call of each clonotype's
+    best-supported assembly; default output verified byte-identical to before.
+
 - **W0 analysis table (report 09), design decisions (2026-10-08).** One row per person for
   every disease/ancestry analysis; exclusions are flags, never deletions.
   - *Relatedness resolved within our cohort* from AoU's pairwise `samples_relatedness.tsv`
