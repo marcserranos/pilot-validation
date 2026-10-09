@@ -57,6 +57,8 @@
   - *Diversity at fixed depth*: exact rarefied richness, and Shannon / e^H / inverse
     Simpson / public fraction averaged over 10 seeded subsamples of 823 reads. Raw versions
     kept to compare with Cole's PheWAS (which uses raw entropy + total reads).
+  - *Sex is a covariate (Female / Male / Unknown), not a filter*: requiring a recorded sex
+    removed 13% of AFR but 1.5% of EAS. `has_sex` remains for sex-specific diseases.
   - *Ancestry purity (0.90 / 0.95) only for ancestry-stratified figures*; models use AoU
     PC1-10 instead, so admixed people are not dropped.
   - *Ancestry probability order* (AFR, AMR, EAS, EUR, MID, SAS) is asserted, then checked

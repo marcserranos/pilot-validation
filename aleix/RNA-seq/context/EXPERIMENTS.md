@@ -276,3 +276,25 @@ protected by rarefaction; raw-count analyses are biased slightly downward. TRUST
 run on the 404, so inclusion is testable only by running it (~4-6 h, one VM). Overall 4.9% excluded,
 but 48.5% of the top depth decile (by mapped reads) was excluded. Tie audit
 reproduced identically.
+
+## 2026-10-08 — W0 analysis table (report 09, run_w0.sh, commit 88d808e)
+
+7,922 x 72 person table (VM-local). Waterfall (cumulative): cohort 7,922 -> TRB reads >= 823:
+7,527 (95.0%, even across ancestry) -> EHR window > 0: 6,971 (uneven: AFR -14%, AMR -11%,
+EUR -5%, EAS -5%) -> adult: 6,968 -> sex recorded: 6,591 (AFR -13%, EUR -7%, EAS -1.5%) ->
+unrelated: 6,393. Relatedness inside the cohort: 445 pairs (kin >= 0.0884), 571 people,
+206 families, 275 dropped (198 of them among otherwise-eligible people).
+- **Depth control works.** Spearman with log TRB reads: Shannon raw 0.56 -> at 823 reads 0.15;
+  inverse Simpson 0.13 -> 0.02; clonotype count 0.90 -> rarefied richness 0.30; public
+  fraction ~0 either way. Raw Shannon rises ~1.5 nats across the cohort's depth range; the
+  fixed-depth version varies ~0.25 (fig_depth_and_diversity). Cole's CMV effect (-0.78 nats)
+  is half the raw depth range, so his linear total-reads adjustment carries a lot of weight.
+- **Ancestry probabilities**: order AFR..SAS confirmed (argmax = ancestry_pred for 100%).
+  Purity is very uneven: median max probability EUR 0.80, AMR 0.93, SAS/EAS 1.00; >= 0.90
+  keeps 31% of EUR, 39% of AMR, 76% of EAS, 88% of SAS. Fine for coloured figures only.
+- **rnaseq_metadata.tsv has no date**: columns are alignment rate, RQS, mRNA/ribosomal bases
+  %, reads aligned in pairs, insert size, pipeline id, status. Cole's ~3,700 RNA-seq dates
+  come from elsewhere (ask him). Age stays 2020 - year of birth.
+- Follow-up (same day): sex changed from filter to covariate (sex_model Female/Male/Unknown),
+  since the filter removed 13% of AFR. analysis_main is now floor + EHR window + adult +
+  unrelated; rerun pending.

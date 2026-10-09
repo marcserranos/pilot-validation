@@ -23,8 +23,10 @@ COLUMNS (VM-local file; see data_dictionary.csv for every column):
                 subsamples. Fixed-depth metrics are NaN below the depth.
   relatedness   family_id (connected components of kinship >= --kin within this cohort) and
                 unrelated (a maximal set with no pair at kinship >= --kin)
-  flags         pass_read_floor, has_ehr_window, adult, has_sex, analysis_main (all of these
-                and unrelated)
+  flags         pass_read_floor, has_ehr_window, adult, has_sex, analysis_main (floor, EHR
+                window, adult, unrelated). Sex is NOT a filter: sex_model is Female / Male /
+                Unknown, because requiring a recorded sex removed 13% of AFR vs 1.5% of EAS
+                (2026-10-08 run). has_sex stays available for sex-specific diseases.
 
 NON-OBVIOUS CHOICES (full reasoning in DECISIONS.md, 2026-10-08):
   - Relatedness is resolved INSIDE this cohort, from AoU's pairwise samples_relatedness.tsv,
@@ -325,8 +327,8 @@ def main():
     people["has_ehr_window"] = people["ehr_years"] > 0
     people["adult"] = people["age"] >= 18
     people["has_sex"] = people["sex"].isin(["Female", "Male"])
-    eligible = (people["pass_read_floor"] & people["has_ehr_window"] & people["adult"]
-                & people["has_sex"])
+    people["sex_model"] = people["sex"].where(people["has_sex"], "Unknown")
+    eligible = people["pass_read_floor"] & people["has_ehr_window"] & people["adult"]
 
     # ---- relatedness
     rel_path = os.path.join(aou, "wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv")
@@ -341,7 +343,7 @@ def main():
         summary.append(("relatedness", "missing"))
 
     people["analysis_main"] = (people["pass_read_floor"] & people["has_ehr_window"]
-                               & people["adult"] & people["has_sex"] & people["unrelated"])
+                               & people["adult"] & people["unrelated"])
 
     # ---- write the person table (VM-local only)
     people.to_pickle(os.path.join(local, "person_table.pkl"))
@@ -353,7 +355,6 @@ def main():
              (f"TRB reads >= {args.depth}", people["pass_read_floor"]),
              ("EHR window > 0", people["has_ehr_window"]),
              ("adult (>= 18)", people["adult"]),
-             ("sex recorded", people["has_sex"]),
              ("unrelated", people["unrelated"])]
     m = np.ones(len(people), bool)
     wf = []
