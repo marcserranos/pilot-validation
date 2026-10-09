@@ -68,6 +68,7 @@ pass_read_floor,bool,100.0
 has_ehr_window,bool,100.0
 adult,bool,100.0
 has_sex,bool,100.0
+sex_model,object,100.0
 family_id,int64,100.0
 unrelated,bool,100.0
 analysis_main,bool,100.0

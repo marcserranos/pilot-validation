@@ -3,7 +3,6 @@ cohort,7922,1288,1699,1134,2351,404,1046
 TRB reads >= 823,7527,1236,1592,1078,2203,392,1026
 EHR window > 0,6971,1058,1419,1021,2101,375,997
 adult (>= 18),6968,1058,1418,1019,2101,375,997
-sex recorded,6591,920,1354,1004,1958,366,989
-unrelated,6393,880,1301,992,1881,362,977
-(stratified figures only) ancestry prob >= 0.90,4006,596,669,860,729,231,921
-(stratified figures only) ancestry prob >= 0.95,3622,508,570,848,641,136,919
+unrelated,6764,1018,1362,1006,2023,371,984
+(stratified figures only) ancestry prob >= 0.90,4271,714,713,872,808,237,927
+(stratified figures only) ancestry prob >= 0.95,3851,605,610,860,711,140,925
