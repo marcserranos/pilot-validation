@@ -297,4 +297,5 @@ unrelated: 6,393. Relatedness inside the cohort: 445 pairs (kin >= 0.0884), 571 
   come from elsewhere (ask him). Age stays 2020 - year of birth.
 - Follow-up (same day): sex changed from filter to covariate (sex_model Female/Male/Unknown),
   since the filter removed 13% of AFR. analysis_main is now floor + EHR window + adult +
-  unrelated; rerun pending.
+  unrelated. Rerun (88d08dd): analysis_main 6,764 (AFR 1,018, AMR 1,362, EAS 1,006, EUR
+  2,023, MID 371, SAS 984), +371 vs the sex filter; pure90 4,271, pure95 3,851.
