@@ -318,3 +318,11 @@ EAS 0.88, SAS 0.83, EUR 0.80, MID 0.73, AMR 0.70.
 - Follow-up added same day: zero-usage-by-ancestry table (observed vs expected-by-chance
   zeros, implied absence-allele frequency), PCA without the indel genes, V+J+covariates.
   Tested on a planted deletion (80% SAS / 10% others absent -> recovered 80.5% / 12.7%).
+- Rerun df6e5f0: V+J+covariates 0.815; V+J without indel genes 0.803 (TRBV4-3 does not carry
+  the ancestry prediction). **TRBV4-3 never used by 27.3% of people** (SAS 43.5%, AFR 33.3%,
+  EAS 30.1%, MID 25.8%, AMR 25.4%, EUR 16.7%) although at 1.5% usage chance zeros are ~0 ->
+  genotype. TRBV6-2 is never zero (likely TRBV6-3 reads called as 6-2), so "co-deleted with
+  TRBV6-2" is not supported as stated. The excess-zero table of that run was WRONG for rare
+  genes (expected zeros computed from median usage among users -> ~1/e for every rare gene);
+  fixed: pooled usage rate, rare genes (chance zeros >= 1%) marked not assessable; added
+  dosage histogram and a co-deletion table (genes reduced in people lacking TRBV4-3).

@@ -60,6 +60,8 @@ ANC = R.ANCESTRY_ORDER
 MIN_MEAN_USAGE = 0.001
 MIN_PRESENT = 0.5
 N_PCS = 10
+MAX_EXPECTED_ZERO = 0.01   # judge zeros only where chance zeros are < 1%
+MIN_EXCESS_ZERO = 0.02     # genotype-signature genes: >= 2% of people never use them
 
 
 def gene(g):
@@ -120,7 +122,7 @@ def main():
     ap.add_argument("--workers", type=int, default=os.cpu_count())
     ap.add_argument("--reread", action="store_true",
                     help="rebuild usage counts from cdr3.out even if analysis/vj_usage.pkl exists")
-    ap.add_argument("--indel-genes", default="TRBV4-3,TRBV6-2,TRBV3-2",
+    ap.add_argument("--indel-genes", default="TRBV4-3,TRBV3-2",
                     help="genes in the common TRB-locus insertion/deletion polymorphism; the "
                          "sensitivity PCA (panel e) is recomputed without them")
     args = ap.parse_args()
@@ -212,10 +214,15 @@ def main():
     gt.to_csv(os.path.join(outdir, "genes_by_ancestry.csv"), index=False)
 
     # ---------------- genotype signature: people who never use a gene ----------------
-    # Zero usage happens by chance when a person has few clonotypes and the gene is rare. The
-    # expected zero fraction if everyone carried the gene: mean over people of (1 - p)^n_i,
-    # p = the gene's median usage among people who use it, n_i = the person's clonotype count.
-    # Zeros well above that expectation point to people lacking the gene (germline).
+    # If everyone carried the gene, a person with n clonotypes would show none of it with
+    # probability (1 - p)^n, p = the gene's POOLED usage (sum of its clonotypes / sum of all;
+    # people lacking the gene only lower p, so the expectation is conservative). Zeros are
+    # only judged where that expectation is small (< MAX_EXPECTED_ZERO): for rare genes
+    # chance zeros are common and person-to-person variation in usage makes any excess
+    # uninterpretable, so they are marked not assessable. (First version used the median
+    # usage among people who use the gene; that conditions on presence, inflates p for rare
+    # genes to ~1/n and made every rare gene look deleted -- expected zeros all came out at
+    # about 1/e. Fixed 2026-10-08.)
     z_rows = []
     for comp, C in (("V", Vc), ("J", Jc)):
         tot = C.sum(1).to_numpy(float)
@@ -224,27 +231,62 @@ def main():
             present = c > 0
             if present.sum() < R.MIN_PEOPLE:
                 continue
-            pg = float(np.median(c[present] / tot[present]))
+            pg = float(c.sum() / tot.sum())
             exp0 = (1 - pg) ** tot
-            row = {"gene": g, "median_usage_pct_if_used": 100 * pg,
+            row = {"gene": g, "pooled_usage_pct": 100 * pg,
                    "obs_zero_frac": float(np.mean(~present)), "exp_zero_frac": float(np.mean(exp0))}
-            for a in ANC:
-                m = anc == a
+            for a_ in ANC:
+                m = anc == a_
                 if m.sum() >= R.MIN_PEOPLE:
-                    row[f"obs_zero_{a}"] = float(np.mean(~present[m]))
-                    row[f"exp_zero_{a}"] = float(np.mean(exp0[m]))
+                    row[f"obs_zero_{a_}"] = float(np.mean(~present[m]))
+                    row[f"exp_zero_{a_}"] = float(np.mean(exp0[m]))
             z_rows.append(row)
     zt = pd.DataFrame(z_rows)
-    zt["excess_zero_frac"] = zt["obs_zero_frac"] - zt["exp_zero_frac"]
-    # if zeros are homozygous absence and alleles are in Hardy-Weinberg equilibrium,
-    # absence-allele frequency q ~ sqrt(excess zero fraction)
+    zt["assessable"] = zt["exp_zero_frac"] < MAX_EXPECTED_ZERO
+    zt["excess_zero_frac"] = np.where(zt["assessable"], zt["obs_zero_frac"] - zt["exp_zero_frac"], np.nan)
+    # zeros = people with no copy; under Hardy-Weinberg the absence-allele frequency is
+    # sqrt(fraction with no copy)
     zt["implied_absence_allele_freq"] = np.sqrt(zt["excess_zero_frac"].clip(lower=0))
-    zt = zt.sort_values("excess_zero_frac", ascending=False)
+    for a_ in ANC:
+        if f"obs_zero_{a_}" in zt:
+            zt[f"implied_absence_allele_freq_{a_}"] = np.where(
+                zt["assessable"], np.sqrt((zt[f"obs_zero_{a_}"] - zt[f"exp_zero_{a_}"]).clip(lower=0)), np.nan)
+    zt = zt.sort_values("excess_zero_frac", ascending=False, na_position="last")
     zt.to_csv(os.path.join(outdir, "zero_usage_by_ancestry.csv"), index=False)
-    print("Genes with excess zero usage (observed - expected if everyone carried them):\n"
-          + zt.head(8)[["gene", "obs_zero_frac", "exp_zero_frac", "excess_zero_frac",
-                        "implied_absence_allele_freq"]].round(3).to_string(index=False),
-          file=sys.stderr)
+    print("Assessable genes with excess zero usage:\n"
+          + zt[zt["assessable"]].head(6)[["gene", "pooled_usage_pct", "obs_zero_frac", "exp_zero_frac",
+                                          "implied_absence_allele_freq"]].round(4).to_string(index=False)
+          + f"\n({int((~zt['assessable']).sum())} rare genes not assessable)", file=sys.stderr)
+
+    # dosage and co-deletion, for the strongest genotype gene
+    geno = zt[zt["assessable"] & (zt["excess_zero_frac"] > MIN_EXCESS_ZERO)]["gene"].tolist()
+    gq = geno[0] if geno else None
+    dos = None
+    if gq is not None:
+        Cq = Vc if gq in Vc.columns else Jc
+        u = (Cq[gq] / Cq.sum(1)).to_numpy()
+        absent = u == 0
+        Pv = Vc.div(Vc.sum(1), axis=0)
+        cod = pd.DataFrame({"gene": Pv.columns,
+                            "median_usage_pct_gene_absent": 100 * Pv[absent].median().to_numpy(),
+                            "median_usage_pct_gene_present": 100 * Pv[~absent].median().to_numpy()})
+        cod["ratio_absent_over_present"] = (cod["median_usage_pct_gene_absent"]
+                                           / cod["median_usage_pct_gene_present"].replace(0, np.nan))
+        cod = cod[cod["gene"] != gq].sort_values("ratio_absent_over_present")
+        cod.insert(0, "reference_gene", gq)
+        cod.to_csv(os.path.join(outdir, "codeletion_vs_absence.csv"), index=False)
+        print(f"Genes most reduced in people lacking {gq} (candidate co-deleted neighbours):\n"
+              + cod.head(5).round(3).to_string(index=False), file=sys.stderr)
+        # usage histogram (people with the gene), for the dosage panel: heterozygotes should
+        # sit near half the usage of homozygous carriers
+        hi = np.quantile(u[~absent], 0.99)
+        edges = np.linspace(0, hi, 41)
+        cnt, _ = np.histogram(u[~absent], edges)
+        dos = pd.DataFrame({"usage_pct_lo": 100 * edges[:-1], "usage_pct_hi": 100 * edges[1:],
+                            "people": np.where(cnt >= R.MIN_PEOPLE, cnt, 0)})
+        dos.loc[len(dos)] = [0.0, 0.0, int(absent.sum()) if absent.sum() >= R.MIN_PEOPLE else 0]
+        dos.insert(0, "gene", gq)
+        dos.to_csv(os.path.join(outdir, "dosage_histogram.csv"), index=False)
 
     # ---------------- sensitivity: PCA without the indel genes ----------------
     indel = [g for g in args.indel_genes.split(",") if g in Vk.columns]
@@ -347,21 +389,32 @@ def main():
     ax.set_ylabel(f"PC2 ({100 * pca2.explained_variance_ratio_[1]:.1f}%)")
 
     ax = mp.panel("f", width=W, height=H, margin_right=12, margin_bottom=GAP)
-    show = [g for g in ("TRBV4-3", "TRBV6-2", "TRBV3-2") if g in set(zt["gene"])][:2]
-    if not show:
-        show = list(zt["gene"].head(2))
+    show = geno[:2] if geno else []
     w = 0.38
     for k, g in enumerate(show):
         r = zt.set_index("gene").loc[g]
-        xs = np.arange(len(ANC)) + (k - 0.5) * w
-        obs = [100 * r.get(f"obs_zero_{a}", np.nan) for a in ANC]
-        exp_ = [100 * r.get(f"exp_zero_{a}", np.nan) for a in ANC]
-        ax.bar(xs, obs, width=w, color=pal[k], lw=0, label=f"{g} observed")
-        ax.scatter(xs, exp_, s=10, color="black", zorder=3, label="expected by chance" if k == 0 else None)
+        xs = np.arange(len(ANC)) + (k - (len(show) - 1) / 2) * w
+        ax.bar(xs, [100 * r.get(f"obs_zero_{a_}", np.nan) for a_ in ANC], width=w, color=pal[k],
+               lw=0, label=f"{g} observed")
+        ax.scatter(xs, [100 * r.get(f"exp_zero_{a_}", np.nan) for a_ in ANC], s=10, color="black",
+                   zorder=3, label="expected if all carried it" if k == 0 else None)
     ax.set_xticks(range(len(ANC)))
     ax.set_xticklabels(ANC)
-    ax.legend(frameon=False, fontsize=5.5)
+    if show:
+        ax.legend(frameon=False, fontsize=5.5)
     R.style(ax, "People who never use the gene", None, "% of people")
+
+    ax = mp.panel("g", width=W, height=H, margin_right=12, margin_bottom=GAP)
+    if dos is not None:
+        d0 = dos[dos["usage_pct_hi"] > 0]
+        ax.bar(d0["usage_pct_lo"], d0["people"], width=d0["usage_pct_hi"] - d0["usage_pct_lo"],
+               align="edge", color=pal[3], lw=0, label="use it")
+        z0 = int(dos.loc[dos["usage_pct_hi"] == 0, "people"].iloc[0])
+        ax.bar([-(d0["usage_pct_hi"].iloc[0] - d0["usage_pct_lo"].iloc[0]) * 1.5], [z0],
+               width=d0["usage_pct_hi"].iloc[0] - d0["usage_pct_lo"].iloc[0], color=pal[0], lw=0,
+               label="never use it")
+        ax.legend(frameon=False, fontsize=5.5)
+        R.style(ax, f"{gq} usage per person", f"{gq} share of clonotypes (%)", "People")
     R.save("fig_vj_usage_ancestry", outdir)
 
     summary = [("people_read_floor", len(pt)), ("people_unrelated_for_auroc", int(sub.sum())),
