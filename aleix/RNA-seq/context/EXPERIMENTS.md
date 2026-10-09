@@ -299,3 +299,22 @@ unrelated: 6,393. Relatedness inside the cohort: 445 pairs (kin >= 0.0884), 571 
   since the filter removed 13% of AFR. analysis_main is now floor + EHR window + adult +
   unrelated. Rerun (88d08dd): analysis_main 6,764 (AFR 1,018, AMR 1,362, EAS 1,006, EUR
   2,023, MID 371, SAS 984), +371 vs the sex filter; pure90 4,271, pure95 3,851.
+
+## 2026-10-08 — W1 V/J usage by ancestry (report 10, commit 15865f9)
+
+46 common TRBV + 13 TRBJ, 7,527 people. Ancestry prediction (macro one-vs-rest AUROC, unrelated,
+family-grouped CV): TRBV 0.774, TRBJ 0.701, V+J **0.804**; covariates only (age, sex, depth)
+0.614 (not chance: groups differ in age and depth); permuted 0.504. Per group (V+J): AFR 0.89,
+EAS 0.88, SAS 0.83, EUR 0.80, MID 0.73, AMR 0.70.
+- **PCA is not an ancestry map.** Ancestry explains 7.5% of PC1 and 12% of PC2. PC1 (19.4%)
+  is almost one gene: TRBV4-3 (loading 0.90; TRBV6-2 0.22). Panel a shows two clusters with
+  every ancestry in both. SAS median TRBV4-3 usage 0.08% vs ~1% elsewhere. Reading (to
+  verify): germline insertion/deletion polymorphism in the TRB locus removing TRBV4-3 /
+  TRBV3-2 / TRBV6-2, common in all groups, most frequent in SAS. Likely the source of Cole's
+  chr7 TRB-locus hit in the V-usage GWAS.
+- Top genes by eta2 are J genes: TRBJ2-1 (0.18; higher EAS/SAS, lower AFR), TRBJ1-2 / 1-1 /
+  1-6 (higher AFR) -> a TRBJ1-vs-TRBJ2 cluster balance that shifts with ancestry. TRBV28 is
+  ~2x lower in AFR (3.1% vs 6.0%). Germline vs reference-mapping explanations not separated.
+- Follow-up added same day: zero-usage-by-ancestry table (observed vs expected-by-chance
+  zeros, implied absence-allele frequency), PCA without the indel genes, V+J+covariates.
+  Tested on a planted deletion (80% SAS / 10% others absent -> recovered 80.5% / 12.7%).

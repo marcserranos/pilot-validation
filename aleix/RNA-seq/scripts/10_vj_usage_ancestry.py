@@ -118,6 +118,11 @@ def main():
     ap.add_argument("--purity", type=float, default=0.90)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--workers", type=int, default=os.cpu_count())
+    ap.add_argument("--reread", action="store_true",
+                    help="rebuild usage counts from cdr3.out even if analysis/vj_usage.pkl exists")
+    ap.add_argument("--indel-genes", default="TRBV4-3,TRBV6-2,TRBV3-2",
+                    help="genes in the common TRB-locus insertion/deletion polymorphism; the "
+                         "sensitivity PCA (panel e) is recomputed without them")
     args = ap.parse_args()
     outdir, local = os.path.expanduser(args.outdir), os.path.expanduser(args.local_out)
     os.makedirs(outdir, exist_ok=True)
@@ -128,18 +133,25 @@ def main():
     print(f"Read floor subcohort: {len(pt):,} people", file=sys.stderr)
 
     # ---------------- usage counts ----------------
-    t0 = time.time()
-    jobs = [(os.path.expanduser(args.trust4_dir), r) for r in pt["research_id"]]
-    V, J = {}, {}
-    with ProcessPoolExecutor(max_workers=args.workers) as ex:
-        for i, (rid, v, j) in enumerate(ex.map(usage_one, jobs, chunksize=16), 1):
-            if v is not None:
-                V[rid], J[rid] = v, j
-            if i % 1000 == 0:
-                print(f"  read {i:,}/{len(jobs):,} ({time.time() - t0:.0f}s)", file=sys.stderr)
-    Vc = pd.DataFrame(V).T.fillna(0).reindex(pt["research_id"]).fillna(0)
-    Jc = pd.DataFrame(J).T.fillna(0).reindex(pt["research_id"]).fillna(0)
-    pd.to_pickle({"V": Vc, "J": Jc}, os.path.join(local, "vj_usage.pkl"))
+    cache = os.path.join(local, "vj_usage.pkl")
+    if os.path.exists(cache) and not args.reread:
+        uc = pd.read_pickle(cache)
+        Vc = uc["V"].reindex(pt["research_id"]).fillna(0)
+        Jc = uc["J"].reindex(pt["research_id"]).fillna(0)
+        print(f"Loaded usage counts from {cache} (--reread to rebuild)", file=sys.stderr)
+    else:
+        t0 = time.time()
+        jobs = [(os.path.expanduser(args.trust4_dir), r) for r in pt["research_id"]]
+        V, J = {}, {}
+        with ProcessPoolExecutor(max_workers=args.workers) as ex:
+            for i, (rid, v, j) in enumerate(ex.map(usage_one, jobs, chunksize=16), 1):
+                if v is not None:
+                    V[rid], J[rid] = v, j
+                if i % 1000 == 0:
+                    print(f"  read {i:,}/{len(jobs):,} ({time.time() - t0:.0f}s)", file=sys.stderr)
+        Vc = pd.DataFrame(V).T.fillna(0).reindex(pt["research_id"]).fillna(0)
+        Jc = pd.DataFrame(J).T.fillna(0).reindex(pt["research_id"]).fillna(0)
+        pd.to_pickle({"V": Vc, "J": Jc}, cache)
 
     def common(C):
         P = C.div(C.sum(1).replace(0, np.nan), axis=0)
@@ -199,6 +211,52 @@ def main():
     gt = gt.sort_values("eta2", ascending=False)
     gt.to_csv(os.path.join(outdir, "genes_by_ancestry.csv"), index=False)
 
+    # ---------------- genotype signature: people who never use a gene ----------------
+    # Zero usage happens by chance when a person has few clonotypes and the gene is rare. The
+    # expected zero fraction if everyone carried the gene: mean over people of (1 - p)^n_i,
+    # p = the gene's median usage among people who use it, n_i = the person's clonotype count.
+    # Zeros well above that expectation point to people lacking the gene (germline).
+    z_rows = []
+    for comp, C in (("V", Vc), ("J", Jc)):
+        tot = C.sum(1).to_numpy(float)
+        for g in C.columns:
+            c = C[g].to_numpy(float)
+            present = c > 0
+            if present.sum() < R.MIN_PEOPLE:
+                continue
+            pg = float(np.median(c[present] / tot[present]))
+            exp0 = (1 - pg) ** tot
+            row = {"gene": g, "median_usage_pct_if_used": 100 * pg,
+                   "obs_zero_frac": float(np.mean(~present)), "exp_zero_frac": float(np.mean(exp0))}
+            for a in ANC:
+                m = anc == a
+                if m.sum() >= R.MIN_PEOPLE:
+                    row[f"obs_zero_{a}"] = float(np.mean(~present[m]))
+                    row[f"exp_zero_{a}"] = float(np.mean(exp0[m]))
+            z_rows.append(row)
+    zt = pd.DataFrame(z_rows)
+    zt["excess_zero_frac"] = zt["obs_zero_frac"] - zt["exp_zero_frac"]
+    # if zeros are homozygous absence and alleles are in Hardy-Weinberg equilibrium,
+    # absence-allele frequency q ~ sqrt(excess zero fraction)
+    zt["implied_absence_allele_freq"] = np.sqrt(zt["excess_zero_frac"].clip(lower=0))
+    zt = zt.sort_values("excess_zero_frac", ascending=False)
+    zt.to_csv(os.path.join(outdir, "zero_usage_by_ancestry.csv"), index=False)
+    print("Genes with excess zero usage (observed - expected if everyone carried them):\n"
+          + zt.head(8)[["gene", "obs_zero_frac", "exp_zero_frac", "excess_zero_frac",
+                        "implied_absence_allele_freq"]].round(3).to_string(index=False),
+          file=sys.stderr)
+
+    # ---------------- sensitivity: PCA without the indel genes ----------------
+    indel = [g for g in args.indel_genes.split(",") if g in Vk.columns]
+    Vk2 = Vk.drop(columns=indel)
+    X2 = np.hstack([clr_counts(Vk2.to_numpy(float)), CJ])
+    pca2 = PCA(n_components=N_PCS, random_state=args.seed).fit(X2 - X2.mean(0))
+    S2 = pca2.transform(X2 - X2.mean(0))
+    pcs2 = pd.DataFrame({"pc": [f"PC{k + 1}" for k in range(N_PCS)],
+                         "var_explained": pca2.explained_variance_ratio_,
+                         "ancestry_eta2": [eta2(S2[:, k], anc) for k in range(N_PCS)]})
+    pcs2.to_csv(os.path.join(outdir, "pca_components_without_indel_genes.csv"), index=False)
+
     # ---------------- ancestry prediction ----------------
     sub = pt["unrelated"].to_numpy()
     groups = pt["family_id"].to_numpy()
@@ -206,7 +264,9 @@ def main():
                            (pt["sex_model"] == "Female").astype(float),
                            (pt["sex_model"] == "Unknown").astype(float)])
     sets = {"TRBV usage": CV, "TRBJ usage": CJ, "TRBV + TRBJ usage": X,
-            "covariates only (age, sex, depth)": cov}
+            "covariates only (age, sex, depth)": cov,
+            "TRBV + TRBJ + covariates": np.hstack([X, cov]),
+            "TRBV + TRBJ without indel genes": X2}
     a_rows = []
     for name, F in sets.items():
         macro, per = cv_ancestry_auroc(F[sub], anc[sub], groups[sub], args.seed)
@@ -268,13 +328,40 @@ def main():
     ax = mp.panel("d", width=W, height=H, margin_right=12, margin_bottom=GAP)
     order = list(au["features"])
     y = np.arange(len(order))[::-1]
+    pal = R.nature()
+    fcol = {"TRBV usage": pal[0], "TRBJ usage": pal[1], "TRBV + TRBJ usage": pal[3],
+            "covariates only (age, sex, depth)": "0.6", "TRBV + TRBJ + covariates": pal[2],
+            "TRBV + TRBJ without indel genes": pal[4]}
     ax.barh(y, au["macro_auroc"] - 0.5, left=0.5, height=0.6,
-            color=[R.nature()[0], R.nature()[1], R.nature()[3], "0.6", "0.85"][:len(order)], lw=0)
+            color=[fcol.get(f, "0.85") for f in order], lw=0)
     ax.axvline(0.5, color="0.5", lw=0.5, ls="--")
     ax.set_yticks(y)
     ax.set_yticklabels(order, fontsize=5)
     ax.set_xlim(0.45, 1.0)
     R.style(ax, "Predicting ancestry", "Macro one-vs-rest AUROC", None)
+
+    ax = mp.panel("e", width=W, height=H, margin_right=75, margin_bottom=GAP)
+    m01.hdr_contours(ax, S2[pure][:, :2], anc[pure], ANC, [col[a] for a in ANC],
+                     "Without " + ", ".join(indel), "Ancestry")
+    ax.set_xlabel(f"PC1 ({100 * pca2.explained_variance_ratio_[0]:.1f}%)")
+    ax.set_ylabel(f"PC2 ({100 * pca2.explained_variance_ratio_[1]:.1f}%)")
+
+    ax = mp.panel("f", width=W, height=H, margin_right=12, margin_bottom=GAP)
+    show = [g for g in ("TRBV4-3", "TRBV6-2", "TRBV3-2") if g in set(zt["gene"])][:2]
+    if not show:
+        show = list(zt["gene"].head(2))
+    w = 0.38
+    for k, g in enumerate(show):
+        r = zt.set_index("gene").loc[g]
+        xs = np.arange(len(ANC)) + (k - 0.5) * w
+        obs = [100 * r.get(f"obs_zero_{a}", np.nan) for a in ANC]
+        exp_ = [100 * r.get(f"exp_zero_{a}", np.nan) for a in ANC]
+        ax.bar(xs, obs, width=w, color=pal[k], lw=0, label=f"{g} observed")
+        ax.scatter(xs, exp_, s=10, color="black", zorder=3, label="expected by chance" if k == 0 else None)
+    ax.set_xticks(range(len(ANC)))
+    ax.set_xticklabels(ANC)
+    ax.legend(frameon=False, fontsize=5.5)
+    R.style(ax, "People who never use the gene", None, "% of people")
     R.save("fig_vj_usage_ancestry", outdir)
 
     summary = [("people_read_floor", len(pt)), ("people_unrelated_for_auroc", int(sub.sum())),
