@@ -402,9 +402,9 @@ def main():
     ax.set_xticklabels(ANC)
     if show:
         ax.legend(frameon=False, fontsize=5.5)
-    R.style(ax, "People who never use the gene", None, "% of people")
+    R.style(ax, "Never use the gene", None, "% of people")
 
-    ax = mp.panel("g", width=W, height=H, margin_right=12, margin_bottom=GAP)
+    ax = mp.panel("g", width=W, height=H, margin_right=30, margin_bottom=GAP)
     if dos is not None:
         d0 = dos[dos["usage_pct_hi"] > 0]
         ax.bar(d0["usage_pct_lo"], d0["people"], width=d0["usage_pct_hi"] - d0["usage_pct_lo"],
@@ -414,7 +414,7 @@ def main():
                width=d0["usage_pct_hi"].iloc[0] - d0["usage_pct_lo"].iloc[0], color=pal[0], lw=0,
                label="never use it")
         ax.legend(frameon=False, fontsize=5.5)
-        R.style(ax, f"{gq} usage per person", f"{gq} share of clonotypes (%)", "People")
+        R.style(ax, f"{gq} usage", "Share of clonotypes (%)", "People")
     R.save("fig_vj_usage_ancestry", outdir)
 
     summary = [("people_read_floor", len(pt)), ("people_unrelated_for_auroc", int(sub.sum())),

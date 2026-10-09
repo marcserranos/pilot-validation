@@ -326,3 +326,17 @@ EAS 0.88, SAS 0.83, EUR 0.80, MID 0.73, AMR 0.70.
   genes (expected zeros computed from median usage among users -> ~1/e for every rare gene);
   fixed: pooled usage rate, rare genes (chance zeros >= 1%) marked not assessable; added
   dosage histogram and a co-deletion table (genes reduced in people lacking TRBV4-3).
+- Rerun 887db29 (fixed estimator). Genotype-signature genes (assessable, chance zeros < 1%):
+  **TRBV4-3 27.3% never used** (exp 0.04%; implied absence-allele freq 0.52; SAS 43.5% ...
+  EUR 16.7%); **TRBV12-4 15.6%** (exp 0.3%; EAS 25.7%, EUR 17.6%, AFR 7.4%); smaller:
+  TRBV7-3 3.2%, TRBV30 2.9%, TRBV6-4 3.7% (exp 0.8%). 23 rare genes not assessable.
+  Co-deletion: in people lacking TRBV4-3, TRBV6-2 usage is halved (median 1.58% vs 3.36%)
+  and TRBV7-2 reduced (3.32% vs 5.67%) -> consistent with a deleted segment carrying TRBV6-2
+  (residual 6-2 calls plausibly from near-identical TRBV6-3) and possibly TRBV7-2; check the
+  IMGT locus map before stating gene order. Dosage (panel g): zeros 2,059 people, then a
+  separate near-zero shoulder (~0-0.2%, several hundred people; plausibly absent genotype +
+  a few misassigned reads from similar TRBV4 genes, so 27% is a lower bound), then one broad
+  hump peaking ~1.2% with a long right tail; heterozygote and homozygote modes are not
+  separable at this depth. Without TRBV4-3 (panel e) the two clusters disappear; PC1 11.6%,
+  ancestry eta2 0.11; ancestries overlap with modest centre shifts. TRBV12-4 caveat: near-
+  identical to TRBV12-3, so absence could be call assignment rather than germline.
