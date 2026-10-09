@@ -11,7 +11,7 @@ auroc_TRBJ usage,0.7007521400140674
 auroc_TRBV + TRBJ usage,0.8039757270652766
 "auroc_covariates only (age, sex, depth)",0.6144293740637695
 auroc_TRBV + TRBJ + covariates,0.8148340982027241
-auroc_TRBV + TRBJ without indel genes,0.8027284605351288
+auroc_TRBV + TRBJ without indel genes,0.8042249257557713
 "auroc_TRBV + TRBJ, permuted labels (mean of 5)",0.503994398612953
 PC1_var,0.1939936564414087
 PC2_var,0.09414776413019084
