@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Tests for 50_regional_depth.py -- synthetic data only, no samtools, no AoU data.
+"""Tests for 58_regional_depth.py -- synthetic data only, no samtools, no AoU data.
 
 Covers: region building from a GTF, bedcov parsing, relative depth against the control median,
 TRB copy-number calls on a planted deletion, assessability of a paralog-confounded gene, the HWE
 exact test, PUBLIC masking, failure accounting, and resume after a partial run.
 
-Run: python3 -m pytest scripts/hla_popgen/tests/test_50_regional_depth.py -q
+Run: python3 -m pytest scripts/hla_popgen/tests/test_58_regional_depth.py -q
 """
 import gzip
 import importlib.util
@@ -20,7 +20,7 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.dirname(HERE)
 sys.path.insert(0, SRC)
-spec = importlib.util.spec_from_file_location("rd50", os.path.join(SRC, "50_regional_depth.py"))
+spec = importlib.util.spec_from_file_location("rd50", os.path.join(SRC, "58_regional_depth.py"))
 rd = importlib.util.module_from_spec(spec)
 sys.modules["rd50"] = rd
 spec.loader.exec_module(rd)
