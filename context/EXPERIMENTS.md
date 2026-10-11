@@ -802,6 +802,79 @@ Pointer entry; full detail in `sprints/S04_kir_recurrence_style_share/{LOG.md,SP
   `s04-kir-recurrence-style-share` confirmed a strict superset of `main` and 3 other branches,
   ready for Marc to merge/push.
 
+## 2026-10-06 — S05: QC foundation, KIR structure, MHC haplotype atlas, expression-based validation, ASE pilot
+AoU access restored; big_run app started (n2-highmem-4); `~/pipeline_outputs/*.tsv` md5 unchanged. Scripts 50–55 (VM, existing
+per-person outputs only; PUBLIC tables pulled md5-verified + disclosure-scanned). Detail in each `reports/hla_popgen/5x_*/README.md`.
+- 50 (~1 min): waterfall 13,252 → 12,233 HLA-called (0 of 991 sequel2) → 11,856 unrelated → 7,924 / 7,119 / 6,136 at ancestry
+  p ≥ 0.90 / 0.95 / 0.98; p ≥ 0.95 keeps 38% of EUR and 93% of SAS. Same-contig: DQA1~DQB1 98%, DRB1~DQA1 96%, B~C 91%, A~B 31%,
+  class I~II 19–29%. Platform: MH OR Revio vs Sequel IIe for protein-novel 0.50–0.71. Protein-novel funnel (all genes):
+  18,986 distinct → 1,677 ≥2 unrelated → 661 non-homopolymer → 276 no warning → 37 clean ≥20 carriers; classical 8 genes 4,421 → 174
+  → 8 → 0 at ≥20. DQ: break rate 2.35% (G1/G1) vs 1.31% (G2/G2); cross-group pairings 94–100% split across contigs; same-contig
+  cross-group <20, all on the only haplotypes with DQA1–DQB1 spacing ≥100 kb (98% lie in 16.6–24.2 kb).
+- 51 (~3 min): 24,513 KIR haplotypes, 75% complete. Framework on complete haplotypes 3DL3/2DL4/3DP1/3DL2 = 100/96.8/96.8/100%;
+  the residual misses are mainly joint 3DP1+2DL4+3DL1/S1 absence (contracted haplotypes). 2DL2+2DL3 co-calls ~90% cross-contig and
+  <20 on complete haplotypes (artefact); 3DL1+3DS1 on complete haplotypes 1.22%, all distinct loci ~34 kb apart (real duplications).
+- 52 (~2 min): absent-haplotype atlas recovers all 12 DQ G1×G2 lineage cells and the DR51/52/53 paralog rules unprompted; other
+  absences (DP, DR–DQ, B–C) likely LD. Equal-N richness (2,281 haplotypes): a 45/10/45 EUR/AFR/EAS synthetic pool reaches AMR
+  level (B 103 vs AMR 108 vs AFR 80). AMR-private alleles 18–38% per gene. ASE census: protein-identical sequence-different
+  heterozygotes with RNA: A 82, B 98, C 279, DRB1 378.
+- 55: DRB5 TPM by copy number 4.6/51/110 (ρ 0.72) validates DR51 presence/absence calls; KIR reference-based TPM confounded by
+  paralogs missing from the reference (3DL1, 2DS4 inverse), so KIR needs personal-reference quantification.
+- 53 (ASE pilot, 80 people): see entry update below when finished.
+- 53 update (finished, 80/80, 0 errors, ~2.5 h on 4 vCPU): protein-different pairs A/B/C (63/62/42 people) → 27k–51k
+  informative reads/gene, simulated bias median |log2| 0.01–0.02, observed 0.33–0.37; ~32% of people >1.41× imbalanced (A, B).
+  Protein-identical class: <20 measurable people per gene and simulated bias ≈ signal → assay invalid for that class as designed
+  (needs site-level allele counting). Small-n medians blanked in the PUBLIC table.
+- Correction (critic pass): 52b "pooling is sufficient" → "explains most" (mix = 93–96% of AMR richness at A/B; weights arbitrary).
+- 56 (phasing/typing benchmark: twins, first-degree transmission, platform, same-contig, threshold sweep) written + synthetic
+  self-test PASS; NOT run — agent paste-deploy to the VM was blocked; Marc to upload and run.
+
+## 2026-10-06 — S05 56/56b phasing & typing benchmark
+- Scripts 56 (benchmark), 56b (relative-pair de-confounding: MHC-sharing pairs only; haplotypes tested only when both relatives same-contig), 56c (figures). Tables + README: `reports/hla_popgen/56_phasing_typing_benchmark/`.
+- 569 first-degree pairs (419 Revio–Revio, 38 mixed, 112 Sequel IIe–Sequel IIe); twins/duplicates <20 pairs.
+- Typing (no shared allele per pair-gene): 4.09% (3.63–4.60, n=6,455) at score ≥0 → 2.02% at ≥4 (91% kept) → 1.15% (0.79–1.68, n=2,338, 36% kept) at ≥6.
+- Haplotype not transmitted: 6.52% overall (n=1,611); DQA1~DQB1 and DPA1~DPB1 <20 failures (0 at ≥6); B~C 7.98%; A~B 54.4% (42.7–65.7, n=68).
+- Platform: typing Revio 4.76% vs Sequel IIe 2.07% (likely ancestry/site confound); haplotype failure 5.10% vs 10.34% (Sequel IIe ≈2×).
+- Novel calls in twin/duplicate pairs: 96, <20 non-replicating (≥80% replicate).
+- Missing: yak trio switch rate, per-sample QV, more twins, recombination-aware model.
+- 2026-10-06 yak feasibility (VM): outbound network OPEN (bioconda, github.com, prefix.dev, pypi all HTTP 200) — corrects
+  the earlier assumption that the perimeter blocks downloads. Trio search over the AoU kinship table (first-degree =
+  2^-2.5 ≤ kin ≤ 2^-1.5; two first-degree relatives of an LR person not related to each other): 1,755 LR people with ≥1
+  first-degree relative; 285 candidate trios (272 LR children); 181 trios where both parents also have LR data (HiFi reads
+  usable for yak count; no CRAMs needed). Script: ~/s05/count_trios.py (VM).
+
+### 2026-10-06 — S05 57 / 57b: yak trio benchmark (phasing + typing truth)
+- yak 0.1-r69 installed from bioconda into `~/envs/yak` (mamba create -p; no existing env touched).
+- Gotchas:
+  - `yak count -b` reads its input twice, so it needs a file, not a pipe.
+  - Mount `.gzi` files are read-only, so copy only the `.fa.gz` and let `samtools faidx` index it.
+  - Call-table contigs are `ctg:S-E` extraction ranges with gene coords relative to S.
+- 57: 50 trios (25 Revio, 25 Sequel IIe children), region k-mer DBs; ~3.2 h on 4 vCPU (3 workers); 0 errors.
+  - Median switch / hamming: class II DR-DQ 0.19 / 0.19%, KIR 0.34 / 0.53%, MHC 0.46 / 6.6%,
+    class I A..B 0.42 / 7.1%, chr20 1.56 / 25.7%.
+  - Sequel IIe: lower switch, higher hamming (longer pieces).
+- 57b on the same 50 trios (~75 min):
+  - DQ/DR/DP same-contig pairs: 0 parent mismatches each (n 69–76).
+  - Class I pairs: nonzero but <20 → masked.
+  - Mendelian 2-field typing mismatch 3.2% (n 1,027); full 10.5% → 6.5% at score ≥6.
+  - 50-trio PUBLIC tables kept on the VM at `results/57b_n50/`.
+- 57b `--all-trios` (179 children) launched 20:33 for class I power; output → `results/57b/`.
+- Report: `reports/hla_popgen/57_yak_trioeval/`.
+- 57b `--all-trios` done ~21:35 VM (~1 h, 0 errors; 179 eligible children, calls from ~172). Supersedes the 50-trio 57b numbers.
+  - Same-contig pairs with genes from different parents:
+    - A~B 40.9% (36/88)
+    - A~C 39.5% (32/81)
+    - DQB1~DPB1 21.3% (37/174)
+    - B~C, DQA1~DQB1, DRB1~DQA1, DRB1~DQB1, DPA1~DPB1: <20 of 248–262 (<7.7%)
+  - Mendelian typing, 2-field: 4.15% (n 3,611) → 2.61% (≥4) → 2.34% (≥6), vs 56b relatives 4.09%. Full resolution
+    12.6% → 9.3%.
+  - Disclosure fixes before pull:
+    - complementary suppression of platform rows (`<20*`);
+    - gene-origin table reports the failure count (both copies from one parent) and the ambiguous count, so small
+      counts are masked rather than implied by a complement;
+    - 57 summary: dropped the "% trios with zero error" column.
+  - Figures: `fig_pair_phase_truth.png`, `fig_mendel_typing.png` (57c).
+
 ## 2026-10-11 — Repo harmonization (no runs)
 
 Not an experiment; logged because it changes paths a reader may look for. Branch

@@ -19,6 +19,29 @@
 - **Bare `person_id`s in a public repo.** Operational commands (STATUS, EXPERIMENTS) carry bare research_ids. Genotypes are quarantined to the gitignored `.local.md`, but whether bare ids belong in a *public* repo at all is unresolved — flag to the sponsor alongside egress. (Current practice preserved, not expanded; the ids are already in git history.)
 
 ### Methodological
+- **(S05, 2026-10-06) One exclusion list and one ancestry-purity rule.** Script 50 shows purity filters are not
+  ancestry-neutral (p ≥ 0.95 keeps 38% of EUR, 93% of SAS) and that all 991 sequel2 people (mostly AFR) lack HLA calls. Options:
+  (a) primary analyses on ancestry_pred with p ≥ 0.95 as sensitivity (current 39 practice); (b) p ≥ 0.95 everywhere (meeting
+  ask); (c) continuous ancestry (p_*) as covariates, no hard purity. Needs Marc + Aleix decision; fixing the Tier-3 trim recovers AFR.
+- **(S05) Classical-HLA protein-novel counts as a headline.** 50d: recurrent classical protein-novel sequences are almost all
+  homopolymer-indel-only; singletons unvalidated; Sequel IIe calls more novel than Revio within ancestry. Proposed: demote to
+  resource/supplement until read-level (HiFi read or short-read) support and a current IPD-IMGT/HLA release (3.55.0 used) are checked.
+- **(S05) KIR haplotype-level claims only on complete haplotypes** (one contig, 3DL3 and 3DL2 present; 75% of haplotypes), and
+  allelic-pair co-occurrence only when same-contig (51). Proposed, not yet ratified.
+- **(S05) Physical-haplotype evidence rule from trio truth (57b, 179 trios).** Same-contig gene pairs whose genes come
+  from different parents:
+  - class II pairs and B~C: <7.7%
+  - DQB1~DPB1: 21%
+  - A~B / A~C: ~40%
+
+  Proposed:
+  - physical haplotype claims allowed for DQ, DR–DQ, DP and B~C;
+  - A~B / A~C only with statistical phasing or trios;
+  - DQ–DP flagged.
+
+  Also: typing claims at 2-field (4% error; score ≥4 → 2.6%); third/fourth-field claims need read support (12.6%
+  trio discordance). Proposed, not yet ratified.
+
 - **minimap2 vs bwa for SpecImmune read-binning.** `--align_method_1 minimap2` = faster (gap shrinks as padding narrows: ~33min at fullpad → ~1.7min at pad5k) but caused a real DPB1 regression on person 1017156. **2026-07-09 update (person 2522883, full aligner x padding sweep, EXPERIMENTS.md):** DPB1 did NOT regress — both aligners gave identical calls/identity at every padding level, and no gene showed any accuracy difference between aligners in this person. At n=2, leans toward "one-off, not systematic," but **still not adopted as default — confirm on a 3rd person** before changing the standing choice.
   - **2026-07-10: Experiment C run in both aligner variants, sequentially** (`run_experiment_c_comparison.sh` = bwa, then `run_experiment_c_comparison_minimap2.sh` = minimap2 once the bwa run fully completes), reusing the existing pad100k_bwa/pad100k_minimap2 baselines. Deliberately not run concurrently — this is a timing experiment, and contending for the VM's 4 vCPUs would contaminate the exact measurement being taken. The minimap2 leg is an extra, opportunistic data point riding along with the restricted-DB test — **not itself the n=3 confirmation this open question still needs**, and its result should be read as directional. **Long-run objective this is feeding toward (not yet decided): if minimap2 keeps matching bwa's accuracy while staying substantially faster, fully deprecate bwa for SpecImmune-LR** rather than keep maintaining two supported aligners.
 - **Region padding — real data now available (2026-07-09, EXPERIMENTS.md).** pad100k (3.9x smaller than current 4Mb default) showed zero degradation across all 8 genes in person 2522883, and real runtime savings (~21min bwa vs ~50min). pad40k and pad5k showed measurable degradation on 2 of 8 genes (Gene A ambiguity explosion, DRB1 identity loss) — a real, not hypothetical, floor. **Candidate to adopt pad100k as new default padding for SpecImmune-LR — pending confirmation on ≥1 more person** (this is n=1 for the padding dimension).

@@ -24,7 +24,7 @@ Definitions -- reused EXACTLY from 24_novelty_by_field.py, not re-derived:
     - Denominator (`n_total`) = called haplotype-gene copies (copy_index==1, field_class !=
       'uncalled') for that gene x ancestry, among unrelated people.
     - `n_novel_any_field` = clean calls with field_class in {f2_protein, f3_synonymous,
-      f4_noncoding} (Cole's "the 800,000 one" / 33's panel c metric -- dominated by non-coding).
+      f4_noncoding} (33's panel c metric -- dominated by non-coding).
     - `n_novel_cds`       = clean calls with field_class in {f2_protein, f3_synonymous} (coding
       sequence differs from the catalogue, whether or not the translated protein is also new).
     - `n_novel_protein`   = clean calls with field_class == f2_protein (translated protein not

@@ -2,12 +2,8 @@
 """The main-text callout list: novel HLA alleles that are common in a population and absent from
 IPD-IMGT/HLA.
 
-Supervisor ask A6 (Cole, 2026-09-17 call):
-
-    "I do also want to know if there's any crazy alleles that are, like, super common and they're
-     in some ancestry, and we've just been missing them from the database. I want a really great
-     list of those, because those are things we can literally call out in main text. Like, we found
-     these seven examples of this."
+Supervisor ask A6 (2026-09-17): a list of novel alleles that are common in some ancestry yet
+absent from the reference database -- concrete examples to call out in the main text.
 
 This script runs **on committed aggregates only** -- `reports/hla_popgen/24_novelty_by_field/` and
 `reports/hla_popgen/27_allele_space_coverage/` -- so it needs no VM and no participant data.
@@ -226,7 +222,7 @@ def build_tiers(clusters, denominators, catalogue_gap=None):
 def fig_callouts(tier1, path, top_n=16):
     """One row per named allele: carriers by ancestry, so the concentration is visible at a glance.
 
-    This is the figure that makes Cole's sentence ('we found these N examples') checkable.
+    This is the figure that makes a main-text 'we found these N examples' claim checkable.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -276,8 +272,7 @@ def fig_callouts(tier1, path, top_n=16):
 def write_readme(path, all_df, tier1, tier2, noncoding_note):
     L = []
     L.append("# 32 — main-text callout list: common novel HLA alleles absent from IPD-IMGT/HLA\n")
-    L.append("*Supervisor ask A6 (Cole, 2026-09-17): \"a really great list of those, because those "
-             "are things we can literally call out in main text\".*\n")
+    L.append("*Supervisor ask A6 (2026-09-17): common novel alleles to call out in the main text.*\n")
     L.append("Built from committed aggregates only (scripts 24, 25, 27). No VM, no participant "
              "data.\n")
 
@@ -330,9 +325,9 @@ def write_readme(path, all_df, tier1, tier2, noncoding_note):
 
     L.append("\n## What this list is not\n")
     L.append("- **Not validated orthogonally.** Every allele here rests on the long-read assembly "
-             "alone. Cole's own suggestion — realigning the short reads, which every one of these "
-             "people also has, to the long-read assembly — is the confirmation step, and he "
-             "explicitly parked it for now.\n")
+             "alone. Realigning the short reads, which every one of these "
+             "people also has, to the long-read assembly is the confirmation step; it is "
+             "deferred for now.\n")
     L.append("- **Not an IMGT submission yet.** Submission needs full-length genomic sequence and "
              "a documented typing method; what we have is the candidate set.\n")
     L.append("- **Not a frequency estimate for the general population.** These are All of Us "

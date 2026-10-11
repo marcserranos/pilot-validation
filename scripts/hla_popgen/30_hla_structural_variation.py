@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Gene deletions, duplications and copy number across the MHC, from phased long-read assemblies.
 
-Supervisor asks (Cole, 2026-09-17 call):
+Supervisor asks (2026-09-17):
 
-    A4: "did you look at any deletions or duplications? [...] Let's do that. It could be pretty
-         crazy. [...] I know in the Immuannot paper they find duplications and deletions in
-         1000 Genomes."
-    A5: "did you look at the KIR alleles at all? It should be called if you just ran it straight up."
+    A4: gene-level deletions/duplications (the Immuannot paper reports both in 1000 Genomes).
+    A5: KIR allele calls.
 
 Why this is not simply "count the missing genes"
 ------------------------------------------------

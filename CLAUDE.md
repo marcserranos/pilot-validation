@@ -94,6 +94,8 @@ This repo is public on GitHub. It holds **docs + pipeline code only** — no par
 The one exception is `context/SMOKE_TEST_PICKS.local.md`, which is gitignored and must stay
 that way. Real genotypes, controlled-tier identifiers, or anything derived from them at a
 disclosive granularity do not belong in a committed file, a report, or a commit message.
+Call notes in `sprints/_calls/` are gitignored and private — never quote, paraphrase or cite
+them in anything outward-facing (rules: `sprints/_calls/README.md`).
 When in doubt about whether a number is disclosive, treat it as withheld until the open
 question in `context/DECISIONS.md` is resolved.
 

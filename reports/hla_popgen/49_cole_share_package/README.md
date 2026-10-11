@@ -13,9 +13,8 @@ filled in by whoever runs the script on the VM — this skeleton is written befo
 Build the smallest, most informative, documented data package for Cole (the stat-gen supervisor),
 covering what he does not yet have: novel HLA calls (only common two-field alleles were shared
 before), all KIR calls (never shared), ancestry probabilities/labels, unrelated-set membership,
-and the DQ/DP cis-pair phasing-confidence flag he asked for on the 2026-09-22 call. See
-`sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md` §2 WS-E and
-`sprints/_calls/2026-09-22_ALEIX_HANDOFF.md` §5.1.
+and the DQ/DP cis-pair phasing-confidence flag. See
+`sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md` §2 WS-E.
 
 ## Method
 
@@ -41,7 +40,7 @@ phasing-confidence file and the KIR `cds.fa.gz` join were available on this VM i
 
 See the package's own `README.md`/`SCHEMA.md` (VM-only, not duplicated here) for the full column
 reference and caveats. The short version: `novelty_tier != known` in either table is provisional
-("interesting but dangerous", per Cole) — check recurrence before using it as a stratifier.
+(single-cohort, unvalidated) — check recurrence before using it as a stratifier.
 
 ## Caveats
 
@@ -71,7 +70,7 @@ reference and caveats. The short version: `novelty_tier != known` in either tabl
   `MANIFEST.tsv`, built on the VM under `~/s04/share_release_2026-09/`.
 - Adds, vs. what Cole already has: novel HLA calls, all KIR calls, ancestry/unrelated/platform,
   DQ/DP phasing confidence.
-- Novel alleles are flagged, not filtered out — Cole's own instruction was "use with caution", not
+- Novel alleles are flagged, not filtered out — the agreed handling is "use with caution", not
   "omit".
 - Upload is a separate, human-run, consented step (`gsutil rsync`, draft commands in the script's
   docstring) — this script never uploads.

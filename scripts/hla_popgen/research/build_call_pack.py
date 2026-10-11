@@ -258,7 +258,7 @@ def build():
       "allele sits beside it at gene B <em>on the same chromosome copy</em>. LD is the departure "
       "from that independence — alleles that travel together more often than chance.</p>")
     A('<div class="eq">D   = p(AB) − p(A)·p(B)          the raw excess\n'
-      "r²  = D² / [ p(A)(1−p(A))·p(B)(1−p(B)) ]   the squared correlation — what Cole asked for\n"
+      "r²  = D² / [ p(A)(1−p(A))·p(B)(1−p(B)) ]   the squared correlation\n"
       "D′  = D / D(max)                          D rescaled by the most it could be</div>")
     A('<div class="flag warn"><span class="label">Why I did not just hand him r²</span>'
       "<p>r² is <strong>bounded by the allele frequencies</strong>. An allele at 2% frequency "
@@ -294,7 +294,7 @@ def build():
       "arguing it is under directional rather than balancing selection. Our data behave the same "
       "way.</p>")
     A(img("29_hla_ld/fig_r2_DQA1_DQB1.png",
-          "The literal r² Cole asked for: allele-by-allele heatmaps, one panel per ancestry"))
+          "The literal r²: allele-by-allele heatmaps, one panel per ancestry"))
     A('<div class="flag warn"><span class="label">Scope it</span>'
       "<p>AFR-vs-EUR is established. “African ancestry is lowest of all six” is <strong>not</strong> "
       "— the African and East Asian intervals touch for DRB1~DQB1.</p></div>")
@@ -334,8 +334,8 @@ def build():
       "finding — or they share a detection artifact. Deciding needs one short follow-up.</p></div>")
     A('<div class="flag say"><span class="label">KIR — the answer he did not expect</span>'
       "<p><strong>Zero KIR calls, and that is correct.</strong> The KIR cluster is on chromosome "
-      "19, outside the chromosome 6 window these assemblies were trimmed to. Cole expected it to "
-      "“just be called” — it cannot be. Typing KIR needs a separate extraction from the original "
+      "19, outside the chromosome 6 window these assemblies were trimmed to. It cannot simply "
+      "be called from them. Typing KIR needs a separate extraction from the original "
       "BAMs. That is an opportunity, not an oversight.</p></div>")
 
     # ---------------------------------------------------------------- Block E groove

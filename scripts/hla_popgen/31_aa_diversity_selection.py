@@ -2,14 +2,11 @@
 """Amino-acid diversity along the HLA protein, groove vs non-groove, and allele-level
 differentiation between ancestries.
 
-Supervisor asks (Cole, 2026-09-17 call):
+Supervisor asks (2026-09-17):
 
-    A8: "What's actually more interesting is if we look at the CDS between the peptide-binding
-         and the non-peptide-binding regions. [...] just the diversity at the amino acid level,
-         and then comparing that from the peptide curves to the non-peptide curves."
-    A10: "It seems even more structured to me [class II]. There seems to be greater basic
-          diversity statistics on the class II HLA. [...] I suspect these class II HLAs are going
-          to be the most different between the ancestries."
+    A8: amino-acid diversity in the CDS, peptide-binding vs non-peptide-binding regions.
+    A10: class II looks more structured / more diverse; test whether class II differs most
+         between ancestries.
 
 Design decision: frequency-weighted reference proteins, not a per-person sequence scan
 --------------------------------------------------------------------------------------
@@ -331,8 +328,8 @@ def _mpl():
 def fig_protein_track(gene, pi, exon_of_codon, groove_exons, ars_idx, path):
     """Per-residue amino-acid diversity along the protein, with groove exons shaded.
 
-    This is the amino-acid version of the nucleotide Manhattan plot Marc showed in the call --
-    the plot Cole said would be 'more interesting' than the nucleotide one.
+    This is the amino-acid version of the nucleotide Manhattan plot --
+    expected to be more informative than the nucleotide one.
     """
     plt = _mpl()
     fig, ax = plt.subplots(figsize=(11, 3.4))

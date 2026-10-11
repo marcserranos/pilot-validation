@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """WS5 (Sprint S03, call #8 summary section 7) -- KIR scoping + pilot.
 
-Cole (call #8, 2026-09-22): the production Immuannot run only ever trimmed assemblies to the
+Context: the production Immuannot run only ever trimmed assemblies to the
 chr6 HLA window (`run_immuannot_person.py`'s `DEFAULT_REGION`) -- KIR genes (chr19, the leukocyte
 receptor complex / LRC) were **never called**, even though Immuannot's own reference data set
 (IPD-KIR) and its own detection logic support them natively (reference/README_Immuannot.md's

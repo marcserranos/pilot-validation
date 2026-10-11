@@ -1,6 +1,6 @@
 # 32 — main-text callout list: common novel HLA alleles absent from IPD-IMGT/HLA
 
-*Supervisor ask A6 (Cole, 2026-09-17): "a really great list of those, because those are things we can literally call out in main text".*
+*Supervisor ask A6 (2026-09-17): common novel alleles to call out in the main text.*
 
 Built from committed aggregates only (scripts 24, 25, 27). No VM, no participant data.
 
@@ -105,7 +105,7 @@ Clean and seen in at least two unrelated people, but with fewer than 20 carriers
 
 ## What this list is not
 
-- **Not validated orthogonally.** Every allele here rests on the long-read assembly alone. Cole's own suggestion — realigning the short reads, which every one of these people also has, to the long-read assembly — is the confirmation step, and he explicitly parked it for now.
+- **Not validated orthogonally.** Every allele here rests on the long-read assembly alone. Realigning the short reads, which every one of these people also has, to the long-read assembly is the confirmation step; it is deferred for now.
 
 - **Not an IMGT submission yet.** Submission needs full-length genomic sequence and a documented typing method; what we have is the candidate set.
 

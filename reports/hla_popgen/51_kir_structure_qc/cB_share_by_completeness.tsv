@@ -1,0 +1,15 @@
+scope	ancestry	n_haps	cB_pct	lo	hi	n_distinct_content
+all_haps	AFR	6050	39.9	38.7	41.1	462
+all_haps	AMR	5327	43.9	42.6	45.3	465
+all_haps	EAS	2926	33.2	31.5	34.9	241
+all_haps	EUR	5960	46.1	44.8	47.3	462
+all_haps	MID	972	52.4	49.2	55.5	137
+all_haps	NAN	46				14
+all_haps	SAS	2474	58.4	56.5	60.3	268
+complete_haps	AFR	4374	38.7	37.2	40.1	74
+complete_haps	AMR	3984	42.7	41.2	44.3	70
+complete_haps	EAS	2310	32.0	30.2	34.0	52
+complete_haps	EUR	4500	44.5	43.1	46.0	62
+complete_haps	MID	752	52.0	48.4	55.5	27
+complete_haps	NAN	37				7
+complete_haps	SAS	1948	57.1	54.9	59.3	58

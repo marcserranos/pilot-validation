@@ -1,0 +1,183 @@
+check	item	min_score	n	k	pct	lo	hi
+gene_nonsharing	ALL	0	6455	264	4.09	3.63	4.60
+gene_nonsharing	ALL	1	6449	261	4.05	3.59	4.56
+gene_nonsharing	ALL	2	6389	242	3.79	3.35	4.28
+gene_nonsharing	ALL	3	6188	183	2.96	2.56	3.41
+gene_nonsharing	ALL	4	5884	119	2.02	1.69	2.41
+gene_nonsharing	ALL	5	4517	67	1.48	1.17	1.88
+gene_nonsharing	ALL	6	2338	27	1.15	0.79	1.68
+gene_nonsharing	ALL	7	40	0	0.00	0.00	8.76
+gene_nonsharing	A	0	497	<20			
+gene_nonsharing	A	1	495	<20			
+gene_nonsharing	A	2	476	<20			
+gene_nonsharing	A	3	464	<20			
+gene_nonsharing	A	4	452	<20			
+gene_nonsharing	A	5	396	<20			
+gene_nonsharing	A	6	67	0	0.00	0.00	5.42
+gene_nonsharing	A	7	<20	0			
+gene_nonsharing	B	0	497	20	4.02	2.62	6.13
+gene_nonsharing	B	1	495	20	4.04	2.63	6.16
+gene_nonsharing	B	2	490	<20			
+gene_nonsharing	B	3	473	<20			
+gene_nonsharing	B	4	459	<20			
+gene_nonsharing	B	5	423	<20			
+gene_nonsharing	B	6	265	<20			
+gene_nonsharing	B	7	<20	0			
+gene_nonsharing	C	0	496	<20			
+gene_nonsharing	C	1	496	<20			
+gene_nonsharing	C	2	484	<20			
+gene_nonsharing	C	3	463	<20			
+gene_nonsharing	C	4	457	<20			
+gene_nonsharing	C	5	425	<20			
+gene_nonsharing	C	6	265	<20			
+gene_nonsharing	C	7	<20	0			
+gene_nonsharing	DPA1	0	498	<20			
+gene_nonsharing	DPA1	1	498	<20			
+gene_nonsharing	DPA1	2	497	<20			
+gene_nonsharing	DPA1	3	490	<20			
+gene_nonsharing	DPA1	4	476	<20			
+gene_nonsharing	DPA1	5	464	0	0.00	0.00	0.82
+gene_nonsharing	DPA1	6	322	0	0.00	0.00	1.18
+gene_nonsharing	DPA1	7	<20	0			
+gene_nonsharing	DPB1	0	498	<20			
+gene_nonsharing	DPB1	1	497	<20			
+gene_nonsharing	DPB1	2	496	<20			
+gene_nonsharing	DPB1	3	476	<20			
+gene_nonsharing	DPB1	4	459	<20			
+gene_nonsharing	DPB1	5	407	<20			
+gene_nonsharing	DPB1	6	281	<20			
+gene_nonsharing	DPB1	7	<20	0			
+gene_nonsharing	DQA1	0	496	<20			
+gene_nonsharing	DQA1	1	496	<20			
+gene_nonsharing	DQA1	2	494	<20			
+gene_nonsharing	DQA1	3	482	<20			
+gene_nonsharing	DQA1	4	473	<20			
+gene_nonsharing	DQA1	5	414	<20			
+gene_nonsharing	DQA1	6	262	0	0.00	0.00	1.45
+gene_nonsharing	DQA1	7	<20	0			
+gene_nonsharing	DQA2	0	498	<20			
+gene_nonsharing	DQA2	1	498	<20			
+gene_nonsharing	DQA2	2	496	<20			
+gene_nonsharing	DQA2	3	491	<20			
+gene_nonsharing	DQA2	4	477	<20			
+gene_nonsharing	DQA2	5	381	<20			
+gene_nonsharing	DQA2	6	140	0	0.00	0.00	2.67
+gene_nonsharing	DQA2	7	<20	0			
+gene_nonsharing	DQB1	0	498	<20			
+gene_nonsharing	DQB1	1	498	<20			
+gene_nonsharing	DQB1	2	495	<20			
+gene_nonsharing	DQB1	3	479	<20			
+gene_nonsharing	DQB1	4	455	<20			
+gene_nonsharing	DQB1	5	413	<20			
+gene_nonsharing	DQB1	6	319	<20			
+gene_nonsharing	DQB1	7	<20	0			
+gene_nonsharing	DRB1	0	498	27	5.42	3.75	7.77
+gene_nonsharing	DRB1	1	498	27	5.42	3.75	7.77
+gene_nonsharing	DRB1	2	491	24	4.89	3.31	7.17
+gene_nonsharing	DRB1	3	476	22	4.62	3.07	6.90
+gene_nonsharing	DRB1	4	436	<20			
+gene_nonsharing	DRB1	5	204	<20			
+gene_nonsharing	DRB1	6	60	<20			
+gene_nonsharing	DRB1	7	<20	0			
+gene_nonsharing	DRB3	0	248	33	13.31	9.63	18.10
+gene_nonsharing	DRB3	1	248	33	13.31	9.63	18.10
+gene_nonsharing	DRB3	2	246	32	13.01	9.37	17.79
+gene_nonsharing	DRB3	3	245	31	12.65	9.06	17.40
+gene_nonsharing	DRB3	4	232	22	9.48	6.35	13.94
+gene_nonsharing	DRB3	5	184	<20			
+gene_nonsharing	DRB3	6	97	<20			
+gene_nonsharing	DRB3	7	<20	0			
+gene_nonsharing	DRB4	0	165	<20			
+gene_nonsharing	DRB4	1	164	<20			
+gene_nonsharing	DRB4	2	161	<20			
+gene_nonsharing	DRB4	3	158	<20			
+gene_nonsharing	DRB4	4	148	<20			
+gene_nonsharing	DRB4	5	108	<20			
+gene_nonsharing	DRB4	6	58	<20			
+gene_nonsharing	DRB4	7	<20	0			
+gene_nonsharing	DRB5	0	76	<20			
+gene_nonsharing	DRB5	1	76	<20			
+gene_nonsharing	DRB5	2	76	<20			
+gene_nonsharing	DRB5	3	72	<20			
+gene_nonsharing	DRB5	4	70	<20			
+gene_nonsharing	DRB5	5	50	<20			
+gene_nonsharing	DRB5	6	<20	0			
+gene_nonsharing	DRB5	7	<20	0			
+gene_nonsharing	MICA	0	495	61	12.32	9.71	15.51
+gene_nonsharing	MICA	1	495	61	12.32	9.71	15.51
+gene_nonsharing	MICA	2	493	60	12.17	9.57	15.35
+gene_nonsharing	MICA	3	478	50	10.46	8.02	13.53
+gene_nonsharing	MICA	4	409	29	7.09	4.98	10.00
+gene_nonsharing	MICA	5	256	<20			
+gene_nonsharing	MICA	6	82	<20			
+gene_nonsharing	MICA	7	<20	0			
+gene_nonsharing	TAP1	0	497	<20			
+gene_nonsharing	TAP1	1	497	<20			
+gene_nonsharing	TAP1	2	497	<20			
+gene_nonsharing	TAP1	3	467	<20			
+gene_nonsharing	TAP1	4	443	<20			
+gene_nonsharing	TAP1	5	249	<20			
+gene_nonsharing	TAP1	6	55	0	0.00	0.00	6.53
+gene_nonsharing	TAP1	7	0	0			
+gene_nonsharing	TAP2	0	498	21	4.22	2.77	6.36
+gene_nonsharing	TAP2	1	498	21	4.22	2.77	6.36
+gene_nonsharing	TAP2	2	497	21	4.23	2.78	6.37
+gene_nonsharing	TAP2	3	474	<20			
+gene_nonsharing	TAP2	4	438	<20			
+gene_nonsharing	TAP2	5	143	<20			
+gene_nonsharing	TAP2	6	51	0	0.00	0.00	7.00
+gene_nonsharing	TAP2	7	<20	0			
+gene_nonsharing	ALL	platform:revio-revio	4688	223	4.76	4.18	5.40
+gene_nonsharing	ALL	platform:revio-sequel2e	417	<20			
+gene_nonsharing	ALL	platform:sequel2e-sequel2e	1350	28	2.07	1.44	2.98
+hap_not_transmitted	ALL	0	1611	105	6.52	5.41	7.83
+hap_not_transmitted	ALL	1	1610	104	6.46	5.36	7.77
+hap_not_transmitted	ALL	2	1607	104	6.47	5.37	7.78
+hap_not_transmitted	ALL	3	1537	85	5.53	4.49	6.79
+hap_not_transmitted	ALL	4	1465	64	4.37	3.44	5.54
+hap_not_transmitted	ALL	5	1167	56	4.80	3.71	6.18
+hap_not_transmitted	ALL	6	688	42	6.10	4.55	8.15
+hap_not_transmitted	ALL	7	<20	<20			
+hap_not_transmitted	A~B	0	68	37	54.41	42.66	65.70
+hap_not_transmitted	A~B	1	68	37	54.41	42.66	65.70
+hap_not_transmitted	A~B	2	68	37	54.41	42.66	65.70
+hap_not_transmitted	A~B	3	68	37	54.41	42.66	65.70
+hap_not_transmitted	A~B	4	68	37	54.41	42.66	65.70
+hap_not_transmitted	A~B	5	68	37	54.41	42.66	65.70
+hap_not_transmitted	A~B	6	50	30	60.00	46.18	72.39
+hap_not_transmitted	A~B	7	<20	<20			
+hap_not_transmitted	B~C	0	351	28	7.98	5.58	11.29
+hap_not_transmitted	B~C	1	351	28	7.98	5.58	11.29
+hap_not_transmitted	B~C	2	349	28	8.02	5.61	11.35
+hap_not_transmitted	B~C	3	331	20	6.04	3.95	9.15
+hap_not_transmitted	B~C	4	323	<20			
+hap_not_transmitted	B~C	5	303	<20			
+hap_not_transmitted	B~C	6	188	<20			
+hap_not_transmitted	B~C	7	<20	0			
+hap_not_transmitted	DPA1~DPB1	0	435	<20			
+hap_not_transmitted	DPA1~DPB1	1	434	<20			
+hap_not_transmitted	DPA1~DPB1	2	433	<20			
+hap_not_transmitted	DPA1~DPB1	3	408	<20			
+hap_not_transmitted	DPA1~DPB1	4	384	<20			
+hap_not_transmitted	DPA1~DPB1	5	340	<20			
+hap_not_transmitted	DPA1~DPB1	6	205	0	0.00	0.00	1.84
+hap_not_transmitted	DPA1~DPB1	7	<20	0			
+hap_not_transmitted	DQA1~DQB1	0	413	<20			
+hap_not_transmitted	DQA1~DQB1	1	413	<20			
+hap_not_transmitted	DQA1~DQB1	2	413	<20			
+hap_not_transmitted	DQA1~DQB1	3	397	<20			
+hap_not_transmitted	DQA1~DQB1	4	378	<20			
+hap_not_transmitted	DQA1~DQB1	5	309	0	0.00	0.00	1.23
+hap_not_transmitted	DQA1~DQB1	6	198	0	0.00	0.00	1.90
+hap_not_transmitted	DQA1~DQB1	7	<20	0			
+hap_not_transmitted	DRB1~DQB1	0	344	<20			
+hap_not_transmitted	DRB1~DQB1	1	344	<20			
+hap_not_transmitted	DRB1~DQB1	2	344	<20			
+hap_not_transmitted	DRB1~DQB1	3	333	<20			
+hap_not_transmitted	DRB1~DQB1	4	312	<20			
+hap_not_transmitted	DRB1~DQB1	5	147	<20			
+hap_not_transmitted	DRB1~DQB1	6	47	<20			
+hap_not_transmitted	DRB1~DQB1	7	<20	0			
+hap_not_transmitted	ALL	platform:revio-revio	1059	54	5.10	3.93	6.59
+hap_not_transmitted	ALL	platform:revio-sequel2e	107	<20			
+hap_not_transmitted	ALL	platform:sequel2e-sequel2e	445	46	10.34	7.84	13.51

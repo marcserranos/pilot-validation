@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """HLA-A 'deletion' validation (WS2, S03 call #8).
 
-Cole (call #8): "that is a big result... how is that plausible?" -- script 30 reports HLA-A
+Plausibility check -- script 30 reports HLA-A
 bridged-absence "deletion" at ~1.83% of bridged haplotypes (n_bridged ~= 23k) and designates
 HLA-A a negative control (grey, expect ~0). No documented whole-gene HLA-A deletion haplotype
 exists in the literature (only null alleles; one 85-kb HLA-B deletion family is known). Prior:

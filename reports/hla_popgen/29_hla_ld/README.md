@@ -1,6 +1,6 @@
 # 29 — LD between HLA alleles at phased cis gene pairs, within ancestry
 
-*Supervisor ask A3 (Cole, 2026-09-17): "compute the LD between alleles within each ancestry and see what looks different", r^2, for DQA1–DQB1 and DPA1–DPB1.*
+*Supervisor ask A3 (2026-09-17): allele-level LD within each ancestry, r^2, for DQA1–DQB1 and DPA1–DPB1.*
 
 ## What was computed
 
@@ -103,7 +103,7 @@ A low percentage here is assembly fragmentation across that interval, not a typi
 Read this table as: *at equal sample size*, does the same pair of loci travel together more tightly in one ancestry than another? Non-overlapping CIs are the claim; overlapping CIs are not.
 
 
-## 4. Strongest individual allele pairs (what Cole asked for literally)
+## 4. Strongest individual allele pairs (the literal r^2 requested)
 
 | pair      | ancestry   | allele_a   | allele_b    |   freq_a |   freq_b |   freq_hap |    r2 |   Dprime |
 |:----------|:-----------|:-----------|:------------|---------:|---------:|-----------:|------:|---------:|

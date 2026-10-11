@@ -489,15 +489,14 @@ never be copied into git, a public report, a chat message, or anywhere outside t
 
 ## What's new in this release vs. what Cole already has
 
-Cole previously received (and confirmed using) **only common, two-field HLA alleles** -- see
-`sprints/_calls/2026-09-22_ALEIX_HANDOFF.md` S3. **Novel HLA calls were never shared.** This release adds:
+Cole previously received (and confirmed using) **only common, two-field HLA alleles**. **Novel HLA calls were never shared.** This release adds:
 - novel HLA calls (all novelty tiers, not just the common two-field subset), with novelty tier and
   artifact label so they can be told apart from the previously-shared common calls
   (`already_shared_two_field_common` column in `hla_calls.{ext}`);
 - KIR calls (chr19), never shared before now;
 - ancestry probabilities/labels, sequencing platform, and unrelated-set membership
   (`persons.tsv`), never shared before now;
-- the DQ/DP cis-pair phasing-confidence flag Cole asked for on the 2026-09-22 call
+- the DQ/DP cis-pair phasing-confidence flag
   (`dq_dp_phasing_confidence` column in `hla_calls.{ext}`), where available.
 
 ## Files
@@ -535,9 +534,7 @@ One row per (person_id, hap, contig, gene, copy_index). {kir_stats['n_rows']} ro
 | `cds_sha8` / `protein_sha8` | 8-char sha1 of the joined CDS / protein sequence (from `<hap>/cds.fa.gz`, when present) -- lets Cole tell "same underlying sequence" apart from "same consensus string" without us sharing raw sequence |
 | `cds_available` | whether the `cds.fa.gz` join succeeded for this haplotype (cohort-wide: {"available" if kir_stats['cds_join_available'] else "NOT available -- cds_sha8/protein_sha8 are all NA this release"}) |
 
-**"Use novel alleles with caution."** Per Cole's own words on the 2026-09-22 call: *"the novel
-ones are interesting, but they're kind of dangerous, and we can't say much with them because we
-don't have a lot of them"* (`sprints/_calls/2026-09-22_ALEIX_HANDOFF.md`). Any `novelty_tier` other than
+**Use novel alleles with caution.** Any `novelty_tier` other than
 `known` in either file is a single-cohort, unvalidated call -- do not use as a positive control or
 as a stratifier without checking recurrence across unrelated people first
 (`reports/hla_popgen/34_novel_protein_recurrence/`, `44`/`45`).
@@ -591,7 +588,7 @@ copy he receives matches what was built.
    question -- miscall vs. real duplication vs. phase error, not yet resolved
    (`reports/hla_popgen/43_kir_full_cohort/README.md`, S4 open item). Do not treat carriers of
    both as confirmed duplications.
-4. **HLA-A deletion.** Cole called this "a big result if real" but it is not yet independently
+4. **HLA-A deletion.** Potentially important but not yet independently
    confirmed; see `reports/hla_popgen/38_hla_a_deletion_validation/README.md` for the current
    validation status before using HLA-A absence as a genotype call rather than a QC flag.
 5. **Relatedness.** `unrelated=True` uses a single genome-wide kinship threshold (0.0442, KING

@@ -1,7 +1,7 @@
 # 40 — Figure 1 v5
 
-*WS4, S03 sprint. Implements Cole's 2026-09-22 panel feedback
-(`sprints/_calls/2026-09-22_CALL_SUMMARY.md` Sec 6), then the orchestrator's 2026-09-23 review of the
+*WS4, S03 sprint. Implements 2026-09-22 panel-by-panel
+supervisor feedback, then the orchestrator's 2026-09-23 review of the
 first v5 draft. Built by `scripts/hla_popgen/40_figure1_v5.py` (+ `40a_admixture_bins.py` for
 panel a).*
 
@@ -57,8 +57,8 @@ entry does not appear).
 
 Three metrics exist in this project for "novelty":
 1. **Any-field / genomic**: sequence differs from the catalogue at *any* nomenclature field
-   (protein, synonymous CDS, or non-coding only) — what 33/36 plotted, and what Cole referred to
-   as "the 800,000 one." Dominated by non-coding (intronic/UTR) differences: e.g. HLA-DRB1's
+   (protein, synonymous CDS, or non-coding only) — what 33/36 plotted.
+   Dominated by non-coding (intronic/UTR) differences: e.g. HLA-DRB1's
    ≈65% rate is mostly field-4 (non-coding-only) novelty, not new protein sequence.
 2. **Synonymous-CDS-level**: coding sequence differs but translates to a known protein.
 3. **Protein-level (field 2)**: the translated protein itself is not in IPD-IMGT/HLA — the

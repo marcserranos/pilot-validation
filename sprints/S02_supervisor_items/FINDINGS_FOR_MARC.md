@@ -21,8 +21,7 @@ Not slightly out of date — the headline changed. On the record in that call, a
 | "95% concordance between relatives" | **87.0%** byte-identical, decomposed: 6.5% gene called in only one of the pair, 3.2% dropout, 2.3% single-base error, 0.8% unexplained. Twin/duplicate pairs give an error rate of **Q34** |
 | "zero phase switches in 545/545 pairs" | still zero — but now over **3,021 testable transitions**, with **100%** detection power on synthetic switches we injected. The old version of that test could not have failed |
 
-When Cole said in the call, reassuringly, *"Immuannot only looks at the CDS and then clusters
-around that, which is what we do"* — that is precisely the artifact. It is why the counts above
+Clustering on the CDS alone is precisely the artifact. It is why the counts above
 collapsed.
 
 This matters beyond bookkeeping: Cole asked for a list of common novel alleles to name in main
@@ -33,8 +32,7 @@ survived review.
 
 ## 1. Cole's main-text list — and it points somewhere unexpected
 
-He asked for *"a really great list of those, because those are things we can literally call out in
-main text. Like, we found these seven examples."*
+The ask: common novel alleles to call out in the main text.
 
 There are **38**. They are clean (no artifact flag, not homopolymer-only), recurrent, and carried
 by at least 20 unrelated people. That threshold is also exactly where All of Us lets us publish a
@@ -196,7 +194,7 @@ under directional rather than balancing selection. Our data behave the same way.
 
 ### 4b. The phasing question Cole called critical (A2)
 
-He said: *"we don't want there to be a switch between DPA1 and DPB1."* Direct answer:
+The concern: no switch between DPA1 and DPB1. Direct answer:
 
 - **DPA1 and DPB1 sit on the same assembled contig in 96.96%** of assemblies that carry both
   genes; DQA1–DQB1 in 96.31%. In those, the pairing is physical, not statistical.
@@ -210,7 +208,7 @@ were switching, the LD would be destroyed.
 
 ### 4c. Deletions and duplications (A4), and KIR (A5)
 
-Cole said *"let's do that, it could be pretty crazy."* The method calls a gene deleted only when a
+The method calls a gene deleted only when a
 single contig carries genes on **both** sides of it, so assembly fragmentation cannot masquerade
 as biology.
 
@@ -251,8 +249,8 @@ only, 10.5% C4B only. This is genuine copy-number variation phased on individual
 is exactly the thing short reads cannot do well.
 
 **KIR: zero calls, and that is correct.** The KIR cluster is on chromosome 19, outside the
-chromosome 6 window these assemblies were trimmed to. Cole expected it to "just be called" — it
-cannot be, and typing it would need a separate extraction from the original BAMs. Worth saying
+chromosome 6 window these assemblies were trimmed to. It cannot
+simply be called, and typing it would need a separate extraction from the original BAMs. Worth saying
 plainly, because it is an opportunity rather than an oversight.
 
 ### 4d. Amino-acid diversity, groove vs the rest (A8), and differentiation (A10)
@@ -363,7 +361,7 @@ deletion would.
    already, killing all three jobs. It came back on its own and the runs were relaunched and
    completed, but the warning is still showing. Rebooting is a shared-resource decision I did not
    want to make without you — another session may be using it.
-3. **The short-read validation Cole parked.** He said *"I wouldn't do that right now"*, but it is
+3. **The short-read validation Cole parked.** It was deferred, but it is
    the single strongest confirmation available for the 38 callout alleles: every one of those
    people also has high-coverage short reads, and realigning them to the long-read assembly tests
    the novel protein directly. Worth raising again *because* the callout list now exists.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """LD supplement table + heatmap -- re-rendered from the COMMITTED 29_hla_ld tables only.
 
-Cole (call #8, sprint S03): "this should be a table too -- a simple CSV with r-squared and D-
-prime", with a distinct colour for "not observed / below n=20".
+Requested (sprint S03): the LD values as a simple CSV table (r-squared and D-prime), with a
+distinct colour for "not observed / below n=20".
 
 This script is offline-only: it reads `reports/hla_popgen/29_hla_ld/ld_pairwise.tsv`, which
 `29_hla_ld_by_ancestry.py`'s `pairwise_ld()` already writes as a tidy per-allele-pair table (every
@@ -178,8 +178,8 @@ Source: script `37b_ld_supplement_table.py`, re-rendered from the already-commit
 `reports/hla_popgen/29_hla_ld/ld_pairwise.tsv`. No VM access, no re-computation from raw calls --
 every number here was already public.
 
-Cole (call #8): "this should be a table too -- a simple CSV with r2 and D-prime", with a distinct
-colour for "not observed / below n=20".
+Requested: the LD values as a simple CSV table (r2 and D-prime), with a distinct colour for
+"not observed / below n=20".
 
 ## Data-gap check (per the task)
 

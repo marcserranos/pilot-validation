@@ -334,7 +334,7 @@ What Marc asked to see:
 | Run log (append-only) | `context/EXPERIMENTS.md` (one pointer entry per sprint) |
 | Sprint convention | `sprints/README.md` (L0 STATUS → L1 SPRINT/LOG → L2 WS briefs → L3 scripts/reports) |
 | Previous sprint | `sprints/S03_call8_figures_kir_prediction/`: SPRINT.md, LOG.md, FINDINGS_FOR_MARC.md, KIR_FULL_RUN.md, VM_CHANNEL.md, CRITIC_1/2.md |
-| Call notes that drive the research | `sprints/CALL_SUMMARY_2026-09-22.md`, `sprints/ALEIX_HANDOFF_2026-09-22.md` (Aleix/Cole context: two-field alleles shared; novel alleles "dangerous"; KIR to be shared) |
+| Call notes that drive the research | `sprints/CALL_SUMMARY_2026-09-22.md`, `sprints/ALEIX_HANDOFF_2026-09-22.md` (Aleix/Cole context: two-field alleles shared; novel alleles: use with caution; KIR to be shared) |
 | Research map | `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` (if present) |
 | Pipeline scripts | `scripts/hla_popgen/NN_*.py` (README.md = pipeline table), shared helpers `_viz_common.py`, schema `SCHEMA.md`, tests in `scripts/hla_popgen/tests/` |
 | Production orchestrator | `scripts/production_orchestrator/run_production_orchestrator.py` (has `--region/--pad/--out-suffix`; `person_done` needs both haps with ≥1 call) |

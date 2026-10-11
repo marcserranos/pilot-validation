@@ -1,0 +1,16 @@
+gene	n_calls	n_ambiguous	ambiguous_pct	n_children_both_haps_resolved	n_both_copies_same_parent	both_copies_same_parent_pct	lo	hi
+A	340	60	17.65	122	<20			
+B	339	34	10.03	141	<20			
+C	340	49	14.41	133	<20			
+DPA1	338	49	14.50	129	<20			
+DPB1	333	83	24.92	108	0	0.00	0.00	3.43
+DQA1	336	57	16.96	122	<20			
+DQA2	343	107	31.20	93	0	0.00	0.00	3.97
+DQB1	339	49	14.45	128	<20			
+DRB1	332	38	11.45	131	<20			
+DRB3	128	20	15.62	<20	<20			
+DRB4	95	<20		<20	<20			
+DRB5	49	<20		<20	0			
+MICA	325	42	12.92	122	<20			
+TAP1	343	61	17.78	119	<20			
+TAP2	344	38	11.05	140	<20			

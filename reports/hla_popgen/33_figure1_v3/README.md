@@ -1,6 +1,6 @@
 # 33 — Figure 1 v3 (panels c and d)
 
-*Supervisor ask A1 (Cole, 2026-09-17). Built from committed aggregates only.*
+*Supervisor ask A1 (2026-09-17). Built from committed aggregates only.*
 
 
 ## What is here and what is not

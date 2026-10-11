@@ -1,0 +1,59 @@
+scope	DQA1_group	DQB1_group	n_haps	n_split	pct_split	lo	hi
+ALL	G1	G1	13287	312	2.35	2.10	2.62
+ALL	G1	G2	30	30	100.00	88.65	100.00
+ALL	G2	G1	34	32	94.12	80.91	98.37
+ALL	G2	G2	9128	120	1.31	1.10	1.57
+ALL	G1	any	13317	342	2.57	2.31	2.85
+ALL	G2	any	9162	152	1.66	1.42	1.94
+anc_AFR	G1	G1	2999	120	4.00	3.36	4.76
+anc_AFR	G1	G2	<20	<20			
+anc_AFR	G2	G1	<20	<20			
+anc_AFR	G2	G2	2669	41	1.54	1.13	2.08
+anc_AFR	G1	any	3008	129	4.29	3.62	5.07
+anc_AFR	G2	any	2678	49	1.83	1.39	2.41
+anc_AMR	G1	G1	3381	67	1.98	1.56	2.51
+anc_AMR	G1	G2	<20	<20			
+anc_AMR	G2	G1	<20	<20			
+anc_AMR	G2	G2	1626	<20			
+anc_AMR	G1	any	3386	72	2.13	1.69	2.67
+anc_AMR	G2	any	1636	28	1.71	1.19	2.46
+anc_EAS	G1	G1	1668	24	1.44	0.97	2.13
+anc_EAS	G1	G2	<20	<20			
+anc_EAS	G2	G2	1127	<20			
+anc_EAS	G1	any	1671	27	1.62	1.11	2.34
+anc_EAS	G2	any	1127	<20			
+anc_EUR	G1	G1	3387	71	2.10	1.67	2.64
+anc_EUR	G1	G2	<20	<20			
+anc_EUR	G2	G1	<20	<20			
+anc_EUR	G2	G2	2201	23	1.04	0.70	1.56
+anc_EUR	G1	any	3395	79	2.33	1.87	2.89
+anc_EUR	G2	any	2214	36	1.63	1.18	2.24
+anc_MID	G1	G1	624	<20			
+anc_MID	G1	G2	<20	<20			
+anc_MID	G2	G2	306	<20			
+anc_MID	G1	any	625	<20			
+anc_MID	G2	any	306	<20			
+anc_NAN	G1	G1	32	0	0.00	0.00	10.72
+anc_NAN	G2	G2	<20	<20			
+anc_NAN	G1	any	32	0	0.00	0.00	10.72
+anc_NAN	G2	any	<20	<20			
+anc_SAS	G1	G1	1196	23	1.92	1.28	2.87
+anc_SAS	G1	G2	<20	<20			
+anc_SAS	G2	G1	<20	<20			
+anc_SAS	G2	G2	1185	<20			
+anc_SAS	G1	any	1200	27	2.25	1.55	3.25
+anc_SAS	G2	any	1187	<20			
+plat_revio	G1	G1	12032	278	2.31	2.06	2.59
+plat_revio	G1	G2	30	30	100.00	88.65	100.00
+plat_revio	G2	G1	26	24	92.31	75.86	97.86
+plat_revio	G2	G2	8326	103	1.24	1.02	1.50
+plat_revio	G1	any	12062	308	2.55	2.29	2.85
+plat_revio	G2	any	8352	127	1.52	1.28	1.81
+plat_sequel2e	G1	G1	1255	34	2.71	1.95	3.76
+plat_sequel2e	G2	G1	<20	<20			
+plat_sequel2e	G2	G2	802	<20			
+plat_sequel2e	G1	any	1255	34	2.71	1.95	3.76
+plat_sequel2e	G2	any	810	25	3.09	2.10	4.52
+split_haps_cross_group	obs_vs_random_pairing	expected_pct=42.4	494	62	12.6		
+both_haps_split_people_with_cross	swap_DQB1_resolves		<20	<20			
+same_contig_haps_cross_group	observed		21985	<20			
