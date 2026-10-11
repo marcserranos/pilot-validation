@@ -1,7 +1,7 @@
 # Sprint S05 — QC and phasing, KIR, TRB germline, canonical counts (from the 2026-10-06 call)
 
-*Opened 2026-10-11 on `main`. Owner: Marc. Source of the asks:
-[`sprints/_calls/2026-10-06_CALL_SUMMARY.md`](../_calls/2026-10-06_CALL_SUMMARY.md) and the
+*Opened 2026-10-11 on `main`. Owner: Marc. Source of the asks: the 2026-10-06
+supervisor call (notes kept locally, not in the repo) and the
 `REPORT #11` deck agenda ("what are the counts exactly?", phasing QC, other branches). Plan
 agreed with Marc in the project thread on 2026-10-11 ("complete everything").
 Log: [`LOG.md`](LOG.md) (append-only). Report ledger: [`METHODS_LEDGER.md`](METHODS_LEDGER.md).*
@@ -19,7 +19,7 @@ final report is assembled from the ledger, the per-script READMEs and `LOG.md`.
 
 | WS | Script | Ask (source) | Needs VM | Status |
 |---|---|---|---|---|
-| A | `50_regional_depth.py` | Regional coverage QC: long-read depth over the MHC and the KIR region relative to each person's genome-wide depth (Cole + Marc, 10-06 call) | yes | code + tests written; VM run pending |
+| A | `50_regional_depth.py` | Regional coverage QC: long-read depth over the MHC and the KIR region relative to each person's genome-wide depth (supervisor ask, 2026-10-06) | yes | code + tests written; VM run pending |
 | B | `50_regional_depth.py` (TRB part), `51_trb_germline_usage.py` | Genotype TRBV gene presence/absence from depth (TRBV4-3, TRBV12-4 lead from Aleix's W1); join to Aleix's per-person V usage where readable on the VM | yes | 50 covers depth; 51 pending |
 | C | `50b_depth_outcome_join.py` | Does low regional depth explain missing KIR framework genes, residual HLA "deletions", rare DQ G1/G2-incompatible calls? Propose a cutoff | yes | pending |
 | D | — | Trio phasing QC with yak trioeval (REPORT #11 "Phasing QC"): find the run, finish it, write it up next to twin/relative QC | yes | who started it is unknown; find on VM |
