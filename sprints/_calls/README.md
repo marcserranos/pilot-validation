@@ -16,3 +16,15 @@ Current contents:
   Cole): brief going in, summary coming out. Referenced from several `scripts/hla_popgen/NN_*.py`
   docstrings and `reports/hla_popgen/NN_*/README.md` files as the source of a design decision.
 - `2026-09-22_ALEIX_HANDOFF.md` — the same-day handoff to/from Aleix's workstream.
+
+Calls with no written notes in the repo (as of 2026-10-11). Decks are in Marc's Google Drive,
+folder of the `REPORT #N - HLA_AoU - Marc Serrano and Aleix Ruf` slides:
+- **Call #9, ~2026-09-29** (deck `REPORT #9`): RNA-seq repertoires and embeddings (Aleix), DQ G1/G2
+  signed LD and phasing, HLA-A deletion validation, saturation by ancestry, Figure 1, KIR full cohort.
+- **Call #10, ~2026-10-06** (deck `REPORT #10`): agenda "#1 What are the counts exactly?",
+  "#2 Phasing QC". Aleix's branch records the outcome only as "we own everything RNA-seq/TRB; map
+  disease and ancestry onto it" (his W0–W6 plan).
+- **Call #11, upcoming** (deck `REPORT #11`, created 2026-10-07): agenda "#1 What are the counts
+  exactly?", "#2 Phasing QC — Yak trioeval still running", "#3 Other branches — expression of
+  immune genes (gene → expression), incompatibility map".
+If a summary for #9 or #10 is written later, file it here as `YYYY-MM-DD_CALL_SUMMARY.md`.

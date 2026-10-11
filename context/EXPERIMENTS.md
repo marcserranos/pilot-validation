@@ -801,3 +801,14 @@ Pointer entry; full detail in `sprints/S04_kir_recurrence_style_share/{LOG.md,SP
 - WS-F: repo reorg executed (see the 2026-09-27 structural-note entry above, same file);
   `s04-kir-recurrence-style-share` confirmed a strict superset of `main` and 3 other branches,
   ready for Marc to merge/push.
+
+## 2026-10-11 — Repo harmonization (no runs)
+
+Not an experiment; logged because it changes paths a reader may look for. Branch
+`claude/project-thread-a3l14r` = `s04-kir-recurrence-style-share` + this pass, opened as a PR
+into `main`. Changes: 26 committed `.ipynb_checkpoints/` copies untracked and gitignored (with
+`*.pyc`); new `reports/hla_popgen/README.md` index (current vs superseded result folders, no
+folder moved); `context/STATUS.md` rewritten to current state only (older dated sections are in
+git history and in each sprint's `SPRINT.md`/`LOG.md`); disclosure flag on
+`reports/hla_popgen/novel_alleles.tsv` added to DECISIONS.md open questions; calls #9/#10
+recorded as having no notes in `sprints/_calls/README.md`.
