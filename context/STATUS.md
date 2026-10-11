@@ -18,15 +18,14 @@ Aleix's `aleix/hla-resolve-phase1` shares no history with `main` (separate root)
 **Where things are.**
 - Index of every result folder, current vs superseded: [`reports/hla_popgen/README.md`](../reports/hla_popgen/README.md).
 - Last sprint (S04) plain-language findings: [`sprints/S04_kir_recurrence_style_share/FINDINGS_FOR_MARC.md`](../sprints/S04_kir_recurrence_style_share/FINDINGS_FOR_MARC.md); figure catalogue: `FIGURES_INDEX.md` in the same folder.
-- Last call: [`sprints/_calls/2026-10-xx_CALL_SUMMARY.md`](../sprints/_calls/2026-10-xx_CALL_SUMMARY.md) (from Marc's pasted transcript). Marc's agreed focus: QC and phasing (incl. regional MHC/KIR coverage filter) and KIR; later, disease curation.
+- Last call: [`sprints/_calls/2026-10-06_CALL_SUMMARY.md`](../sprints/_calls/2026-10-06_CALL_SUMMARY.md) (from Marc's pasted transcript). Marc's agreed focus: QC and phasing (incl. regional MHC/KIR coverage filter) and KIR; later, disease curation.
 - Aleix's live state: `aleix/RNA-seq/context/STATUS.md` on his branch (W0 analysis table and W1 V/J usage done 10-08; TRBV4-3 germline-absence lead).
 
 **Done since 2026-09-28 (S04 close-out, before access was lost):** 44 v4b full run (KIR/HLA
 recurrence + catalogue completeness, valid numbers in 44/46 READMEs); 4 of 9 PUBLIC tables of 44 pulled.
 
 **Open, needs Marc:**
-1. Confirm the date of the call summarised in `sprints/_calls/2026-10-xx_CALL_SUMMARY.md`.
-2. Run `sprints/S04_kir_recurrence_style_share/VM_CLEANUP_PLAN_v2.md` (agent deletes are classifier-blocked).
+1. Run `sprints/S04_kir_recurrence_style_share/VM_CLEANUP_PLAN_v2.md` (agent deletes are classifier-blocked).
 
 **Literal next commands (VM, once Marc steers):**
 1. Reattach the big_run app, remount gcsfuse, `ls` the bucket and `~/s04/results/44_public/`.
