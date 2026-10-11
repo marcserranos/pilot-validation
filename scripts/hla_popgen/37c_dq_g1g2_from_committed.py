@@ -25,7 +25,7 @@ Outputs (into reports/hla_popgen/37_dq_g1g2_signed_ld/):
   - oe_purge_committed.tsv -- O/E interval (lower/upper bound from the censored-cell interval)
     per ancestry, cross-group ("predicted incompatible") haplotypes vs independence expectation.
   - recurrent_cross_group_pairs.tsv -- cross-group (predicted_incompatible) allele pairs that
-    clear the 20-haplotype floor (status == estimated, i.e. Cole's "light blue" cells) in at
+    clear the 20-haplotype floor (status == estimated, i.e. the "light blue" cells) in at
     least one ancestry, with which ancestries and their signed D'.
   - fig_bimodality_committed.png/.pdf -- histogram of signed D' within compatible (G1/G1, G2/G2)
     vs incompatible (cross-group) quadrants, pooled over all estimable ancestries.
@@ -538,7 +538,7 @@ def oe_interval_from_table(df_anc, n_haps):
 
 def recurrent_cross_group_pairs(df_all):
     """Cross-group (predicted_incompatible) allele pairs with status == estimated (i.e. an exact
-    disclosed count of >=20 -- Cole's 'light blue' cells, defined here by the same disclosure
+    disclosed count of >=20 -- the 'light blue' cells, defined here by the same disclosure
     threshold as everywhere else in this pipeline, NOT merely 'D' prime is not exactly -1', since
     at 2-field every not_observed cross-group cell has D'==-1.0 exactly -- see README) in >=1
     ancestry, tidy one-row-per-(pair, ancestry)."""

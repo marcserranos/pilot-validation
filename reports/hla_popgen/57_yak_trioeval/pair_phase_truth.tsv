@@ -1,0 +1,25 @@
+pair	child_platform	n_same_contig_haps	n_parent_mismatch	mismatch_pct	lo	hi
+A~B	all	88	36	40.91	31.23	51.35
+A~C	all	81	32	39.51	29.57	50.39
+B~C	all	260	<20			
+DPA1~DPB1	all	248	<20			
+DQA1~DQB1	all	261	<20			
+DQB1~DPB1	all	174	37	21.26	15.84	27.93
+DRB1~DQA1	all	262	<20			
+DRB1~DQB1	all	253	<20			
+A~B	revio	38	<20			
+A~B	sequel2e	50	<20*	<20*	<20*	<20*
+A~C	revio	38	<20			
+A~C	sequel2e	43	<20			
+B~C	revio	196	<20			
+B~C	sequel2e	64	<20			
+DPA1~DPB1	revio	182	<20			
+DPA1~DPB1	sequel2e	66	<20*	<20*	<20*	<20*
+DQA1~DQB1	revio	195	<20			
+DQA1~DQB1	sequel2e	66	<20*	<20*	<20*	<20*
+DQB1~DPB1	revio	122	<20*	<20*	<20*	<20*
+DQB1~DPB1	sequel2e	52	<20			
+DRB1~DQA1	revio	196	<20			
+DRB1~DQA1	sequel2e	66	<20*	<20*	<20*	<20*
+DRB1~DQB1	revio	186	<20			
+DRB1~DQB1	sequel2e	67	<20*	<20*	<20*	<20*

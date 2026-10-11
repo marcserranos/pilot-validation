@@ -1,0 +1,6 @@
+hap_class	n_haps	KIR3DL3_pct	KIR2DL4_pct	KIR3DP1_pct	KIR3DL2_pct
+ALL	24513	95.99	93.27	93.90	93.68
+complete	18497	100.00	96.78	96.77	100.00
+one_contig_open_end	1704	62.09	78.58	80.58	31.63
+multi_contig	4189	94.92	86.49	89.42	93.79
+empty	123	0.00	0.00	0.00	0.00

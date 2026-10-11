@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Deletion supplement figure -- re-rendered from the COMMITTED 30_hla_sv tables only.
 
-Cole (call #8, sprint S03): "simplify the colour scheme -- drop the orange/green distinction,
-keep everything else." Script 30's `fig_deletion_rates()` (scripts/hla_popgen/30_hla_structural_
+Requested (sprint S03): simplify the colour scheme (drop the orange/green distinction, keep
+everything else). Script 30's `fig_deletion_rates()` (scripts/hla_popgen/30_hla_structural_
 variation.py, ~line 314) colour-coded three classes: green = positive control (known CNV genes),
 grey = negative control (should never be deleted), orange = everything else. That maps biological
-category onto colour, which is the exact thing Cole asked to remove. This script keeps the
+category onto colour, which is what this redesign removes. This script keeps the
 statistic (bridged-deletion %, Wilson CIs) and the control framing, but marks the controls with
 annotation instead of colour: one neutral colour for every gene, and the two control groups called
 out with a bracket/label above the bars.
@@ -315,8 +315,8 @@ in `reports/hla_popgen/30_hla_sv/` (`deletion_rates_by_gene.tsv`,
 `deletion_rates_by_gene_ancestry.tsv`). No VM access, no re-computation from raw calls -- every
 number here was already public.
 
-Cole (call #8): "simplify the colour scheme -- drop the orange/green distinction, keep
-everything else." Script 30's original `fig_deletion_rates()` colour-coded genes green
+Requested: simplify the colour scheme (drop the orange/green distinction, keep everything
+else). Script 30's original `fig_deletion_rates()` colour-coded genes green
 (positive control) / grey (negative control) / orange (everything else). This version uses one
 neutral colour for every gene; the two control groups are called out with a bracket + label
 above their bars instead.

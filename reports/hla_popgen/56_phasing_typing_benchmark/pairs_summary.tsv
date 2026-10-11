@@ -1,0 +1,7 @@
+pair_class	platform_pair	n_pairs	median_kin	po_sib_split_by
+PO_or_sib	all	569	0.251	none
+PO_or_sib	revio-revio	419	0.251	none
+PO_or_sib	revio-sequel2e	38	0.252	none
+PO_or_sib	sequel2e-sequel2e	112	0.251	none
+twin	all	<20		none
+twin	revio-revio	<20		none

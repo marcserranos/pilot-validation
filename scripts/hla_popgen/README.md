@@ -106,6 +106,23 @@ a duplicate is not (see COMPREHENSIVE_REPORT.md for the narrative these map onto
 23_fig1_draft_panels.py     → novel rate by ancestry x gene + SFS known vs novel, split CDS/non-coding/artifact
 ```
 
+**S05 (2026-10-06) — QC foundation, KIR structure, haplotype atlas, ASE pilot** (VM; read existing per-person outputs only)
+```
+_s05_common.py              → shared loaders (unrelated rule, ancestry upper-casing, HLA- prefix, <20 masking)
+50_qc_foundation.py         → exclusion waterfall, MHC same-contig matrix, platform x novelty, protein-novel funnel, DQ ascertainment
+51_kir_structure_qc.py      → KIR haplotype completeness classes, framework presence, allelic-pair event typing, content haplotypes
+52_mhc_haplotype_atlas.py   → absent-haplotype atlas (DQ G1/G2 + DR51/52/53 controls), AMR equal-N decomposition, ASE census
+53_hla_ase_pilot.py         → allele-specific expression of HLA-A/B/C from RNA-seq on personal two-haplotype references
+54_s05_figures.py           → laptop-only; figures from the committed 50-53 PUBLIC tables
+55_structure_expression_validation.py → assembled copy number vs RNA-SeQC TPM (DRB5, KIR)
+56_phasing_typing_benchmark.py → twins / first-degree relatives: typing + haplotype transmission, confidence-score sweep
+56b_relative_pair_refinement.py → de-confounded 56 (MHC-sharing pairs; both relatives same-contig)
+56c_benchmark_figures.py    → laptop-only; 56/56b figures
+57_yak_trioeval_pilot.py    → yak trioeval/qv on kinship-inferred trios (MHC, class I/II, KIR, chr20 windows); needs ~/envs/yak
+57b_trio_gene_origin.py     → parent of origin per HLA call: same-contig pair phasing truth, Mendelian typing check
+57c_trio_figures.py         → laptop-only; 57/57b figures
+```
+
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can
 settle — chiefly **whether the intermediate files survived on the production VM**. It is cheap
 (~2 minutes) and prints one JSON block to paste back. Nothing downstream should be trusted until it

@@ -1,0 +1,5 @@
+pair	scope	haps_with_either	co_called	co_called_pct	overlap	overlap_share_pct	same_contig	same_contig_share_pct	diff_contig	diff_contig_share_pct	same_contig_dist_bp_q25_q50_q75
+KIR2DL2+KIR2DL3	all_haps	23139	187	0.81	0	0.0	<20		168	89.8	
+KIR2DL2+KIR2DL3	complete_haps	18328	<20		0		<20		0		
+KIR3DL1+KIR3DS1	all_haps	22599	411	1.82	0	0.0	264	64.2	147	35.8	33337/33816/91375
+KIR3DL1+KIR3DS1	complete_haps	17885	218	1.22	0	0.0	218	100.0	0	0.0	

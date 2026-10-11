@@ -1,6 +1,6 @@
 # 41 — KIR scoping + pilot (WS5, Sprint S03 call #8 §7)
 
-Cole (call #8, 2026-09-22): the production Immuannot run only ever trimmed assemblies to the
+Context: the production Immuannot run only ever trimmed assemblies to the
 chr6 HLA window — **KIR genes (chr19) were never called**, even though they interact closely
 with HLA (NK-cell receptors) and are expected to show more germline diversity and novel alleles
 than HLA itself. Marc's action item: scope the region and rerun cost. This report is that scoping
@@ -26,8 +26,7 @@ Primary-source coordinates (GeneCards/Ensembl, GRCh38), not re-derived from a br
 | FCAR | telomeric anchor, immediately outside the KIR array | chr19:54,874,235–54,891,420 |
 
 The core KIR tandem array (KIR3DL3 → KIR3DL2) spans **~143 kb**, matching the literature's
-"~150 kb" figure for the gene cluster (NCBI Bookshelf, *The KIR Gene Cluster*) — and matching
-Cole's own estimate on the call ("region may be comparable size to HLA (~150kb)").
+"~150 kb" figure for the gene cluster (NCBI Bookshelf, *The KIR Gene Cluster*).
 
 **Trim window used: `chr19:54,600,000-54,920,000`** (320 kb) — `KIR_REGION_DEFAULT` in
 `41_kir_pilot.py`. This is deliberately wider than the textbook array:

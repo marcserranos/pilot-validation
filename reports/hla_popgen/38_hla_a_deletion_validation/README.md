@@ -1,6 +1,6 @@
 # 38 -- HLA-A "deletion" short-read cross-validation (WS2, S03 call #8)
 
-*Cole, call #8: "that is a big result... how is that plausible?" -- script 30
+*Plausibility check -- script 30
 (`reports/hla_popgen/30_hla_sv/`) reports HLA-A bridged-absence "deletion" at 1.83% of bridged
 haplotypes (n_bridged ~= 23k) and designates HLA-A a negative control (should be ~0). No
 documented whole-gene HLA-A deletion haplotype exists in the literature (only null alleles; one
@@ -78,7 +78,7 @@ Fisher P=1.0 -- see caveats below). This does not change the calibration story: 
 and every other negative-control gene tested remain significant after correction, as do all three
 positive controls.
 
-**This is the calibration Cole asked for.** The three positive controls (DRB3/4/5 -- textbook,
+**This is the requested calibration.** The three positive controls (DRB3/4/5 -- textbook,
 DRB1-haplotype-group-determined absences) are SR-contradicted **<1%** of the time: short reads
 overwhelmingly agree these genes are really gone. Every negative-control gene tested, including
 HLA-A, is SR-contradicted **37-83%** of the time: short reads overwhelmingly disagree with the
@@ -163,8 +163,8 @@ in `reports/hla_popgen/30_hla_sv/` (`deletion_rates_by_gene.tsv`,
 `deletion_rates_by_gene_ancestry.tsv`). No VM access, no re-computation from raw calls -- every
 number here was already public.
 
-Cole (call #8): "simplify the colour scheme -- drop the orange/green distinction, keep
-everything else." Script 30's original `fig_deletion_rates()` colour-coded genes green
+Requested: simplify the colour scheme (drop the orange/green distinction, keep everything
+else). Script 30's original `fig_deletion_rates()` colour-coded genes green
 (positive control) / grey (negative control) / orange (everything else). This version uses one
 neutral colour for every gene; the two control groups are called out with a bracket + label
 above their bars instead.

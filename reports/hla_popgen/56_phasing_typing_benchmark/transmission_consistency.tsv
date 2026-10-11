@@ -1,0 +1,109 @@
+check	item	pair_class	platform_pair	bad_n	bad_k	bad_pct	bad_lo	bad_hi
+gene_share	ALL	PO_or_sib	all	7365	558	7.58	6.99	8.20
+gene_share	A	PO_or_sib	all	568	49	8.63	6.59	11.22
+gene_share	B	PO_or_sib	all	568	60	10.56	8.30	13.36
+gene_share	C	PO_or_sib	all	567	49	8.64	6.60	11.24
+gene_share	DPA1	PO_or_sib	all	569	<20			
+gene_share	DPB1	PO_or_sib	all	569	40	7.03	5.20	9.43
+gene_share	DQA1	PO_or_sib	all	567	34	6.00	4.32	8.26
+gene_share	DQA2	PO_or_sib	all	569	<20			
+gene_share	DQB1	PO_or_sib	all	568	48	8.45	6.43	11.03
+gene_share	DRB1	PO_or_sib	all	569	53	9.31	7.19	11.98
+gene_share	DRB3	PO_or_sib	all	274	37	13.50	9.96	18.06
+gene_share	DRB4	PO_or_sib	all	192	<20			
+gene_share	DRB5	PO_or_sib	all	86	<20			
+gene_share	MICA	PO_or_sib	all	563	84	14.92	12.22	18.10
+gene_share	TAP1	PO_or_sib	all	568	20	3.52	2.29	5.38
+gene_share	TAP2	PO_or_sib	all	568	43	7.57	5.67	10.04
+gene_share	ALL	PO_or_sib	revio-revio	5419	448	8.27	7.56	9.03
+gene_share	A	PO_or_sib	revio-revio	418	39	9.33	6.90	12.50
+gene_share	B	PO_or_sib	revio-revio	419	50	11.93	9.17	15.39
+gene_share	C	PO_or_sib	revio-revio	417	40	9.59	7.12	12.80
+gene_share	DPA1	PO_or_sib	revio-revio	419	<20			
+gene_share	DPB1	PO_or_sib	revio-revio	419	31	7.40	5.26	10.31
+gene_share	DQA1	PO_or_sib	revio-revio	417	26	6.24	4.29	8.98
+gene_share	DQA2	PO_or_sib	revio-revio	419	<20			
+gene_share	DQB1	PO_or_sib	revio-revio	419	43	10.26	7.71	13.54
+gene_share	DRB1	PO_or_sib	revio-revio	419	44	10.50	7.92	13.80
+gene_share	DRB3	PO_or_sib	revio-revio	207	27	13.04	9.12	18.31
+gene_share	DRB4	PO_or_sib	revio-revio	136	<20			
+gene_share	DRB5	PO_or_sib	revio-revio	58	<20			
+gene_share	MICA	PO_or_sib	revio-revio	415	70	16.87	13.57	20.77
+gene_share	TAP1	PO_or_sib	revio-revio	418	<20			
+gene_share	TAP2	PO_or_sib	revio-revio	419	34	8.11	5.86	11.13
+gene_share	ALL	PO_or_sib	revio-sequel2e	496	43	8.67	6.50	11.47
+gene_share	A	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	B	PO_or_sib	revio-sequel2e	37	<20			
+gene_share	C	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	DPA1	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	DPB1	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	DQA1	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	DQA2	PO_or_sib	revio-sequel2e	38	0	0.00	0.00	9.18
+gene_share	DQB1	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	DRB1	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	DRB3	PO_or_sib	revio-sequel2e	<20	<20			
+gene_share	DRB4	PO_or_sib	revio-sequel2e	<20	<20			
+gene_share	DRB5	PO_or_sib	revio-sequel2e	<20	<20			
+gene_share	MICA	PO_or_sib	revio-sequel2e	37	<20			
+gene_share	TAP1	PO_or_sib	revio-sequel2e	38	<20			
+gene_share	TAP2	PO_or_sib	revio-sequel2e	37	<20			
+gene_share	ALL	PO_or_sib	sequel2e-sequel2e	1450	67	4.62	3.65	5.83
+gene_share	A	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	B	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	C	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	DPA1	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	DPB1	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	DQA1	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	DQA2	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	DQB1	PO_or_sib	sequel2e-sequel2e	111	<20			
+gene_share	DRB1	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	DRB3	PO_or_sib	sequel2e-sequel2e	53	<20			
+gene_share	DRB4	PO_or_sib	sequel2e-sequel2e	40	<20			
+gene_share	DRB5	PO_or_sib	sequel2e-sequel2e	<20	0			
+gene_share	MICA	PO_or_sib	sequel2e-sequel2e	111	<20			
+gene_share	TAP1	PO_or_sib	sequel2e-sequel2e	112	<20			
+gene_share	TAP2	PO_or_sib	sequel2e-sequel2e	112	<20			
+hap_cross_contig	ALL	PO_or_sib	all	409	156	38.14	33.57	42.94
+hap_cross_contig	A~B	PO_or_sib	all	293	141	48.12	42.46	53.83
+hap_cross_contig	B~C	PO_or_sib	all	54	<20			
+hap_cross_contig	DQA1~DQB1	PO_or_sib	all	<20	<20			
+hap_cross_contig	DRB1~DQB1	PO_or_sib	all	47	<20			
+hap_cross_contig	ALL	PO_or_sib	revio-revio	352	138	39.20	34.25	44.40
+hap_cross_contig	A~B	PO_or_sib	revio-revio	253	125	49.41	43.30	55.53
+hap_cross_contig	B~C	PO_or_sib	revio-revio	47	<20			
+hap_cross_contig	DQA1~DQB1	PO_or_sib	revio-revio	<20	<20			
+hap_cross_contig	DRB1~DQB1	PO_or_sib	revio-revio	40	<20			
+hap_cross_contig	ALL	PO_or_sib	revio-sequel2e	27	<20			
+hap_cross_contig	A~B	PO_or_sib	revio-sequel2e	20	<20			
+hap_cross_contig	B~C	PO_or_sib	revio-sequel2e	<20	<20			
+hap_cross_contig	DQA1~DQB1	PO_or_sib	revio-sequel2e	<20	0			
+hap_cross_contig	DRB1~DQB1	PO_or_sib	revio-sequel2e	<20	0			
+hap_cross_contig	ALL	PO_or_sib	sequel2e-sequel2e	30	<20			
+hap_cross_contig	A~B	PO_or_sib	sequel2e-sequel2e	20	<20			
+hap_cross_contig	B~C	PO_or_sib	sequel2e-sequel2e	<20	<20			
+hap_cross_contig	DQA1~DQB1	PO_or_sib	sequel2e-sequel2e	<20	0			
+hap_cross_contig	DRB1~DQB1	PO_or_sib	sequel2e-sequel2e	<20	0			
+hap_same_contig	ALL	PO_or_sib	all	2183	335	15.35	13.89	16.92
+hap_same_contig	A~B	PO_or_sib	all	218	169	77.52	71.53	82.56
+hap_same_contig	B~C	PO_or_sib	all	472	72	15.25	12.29	18.78
+hap_same_contig	DPA1~DPB1	PO_or_sib	all	521	<20			
+hap_same_contig	DQA1~DQB1	PO_or_sib	all	497	23	4.63	3.10	6.85
+hap_same_contig	DRB1~DQB1	PO_or_sib	all	475	63	13.26	10.51	16.61
+hap_same_contig	ALL	PO_or_sib	revio-revio	1528	232	15.18	13.47	17.07
+hap_same_contig	A~B	PO_or_sib	revio-revio	111	101	90.99	84.21	95.03
+hap_same_contig	B~C	PO_or_sib	revio-revio	338	55	16.27	12.72	20.58
+hap_same_contig	DPA1~DPB1	PO_or_sib	revio-revio	381	<20			
+hap_same_contig	DQA1~DQB1	PO_or_sib	revio-revio	359	<20			
+hap_same_contig	DRB1~DQB1	PO_or_sib	revio-revio	339	50	14.75	11.37	18.92
+hap_same_contig	ALL	PO_or_sib	revio-sequel2e	153	29	18.95	13.53	25.90
+hap_same_contig	A~B	PO_or_sib	revio-sequel2e	22	<20			
+hap_same_contig	B~C	PO_or_sib	revio-sequel2e	30	<20			
+hap_same_contig	DPA1~DPB1	PO_or_sib	revio-sequel2e	34	0	0.00	0.00	10.15
+hap_same_contig	DQA1~DQB1	PO_or_sib	revio-sequel2e	33	<20			
+hap_same_contig	DRB1~DQB1	PO_or_sib	revio-sequel2e	34	<20			
+hap_same_contig	ALL	PO_or_sib	sequel2e-sequel2e	502	74	14.74	11.91	18.11
+hap_same_contig	A~B	PO_or_sib	sequel2e-sequel2e	85	49	57.65	47.04	67.60
+hap_same_contig	B~C	PO_or_sib	sequel2e-sequel2e	104	<20			
+hap_same_contig	DPA1~DPB1	PO_or_sib	sequel2e-sequel2e	106	<20			
+hap_same_contig	DQA1~DQB1	PO_or_sib	sequel2e-sequel2e	105	<20			
+hap_same_contig	DRB1~DQB1	PO_or_sib	sequel2e-sequel2e	102	<20			

@@ -1,0 +1,10 @@
+gene	pair_class	n_people	n_people_ge30_informative	median_informative_reads	median_abs_log2_obs	median_abs_log2_sim_bias	median_abs_log2_obs_minus_bias	pct_imbalanced_p01_gt_1.41x
+A	mrna_identical	<20						
+A	protein_diff	63	63	27217.0	0.37	0.02	0.39	31.7
+A	protein_identical_mrna_diff	<20	<20					
+B	mrna_identical	<20						
+B	protein_diff	62	62	51452.0	0.33	0.01	0.34	32.3
+B	protein_identical_mrna_diff	<20	<20					
+C	mrna_identical	<20						
+C	protein_diff	42	42	43842.0	0.33	0.01	0.32	
+C	protein_identical_mrna_diff	25	<20					

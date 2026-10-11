@@ -4,8 +4,8 @@ Source: script `37b_ld_supplement_table.py`, re-rendered from the already-commit
 `reports/hla_popgen/29_hla_ld/ld_pairwise.tsv`. No VM access, no re-computation from raw calls --
 every number here was already public.
 
-Cole (call #8): "this should be a table too -- a simple CSV with r2 and D-prime", with a distinct
-colour for "not observed / below n=20".
+Requested: the LD values as a simple CSV table (r2 and D-prime), with a distinct colour for
+"not observed / below n=20".
 
 ## Data-gap check (per the task)
 
@@ -231,7 +231,7 @@ Every ancestry's cross-group cells are `not_observed` (disclosable exact zero, n
 interval collapsing by coincidence. Under independence, 1,000+ cross-group haplotypes were expected
 in every ancestry; **zero were observed anywhere**.
 
-## 2b. Recurrent cross-group pairs (Cole's "light blue" cells) -- `recurrent_cross_group_pairs.tsv`
+## 2b. Recurrent cross-group pairs ("light blue" cells) -- `recurrent_cross_group_pairs.tsv`
 
 **Empty (0 rows).** "Recurrent" here means an exact disclosed count of >=20 (this pipeline's usual
 disclosure threshold) -- no cross-group DQA1xDQB1 pair reaches that anywhere. More precisely (see
@@ -434,7 +434,7 @@ Switch errors (EM resolves a doubly-heterozygous person to the wrong phase entir
 G1/G2) were rare and mostly below the 20-count disclosure floor per ancestry; pooled, **20/8,174
 doubly-heterozygous truth people (switch rate 0.24%)**. So on this cohort, at this LD strength, a
 population-level EM haplotype estimator does not manufacture the kind of cross-group cis pair
-Cole's target figure shows as light blue -- **the null hypothesis (statistical-phasing artifact)
+the reference figure shows as light blue -- **the null hypothesis (statistical-phasing artifact)
 is not supported by this specific EM reconstruction.**
 
 **The real-world "different contig" group tells a different story.** For people whose DQA1 and

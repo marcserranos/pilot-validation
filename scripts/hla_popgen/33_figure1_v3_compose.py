@@ -14,7 +14,7 @@ This script composes **(c) and (d)**, which are the two that can be rebuilt from
 aggregates at S01's corrected novelty definition. Panels (a) and (b) are per-allele,
 per-ancestry frequency products of scripts 06 and 10, which committed figures but not the
 underlying tables, so they cannot be recomposed offline — and both need regenerating anyway at the
-stricter admixture threshold Cole asked for separately (ask A9). `WS4_figure1_v3.md` records
+stricter admixture threshold requested separately (ask A9). `WS4_figure1_v3.md` records
 exactly what that rerun needs.
 
 Panel (c) is the one that changed most since the call. In the meeting the novel-allele rate was
@@ -148,7 +148,7 @@ def rate_by_gene_ancestry(counts, ancestry_scheme="strict", unrelated_only=True,
 
 
 def sfs_known_vs_novel(sfs, gene="ALL_CLASSICAL"):
-    """Collapse script 23's four series into the two colours Cole asked for, density-normalised.
+    """Collapse script 23's four series into two colours (novel vs known), density-normalised.
 
     The bins are powers of two of unequal width, so raw counts per bin produce a sawtooth that
     looks like structure and is purely binning. Dividing by bin width gives alleles per unit
@@ -255,7 +255,7 @@ def compose(rates, counts_raw, sfs_counts, sfs_dens, out_png, out_pdf, gene_for_
 def write_readme(path, rates, gene_for_sfs):
     L = []
     L.append("# 33 — Figure 1 v3 (panels c and d)\n")
-    L.append("*Supervisor ask A1 (Cole, 2026-09-17). Built from committed aggregates only.*\n")
+    L.append("*Supervisor ask A1 (2026-09-17). Built from committed aggregates only.*\n")
     L.append("\n## What is here and what is not\n")
     L.append("| panel | Cole's ask | status |\n|---|---|---|\n")
     L.append("| a | admixture bar plot | **not in this file** — needs a rerun of script 06 at the "

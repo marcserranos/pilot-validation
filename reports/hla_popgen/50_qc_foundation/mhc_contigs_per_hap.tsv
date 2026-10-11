@@ -1,0 +1,55 @@
+by	stratum	n_contigs	n_haps	of	pct
+platform	revio	1	3479	22020	15.8
+platform	revio	2	2270	22020	10.3
+platform	revio	3	2927	22020	13.3
+platform	revio	4	3361	22020	15.3
+platform	revio	5+	9983	22020	45.3
+platform	revio	mean		22020	4.32
+platform	sequel2e	1	828	2433	34.0
+platform	sequel2e	2	120	2433	4.9
+platform	sequel2e	3	83	2433	3.4
+platform	sequel2e	4	109	2433	4.5
+platform	sequel2e	5+	1293	2433	53.1
+platform	sequel2e	mean		2433	4.88
+ancestry	AFR	1	900	6211	14.5
+ancestry	AFR	2	504	6211	8.1
+ancestry	AFR	3	704	6211	11.3
+ancestry	AFR	4	912	6211	14.7
+ancestry	AFR	5+	3191	6211	51.4
+ancestry	AFR	mean		6211	4.63
+ancestry	AMR	1	1524	5552	27.4
+ancestry	AMR	2	436	5552	7.9
+ancestry	AMR	3	525	5552	9.5
+ancestry	AMR	4	594	5552	10.7
+ancestry	AMR	5+	2473	5552	44.5
+ancestry	AMR	mean		5552	4.22
+ancestry	EAS	1	402	2987	13.5
+ancestry	EAS	2	323	2987	10.8
+ancestry	EAS	3	433	2987	14.5
+ancestry	EAS	4	490	2987	16.4
+ancestry	EAS	5+	1339	2987	44.8
+ancestry	EAS	mean		2987	4.38
+ancestry	EUR	1	986	6154	16.0
+ancestry	EUR	2	644	6154	10.5
+ancestry	EUR	3	804	6154	13.1
+ancestry	EUR	4	897	6154	14.6
+ancestry	EUR	5+	2823	6154	45.9
+ancestry	EUR	mean		6154	4.39
+ancestry	MID	1	145	987	14.7
+ancestry	MID	2	129	987	13.1
+ancestry	MID	3	163	987	16.5
+ancestry	MID	4	160	987	16.2
+ancestry	MID	5+	390	987	39.5
+ancestry	MID	mean		987	4.08
+ancestry	NAN	1	<20	46	
+ancestry	NAN	2	<20	46	
+ancestry	NAN	3	<20	46	
+ancestry	NAN	4	<20	46	
+ancestry	NAN	5+	<20	46	
+ancestry	NAN	mean		46	3.26
+ancestry	SAS	1	335	2516	13.3
+ancestry	SAS	2	347	2516	13.8
+ancestry	SAS	3	375	2516	14.9
+ancestry	SAS	4	413	2516	16.4
+ancestry	SAS	5+	1046	2516	41.6
+ancestry	SAS	mean		2516	4.18

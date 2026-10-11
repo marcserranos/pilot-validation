@@ -10,3 +10,10 @@ scripts/monitoring/client_state.json
 embedding_cache.pkl
 .ipynb_checkpoints/
 *.pyc
+
+# Call notes (briefs, summaries, handoffs) are private — only the README is public
+sprints/_calls/*
+!sprints/_calls/README.md
+# Personal walkthrough built on private call notes
+reports/walkthrough_S03_S04/
+reports/walkthrough_S05/

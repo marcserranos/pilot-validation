@@ -17,18 +17,18 @@ diversity tracks. Distilled asks, in Cole's priority order:
 
 | # | Ask (paraphrased, Cole unless noted) | Where it lands |
 |---|---|---|
-| A1 | **Figure 1 panels.** Admixture bar plot; a class I ternary ("the best one you can make", A or B); novel-allele rate by ancestry **broken out by gene** ("where is the reference data bias worst?"); allele-frequency spectrum over **all** alleles with novel vs known as two colours, overlaid, not three separate plots. | WS4 |
-| A2 | **Phasing error is the critical question.** "We don't want there to be a switch between DPA1 and DPB1" — the pair is what matters functionally. Estimate that error properly. | WS0 — **already answered in S01**; needs restating in the pair-specific form Cole asked for |
-| A3 | **LD between DQA1–DQB1 and DPA1–DPB1 alleles, computed within each ancestry**, r². "I suspect the linkage patterns are very different between ancestries." Raised twice, explicitly listed in the closing next-steps. | WS1 |
-| A4 | **Deletions and duplications.** "Let's do that. It could be pretty crazy." Notes the Immuannot/1000G paper reports dups and dels. | WS2 |
-| A5 | **KIR** — "did you look at the KIR alleles at all? It should be called if you just ran it straight up." | WS2 (quick answer: it is not, by construction) |
-| A6 | **A great list of novel alleles that are common in some ancestry and missing from the database** — "things we can literally call out in main text: we found these seven examples." | WS3 |
-| A7 | **Selection / diversity literature review** — "so that we can cite somebody and at least their methodology". Specifically amino-acid-level diversity and peptide-binding vs non-peptide-binding residues within the CDS. | WS5 |
-| A8 | **Amino-acid-level diversity, ARS vs non-ARS.** "What's actually more interesting is if we look at the CDS between the peptide-binding and the non-binding regions." | WS5 |
+| A1 | **Figure 1 panels.** Admixture bar plot; a class I ternary (best of A or B); novel-allele rate by ancestry **broken out by gene** (where is reference bias worst?); allele-frequency spectrum over **all** alleles with novel vs known as two colours, overlaid, not three separate plots. | WS4 |
+| A2 | **Phasing error is the critical question** — no DPA1/DPB1 switches; the pair is what matters functionally. Estimate that error properly. | WS0 — **already answered in S01**; needs restating in the pair-specific form Cole asked for |
+| A3 | **LD between DQA1–DQB1 and DPA1–DPB1 alleles, computed within each ancestry**, r². Hypothesis: linkage patterns differ between ancestries. | WS1 |
+| A4 | **Deletions and duplications.** Note: the Immuannot/1000G paper reports dups and dels. | WS2 |
+| A5 | **KIR** — were KIR alleles called? | WS2 (quick answer: it is not, by construction) |
+| A6 | **A great list of novel alleles that are common in some ancestry and missing from the database** — concrete main-text examples. | WS3 |
+| A7 | **Selection / diversity literature review** — citable methodology. Specifically amino-acid-level diversity and peptide-binding vs non-peptide-binding residues within the CDS. | WS5 |
+| A8 | **Amino-acid-level diversity, ARS vs non-ARS** within the CDS. | WS5 |
 | A9 | Stricter admixture threshold (~98%) for structure plots, because the UMAP/PCA separation is confounded by admixture. | WS4 |
 | A10 | Class II looks more diverse / more structured than class I — is that balancing selection differing between ancestries? | WS5 |
 | A11 | Supplement: start a figure dump (SFS by gene, the extra ternaries, the UMAP/PCA panels). | WS4 |
-| A12 | Short-read validation of novel alleles by realigning short reads to the long-read assembly. Cole: **"I wouldn't do that right now"** — parked deliberately. | ⏸ parked by Cole |
+| A12 | Short-read validation of novel alleles by realigning short reads to the long-read assembly. Parked deliberately. | ⏸ parked by Cole |
 | A13 | HLA is not a prediction target; it is a **conditioning variable** for the TCR/BCR work. Confirms the disease-embedding negative is fine to report as a negative. | no work; framing note |
 
 David's framing point: Figure 1 stays HLA-only; the TCR/BCR material is a later section, not a
@@ -57,7 +57,7 @@ old headline would not survive review.
 **What we can doubt**
 1. *LD at allele level.* r² is defined for biallelic markers. HLA alleles are multi-allelic, so the
    choice of statistic is the whole analysis: pairwise-biallelic r² per allele pair, a normalised
-   multi-allelic D′ (Hedrick), or a normalised mutual information. Cole asked for "the R2 measure";
+   multi-allelic D′ (Hedrick), or a normalised mutual information. r² was requested;
    we should give him that **plus** a multi-allelic summary, and say which is which.
 2. *SV from Immuannot is presence/absence of an annotation, not a validated structural call.* A
    "deletion" can be assembly fragmentation (the gene fell off a contig end) and a "duplication"

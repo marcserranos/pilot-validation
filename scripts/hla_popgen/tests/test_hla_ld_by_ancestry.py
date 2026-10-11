@@ -6,8 +6,8 @@ The tests that matter here are the ones that would catch a *silently wrong* LD n
   1. r^2 against hand-computed values on a 2x2 with known D, including perfect LD and perfect
      linkage equilibrium. If this is wrong, every figure is wrong and nothing looks odd.
   2. D' vs r^2 divergence -- the classic case where complete LD (D'=1) coexists with a small r^2
-     because the marginal frequencies differ. This is exactly the trap Cole's "just compute r^2"
-     instruction walks into, so the script must get it right and report both.
+     because the marginal frequencies differ. This is exactly the trap a plain r^2-only
+     analysis walks into, so the script must get it right and report both.
   3. The cis key. A haplotype may only be formed from two genes on the SAME contig. A test where
      the two genes sit on different contigs of the same assembly haplotype must yield ZERO
      haplotypes -- not a pairing.

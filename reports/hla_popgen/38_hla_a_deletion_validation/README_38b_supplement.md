@@ -5,8 +5,8 @@ in `reports/hla_popgen/30_hla_sv/` (`deletion_rates_by_gene.tsv`,
 `deletion_rates_by_gene_ancestry.tsv`). No VM access, no re-computation from raw calls -- every
 number here was already public.
 
-Cole (call #8): "simplify the colour scheme -- drop the orange/green distinction, keep
-everything else." Script 30's original `fig_deletion_rates()` colour-coded genes green
+Requested: simplify the colour scheme (drop the orange/green distinction, keep everything
+else). Script 30's original `fig_deletion_rates()` colour-coded genes green
 (positive control) / grey (negative control) / orange (everything else). This version uses one
 neutral colour for every gene; the two control groups are called out with a bracket + label
 above their bars instead.

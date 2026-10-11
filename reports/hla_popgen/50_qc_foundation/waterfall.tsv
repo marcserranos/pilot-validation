@@ -1,0 +1,12 @@
+step	total	AFR	AMR	EAS	EUR	MID	SAS	platform_revio	platform_sequel2e	platform_sequel2
+all_cohort_membership_rows	13252	4053	2807	1499	3109	499	1262	11042	1219	991
+in_lr	12233	3108	2777	1494	3078	495	1258	11015	1218	0
+assembly_platform	12233	3108	2777	1494	3078	495	1258	11015	1218	0
+has_hla_calls	12233	3108	2777	1494	3078	495	1258	11015	1218	0
+unrelated_kin_lt_0.0442	11856	3020	2656	1460	2974	487	1236	10720	1136	0
+unrelated_and_ancestry_p_ge_0.90	7924	2324	1582	1270	1293	304	1151	7175	749	0
+unrelated_and_ancestry_p_ge_0.95	7119	2004	1389	1252	1141	184	1149	6451	668	0
+unrelated_and_ancestry_p_ge_0.98	6136	1486	1214	1226	965	100	1145	5556	580	0
+lost_no_hla_calls_platform_revio	0									
+lost_no_hla_calls_platform_sequel2e	0									
+lost_no_hla_calls_platform_sequel2	0									

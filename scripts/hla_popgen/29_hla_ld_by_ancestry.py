@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 """Linkage disequilibrium between HLA alleles at physically-phased cis gene pairs, within ancestry.
 
-Supervisor ask (Cole, 2026-09-17 call, raised twice and repeated in the closing next-steps):
-
-    "I would just want you to compute the LD between alleles within each ancestry and just kind of
-     see what looks different. [...] the R2 measure would be the most normal way to do it. [...]
-     we expect the LD patterns, just the correlation between any DQA1 and DQB1 allele, to be very
-     different between the ancestries besides just having different frequencies."
+Supervisor ask A3 (2026-09-17): compute allele-level LD (r^2) within each ancestry for the cis
+class II pairs, and test whether LD patterns (the correlation between DQA1 and DQB1 alleles) differ
+between ancestries beyond what different allele frequencies alone produce.
 
 That last clause is the whole analysis. Two ancestries can differ in an LD statistic for three
-completely different reasons, and only the third is the biology Cole is asking about:
+completely different reasons, and only the third is the biology being asked about:
 
   1. **Different allele frequencies.** r^2 is bounded by the marginal frequencies. A pair of alleles
      at 2% cannot reach the r^2 a pair at 40% can. Comparing raw per-pair r^2 across ancestries
@@ -22,7 +19,7 @@ completely different reasons, and only the third is the biology Cole is asking a
 
 So this script reports three tiers, and the README says plainly which is which:
 
-  * per-allele-pair r^2 and D' (what Cole asked for literally), with the marginal frequencies next
+  * per-allele-pair r^2 and D' (the literal r^2 requested), with the marginal frequencies next
     to every value so the bound is visible;
   * multi-allelic summaries per gene pair per ancestry: Hedrick's (1987) multi-allelic D',
     Cramer's V, and normalised mutual information;
@@ -480,8 +477,8 @@ def fig_pairable(diag_rows, path):
 def write_readme(path, args, diag_rows, multi_rows, rare_rows, top_r2, n_people):
     L = []
     L.append("# 29 — LD between HLA alleles at phased cis gene pairs, within ancestry\n")
-    L.append("*Supervisor ask A3 (Cole, 2026-09-17): \"compute the LD between alleles within each "
-             "ancestry and see what looks different\", r^2, for DQA1–DQB1 and DPA1–DPB1.*\n")
+    L.append("*Supervisor ask A3 (2026-09-17): allele-level LD within each ancestry, "
+             "r^2, for DQA1–DQB1 and DPA1–DPB1.*\n")
     L.append("## What was computed\n")
     L.append("Haplotypes are **physically phased**: both genes annotated on the same contig of the "
              "same assembly haplotype, one copy each, both resolvable to two fields (protein "
@@ -541,7 +538,7 @@ def write_readme(path, args, diag_rows, multi_rows, rare_rows, top_r2, n_people)
                  "zero-width interval here means *no sampling-variance estimate*, not a precise "
                  "one. Never compare against it as though it were a tight CI.\n")
 
-    L.append("\n## 4. Strongest individual allele pairs (what Cole asked for literally)\n")
+    L.append("\n## 4. Strongest individual allele pairs (the literal r^2 requested)\n")
     t = pd.DataFrame(top_r2)
     if not t.empty:
         show = t[["pair", "ancestry", "allele_a", "allele_b", "freq_a", "freq_b", "freq_hap",

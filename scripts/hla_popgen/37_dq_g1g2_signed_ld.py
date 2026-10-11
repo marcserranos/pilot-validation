@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Signed phased D' between DQA1 and DQB1, the Petersdorf (2022) G1/G2 "predicted incompatible"
-cross-quadrant, and the transplant-genetics question Cole asked on the 2026-09-22 call: are the
+cross-quadrant, and the transplant-genetics question: are the
 residual (non -1) incompatible-quadrant cells phase/assembly errors, or real rare recombinants?
 
 ## WS1 of sprint S03 (call #8). Deliverables (see AGENT_PREAMBLE.md / this script's task text):

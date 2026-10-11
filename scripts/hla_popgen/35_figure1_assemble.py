@@ -107,7 +107,7 @@ The four panels Cole specified on 2026-09-17, laid out as one sheet.
 | Panel | Content | Source |
 |---|---|---|
 | a | Genetic ancestry of the long-read cohort (admixture barcode) | script 06 |
-| b | HLA-B allele ancestry simplex — the ternary Cole said he liked "as it is" | script 10 |
+| b | HLA-B allele ancestry simplex — the ternary, kept as is | script 10 |
 | c | Novelty by gene, ancestry and nomenclature field, with the artifact rate as a flat negative control | script 33 |
 | d | Allele-frequency spectrum, novel vs known, density-normalised | script 33 |
 

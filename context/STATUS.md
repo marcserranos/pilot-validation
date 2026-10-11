@@ -31,3 +31,31 @@ recurrence + catalogue completeness, valid numbers in 44/46 READMEs); 4 of 9 PUB
 1. Reattach the big_run app, remount gcsfuse, `ls` the bucket and `~/s04/results/44_public/`.
 2. Pull the remaining 5 of 9 `44_public` tables, commit them under `reports/hla_popgen/44_kir_recurrence_saturation/`.
 3. Then start the S05 board from the plan Marc approves.
+
+## As of 2026-10-06 — earlier S05 work (scripts 50–57c; committed 2026-10-11 on `s05-oct06-work`) (weekly update; 3 axes: QC/understanding, small experiments, strategy)
+
+Access restored (AoU deactivation of 09-28/29 resolved). Branch still `s04-kir-recurrence-style-share` (uncommitted S05 work
+on top of an uncommitted call-note scrub from 10-05 — commit both deliberately). Private report for Marc:
+`reports/walkthrough_S05/index.html` (gitignored). Scripts 50–55 added; results in `reports/hla_popgen/5x_*/README.md`;
+run log in EXPERIMENTS.md 2026-10-06.
+
+**Headlines:** DQ G1/G2 claim survives an ascertainment test (exceptions = structurally anomalous contigs only); classical-HLA
+protein-novel counts do not survive recurrence + homopolymer filters (demote pending read-level validation); KIR framework
+deficit = fragmentation + contracted haplotypes; DRB5 presence/absence validated by RNA dosage; AMR > AFR richness explained by
+admixture pooling; ASE with personal references is technically viable (53 pilot).
+Evening: 56/56b relatives benchmark (confidence score works; A~B physical haplotypes unreliable) and 57/57b yak trio
+benchmark (50 trios: class II switch/hamming ~0.2%, 0 parent mismatches for DQ/DR/DP same-contig pairs; class I contigs mix
+parents; Mendelian 2-field typing mismatch 3.2%). yak lives in `~/envs/yak` (VM); network is open (bioconda/pypi/github).
+
+**Literal next commands:**
+1. Marc: decide exclusion list / purity rule, KIR complete-haplotype rule, novel-protein demotion (DECISIONS.md open items, S05).
+2. VM: 53 results → pull `~/s05/results/53/ase_by_gene_class.tsv` (PUBLIC) if not yet pulled; INTERNAL per-person table stays at
+   `~/s05/internal/53/`. Then scale ASE to all LR∩RNA on a resized app (16–32 vCPU; resize needs Marc's authorisation).
+3. VM: fix Tier-3 self-align trim (991 sequel2, mostly AFR) and rerun HLA+KIR for them.
+4. Novel alleles: the VM can download directly (network open) → fetch a current IPD-IMGT/HLA release and re-match; add HiFi
+   read / short-read support per novel allele.
+5. 57/57b done and integrated (report 57, S05 HTML section `#qb-trio`). Optional next steps:
+   - genome-wide (not window) yak on a resized app;
+   - trio-based switch rates per gene interval;
+   - use the 179 trios as a truth set to tune the confidence score.
+6. Marc: commit S05 + the 10-05 scrub; push/merge the branch (agent commits are classifier-blocked).

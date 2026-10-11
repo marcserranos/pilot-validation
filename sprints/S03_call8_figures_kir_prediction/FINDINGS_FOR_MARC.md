@@ -56,7 +56,7 @@ visible cleanly.
 
 ## 2. HLA-A deletion: an artifact
 
-**Question.** The raw HLA-A deletion rate is 1.83% of haplotypes. Cole: *"how is that plausible?"*
+**Question.** The raw HLA-A deletion rate is 1.83% of haplotypes. Is that plausible?
 
 **Test.** For each person we called as missing HLA-A on one haplotype, we checked the AoU short-read
 genotype. If short reads see **two different** HLA-A alleles, the gene is present on both
