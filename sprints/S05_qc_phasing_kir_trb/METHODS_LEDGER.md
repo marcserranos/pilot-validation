@@ -13,8 +13,8 @@ show whole-gene germline deletions?
 
 **Why it matters.** Every HLA and KIR call comes from that person's phased assembly. If the reads
 over the region are thin, the assembly breaks or collapses there, and genes look missing or get
-phased wrongly. Cole asked for this filter on the 10-06 call (drop people at ~8–10× over the MHC
-when they are ~17–20× genome-wide). For TRB, Aleix found TRBV4-3 is never used in ~27% of
+phased wrongly. A regional coverage filter was a supervisor ask (2026-10-06): flag people whose
+MHC depth is far below their genome-wide depth (e.g. ~8–10× over the MHC at ~17–20× overall). For TRB, Aleix found TRBV4-3 is never used in ~27% of
 people's repertoires; if that is a germline deletion, the reads aligned to GRCh38 over TRBV4-3
 should drop to about half (one copy deleted) or zero (both).
 
