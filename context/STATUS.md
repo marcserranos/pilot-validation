@@ -4,24 +4,34 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-09-17 — Sprints S01 and S02 both complete, branch not pushed
+## As of 2026-10-11 — All of Us access restored; repo harmonized; planning before Sprint S05
 
-**Most recent sprint board:** [`sprints/S02_supervisor_items/SPRINT.md`](../sprints/S02_supervisor_items/SPRINT.md),
-with the plain-language writeup in that folder's `FINDINGS_FOR_MARC.md`. S01's board and findings
-sit alongside it. Read those, not this file, for tasks and results. Branch:
-`fig1-drafts-and-research-map` (off `main` @ `30b14ac`), **committed but never pushed** — pushing
-is blocked for the agent, so Marc must do it.
+**Access.** Marc lost Workbench access ~2026-09-28 (workspace showed Standard Tier only); UCSC
+reinstated it, confirmed restored 2026-10-11. Assume the VM restarted and its disk state is
+whatever it was on 2026-09-28 (quirk #14): remount, `ls`, verify before trusting anything.
 
-S02 turned the 2026-09-17 supervisor call into scripts 29-33, all run on the full cohort. Open
-items are listed in that board's §5: Figure 1 panels a/b need scripts 06 and 10 rerun (committing
-the frequency tables, not just figures), the structural peptide-contact transfer function is
-unfinished, and the VM is showing "Reboot is required" (quirk #41).
+**Branches.** `s04-kir-recurrence-style-share` (S03 + S04, 88 commits ahead of `main`) is being
+merged into `main` through PR branch `claude/project-thread-a3l14r`, together with this
+harmonization pass. After that merge, `main` is the canonical branch. `needle-view-cds-diversity-density`
+and `s04-kir-recurrence-style-share` are then fully contained in `main` and can be deleted.
+Aleix's `aleix/hla-resolve-phase1` shares no history with `main` (separate root); leave it alone.
 
-Context since the last STATUS (2026-09-05): scripts 10–22 ran on the real cohort and were merged to
-main (`30b14ac` renumbered them); a supervisor meeting (~2026-09-14) framed the work as a paper with
-a 4-panel Figure 1 and 8 action items; the plan for those items and future research lines is in
-`reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md`; `23_fig1_draft_panels.py` drafted panels from
-committed aggregates and showed novelty is mostly non-coding — S01 re-derives that foundation.
+**Where things are.**
+- Index of every result folder, current vs superseded: [`reports/hla_popgen/README.md`](../reports/hla_popgen/README.md).
+- Last sprint (S04) plain-language findings: [`sprints/S04_kir_recurrence_style_share/FINDINGS_FOR_MARC.md`](../sprints/S04_kir_recurrence_style_share/FINDINGS_FOR_MARC.md); figure catalogue: `FIGURES_INDEX.md` in the same folder.
+- Last call with written notes: [`sprints/_calls/2026-09-22_CALL_SUMMARY.md`](../sprints/_calls/2026-09-22_CALL_SUMMARY.md) (call #8). Calls #9 (~09-29) and #10 (~10-06) have slide decks in Marc's Drive but no notes in the repo (see `sprints/_calls/README.md`).
+- Aleix's live state: `aleix/RNA-seq/context/STATUS.md` on his branch (W0 analysis table and W1 V/J usage done 10-08; TRBV4-3 germline-absence lead).
 
-Open from 2026-09-05, still true: RUNBOOK.md does not document that 05/07 need the gcsfuse mount +
-explicit `--sr-genotypes ~/mnt/aou-controlled/v9/wgs/short_read/snpindel/aux/hla_variants/hla_genotypes.tsv`.
+**Done since 2026-09-28 (S04 close-out, before access was lost):** 44 v4b full run (KIR/HLA
+recurrence + catalogue completeness, valid numbers in 44/46 READMEs); 4 of 9 PUBLIC tables of 44 pulled.
+
+**Open, needs Marc:**
+1. Disclosure: `reports/hla_popgen/novel_alleles.tsv` carries single-person carrier counts in a
+   public repo (DECISIONS.md, open, 2026-10-11).
+2. Notes or transcript for calls #9 and #10, so the next sprint is planned from what Cole asked.
+3. Run `sprints/S04_kir_recurrence_style_share/VM_CLEANUP_PLAN_v2.md` (agent deletes are classifier-blocked).
+
+**Literal next commands (VM, once Marc steers):**
+1. Reattach the big_run app, remount gcsfuse, `ls` the bucket and `~/s04/results/44_public/`.
+2. Pull the remaining 5 of 9 `44_public` tables, commit them under `reports/hla_popgen/44_kir_recurrence_saturation/`.
+3. Then start the S05 board from the plan Marc approves.

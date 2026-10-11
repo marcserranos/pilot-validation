@@ -730,3 +730,85 @@ Sprint board: `sprints/S02_supervisor_items/SPRINT.md`. Findings: that folder's
 - **33_figure1_v3_compose** → `reports/hla_popgen/33_figure1_v3/`. Figure 1 panels c and d. Panel c
   splits novelty by nomenclature field with the artifact rate as a flat negative control
   (1.1–3.3% everywhere, vs clean novelty 45.7–71.2% at DRB1). Panels a and b still need a VM rerun.
+
+## 2026-09-22/24 — Sprint S03 (call #8), scripts 37–42
+Pointer entry; details in `sprints/S03_call8_figures_kir_prediction/{LOG.md,FINDINGS_FOR_MARC.md}` and each `reports/hla_popgen/NN_*/README.md`.
+- 37 DQ G1/G2 signed phased D′: 0/17,255 incompatible physically phased haplotypes (4-field), all ancestries; held-out EM rephasing 0.24% spurious vs ~24% naive-LE.
+- 38 HLA-A deletion: 82.8% contradicted by short reads (n=412); true rate ≤ ~0.3%.
+- 39 saturation: no ancestry saturated; equal-N slope (N=1,236) AFR 101.6/1,000 highest, EUR 80.0.
+- 40 Figure 1 v5: b/d/e/f done; a/c await VM exports 40a/40b.
+- 41 KIR pilot: 20/20 people OK, chr19:54.60–54.92 Mb, protein novelty 0–18%/gene; full run ~15 h/$45 at 96 cores.
+- 42 repertoire baseline: n=1,200 subsample; ancestry AUROC 0.64–0.81, sex 0.50; no disease ≥100 cases.
+
+## 2026-09-24/25 — S03: KIR full-cohort run (43), Figure 1 v5 complete, WS6 n=1,500
+Pointer entry; details in `sprints/S03_call8_figures_kir_prediction/{LOG.md,KIR_FULL_RUN.md,FINDINGS_FOR_MARC.md}`.
+- 43 KIR full cohort: Immuannot on chr19:54.60–54.92 Mb for 12,261 main-tier people (991 sequel2 excluded), n2-highcpu-80, 20×4, 31.1 h (+0.6 h benchmark, +0.16 h retry), ~390 people/h, ~$95. 12,157 complete, 104 with ≥1 empty haplotype (deterministic). Unrelated 11,882: 9.23 genes/hap, 58.9% novel, framework 93.7–96.5%, cA 41–67% by ancestry, 2DL2/2DL3 co-occurrence 0.8% (open). HLA tables md5-identical before/after.
+- 41 extended pilot (170 people): 100% haps, 9.06 genes/hap, 61.0% novel.
+- 40 Figure 1 v5: 40a (589 bins ≥20) + 40b (48 cells) exported; all six panels composed.
+- 42 repertoire baseline: n=1,500 subsample, AFR AUROC 0.82, EUR 0.67, sex 0.55; no disease ≥100 cases.
+
+## 2026-09-27 — WS-F repo reorg: pre-convention scripts/legacy moved, doc briefs relocated
+Structural note, not a research run. Full move table, reference audit, and VM-critical-file
+exclusions: `sprints/S04_kir_recurrence_style_share/WS-F_REORG_PLAN.md`. Executed via `git mv`
+(history preserved); 5 VM-production files kept in place (`scripts/run_immuannot_person.py`,
+`scripts/monitoring/`, `scripts/bootstrap_vm.sh`, `scripts/setup_immuannot.sh`,
+`scripts/spechla_pad_helpers.py`), and `scripts/production_orchestrator/`/`scripts/hla_popgen/`
+were left untouched (already namespaced). Old→new paths (old basename, at `scripts/` or
+`sprints/` top level, unless noted):
+- 37 pre-numbered-convention experiment scripts (`analyze_*`, `build_*`, `compare_hla_results.py`,
+  `experiment_*`, `run_experiment_*`, `run_*_pad_sweep.sh`, `run_immuannot_pad_sweep.py`,
+  `diagnose_immuannot_pilot.py`, `hla_disease_sanity_check.py`, `local_plot_*.py`,
+  `lr_manifest_format_census.py`, `patch_specimmune_for_gene_restriction.py`,
+  `plot_confidence_distributions.py`, `prune_pipeline_outputs.sh`, `rnaseq_*`,
+  `scaling_probe.py`, `slice_and_fastq.sh`, `summarize_lr_census.py`,
+  `build_restricted_specimmune_db.sh`) → same basename under `scripts/legacy/experiments/`.
+- `sprints/CALL_BRIEF_2026-09-22.md` → `sprints/_calls/2026-09-22_CALL_BRIEF.md`.
+- `sprints/CALL_SUMMARY_2026-09-22.md` → `sprints/_calls/2026-09-22_CALL_SUMMARY.md`.
+- `sprints/ALEIX_HANDOFF_2026-09-22.md` → `sprints/_calls/2026-09-22_ALEIX_HANDOFF.md`.
+- `scripts/hla_popgen/NEEDLE_VIEW_BRIEF.md` → `reports/hla_popgen/_briefs/NEEDLE_VIEW_BRIEF.md`.
+- `scripts/hla_popgen/RUNBOOK.md` → `reports/hla_popgen/_briefs/RUNBOOK.md`.
+Live references (README.md, CLAUDE.md, `context/STATUS.md`, `context/ENVIRONMENT.md`, script
+docstrings, tests, `reports/*/README.md` usage commands) updated to the new paths; historical
+narrative in this file and in `context/DECISIONS.md` above this entry is left as written
+(append-only, bare filenames now stale — same posture as this file's 2026-07 structural note re:
+the earlier repo-root move). `outputs/` (legacy, untracked/`.gitignore`d CSVs+plots, zero repo
+references) was deliberately left in place rather than folded into `scripts/legacy/` — re-tracking
+gitignored content in git wasn't this reorg's call to make (see DECISIONS.md entry, same date).
+
+## 2026-09-26/27 — S04: KIR recurrence/saturation, KIR vs HLA catalogue coverage, ligand co-occurrence, figure redesign, Cole package, repo reorg
+Pointer entry; full detail in `sprints/S04_kir_recurrence_style_share/{LOG.md,SPRINT.md,FIGURES_INDEX.md,FINDINGS_FOR_MARC.md}`.
+- 44/45 (KIR/HLA recurrence + saturation) and 46 (KIR vs HLA catalogue completeness): v1-v3
+  produced numbers (e.g. Chao2 completeness KIR 84.2% vs HLA 63.7% pooled) that were found to be
+  invalid — see the DECISIONS.md entry, same date — because "genomic identity" was name-based, not
+  sequence-based, and KIR protein calls lacked HLA's artifact filter. **v1-v3 numbers are
+  superseded and must not be cited.** Fixed (sequence-hash identity at genomic/CDS/protein for
+  both species, shared artifact gate, `check_identity_invariants()`), smoke-tested (300 people),
+  blocked on one more bug (HLA GTF `gene_name` is `HLA-`-prefixed) which is fixed but not yet run
+  at full cohort scale ("44 v4", pending as of this entry).
+- 47 (naive ML/QC battery) and 48 (KIR-HLA ligand co-occurrence): ran clean on the full cohort
+  (11,845 unrelated people), not affected by the identity bug above (independent code paths).
+  Ancestry AUROC 0.81-0.98 from HLA+KIR carriage; platform AUROC 0.573 pooled, shown to be an
+  ancestry echo (ancestry-adjusted delta +0.004) not a real batch effect; no KIR-HLA ligand pair
+  survives Bonferroni across 30 tests.
+- WS-C figure redesign: layout linter added to `scripts/hla_popgen/_viz_common.py`
+  (`check_layout`/`mark_marginal`/`mark_decoration`/`mark_label`); Figure 1 v5, DQ G1/G2, KIR
+  saturation (39), KIR full-cohort (43b) all redesigned to pass it; a real inherited bug (Figure 1
+  panel d bars vs gene labels reversed since S03) found and fixed with a regression test.
+- WS-E: Cole data-sharing package built and uploaded to
+  `gs://hla-calls-share-wb-cordial-leechee-9743/release_2026-09-25/` (6 files, ~10.65 MB,
+  checksum-verified). Package's own novelty numbers cross-checked clean against S03 (not affected
+  by the 44 identity bug).
+- WS-F: repo reorg executed (see the 2026-09-27 structural-note entry above, same file);
+  `s04-kir-recurrence-style-share` confirmed a strict superset of `main` and 3 other branches,
+  ready for Marc to merge/push.
+
+## 2026-10-11 — Repo harmonization (no runs)
+
+Not an experiment; logged because it changes paths a reader may look for. Branch
+`claude/project-thread-a3l14r` = `s04-kir-recurrence-style-share` + this pass, opened as a PR
+into `main`. Changes: 26 committed `.ipynb_checkpoints/` copies untracked and gitignored (with
+`*.pyc`); new `reports/hla_popgen/README.md` index (current vs superseded result folders, no
+folder moved); `context/STATUS.md` rewritten to current state only (older dated sections are in
+git history and in each sprint's `SPRINT.md`/`LOG.md`); disclosure flag on
+`reports/hla_popgen/novel_alleles.tsv` added to DECISIONS.md open questions; calls #9/#10
+recorded as having no notes in `sprints/_calls/README.md`.

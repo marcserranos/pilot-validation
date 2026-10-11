@@ -469,3 +469,717 @@ def write_report(path, lines):
 def n_flag(n, min_cell_n):
     """Returns True if a cell's raw N is thin enough to suppress/flag."""
     return pd.isna(n) or n < min_cell_n
+
+
+# ---------------------------------------------------------------------------
+# Nature-style publication figures (S03 Task A). Extends this module, backward compatible --
+# nothing above is touched, `savefig()` above still works exactly as before for the 05/06/07
+# figure scripts. This section is for later, publication-grade figures (36_figure1_native.py's
+# type scale was the model: one font size scale, no top/right spines, embedded fonts).
+#
+# Usage:
+#     from _viz_common import nature_style, mm, save_fig, panel_letter, SUPPRESSED_COLOR, \
+#         diverging_cmap, diverging_norm, hatch_suppressed, ANCESTRY_COLORS
+#
+#     with nature_style():
+#         fig, ax = plt.subplots(figsize=(mm(NATURE_SINGLE_COL_MM), mm(60)))
+#         ax.plot(...)
+#         panel_letter(ax, "a")
+#     save_fig(fig, "reports/hla_popgen/NN_x/my_panel")   # writes .pdf (embedded fonts) + .png (600 dpi)
+#
+# ANCESTRY_COLORS (defined near the top of this file) is reused here on purpose -- 36's ANC_COLORS
+# dict has the identical six hex values, so this is the one place that dict should ever live;
+# nothing here redefines it.
+# ---------------------------------------------------------------------------
+## ---------------------------------------------------------------------------
+## cnsplots port (reference/FIGURE_STYLE.md, WS-C, S04). "Port, don't depend" --
+## github.com/faridrashidi/cnsplots commit 634482c (v0.7.0), BSD-3-Clause, values only (rcParam
+## defaults + palette hex), no runtime dependency added. What was ADOPTED vs where we deviate,
+## with reasons, is spelled out here so a reader never has to diff against the upstream repo:
+##
+## Adopted verbatim (cnsplots `_settings.py` defaults):
+##   - legend.frameon=False, legend's small unobtrusive glyphs (handled via LEGEND_KW below,
+##     since matplotlib's rcParams has no direct markerscale/handlelength/handletextpad keys
+##     that apply globally the way cnsplots' own legend() wrapper does -- see LEGEND_KW).
+##   - axes.grid=False made EXPLICIT (was already true by matplotlib default + our own
+##     nature_style unsetting nothing that turns it on -- cnsplots states it as a hard rule, so
+##     we now pin it rather than rely on inherited default).
+##   - axes.spines.top/right=False (already ours, unchanged).
+##   - xtick.major.size / ytick.major.size = 2 (cnsplots: xtick_major_size=2) -- we previously
+##     left tick length at matplotlib's default (3.5); shortened to match.
+##   - mathtext.fontset="custom" (cnsplots) -- avoids matplotlib's default "dejavusans" mathtext
+##     clashing visually with a Helvetica body font when a panel has a math expression.
+##   - font.sans-serif extended with "Helvetica Neue", "Nimbus Sans", "Liberation Sans" (cnsplots'
+##     fallback list) for cross-platform parity -- Linux CI boxes without Helvetica/Arial
+##     installed now fall through to Nimbus Sans / Liberation Sans (metric-compatible clones)
+##     before DejaVu Sans, rather than jumping straight to DejaVu.
+##
+## Deliberate DEVIATIONS from cnsplots (and why):
+##   - savefig.dpi: we keep 600, not cnsplots' 288 (72x4). Nature's OWN artwork guidelines ask
+##     for >= 300 dpi combination art and we've already shipped 600-dpi PNGs project-wide
+##     (S03 CRITIC_2 checked figures at "native resolution" assuming 600 dpi); lowering to 288
+##     now would be a visible regression for reviewers already looking at 600-dpi PNGs, for no
+##     benefit (PDF vector export is unaffected either way -- dpi only touches the raster PNG).
+##   - savefig.transparent: cnsplots defaults to True; we deliberately keep opaque white
+##     backgrounds (save_fig() below does not set transparent=True) because these figures are
+##     shared as flat PNGs in reports/Slack, where a transparent PNG on a dark viewer background
+##     becomes illegible -- that's a distribution-context call, not a style disagreement.
+##   - legend.fontsize stays 6 (already close to cnsplots' 7; unchanged rather than bumped, to
+##     avoid a second silent change riding along on this port -- 6 vs 7 pt is not the thing
+##     CRITIC_2 flagged, panel text sizes below the 5-7pt floor was).
+##   - We do not adopt cnsplots' own plotting functions (barplot/heatmapplot/lineplot/...) or its
+##     pvalue-star/forest/venn helpers -- FIGURE_STYLE.md's "port, don't depend" recommendation
+##     covers rcParams + palette values only; our figures are hand-built matplotlib, not built on
+##     cnsplots' API.
+## ---------------------------------------------------------------------------
+NATURE_RC = {
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica", "Arial", "Helvetica Neue", "Nimbus Sans",
+                         "Liberation Sans", "DejaVu Sans"],
+    "font.size": 7,
+    "axes.titlesize": 7,
+    "axes.labelsize": 7,
+    "xtick.labelsize": 5,
+    "ytick.labelsize": 5,
+    "legend.fontsize": 6,
+    "legend.frameon": False,     # cnsplots: legend_frameon=False -- no legend box, ever
+    "axes.linewidth": 0.5,
+    "axes.grid": False,          # cnsplots: axes_grid=False, made explicit (see note above)
+    "xtick.major.width": 0.5,
+    "ytick.major.width": 0.5,
+    "xtick.major.size": 2,       # cnsplots: xtick_major_size=2 (was matplotlib default 3.5)
+    "ytick.major.size": 2,
+    "xtick.minor.width": 0.35,
+    "ytick.minor.width": 0.35,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "mathtext.fontset": "custom",  # cnsplots: mathtext_fontset="custom"
+    "pdf.fonttype": 42,   # embed as TrueType (Type 42), not Type 3 -- journals require this
+    "ps.fonttype": 42,
+    "savefig.dpi": 600,   # deviation from cnsplots' 288 -- see note above (we keep our 600 dpi)
+}
+
+# cnsplots legend_markerscale=0.5 / legend_handlelength=0.7 / legend_handletextpad=0.3 -- not
+# global rcParams keys, so exposed as a kwargs dict callers can splat into ax.legend(**LEGEND_KW)
+# (or fig.legend(**LEGEND_KW)) for the "small unobtrusive legend glyph" look, when a legend is
+# unavoidable (prefer direct labelling first -- FIGURE_STYLE.md de-AI checklist item 8).
+LEGEND_KW = {"frameon": False, "markerscale": 0.5, "handlelength": 0.7, "handletextpad": 0.3}
+
+# Journal qualitative palettes (hex), via cnsplots `_palettes.py` (BSD-3-Clause, values only --
+# not copyrightable expression, cited per FIGURE_STYLE.md). For any figure needing an alternate
+# qualitative palette OTHER than ancestry -- e.g. distinguishing gene groups, cohorts, methods.
+# Do NOT reuse these for ancestry: ANCESTRY_COLORS (Okabe-Ito, above) is the one true ancestry
+# palette project-wide and must not be replaced by "Nature"/"Cell"/etc per FIGURE_STYLE.md.
+JOURNAL_PALETTES = {
+    "nature": ["#E64B35", "#4DBBD5", "#00A087", "#3C5488", "#F39B7F", "#8491B4", "#91D1C2",
+               "#DC0000", "#7E6148", "#B09C85"],
+    "science": ["#3B4992", "#EE0000", "#008B45", "#631879", "#008280", "#BB0021", "#5F559B",
+                "#A20056", "#808180", "#1B1919"],
+    "lancet": ["#00468B", "#ED0000", "#42B540", "#0099B4", "#925E9F", "#FDAF91", "#AD002A",
+               "#ADB6B6", "#1B1919"],
+    "nejm": ["#BC3C29", "#0072B5", "#E18727", "#20854E", "#7876B1", "#6F99AD", "#FFDC91"],
+    "cell": ["#C84C3A", "#2F7E8F", "#E1A22E", "#4E5A8A", "#5F9862", "#D07A6A", "#8B6FA8",
+             "#7B8C9E", "#B85F7A", "#6B6B6B"],
+}
+# A restrained default accent for "one comparison, one hue" figures (de-AI checklist item 9) --
+# picked from JOURNAL_PALETTES["nature"], not from ANCESTRY_COLORS, so it never gets confused
+# with an ancestry encoding.
+ACCENT_COLOR = JOURNAL_PALETTES["nature"][3]   # "#3C5488", a restrained slate blue
+
+# Nature spec: panel letters are bold, lowercase, 8pt -- distinct from body text (5-7pt above).
+PANEL_LETTER_FONTSIZE = 8
+
+# Nature column widths in mm -- use with mm() for matplotlib figsize (always inches).
+NATURE_SINGLE_COL_MM = 89
+NATURE_DOUBLE_COL_MM = 183
+
+
+def nature_style(apply=False):
+    """Nature Publishing Group house style for matplotlib.
+
+    Returns a context manager by default (`with nature_style(): ...`) that restores whatever
+    rcParams were active on exit -- the normal, safe way to use this, since it can never leak
+    style into a caller's other figures. Pass apply=True to instead push NATURE_RC onto the
+    *global* rcParams with no restore, for the rare case where the style needs to outlive a
+    `with` block (e.g. handed off to a helper in another module that draws later).
+    """
+    if apply:
+        matplotlib.rcParams.update(NATURE_RC)
+        return None
+    return matplotlib.rc_context(rc=NATURE_RC)
+
+
+def mm(x):
+    """Millimetres -> inches, for matplotlib `figsize` (always inches). Nature widths: 89 mm
+    single-column, 183 mm double-column/full-page (NATURE_SINGLE_COL_MM / NATURE_DOUBLE_COL_MM)."""
+    return x / 25.4
+
+
+def panel_letter(ax, letter, dx=-0.12, dy=1.05, fontsize=PANEL_LETTER_FONTSIZE):
+    """Bold lowercase panel letter (Nature spec) just outside the axes, in axes-fraction
+    coordinates. `letter` is lowercased automatically regardless of what's passed in."""
+    ax.text(dx, dy, str(letter).lower(), transform=ax.transAxes, fontsize=fontsize,
+            fontweight="bold", va="bottom", ha="left")
+
+
+def save_fig(fig, path_stem, dpi=600, strict=True, reason=None):
+    """Writes `<path_stem>.pdf` (vector, embedded TrueType/Type-42 fonts) and `<path_stem>.png`
+    (raster, `dpi`, default 600 -- Nature's minimum for combination art), creating the parent
+    directory if needed, then closes `fig`. Returns (pdf_path, png_path).
+
+    Distinct from the plain `savefig()` above (which is PNG-only, 150 dpi, for the 05/06/07
+    exploratory figures) -- this is the publication pair.
+
+    Runs `check_layout(fig)` first (S04 WS-C phase 2 layout linter). By default (`strict=True`)
+    any error-severity violation (text/text overlap, text or axes clipped beyond the figure bbox,
+    a `mark_marginal()`-registered axes misaligned with its main axes) raises `RuntimeError`
+    instead of writing a figure known to be broken. Warning-severity violations (excess
+    whitespace) are printed but never block the save.
+
+    Pass `strict=False` to save anyway despite error-severity violations -- this REQUIRES a
+    `reason=` string (raises `ValueError` otherwise) so a deliberate override is never silent;
+    the reason is printed alongside the suppressed violations.
+    """
+    violations = check_layout(fig)
+    errors = [v for v in violations if v["severity"] == "error"]
+    warns = [v for v in violations if v["severity"] == "warning"]
+    for w in warns:
+        print("  [layout WARNING] %s: %s" % (w["type"], w["detail"]), file=sys.stderr)
+    if errors:
+        msg = "\n".join("  - %s: %s" % (e["type"], e["detail"]) for e in errors)
+        if strict:
+            raise RuntimeError(
+                "check_layout() found %d layout violation(s) for %r; refusing to save "
+                "(strict=True, the default). Fix the layout, or call save_fig(..., "
+                "strict=False, reason='...') to override deliberately:\n%s"
+                % (len(errors), path_stem, msg))
+        if not reason:
+            raise ValueError(
+                "save_fig(strict=False) requires a mandatory reason= string explaining why "
+                "these %d layout violation(s) are being saved anyway." % len(errors))
+        print("  [layout OVERRIDE] strict=False, reason=%r. %d violation(s) suppressed:\n%s"
+              % (reason, len(errors), msg), file=sys.stderr)
+
+    path_stem = str(path_stem)
+    parent = os.path.dirname(path_stem)
+    if parent:
+        ensure_dir(parent)
+    pdf_path = path_stem + ".pdf"
+    png_path = path_stem + ".png"
+    with matplotlib.rc_context(rc={"pdf.fonttype": 42, "ps.fonttype": 42}):
+        fig.savefig(pdf_path, dpi=dpi, bbox_inches="tight")
+    fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  wrote {pdf_path}", file=sys.stderr)
+    print(f"  wrote {png_path}", file=sys.stderr)
+    return pdf_path, png_path
+
+
+# ---------------------------------------------------------------------------
+# Diverging colormap for signed statistics (e.g. signed LD, a difference-from-zero), always used
+# with a norm centered at 0 (diverging_norm), plus a fixed "not observed / suppressed" color +
+# hatch helper for AoU small-cell (<20) cells -- these must read as visibly distinct from real
+# data, never folded into a color scale as if they were an ordinary low value (feedback:
+# "Suppressed counts are not zero").
+# ---------------------------------------------------------------------------
+SUPPRESSED_COLOR = "#D9D9D9"   # light grey -- reserved; not a valid data color on any scale here
+
+
+def diverging_cmap():
+    """Blue-white-red diverging colormap for signed statistics. Returns the colormap only, not
+    a norm -- pair it with diverging_norm(vmin, vmax) so the actual data range is centered at 0
+    correctly for each figure (the range differs per figure; the colormap doesn't need to)."""
+    from matplotlib.colors import LinearSegmentedColormap
+    return LinearSegmentedColormap.from_list(
+        "nature_diverging_bwr", ["#2166AC", "#F7F7F7", "#B2182B"], N=256)
+
+
+def diverging_norm(vmin=-1.0, vmax=1.0):
+    """TwoSlopeNorm centered at 0, for use with diverging_cmap(). vmin/vmax should bracket the
+    actual data range; defaults to [-1, 1] for correlation-like statistics (e.g. signed D')."""
+    from matplotlib.colors import TwoSlopeNorm
+    return TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+
+
+# ---------------------------------------------------------------------------
+# Layout linter (S04 WS-C phase 2, reference/FIGURE_STYLE.md). CRITIC_WSC.md: the rcParam port
+# above never touched panel/subplot *layout* (spacing, alignment, sizing) -- the thing Marc
+# actually flagged ("overlapping text is clearly inadmissible", marginals not aligned to their
+# heatmap, colorbar floating with huge gaps). This section catches those mechanically, at
+# save_fig() time, instead of relying on a human eyeballing a thumbnail.
+# ---------------------------------------------------------------------------
+def mark_marginal(ax_margin, ax_main, axis="x"):
+    """Mark `ax_margin` as a marginal plot of `ax_main` along `axis` ('x' or 'y'), so
+    check_layout()'s alignment check (c) can verify the two axes' data-to-display mapping
+    actually coincides (i.e. the marginal's bars really do sit over/beside the main axes' cells)
+    rather than trusting that `sharex`/`sharey` (or matching gridspec widths) were set correctly.
+    Call once, after both axes' data limits are finalized (post-plotting, pre-save_fig)."""
+    ax_margin._layout_marginal_of = (ax_main, axis)
+
+
+def mark_decoration(artist):
+    """Mark a Line2D/Patch (or any artist with `get_window_extent`) as a structural "decoration"
+    -- an annotation bracket, a group divider, a manually-drawn connector -- so check_layout()'s
+    text-vs-decoration check (a2) treats it as something text must never sit on top of, the same
+    way it already treats two Text artists.
+
+    Why this exists (S04 WS-C phase 2 linter false negative, `reports/hla_popgen/
+    37_dq_g1g2_signed_ld/fig_dq_g1g2_committed_MAIN_POOLED.png`): `check_layout()`'s original
+    overlap check (a) only ever compared Text against Text. The G1/G2 brackets in
+    `37c_dq_g1g2_from_committed.py` (`_bracket_v`/`_bracket_h`) are drawn as plain `ax.plot(...)`
+    Line2D segments in their own thin axes -- never Text -- so the rotated "DQA1" ylabel drawn
+    straight through the vertical bracket line, and the "DQB1" xlabel colliding with the bracket's
+    horizontal cap, were both structurally invisible to the linter: it had nothing in its `texts`
+    list to compare either collision against. `check_layout()` returned zero violations for a
+    figure Marc rejected on sight for exactly this overlap.
+
+    Callers opt in explicitly (rather than the linter guessing which Line2D/Patch objects are
+    "decorative") because most Line2D/Patch objects in a figure ARE the data -- a bar chart's
+    Rectangle patches, a scatter's markers, a line plot's series -- and text legitimately sits
+    near or on top of those (a bar's value label, a heatmap annotation) with no layout fault.
+    Blanket-flagging every Line2D/Patch against every Text would drown real faults in false
+    positives. A bracket/divider/connector is drawn purely to guide the eye, never to carry data
+    a text label would legitimately overlap, so it opts in.
+
+    Usage: `ln, = ax.plot(...); vc.mark_decoration(ln)`, or `mark_decoration(some_patch)`."""
+    artist._layout_decoration = True
+
+
+def mark_label(text_artist):
+    """Mark a Text artist as a direct data-series label (e.g. an end-of-line ancestry label on a
+    saturation curve, placed via `ax.annotate`/`ax.text`) so `check_layout()`'s (a4) check verifies
+    it does not sit on top of any Line2D *data* series in its OWN axes.
+
+    Why this exists (Figure 1 v5 panel e, S04 WS-C, 2026-09-25): direct end-of-line labels were
+    placed at each curve's own endpoint with a small vertical-repulsion pass against each OTHER
+    LABEL, but never checked against the actual drawn LINES -- when one ancestry's curve (e.g.
+    AFR) is plotted well past another ancestry's endpoint (e.g. AMR's line stops earlier in x),
+    the still-rising AFR line can pass directly through where AMR's label was placed. Two check
+    categories already existed (`mark_decoration()` for "this Line2D/Patch must never be covered
+    by text" and the plain text-vs-text check) but neither covers "this Text must never be covered
+    by an ORDINARY plotted data line" -- opting the label in explicitly (rather than checking every
+    Text in every axes against every line, which would flag ordinary in-line annotations, e.g. a
+    value printed inside its own bar) keeps this scoped to the direct-labeling use case it exists
+    for.
+
+    Usage: `t = ax.annotate("AFR", (x, y), ...); vc.mark_label(t)`."""
+    text_artist._layout_direct_label = True
+
+
+def check_layout(fig, tol_overlap_px=2.0, tol_clip_frac=0.08, tol_margin_px=0.5,
+                  whitespace_warn_frac=0.55, grid_n=48):
+    """Mechanical layout linter, run against a fully-drawn figure. Returns a list of violation
+    dicts `{"type": str, "severity": "error"|"warning", "detail": str}`. Checks:
+
+    (a) pairwise overlaps among all visible Text artists (titles, axis labels, tick labels,
+        legend text, annotations) -- small tolerance (`tol_overlap_px`) so touching-but-not-
+        overlapping text doesn't false-positive.
+    (a2) any visible Text overlapping an artist explicitly registered via `mark_decoration()`
+        (a Line2D/Patch that is a structural bracket/divider/connector, never plotted data) --
+        added in S04 WS-C phase 2 after check (a) alone missed a rotated axis label drawn
+        straight through a G1/G2 annotation bracket (a Line2D in a neighboring axes, so no Text
+        object existed for it to collide with under check (a)). See `mark_decoration()`'s
+        docstring for the full false-negative writeup.
+    (a3) any visible Text overlapping a visible spine of an Axes it does NOT itself belong to --
+        e.g. a panel's title or label creeping into the neighboring panel's frame. A spine is
+        exempted against Text that belongs to its OWN Axes (tick/axis labels are expected to sit
+        right at their own axes' edge; that's normal, not a fault).
+    (a4) any Text registered via `mark_label()` (a direct end-of-line data-series label) that sits
+        on top of a plotted Line2D data series in its OWN axes -- catches a direct label placed at
+        its own curve's endpoint that lands on top of a DIFFERENT series' line still passing
+        through that region (e.g. two converging discovery curves where one series' line extends
+        well past another's endpoint). Segment-vs-bbox intersection, not just endpoint/vertex
+        containment, so a label sitting mid-segment between two vertices is still caught. See
+        `mark_label()`'s docstring.
+    (b) any text or Axes extending far beyond the figure's own (nominal, pre-`bbox_inches=
+        "tight"`) bbox -- tolerance is `tol_clip_frac` of the figure's width/height (default 5%),
+        not a fixed pixel count, since an ordinary axis label dipping a few px past the nominal
+        canvas edge is normal matplotlib behavior that `save_fig()`'s `bbox_inches="tight"`
+        handles cleanly. What this catches is a label/axes placed with a large, layout-breaking
+        offset (e.g. a hardcoded negative-axes-fraction position well outside the panel; default
+        8% tolerance covers ordinary tick/axis-label overflow, confirmed empirically against a
+        plain `plt.subplots()` figure with default margins) that
+        forces `bbox_inches="tight"` to balloon the saved canvas with mostly-empty space --
+        exactly the "sits far outside the plot" / "floats with huge empty gaps" fault this linter
+        exists to catch, which (d)'s whitespace check corroborates independently.
+    (c) marginal alignment: for any axes registered with `mark_marginal()`, the data-to-display
+        mapping along the shared axis must coincide with the main axes' mapping within
+        `tol_margin_px` (default 0.5px) at the marginal's own xlim/ylim endpoints and midpoint --
+        catches a marginal whose bars don't actually line up with the main heatmap's columns/rows
+        even when nothing text-related overlaps.
+    (d) whitespace: fraction of the figure's area not covered by any Axes or Text bbox, on a
+        coarse `grid_n`x`grid_n` raster (cheap, no exact polygon union needed). Above
+        `whitespace_warn_frac` this is a WARNING only (large gaps aren't automatically wrong --
+        e.g. a deliberately spacious legend column -- but worth a human glance), never an error.
+
+    All of (a), (a2), (a3), (a4), (b), (c) are "error" severity; (d) is "warning" only. Call via `save_fig()`, which
+    raises on any error-severity violation by default (see its `strict`/`reason` kwargs).
+    """
+    import matplotlib.text as mtext
+    from matplotlib.transforms import Bbox
+
+    # Draw at (at least) save_fig()'s actual raster dpi, not whatever `fig.dpi` happens to be
+    # (matplotlib's figure default is 100 unless set at construction). Empirically, on at least
+    # one dev machine, rasterizing certain glyphs (e.g. a superscript/mathtext character) at
+    # dpi<=100 raises `RuntimeError: failed to load glyph` from freetype, while the exact same
+    # figure draws fine at dpi>=150 -- i.e. this is a font-rasterization floor, not a matplotlib
+    # API restriction. save_fig() always rasterizes the PNG at 600 dpi, so checking at a lower
+    # preview dpi would both risk that spurious crash AND measure pixel positions that don't match
+    # what's actually saved. Bump (never lower) fig.dpi for the duration of this check, restore
+    # after -- callers of check_layout() must never observe a mutated fig.dpi.
+    _orig_dpi = fig.dpi
+    try:
+        if fig.dpi < 150:
+            fig.dpi = 150
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        fig_bbox = fig.bbox
+        violations = []
+
+        # ---- tick-label Text objects sitting outside their own axis's view limits ----
+        # matplotlib's default tick Locator deliberately places one extra major (and sometimes
+        # minor) tick just past each end of the data range -- that tick's Text is already
+        # invisible in the rendered PNG/PDF (clip_on=True, clipped to the axes bbox) but
+        # `get_window_extent()` returns its UNCLIPPED geometry, so treating every Text with
+        # `get_visible()==True` as "on-canvas" made these phantom off-view labels collide with a
+        # panel letter or a neighboring subplot's own off-view label sharing the same dead space
+        # -- a linter false positive, not a real visual fault (found by a concurrent S04 WS-C
+        # session against 39/43b/38b, worked around per-script there with a local
+        # `_prune_offview_ticklabels()` helper before this fix centralized it here). `sorted()`,
+        # not unpacked-in-order: an inverted axis returns get_xlim()/get_ylim() as (high, low).
+        offview_tick_ids = set()
+        for ax in fig.axes:
+            for axis_obj, get_lim in ((ax.xaxis, ax.get_xlim), (ax.yaxis, ax.get_ylim)):
+                lo, hi = sorted(get_lim())
+                for minor in (False, True):
+                    try:
+                        locs = axis_obj.get_ticklocs(minor=minor)
+                        labels = axis_obj.get_ticklabels(minor=minor)
+                    except Exception:
+                        continue
+                    for loc, t in zip(locs, labels):
+                        if loc < lo - 1e-9 or loc > hi + 1e-9:
+                            offview_tick_ids.add(id(t))
+
+        # ---- collect visible, non-empty Text artists with a real on-canvas extent ----
+        texts = []
+        for t in fig.findobj(mtext.Text):
+            if not t.get_visible():
+                continue
+            if id(t) in offview_tick_ids:
+                continue
+            if getattr(t, "_layout_watermark", False):
+                continue  # add_internal_watermark() -- deliberately crosses everything, exempt
+            s = t.get_text()
+            if s is None or s.strip() == "":
+                continue
+            try:
+                bb = t.get_window_extent(renderer=renderer)
+            except Exception:
+                continue
+            if bb.width <= 0 or bb.height <= 0:
+                continue
+            texts.append((t, bb))
+
+        # ---- (a) pairwise text/text overlap ----
+        pad = -tol_overlap_px / 2.0
+        for i in range(len(texts)):
+            t1, b1 = texts[i]
+            b1p = b1.padded(pad)
+            for j in range(i + 1, len(texts)):
+                t2, b2 = texts[j]
+                inter = Bbox.intersection(b1p, b2.padded(pad))
+                if inter is not None and inter.width > 0 and inter.height > 0:
+                    violations.append({
+                        "type": "text_overlap", "severity": "error",
+                        "detail": "%r overlaps %r (overlap area=%.1fpx^2)"
+                                  % (t1.get_text(), t2.get_text(), inter.width * inter.height),
+                    })
+
+        # ---- (a2) text vs registered decoration (mark_decoration()) ----
+        decorations = []
+        for a in fig.findobj(lambda art: getattr(art, "_layout_decoration", False)):
+            if not a.get_visible():
+                continue
+            try:
+                dbb = a.get_window_extent(renderer=renderer)
+            except Exception:
+                continue
+            if dbb.width < 0 or dbb.height < 0:
+                continue
+            decorations.append((a, dbb))
+
+        for t, tb in texts:
+            tbp = tb.padded(pad)
+            for d, dbb in decorations:
+                # A zero-area bbox (e.g. a perfectly vertical/horizontal line segment) still
+                # needs a real overlap test -- pad it out to a hairline width/height first so
+                # Bbox.intersection can register a genuine crossing, not just touch it.
+                dbbp = Bbox.from_extents(
+                    dbb.x0 - max(tol_overlap_px, 0.5), dbb.y0 - max(tol_overlap_px, 0.5),
+                    dbb.x1 + max(tol_overlap_px, 0.5), dbb.y1 + max(tol_overlap_px, 0.5))
+                inter = Bbox.intersection(tbp, dbbp)
+                if inter is not None and inter.width > 0 and inter.height > 0:
+                    violations.append({
+                        "type": "text_decoration_overlap", "severity": "error",
+                        "detail": "text %r overlaps decoration artist %r (overlap area=%.1fpx^2)"
+                                  % (t.get_text(), d, inter.width * inter.height),
+                    })
+
+        # ---- (a3) text vs a visible spine of an Axes it does not belong to ----
+        for ax in fig.axes:
+            for side, spine in ax.spines.items():
+                if not spine.get_visible():
+                    continue
+                try:
+                    sbb = spine.get_window_extent(renderer=renderer)
+                except Exception:
+                    continue
+                if sbb.width < 0 or sbb.height < 0:
+                    continue
+                sbbp = Bbox.from_extents(
+                    sbb.x0 - max(tol_overlap_px, 0.5), sbb.y0 - max(tol_overlap_px, 0.5),
+                    sbb.x1 + max(tol_overlap_px, 0.5), sbb.y1 + max(tol_overlap_px, 0.5))
+                for t, tb in texts:
+                    if getattr(t, "axes", None) is ax:
+                        continue  # a spine touching its own tick/axis labels is normal
+                    inter = Bbox.intersection(tb.padded(pad), sbbp)
+                    if inter is not None and inter.width > 0 and inter.height > 0:
+                        violations.append({
+                            "type": "text_foreign_spine_overlap", "severity": "error",
+                            "detail": "text %r overlaps spine %r of a different axes "
+                                      "(overlap area=%.1fpx^2)"
+                                      % (t.get_text(), side, inter.width * inter.height),
+                        })
+
+        # ---- (a4) direct-label text (mark_label()) vs plotted data Line2D in the SAME axes ----
+        def _seg_intersects_bbox(x0, y0, x1, y1, bb):
+            # Liang-Barsky-lite: clip the segment parametrically against the box's 4 half-planes;
+            # if any parametric range survives, the segment crosses (or starts/ends inside) bb.
+            dx, dy = x1 - x0, y1 - y0
+            tmin, tmax = 0.0, 1.0
+            for p, q in ((-dx, x0 - bb.x0), (dx, bb.x1 - x0),
+                        (-dy, y0 - bb.y0), (dy, bb.y1 - y0)):
+                if p == 0:
+                    if q < 0:
+                        return False
+                    continue
+                r = q / p
+                if p < 0:
+                    tmin = max(tmin, r)
+                else:
+                    tmax = min(tmax, r)
+                if tmin > tmax:
+                    return False
+            return True
+
+        for t, tb in texts:
+            if not getattr(t, "_layout_direct_label", False):
+                continue
+            ax = getattr(t, "axes", None)
+            if ax is None:
+                continue
+            tbp = tb.padded(pad)
+            for ln in ax.get_lines():
+                if getattr(ln, "_layout_decoration", False):
+                    continue  # a bracket/divider line -- (a2) already governs this one
+                try:
+                    verts = ln.get_transform().transform(ln.get_path().vertices)
+                except Exception:
+                    continue
+                if len(verts) < 2:
+                    continue
+                hit = False
+                for (x0, y0), (x1, y1) in zip(verts[:-1], verts[1:]):
+                    if _seg_intersects_bbox(x0, y0, x1, y1, tbp):
+                        hit = True
+                        break
+                if hit:
+                    violations.append({
+                        "type": "label_over_line_data", "severity": "error",
+                        "detail": "direct label %r sits on top of a plotted data line %r"
+                                  % (t.get_text(), ln.get_label()),
+                    })
+
+        # ---- (b) clipped beyond figure bbox ----
+        pad_x = max(2.0, tol_clip_frac * fig_bbox.width)
+        pad_y = max(2.0, tol_clip_frac * fig_bbox.height)
+        fb = Bbox.from_extents(fig_bbox.x0 - pad_x, fig_bbox.y0 - pad_y,
+                                fig_bbox.x1 + pad_x, fig_bbox.y1 + pad_y)
+
+        def _within(bb):
+            return fb.x0 <= bb.x0 and bb.x1 <= fb.x1 and fb.y0 <= bb.y0 and bb.y1 <= fb.y1
+
+        for t, bb in texts:
+            if not _within(bb):
+                violations.append({
+                    "type": "text_clipped", "severity": "error",
+                    "detail": "%r extends beyond figure bbox (text=%s, fig=%s)"
+                              % (t.get_text(), tuple(round(v, 1) for v in bb.bounds),
+                                 tuple(round(v, 1) for v in fig_bbox.bounds)),
+                })
+        for ax in fig.axes:
+            try:
+                abb = ax.get_window_extent(renderer=renderer)
+            except Exception:
+                continue
+            if not _within(abb):
+                violations.append({
+                    "type": "axes_clipped", "severity": "error",
+                    "detail": "axes %r extends beyond figure bbox" % (ax.get_label() or ax,),
+                })
+
+        # ---- (c) marginal alignment ----
+        for ax in fig.axes:
+            info = getattr(ax, "_layout_marginal_of", None)
+            if info is None:
+                continue
+            ax_main, axis = info
+            if axis == "x":
+                lo, hi = ax.get_xlim()
+                for d in (lo, (lo + hi) / 2.0, hi):
+                    p_margin = ax.transData.transform((d, 0))[0]
+                    p_main = ax_main.transData.transform((d, 0))[0]
+                    delta = abs(p_margin - p_main)
+                    if delta > tol_margin_px:
+                        violations.append({
+                            "type": "marginal_misaligned", "severity": "error",
+                            "detail": "x=%.4g: marginal axes px=%.2f vs main axes px=%.2f "
+                                      "(delta=%.2fpx > tol=%.2fpx)"
+                                      % (d, p_margin, p_main, delta, tol_margin_px),
+                        })
+            elif axis == "y":
+                lo, hi = ax.get_ylim()
+                for d in (lo, (lo + hi) / 2.0, hi):
+                    p_margin = ax.transData.transform((0, d))[1]
+                    p_main = ax_main.transData.transform((0, d))[1]
+                    delta = abs(p_margin - p_main)
+                    if delta > tol_margin_px:
+                        violations.append({
+                            "type": "marginal_misaligned", "severity": "error",
+                            "detail": "y=%.4g: marginal axes px=%.2f vs main axes px=%.2f "
+                                      "(delta=%.2fpx > tol=%.2fpx)"
+                                      % (d, p_margin, p_main, delta, tol_margin_px),
+                        })
+            else:
+                raise ValueError("mark_marginal axis must be 'x' or 'y', got %r" % (axis,))
+
+        # ---- (d) whitespace (coarse raster coverage, warning only) ----
+        fx0, fy0, fx1, fy1 = fig_bbox.x0, fig_bbox.y0, fig_bbox.x1, fig_bbox.y1
+        fw, fh = max(fx1 - fx0, 1e-9), max(fy1 - fy0, 1e-9)
+        covered = np.zeros((grid_n, grid_n), dtype=bool)
+
+        def _mark(bb):
+            x0 = int(np.clip((bb.x0 - fx0) / fw * grid_n, 0, grid_n))
+            x1 = int(np.clip(np.ceil((bb.x1 - fx0) / fw * grid_n), 0, grid_n))
+            y0 = int(np.clip((bb.y0 - fy0) / fh * grid_n, 0, grid_n))
+            y1 = int(np.clip(np.ceil((bb.y1 - fy0) / fh * grid_n), 0, grid_n))
+            if x1 > x0 and y1 > y0:
+                covered[y0:y1, x0:x1] = True
+
+        for ax in fig.axes:
+            try:
+                _mark(ax.get_window_extent(renderer=renderer))
+            except Exception:
+                pass
+        for _t, bb in texts:
+            _mark(bb)
+        frac_white = 1.0 - covered.mean()
+        if frac_white > whitespace_warn_frac:
+            violations.append({
+                "type": "excess_whitespace", "severity": "warning",
+                "detail": "%.1f%% of figure area not covered by any axes/text (warn threshold "
+                          "%.0f%%)" % (frac_white * 100, whitespace_warn_frac * 100),
+            })
+
+        return violations
+    finally:
+        # Never let callers observe a mutated fig.dpi -- restore it even though (unusually for
+        # this codebase) `save_fig()`'s own subsequent `fig.savefig(..., dpi=600)` calls pass
+        # dpi explicitly and wouldn't be affected either way; the invariant is still worth holding
+        # since `check_layout()` is also called standalone (report-only mode, this session).
+        fig.dpi = _orig_dpi
+
+
+def hatch_suppressed(ax, x, y, width, height, **kwargs):
+    """Draws a light-grey hatched rectangle (SUPPRESSED_COLOR fill) marking one 'not observed /
+    below n=20' cell on a heatmap or grid, so it reads as visibly different from anywhere on a
+    color scale rather than as if it were a real low value. x, y, width, height are in data
+    coordinates by default (pass transform=ax.transAxes via kwargs for axes-fraction placement),
+    matching matplotlib.patches.Rectangle's constructor. Returns the patch (already added to ax)."""
+    from matplotlib.patches import Rectangle
+    zorder = kwargs.pop("zorder", 4)
+    rect = Rectangle((x, y), width, height, facecolor=SUPPRESSED_COLOR, edgecolor="#999999",
+                     hatch="////", linewidth=0.3, zorder=zorder, **kwargs)
+    ax.add_patch(rect)
+    return rect
+
+
+# ---------------------------------------------------------------------------
+# Disclosure-aware figure marking (S04 disclosure layer, reference/AOU_SMALL_CELL_POLICY.md +
+# context/DECISIONS.md "two disclosure versions"). `_disclosure.py` (same directory) owns the
+# mask()/mode policy; these three helpers are purely the DRAWING side, used by 43b/45/46's figure
+# scripts. Kept here (not in _disclosure.py) so figure code has one obvious place -- alongside
+# hatch_suppressed()/save_fig() -- to look for figure-drawing helpers, matching this module's
+# existing "presentation-layer glue" scope (see file's own module docstring).
+# ---------------------------------------------------------------------------
+try:
+    import _disclosure as _disc
+except ImportError:  # pragma: no cover -- _THIS_DIR is normally already on sys.path
+    if _THIS_DIR not in sys.path:
+        sys.path.insert(0, _THIS_DIR)
+    import _disclosure as _disc
+
+INTERNAL_WATERMARK_TEXT = "INTERNAL — n<20 cells shown — do not export"
+
+
+def add_internal_watermark(fig, text=INTERNAL_WATERMARK_TEXT):
+    """Diagonal, light-grey, low-alpha watermark spanning the whole figure -- required on every
+    figure rendered in `--disclosure internal` mode (task item 3), so a screenshot or a stray
+    export of an INTERNAL PNG still visibly announces it must not be shared/committed even if the
+    filename/path convention is lost in transit. Purely decorative and DELIBERATELY spans (and so
+    visually crosses) real data/text/spines -- marked `_layout_watermark` so `check_layout()`
+    exempts it from the text-overlap/foreign-spine/clipped checks entirely (see that function's
+    `texts` collection step), the same way it already exempts off-view phantom tick labels. This
+    keeps `save_fig(..., strict=True)` (the default) working on every INTERNAL figure without
+    requiring every caller to special-case the watermark."""
+    t = fig.text(0.5, 0.5, text, transform=fig.transFigure, ha="center", va="center",
+                  fontsize=22, fontweight="bold", color="#B0B0B0", alpha=0.35, rotation=30,
+                  zorder=0.1, clip_on=False)
+    t._layout_watermark = True
+    return fig
+
+
+def mark_internal_lt20(ax, x, y, width, height, tag="n<20", **kwargs):
+    """INTERNAL-mode marking for a cell/point whose true value is in the disclosive 1-19 band:
+    drawn with its EXACT value already (by the caller, underneath this) but visibly flagged with
+    a thin, high-contrast outline (no fill -- unlike hatch_suppressed()'s opaque grey/hatch, which
+    would hide the real data drawn under it) plus a tiny "n<20" tag in the cell's corner. x, y,
+    width, height are data coordinates by default (pass transform=ax.transAxes via kwargs for
+    axes-fraction placement). Returns (patch, text_artist), both already added to ax."""
+    from matplotlib.patches import Rectangle
+    zorder = kwargs.pop("zorder", 5)
+    fontsize = kwargs.pop("fontsize", 4)
+    rect = Rectangle((x, y), width, height, facecolor="none", edgecolor="#CC3311",
+                      linewidth=0.6, linestyle=(0, (1, 1)), zorder=zorder, **kwargs)
+    ax.add_patch(rect)
+    txt = ax.text(x + width, y + height, tag, fontsize=fontsize, color="#CC3311",
+                   ha="right", va="bottom", zorder=zorder + 0.1,
+                   transform=kwargs.get("transform", ax.transData))
+    return rect, txt
+
+
+def mark_review_flag(ax, x, y, width, height, **kwargs):
+    """PUBLIC-mode marking for a `recurrence_class` cell whose `review_flag` is True (task item
+    3): an exact number is shown (this is PUBLIC/exact per the loosened rule), but the cell gets a
+    small outlined border so a reader/supervisor can spot-check it before it's treated as final --
+    deliberately NOT a hatch (hatch_suppressed() means 'value hidden'; this means 'value shown,
+    please review') and deliberately no dagger/symbol glyph (FIGURE_STYLE.md de-AI checklist item
+    12 flags dagger-style collisions) -- explain this marker in the figure's caption instead.
+    Returns the patch (already added to ax)."""
+    from matplotlib.patches import Rectangle
+    zorder = kwargs.pop("zorder", 5)
+    rect = Rectangle((x, y), width, height, facecolor="none", edgecolor="#333333",
+                      linewidth=0.8, linestyle="-", zorder=zorder, **kwargs)
+    ax.add_patch(rect)
+    return rect

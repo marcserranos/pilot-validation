@@ -57,7 +57,7 @@ Key decisions already made, do not re-litigate without a real reason:
   `<meta http-equiv="refresh">` is sufficient; a simple inline-SVG polyline is enough for the
   completions-over-time chart — do not reach for a charting library for this.
 - **Alerting channel: ntfy.sh**, not a new service. Already used in this exact codebase
-  (`scripts/run_experiment_d.sh`'s `notify()` function, `NTFY_TOPIC` env var, pattern:
+  (`scripts/legacy/experiments/run_experiment_d.sh`'s `notify()` function, `NTFY_TOPIC` env var, pattern:
   `curl -s -d "$MESSAGE" "ntfy.sh/$NTFY_TOPIC"`) — reuse that pattern, don't reinvent it. That
   script's topic was never actually set (`NTFY_TOPIC=""` by default, example format in its comment:
   `"marc-hla-9f3k2x"`, an unguessable string) — **a fresh topic needs to be chosen for this**, not

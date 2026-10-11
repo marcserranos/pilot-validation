@@ -264,7 +264,7 @@ row, so it's a clean 1:1 join key, no sample-vs-person indirection to worry abou
 directory `v9/multiomics/proteomics/` also exists, unexplored (out of scope for this thread).
 BAM-only (`markduplicates_bam_file_path`), matches the PDF's "no FASTQ" finding.
 
-**[CONFIRMED, HIGH — live on the VM, `scripts/compute_wgs_rnaseq_overlap.py`]
+**[CONFIRMED, HIGH — live on the VM, `scripts/legacy/experiments/compute_wgs_rnaseq_overlap.py`]
 srWGS x lrWGS x RNA-seq participant overlap, existence-checked (not just manifest presence)
 for lrWGS and RNA-seq:**
 

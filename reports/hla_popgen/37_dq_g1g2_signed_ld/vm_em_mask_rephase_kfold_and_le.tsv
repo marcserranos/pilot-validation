@@ -1,0 +1,15 @@
+ancestry	scheme	n_em_pool	n_truth_evaluated	n_truth_doublehet	switch_errors	switch_rate	spurious_incompatible_cis	spurious_incompatible_rate	note
+AFR	kfold	2399	2303	1863	20	0.0107	22	0.0048
+AMR	kfold	2186	2136	1779	20	0.0112	<20
+EAS	kfold	1255	1230	1036	<20		<20
+EUR	kfold	2436	2381	2011	22	0.0109	28	0.0059
+MID	kfold	414	406	322	<20		<20
+SAS	kfold	1080	1052	888	<20		<20
+ALL	kfold	9793	9530	7919	52	0.0066	46	0.0024
+AFR	le_naive	2399	2303	1863	964	0.5174	1178	0.2558
+AMR	le_naive	2186	2136	1779	891	0.5008	922	0.2158
+EAS	le_naive	1255	1230	1036	535	0.5164	624	0.2537
+EUR	le_naive	2436	2381	2011	1005	0.4998	1144	0.2402
+MID	le_naive	414	406	322	168	0.5217	184	0.2266
+SAS	le_naive	1080	1052	888	461	0.5191	554	0.2633
+ALL	le_naive	9793	9530	7919	4033	0.5093	4612	0.2420

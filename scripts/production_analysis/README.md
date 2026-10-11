@@ -104,7 +104,7 @@ discipline as every other analysis script in this repo.
 - **The sweep's discrepancy floor (right edge) is an estimate of AoU-native's real error rate
   against high-confidence ground truth** — not the discrepancy at threshold=0 alone; look at where
   the curve visibly levels off, same interpretation as the existing n=60 confidence-matched-truth
-  work (`scripts/analyze_confidence_matched_truth.py`), now at full production scale. The right
+  work (`scripts/legacy/experiments/analyze_confidence_matched_truth.py`), now at full production scale. The right
   edge often gets noisy from shrinking N — the shaded area behind the lines shows this; read a
   thin-N tail skeptically.
 - **The clustering script's PCA/UMAP scatter plots are one dot per real person** — no identifiers on

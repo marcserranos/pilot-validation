@@ -1,0 +1,29 @@
+{
+  "n_people_unrelated": "11856",
+  "q1_hwe": {
+    "n_people_both_bridged": 11420,
+    "p_hap_deleted": 0.018345008756567426,
+    "n_both_deleted_disp": "<20",
+    "n_both_deleted": 3,
+    "expected_both_deleted": 3.8432793345008758,
+    "poisson_exact_p": 1.0
+  },
+  "q1_within_person_concordance": {
+    "table": [[11004, 269], [144, 3]],
+    "odds_ratio": 0.8522304832713755,
+    "fisher_p": 1.0
+  },
+  "q1_quality_spearman": {
+    "mean_contig_span": {"rho": -0.05476636157325985, "p": 0.2650671030571636, "n": 416},
+    "mean_contig_n_genes": {"rho": -0.05489745366881507, "p": 0.2639232494783143, "n": 416},
+    "template_warning_rate": {"rho": 0.052148642968028805, "p": 2.4608727340962195e-08, "n": 11420},
+    "n_genes_called": {"rho": -0.05764862195194969, "p": 7.046611701258049e-10, "n": 11420},
+    "mean_template_distance": {"rho": 0.09158878148836123, "p": 1.0491375942384718e-22, "n": 11420}
+  },
+  "fragmentation_evidence_hla_a": {
+    "n_checked": "413",
+    "n_with_extra_location": "123",
+    "pct_with_extra_location": 29.782082324455207
+  },
+  "note": "q2_q3_calibration is the same data as sr_calibration_panel.tsv in this folder (not duplicated here)."
+}

@@ -7,6 +7,7 @@
 ## Open questions
 
 ### Strategic
+- **Single-person rows in a public table (flagged 2026-10-11, open, Marc's call).** `reports/hla_popgen/novel_alleles.tsv` (public on `main` since 2026-09-16) lists every novel allele with `n_persons`, `n_ancestries` and per-ancestry counts; ~18,800 of ~21,500 rows have `n_persons == 1` and ~20,900 have `n_persons < 20`. This is the same small-cell class as the `<20` rule in `sprints/README.md` and `reference/AOU_SMALL_CELL_POLICY.md`, at a much larger scale than anything flagged before. Under the PUBLIC rule approved 2026-09-28 (below), `n_persons` per named allele is a carrier count and must be `<20`, so as committed this file breaks that rule. Options: (a) replace it at the tip with a PUBLIC-masked version (scripts 19/25/49 read this path on the VM, so the VM copy stays unmasked), (b) also remove it from git history (force-push; rewrites shared history, needs Aleix's agreement), (c) treat it like `outputs/` on 2026-09-28: fix the tip, don't scrub history. A `check_disclosure.py` scanner is still unbuilt; this is the strongest argument for building it.
 - **AoU-native callset: trust & sequencing.** AoU already ships a full-cohort srWGS HLA callset (HLA-HD + Polysolver + OptiType) — this reframes the "massive calling is our contribution" pitch. Fork: **(a)** if AoU-native holds up vs. long-read → pivot toward validate-then-build-downstream on the existing calls (faster path to the aims); **(b)** if it shows ancestry-correlated discordance → the calling work becomes *more* necessary and the bias finding is itself novel (every existing AoU-derived HLA study would inherit that bias). **Lean: validate against long-read first** — an ancestry-distribution study on AoU's calls is circular if we don't yet know whether those calls are ancestry-biased in exactly the dimension being studied. Questions for supervisors: were they aware AoU ships this? any known ancestry benchmarks of that specific ensemble? validate-first vs. study-first preference? which outcome do they expect (shapes whether the pilot needs to be stratified/larger to detect ancestry bias vs. just overall concordance)? (raised 2026-07-09).
   - **n=3 evidence (2026-07-09, EXPERIMENTS.md):** AoU-native is broadly concordant for Class I / DQB1 / DPA1, **but is the lone outlier at DQA1 in 3/3 people** — and this one is cross-technology robust: a short-read caller (SpecHLA) *and* a long-read caller (SpecImmune) agree against it, so it isn't a short-read-shared-bias artifact. Exactly the locus-specific bias the "validate first" stance guards against — concrete early support for validating before building downstream on AoU's calls, at least locus-by-locus. Not yet ancestry-resolved.
   - **Mechanism decided 2026-07-09: Experiment D (EXPERIMENTS.md roadmap) is now how this gets answered at scale** — the ancestry-stratified 3-way comparison directly targets whether the DQA1 bias (and the DPA1 divergence) is ancestry-correlated or universal. **The supervisor conversation is no longer a blocking prerequisite for starting that pilot** (see Resolved below) — it stays open and valuable, just not gating.
@@ -72,3 +73,79 @@
 - **Pipeline outputs to `~/pipeline_outputs/`, not `/tmp` (2026-07-08).** `/tmp` isn't visible in the Jupyter file browser (quirk #12).
 - **Dropped the 1000 Genomes pilot.** Validating directly on AoU's own SR/LR overlap population instead.
 - **pixi, not conda** — see ENVIRONMENT / package management for the full rationale.
+
+- **WS-F repo reorg executed as proposed, with `outputs/` left untouched (2026-09-27).** Marc's
+  steer: lower the bar for deleting evident trash, raise the bar for organizing everything else
+  into folders. Executed the predecessor audit's plan (`sprints/S04_kir_recurrence_style_share/WS-F_REORG_PLAN.md`,
+  full move table in `context/EXPERIMENTS.md`'s matching entry): 37 pre-convention experiment
+  scripts → `scripts/legacy/experiments/`, 3 loose sprint call notes → `sprints/_calls/`, 2
+  `hla_popgen` narrative briefs → `reports/hla_popgen/_briefs/`. The 5 files with real VM-production
+  wiring (`run_immuannot_person.py`, `monitoring/`, `bootstrap_vm.sh`, `setup_immuannot.sh`,
+  `spechla_pad_helpers.py`) were left in place per the predecessor audit's dependency findings —
+  not revisited. **`outputs/` (legacy `allele_freq_by_ancestry.csv`, `allele_tree_data.csv`,
+  `plots/`) was deliberately left where it is, ungrouped with the reorg, rather than moved into
+  `scripts/legacy/experiments_outputs/` as the predecessor plan proposed.** Reason found mid-reorg:
+  `outputs/` was intentionally untracked and `.gitignore`'d in an earlier deliberate commit
+  ("Untrack outputs/ and scripts/__pycache__ (now .gitignore'd)") as a general untracked-noise
+  policy, not an oversight — moving it into a new git-tracked path would silently reverse that
+  policy call and put those files under version control for the first time. Content itself checked
+  and confirmed aggregate-only (frequency/tree summaries, no participant-level rows), so there's no
+  disclosure blocker if a future session decides to track it; this is purely "not this reorg's call
+  to make" without asking first. **Open**: should `outputs/` stay gitignored-and-in-place, get
+  folded into `scripts/legacy/experiments_outputs/` and added to git (predecessor's original
+  proposal), or get deleted outright as superseded by the numbered `hla_popgen/` pipeline? Ask
+  Marc before doing any of the three.
+
+- **Sequence-based identity at every matched level (genomic/CDS/protein), for both HLA and KIR, is
+  the only acceptable novelty/recurrence definition (2026-09-27, S04).** A "genomic identity"
+  defined by nearest-reference-allele *name* rather than actual sequence was found to silently
+  collapse distinct novel alleles into one recurrent bucket, biasing any KIR-vs-HLA catalogue
+  comparison built on it (caught via an impossible result: more distinct "novel" KIR proteins than
+  distinct KIR genomic alleles, which cannot happen if protein truly is a coarser grouping than
+  full sequence). Going forward: identity at any level must be a hash of the actual sequence at
+  that level, never a name/label, and any pipeline computing multi-level identity should assert the
+  containment invariant (protein <= CDS <= genomic distinct-allele counts) as a runtime check, not
+  just trust it. See `sprints/S04_kir_recurrence_style_share/LOG.md` (2026-09-27 entries) for the
+  full investigation.
+- **The same artifact-filtering gate must apply to both species before counting "novel," not just
+  to HLA (2026-09-27, S04).** KIR calls were being counted as novel proteins without the
+  partial-assembly / frameshift / homopolymer-indel screening HLA already had, inflating KIR's
+  apparent novelty with sequencing/assembly junk rather than real biology. Any future species
+  added to this pipeline's novelty accounting must go through the same gate from the start, not
+  have it retrofitted after a cross-species comparison is already published.
+- **The `<20` masking convention for allele/participant counts applies per-cell, and a genuine
+  suppression must be an empty field, never a printed `0` (reaffirmed 2026-09-27, S04).** Verified
+  clean this sprint (script 48's co-occurrence table: every masked 2x2 cell is a blank field, not
+  a 0, confirmed with `grep -P` against the raw TSV, not a formatted view). Still open (see
+  "Strategic"/small-cell entries above and `sprints/S04_kir_recurrence_style_share/LOG.md`,
+  2026-09-26 WS-B entry): whether *richness* columns (`s_obs`, distinct-allele counts — not
+  participant/carrier counts) are exempt from `<20` masking. Current practice leaves them unmasked
+  (e.g. `46_catalogue_metrics.tsv`'s per-gene `s_obs`); this is an extension of existing precedent,
+  not a newly ratified policy — a deliberate pass to write down the rule explicitly is still owed.
+- **Organise-before-delete is the standing posture for both VM and repo cleanup, not just this
+  pass (2026-09-27, Marc via S04 WS-F).** Lower the bar for deleting only evident trash (corrupted
+  files, one-off patch fragments, regenerable caches, exact duplicates) and raise the bar for
+  everything else: move it into a clearly labeled structure (`~/archive/` on the VM,
+  `scripts/legacy/` in the repo) rather than remove it. Applies to future cleanup passes by
+  default, not re-litigated each time.
+- **A figure is not "done" until it passes three independent checks: the automated layout linter,
+  a full-resolution human visual review, and (where the figure encodes specific numbers) a direct
+  binding test against the underlying data table (2026-09-27, S04).** Each check alone missed real
+  faults the other two caught this sprint: the linter missed text-on-data-point and
+  legend-over-title overlaps (both are Text-vs-non-Text or Text-vs-invisible-tick interactions it
+  doesn't model); two rounds of human visual review at whole-figure/thumbnail scale missed
+  sub-pixel misalignments and a reversed bar order that only showed up at full-resolution zoom or a
+  literal number check against the TSV. Standard from here forward for any new or redesigned figure
+  in this pipeline.
+
+- **Resolved (2026-09-28, Marc): legacy `outputs/` deleted locally, stays gitignored; history NOT scrubbed.** Commit `a03be3f` (on origin/main) contains `outputs/allele_freq_by_ancestry.csv`, whose freq × N implies 1–19 allele counts for ~3,243/4,863 rows. Marc judged this not serious enough for a history rewrite or a support ticket: "just delete it from the current version of the repo, gitignore it and that's it". It was already untracked (`3881a37`) and `outputs/` stays in `.gitignore`. Supersedes the open `outputs/` question in the WS-F entry above.
+- **Resolved (2026-09-28, Marc): the Cole package README date mismatch is left as is.** The bucket prefix `release_2026-09-25/` is the version of record, and the README header says 2026-09-26. No re-upload; `49 --release-tag` fixes future releases.
+- **Direction (2026-09-28, Marc), pending the policy research: the small-cell rule should be LOOSER for non-participant counts.** Marc's view: novel alleles are rare by definition, and that is the point; "how many new alleles did we find" is not like revealing a trait. He prefers showing low counts and letting supervisors flag what isn't publishable over losing insight. A research agent is checking AoU's Data and Statistics Dissemination Policy, FAQs and the forum for precedent. The final rule will be recorded here.
+- **Resolved (2026-09-28, Marc): two disclosure versions, split by location.** Source: reference/AOU_SMALL_CELL_POLICY.md.
+  - **INTERNAL** (uncensored, exact n<20 cells visibly marked, watermark "INTERNAL — contains n<20 cells, do not export") is generated and kept ONLY on the VM under `~/s04/internal/`. It is viewed in JupyterLab by workspace members and supervisors, and never pulled or committed.
+  - **PUBLIC** (in the repo) uses the looser rule:
+    - exact: counts of distinct alleles, richness, QC tallies, and recurrence-class counts;
+    - `<20`: carrier counts of a named allele, participant counts, and rates that back-calculate to 1–19 people;
+    - supervisor-review flag: recurrence-class cells on loci or strata with few total carriers.
+  - Both versions come from the same scripts via `--disclosure internal|public`.
+  - Supersedes the stricter S04 practice of masking allele-count cells.

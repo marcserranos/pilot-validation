@@ -272,7 +272,7 @@ Regenerate it from the TSV alone, without re-running the cohort:
    signature of balancing selection and matches the HLA literature, but a formal test of selection
    (e.g. dN/dS, Tajima's D) is a separate analysis. dN/dS in particular is blocked on per-codon
    synonymous classification, which failed against real Immuannot output for reasons documented in
-   `scripts/hla_popgen/NEEDLE_VIEW_BRIEF.md`.
+   `reports/hla_popgen/_briefs/NEEDLE_VIEW_BRIEF.md`.
 
 ---
 

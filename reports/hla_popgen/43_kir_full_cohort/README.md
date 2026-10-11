@@ -1,0 +1,246 @@
+# 43 — KIR full-cohort run: figures + writeup (S03 WS6 follow-on)
+
+## Question
+
+Does the 20-/170-person KIR pilot (`41_kir_scoping`, go/no-go: GO) hold up at full-cohort scale
+(~12K people), and what does the full-cohort KIR gene-content, novelty, and ancestry picture look
+like once every unrelated person with an AoU long-read assembly has been run through Immuannot's
+chr19 KIR window? This report aggregates and visualizes that full run; it does not re-derive any
+new statistic beyond what `43_kir_full_aggregate.py` already computed (this script only adds the
+figure).
+
+## Method
+
+- **Pipeline**: same `run_immuannot_person.py` used for HLA, retargeted with `--region
+  chr19:54,600,000-54,920,000 --pad 100,000` (the 320 kb window scoped and piloted in
+  `reports/hla_popgen/41_kir_scoping/README.md`, anchored on LILRB1/FCAR outside the ~143 kb core
+  array) and `--out-suffix .kir` so outputs never collide with the canonical HLA tables (verified:
+  md5 of all 14 HLA tables identical before/after this run).
+- **Cohort**: the paf_region (Tier-1/Tier-2) trim tier only. Tier-3/`self_align_needed` sequel2
+  people (n=991) were excluded upstream of this run — the orchestrator's phase-2 self-align path
+  would reuse a **chr6** reference cache for a chr19 target (a known bug documented, not fixed, in
+  `41_kir_scoping/README.md` sect 2) — so running them here risked either a crash or a silently
+  wrong chr6-anchored self-alignment. See Caveats.
+- **Unrelatedness**: same KING-kinship greedy-unrelated-set definition as `24_novelty_by_field.py`/
+  `29_hla_ld_by_ancestry.py` (`KIN_MIN = 0.0442`, third-degree-or-closer removed), reused via
+  `41_kir_pilot.py`'s `greedy_unrelated()` — not re-derived.
+- **Novelty tiers**: 4-tier decomposition (known / novel genomic-only / novel CDS-synonymous /
+  novel protein) derived from Immuannot's own `cds_distance`/`cds_mut` GTF fields against IPD-KIR's
+  `CDSseq/*.fa.gz` reference, identical logic to the pilot's `classify_novelty_tier()` (imported,
+  not re-implemented, by `43_kir_full_aggregate.py`).
+- **Statistics**: Wilson score interval (z=1.96) for every proportion (presence %, novelty %,
+  co-occurrence %, cA/cB %) — preferred over Wald at these allele/gene frequencies, consistent with
+  every other figure in this project. Framework-gene miss classification (`flanked` /
+  `ambiguous_partial_flank` / `edge_fragmented`) reuses the pilot's `classify_framework_miss()`
+  rule verbatim (checks whether genes centromeric/telomeric of a missing framework gene were
+  themselves called on that haplotype).
+- **Disclosure**: every raw count 1–19 is masked as the literal string `<20` (never 0); any rate
+  whose numerator or denominator falls in that band is blanked entirely (both point estimate and
+  CI) — applied uniformly in `43_kir_full_aggregate.py`, not re-derived here. No person_id was ever
+  written to a file or printed. The figure hatches the 7 gene×MID cells this masking blanks in
+  `kir_gene_by_ancestry.tsv`'s `novel_protein_pct` column, rather than dropping or zeroing them.
+
+## Run / cost / QC facts
+
+- **Run**: full-cohort KIR Immuannot pass on AoU long-read assemblies, window
+  `chr19:54,600,000-54,920,000` (+100 kb Tier-1 `.paf` pad), on `n2-highcpu-80` (80 vCPU),
+  concurrency 20 × 4 threads/person, wall time **31.1 h** (+0.58 h benchmark, +0.16 h retry pass),
+  ~$2.98/h → **~$95 compute total**.
+- **Attempted**: 12,261 people (paf_region tier). **991 Tier-3/self_align_needed sequel2 people
+  excluded** upstream (see Caveats). 12,157 people (99.15%) passed the orchestrator's completion
+  check; 104 people (0.85%) did not. **Reconciled (Critic #2 open item, resolved by the
+  orchestrator):** the orchestrator's `person_done()` (source:
+  `scripts/production_orchestrator/run_production_orchestrator.py`, and its final log line
+  `DONE: 12157/12261`) requires BOTH haplotype GTFs to exist AND each to contain ≥1 call. The
+  TSVs show 132 such "bad" haplotypes in the "all" bundle — 9 missing/unparseable GTFs (24,522
+  attempted vs 24,513 parsed) plus 123 parsed haplotypes with zero KIR calls (24,513 vs 24,390) —
+  spread over the 104 people, so roughly 28 people have both haplotypes bad and ~76 have one.
+  Deterministic: a retry pass reproduced the same 104 (2 then reached the 3-attempt give-up
+  limit), so these are assemblies with no KIR-region contig on that haplotype (or an Immuannot
+  non-call), not transient failures. Every person has ≥1 parseable GTF; the aggregation keeps
+  all valid haplotypes, including the good haplotype of the 104.
+- **HLA outputs verified untouched**: md5 of all 14 HLA production tables identical before and
+  after this run.
+- **Unrelated set**: 11,882 people (379 dropped, KING kin ≥ 0.0442) → 23,764 haplotypes attempted,
+  23,755 parsed valid, 23,637 (99.5%, CI 99.4–99.6%) with ≥1 KIR call.
+- **Ancestry (predicted, unrelated set)**: AFR 3,025 / AMR 2,665 / EAS 1,463 / EUR 2,981 / MID 488 /
+  SAS 1,237.
+- **QC**: framework-gene presence 93.7–96.5% (KIR3DL3 96.5%, KIR3DP1 94.3%, KIR3DL2 94.1%, KIR2DL4
+  93.7%); of the framework-gene misses, **4,301/5,046 (85%) are "flanked"** (genes on both sides
+  called — contig clearly spans the gap, so not a truncated-assembly artifact), 693 (14%)
+  ambiguous, only 52 (1%) at an array edge with no flanking gene at all. 118/23,755 haplotypes
+  (0.5%) had zero KIR calls. 0/12,261 people had missing/corrupt GTF output.
+
+## Results — key numbers
+
+- **9.23 mean KIR genes called per haplotype** (unrelated set, 23,637 haplotypes with ≥1 call),
+  **58.9% of the 222,771 total allele calls are novel** (no exact IPD-KIR match; Wilson CI
+  58.7–59.1%), 0.02% undetermined (40/222,771 -- `kir_run_summary.tsv`'s own 1-decimal
+  `pct_undetermined` column rounds this to "0.0"; both are the same underlying count, just
+  different display precision).
+- **Novelty is still overwhelmingly non-coding**: pooling across genes, the "novel, genomic-only"
+  tier dominates every gene's novel calls; "novel protein" tops out at **22.5% (KIR2DL5B)** and is
+  ≤10% for every other gene (see `kir_gene_summary.tsv`, Figure panel b).
+- **Presence per gene** ranges from 15.3% (KIR2DS3, a "B-content" variable gene) to 96.5%
+  (KIR3DL3, the centromeric-most framework gene) — panel a.
+- **cA/cB haplotype content**: 13,196 cA (55.8%) vs 10,441 cB (44.2%) overall, with real ancestry
+  structure: EAS highest cA (66.7%, CI 65.0–68.4%), SAS lowest (41.4%, CI 39.4–43.3%) — panel e.
+- **QC sanity checks**: KIR2DL2/KIR2DL3 co-occurrence 0.8% (178/22,409) and KIR3DL1/KIR3DS1
+  co-occurrence 1.8% (390/21,890) — both low as expected for allelic-alternative gene pairs, but
+  **not exactly 0%** (see Caveats).
+- **Allele diversity**: the most common KIR2DL1 allele (KIR2DL1*0030204) still accounts for only
+  15.2% of known KIR2DL1 calls — up to 147 distinct known alleles observed per gene
+  (`kir_allele_freq.tsv`).
+
+## Comparison with the 20- and 170-person pilots
+
+| Metric | 20-person pilot | 170-person pilot | **Full cohort (n=11,882 unrelated)** |
+|---|---|---|---|
+| Mean KIR genes/haplotype | 9.32 | 9.06 | **9.23** |
+| % novel alleles | 60.8% | 61.0% | **58.9%** |
+
+20-person figures per `41_kir_scoping/README.md`. The 170-person figures are **not** in that
+README (it only describes launching the extended run, never got a results update after it
+finished) -- they are traceable to `sprints/S03_call8_figures_kir_prediction/LOG.md`
+(`[09-24 ~23:40]` entry: "170/170 people, 340/340 haps, 9.06 genes/hap, 61.0% novel") and to
+`reports/hla_popgen/41_kir_scoping/41_kir_pilot_summary.kir41.tsv`
+(`q_mean_kir_genes_per_hap`/`q_pct_novel` columns), which this table reproduces exactly.
+
+The full-cohort numbers land squarely between the two pilots for gene count and just a couple of
+points below both pilots for novelty — directionally consistent, not a surprise given the extra
+statistical power (a 2–3 point drop at 100x the sample size is well within what a couple of
+higher-novelty genes' pilot sampling variance could produce). The pilots' qualitative conclusions
+— high but plausible novelty, framework genes near-universal, correct/near-correct mutual
+exclusivity for the two allelic-alternative gene pairs — all replicate at full scale.
+
+## How to read the figure (`fig_kir_full_cohort.png`/`.pdf`)
+
+Genes in panels a–d are ordered centromeric → telomeric per the standard published KIR gene map
+(framework genes marked by **bold gene label + darker bar** in panel a, not a "†" symbol — S04
+WS-C redesign, 2026-09-25: a dagger is decorative-symbol clutter per `reference/FIGURE_STYLE.md`'s
+de-AI checklist item 12, and the color coding already existed); this ordering is for panel layout
+only (see the figure script's docstring for why it differs cosmetically from `41_kir_pilot.py`'s
+internal `FRAMEWORK_GENES` adjacency list, which is used for a different purpose and unaffected by
+the choice).
+
+- **a — Presence per gene**: % of haplotypes carrying each gene, Wilson 95% CI, unrelated set.
+  Framework genes (**bold label**, dark blue bar) sit near 94–97%; "B-content" genes (KIR2DS*,
+  KIR2DL2, KIR2DL5A/B, KIR3DS1) are the ones under ~30%, as expected from KIR's cA/cB
+  haplotype-content biology.
+- **b — Novelty per gene**: stacked bar, % of that gene's allele calls in each of the 4 novelty
+  tiers (known / novel genomic-only / novel CDS-synonymous / novel protein). `n=` (total call
+  count for that gene) is a separate right-hand text column, not a label floated at the bar's own
+  end — a thin grey rule marks where the 100% bar ends and the label column begins. (Orchestrator
+  review, 2026-09-25: right-aligning `n=` at a fixed x let a long string like "n=23,142" extend
+  leftward far enough to sit on top of the bar itself — inadmissible text-over-data. Left-aligned
+  at a fixed start, past the rule, a label can only grow away from the data.) The legend for the
+  4 novelty-tier colors sits directly under this panel, in its own reserved row between the main
+  panels and panels e/f (it labels panel b's own bars only). A pass-2 version floated this legend
+  at a computed offset below panel b's axes, which looked fine at thumbnail scale but at full
+  resolution overlapped panel e's title (orchestrator review, 2026-09-26) — a real overlap
+  `check_layout()` did not catch (an `axis("off")` legend-holder axes' own default-view tick
+  labels exist as Text objects matplotlib never actually draws, invisible to the linter's
+  visibility check; see FIGURES_INDEX.md). Fixed by giving the legend a real reserved GridSpec
+  row, which cannot be computed to just barely miss the row below it.
+- **c — Presence: deviation from pooled**: heatmap, each ancestry's haplotype-presence % MINUS
+  the pooled (panel a) value for that gene, diverging colormap centered at 0 (`_viz_common`'s
+  signed-statistic blue-white-red map, the same one used for signed LD elsewhere in this project).
+  Redesigned 2026-09-25 (orchestrator review) from a flat per-ancestry presence heatmap, which was
+  largely redundant with panel a (panel a already shows the pooled value per gene) — the deviation
+  is the actually new information. A blue cell means that ancestry is under-represented for that
+  gene relative to the pooled rate; red means over-represented. Text color is chosen per cell from
+  its own rendered luminance (dark text on light cells, white on dark blue/red), not a fixed
+  vmin/vmax-midpoint rule, which previously left some numbers unreadable against the darkest
+  cells. Zero cells print as a plain "0" (never "+0" or "-0" — rounded first, then signed only if
+  actually nonzero). The colorbar is a thin horizontal bar directly under this panel, in the same
+  reserved row as panel b's legend, rather than a vertical bar wedged into the c/d gutter.
+- **d — Protein novelty × ancestry**: heatmap, integer % of each gene's calls that are
+  novel-protein-tier, by ancestry (same luminance-aware text-color rule as panel c). **Hatched
+  cells** are the 7 gene×MID cells where the underlying numerator is <20 — censored per this
+  project's disclosure rule, never plotted as 0 or omitted silently.
+- **e — cA vs cB content by ancestry**: % of haplotypes classified cA (fixed, inhibitory-dominated
+  gene content) vs cB (carries ≥1 activating/variable gene), Wilson CI. No reference line (a
+  previous dashed 50% line was removed, 2026-09-25 — an unexplained reference line invites a "why
+  50?" this caption didn't answer; the bar chart's own zero baseline is reference enough).
+- **f — QC strip**: framework-gene presence %, point + 95% CI (a zero-free axis, since these all
+  sit in a narrow 93–97% band — a bar chart here would need a truncated baseline, which visually
+  exaggerates small differences; a point's position alone carries no such claim). The two
+  mutual-exclusivity sanity checks (KIR2DL2/KIR2DL3 and KIR3DL1/KIR3DS1 — allelic alternatives at
+  the same locus, expected to co-occur on a haplotype only rarely/never) are not drawn inside this
+  panel at all. They first sat as free text right of this axes and ran off the figure's own edge (a
+  real `check_layout(strict=True)` clipping fault); a following pass moved them into an in-figure
+  caption line instead; orchestrator review (2026-09-25, full-size pass) removed that caption line
+  too — in-figure caption text belongs in this README/the FIGURES_INDEX caption, not baked into
+  the raster. The numbers themselves are unchanged and are reported above in "QC sanity checks".
+
+## Caveats
+
+- **Tier-3 exclusion (991 sequel2 self_align_needed people)**: excluded upstream of this run, not
+  by this aggregation script, because of the chr6-reference-cache bug documented in
+  `41_kir_scoping/README.md` sect 2 (never fixed, only worked around for the pilot's own much
+  smaller Tier-3 test). This full run therefore has **zero Tier-3 coverage** — if sequel2 people are
+  not uniformly distributed across ancestry groups (plausible; platform mix has skewed by ancestry
+  elsewhere in this project), the ancestry breakdown here inherits whatever platform-ancestry skew
+  exists in the sequel2-only population. Not quantified in this report — would need a
+  platform × ancestry cross-tab of the excluded 991, which risks small-cell disclosure and is
+  flagged rather than computed here.
+- **Novelty is not yet cross-validated by recurrence.** As in the pilot, "novel" means "no exact
+  match in IPD-KIR's 1,530-allele genomic reference panel" — a real signal given how much smaller
+  IPD-KIR is than IPD-IMGT/HLA, but this run does not repeat script 03's HLA-side recurrence check
+  (an allele seen in ≥2 unrelated people is far more likely to be real than a true assembly/calling
+  artifact). That cross-check is future QC work, not done here.
+- **Framework-gene misses are mostly "flanked" (85%)**, meaning contig-too-short/fragmentation is
+  an unlikely explanation for most of them — genuine rare deletion haplotypes (documented in the
+  literature for KIR3DP1/KIR2DL4 in particular) or a miscall-as-a-different-gene are more plausible,
+  but this aggregate-only pass cannot distinguish those two explanations from each other.
+- **KIR2DL2/KIR2DL3 co-occurrence is 0.8%, not the ~0% expected** for genes occupying the same
+  locus as strict allelic alternatives (the pilot's 20-person run measured a clean 0.0%). At full
+  scale, 178 of 22,409 haplotypes carrying either gene carry both. Possible explanations not
+  distinguished by this aggregate pass: genuine rare structural duplication (both genes truly
+  present on one haplotype — documented in the literature, though rare), a phasing error placing
+  both genes' calls on the same haplotype when they're actually on different ones, or an
+  Immuannot detection edge case at KIR's higher sequence divergence. Worth a targeted per-haplotype
+  look before treating any individual "both present" call as ground truth.
+- **Ancestry is a prediction**, not self-report (same caveat as everywhere else in this project).
+- **Sample sizes still small enough to matter for MID**: MID is the smallest ancestry group here
+  (488 people / 966 haplotypes with ≥1 call) — its per-gene protein-novelty% is hatched/censored
+  in panel d for 7 of 17 genes, and its other point estimates (panel c, e) carry visibly wider CIs.
+
+## Distilled
+
+- Full-cohort KIR run: 11,882 unrelated people, 23,637 haplotypes with ≥1 KIR call (99.5%), ~31.1 h
+  / ~$95 on `n2-highcpu-80`. HLA tables verified untouched (md5 match).
+- **9.23 genes/haplotype, 58.9% novel alleles** — replicates the 20-/170-person pilots (9.32/9.06
+  genes, 60.8%/61.0% novel) closely; novelty is still overwhelmingly non-coding (protein-novelty
+  ≤22.5% per gene, usually single digits).
+- Framework genes 93.7–96.5% present; 85% of the misses are "flanked" (not truncated assembly).
+  cA/cB content varies meaningfully by ancestry (EAS 66.7% cA vs SAS 41.4% cA).
+- **KIR2DL2/KIR2DL3 co-occurrence is 0.8%, above the expected ~0%** — flagged, not resolved; needs
+  a targeted per-haplotype look, not treated as ground truth here.
+- **991 Tier-3 (sequel2) people excluded** (known chr6-reference-cache bug, not fixed) — full run
+  has zero Tier-3 coverage; possible undocumented ancestry skew from that exclusion.
+- Novel-allele recurrence cross-validation (the equivalent of HLA's script-03 check) is still
+  open — full-cohort scale is exactly what would make that check trustworthy, and it isn't done
+  yet.
+
+## Disclosure
+
+`43_kir_full_aggregate.py` and `43b_kir_full_figure.py` (this figure) route every output cell
+through `scripts/hla_popgen/_disclosure.py` (`--disclosure {public,internal}`, default
+`public`). See `context/DECISIONS.md`'s "two disclosure versions" entry for the policy; summary:
+PUBLIC keeps `<20` masking for participant/carrier counts and small-back-calculable rates, but
+reports allele-distinct/richness/QC-tally counts exact; INTERNAL (VM-only, `~/s04/internal/43/`
+and `43b/`, never committed) shows everything exact with an `lt20` flag column.
+
+| Column(s) | count_type | PUBLIC | INTERNAL |
+|---|---|---|---|
+| `n_haplotypes_with_ge1_kir_call`, `n_novel_calls`, `n_undetermined_calls`, `n_haplotypes_cA/cB`, `n_haplotypes_carrying` (gene/ancestry presence), `n_novel_protein`, allele-freq `n_haplotypes` (named-allele carrier counts), `framework_gene_presence`/`cooccurrence`/`haplotypes_zero_kir_calls` rates | `participant` / `carrier_named_allele` / `rate_numerator/denominator` | `<20`-masked (0 stays 0) | exact + `lt20` flag |
+| `n_distinct_known_alleles`, `n_distinct_novel_protein_seqs` (`kir_gene_summary.tsv`) | `allele_distinct` (richness) | exact | exact |
+| `people_missing_or_corrupt_gtf` rate (`kir_qc.tsv`) | `qc_tally` | exact (pure technical QC, no phenotype link) | exact |
+| `framework_miss_classification` `n` (`kir_qc.tsv`) | `participant` (per-haplotype classification, treated conservatively as a phenotype-adjacent count) | `<20`-masked | exact + `lt20` flag |
+| Figure panels (`43b`) | mirrors the underlying TSV cell's count_type | hatched for masked cells (unchanged) | exact values, thin outline + watermark |
+
+Named-allele carrier counts (`kir_allele_freq.tsv`) are masked in PUBLIC regardless of the general
+looser rule (AOU_SMALL_CELL_POLICY.md answer (3): a named allele next to a small carrier count
+needs an RAB exception) — PUBLIC pools every allele with <20 carriers into an `"other (<20 each)"`
+row; INTERNAL lists every allele individually, exact, with `lt20`.

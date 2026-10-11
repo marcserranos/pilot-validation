@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Per-position variant density across the FULL gene body (introns+UTR+CDS), compared inside vs.
 outside the CDS -- a selection-pressure track, not just "which codon is this one variant at"
-(that's `09_mutation_topology.py`, CDS-only). See scripts/hla_popgen/NEEDLE_VIEW_BRIEF.md for the
+(that's `09_mutation_topology.py`, CDS-only). See reports/hla_popgen/_briefs/NEEDLE_VIEW_BRIEF.md for the
 full design rationale and the live-VM validation this script's join logic is built on.
 
 ## Hypothesis (read before "fixing" any CDS<flanking asymmetry you see)
