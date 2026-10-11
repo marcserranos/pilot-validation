@@ -1,0 +1,25 @@
+gene	ancestry	resolution	rank	allele	n_haps	n_calls_gene	freq_pct	freq_lo	freq_hi	basis
+KIR2DL1	pooled	protein	1	KIR2DL1*003	4914	9611	51.1	50.1	52.1	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DL1	pooled	protein	2	KIR2DL1*002	1926	9611	20.0	19.3	20.9	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DL1	pooled	protein	3	KIR2DL1*004	1385	9611	14.4	13.7	15.1	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DL1	pooled	protein		other	1386	9611	14.4	13.7	15.1	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DL4	pooled	protein	1	KIR2DL4*001	4976	14359	34.7	33.9	35.4	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DL4	pooled	protein	2	KIR2DL4*008	3651	14359	25.4	24.7	26.1	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DL4	pooled	protein	3	KIR2DL4*005	3226	14359	22.5	21.8	23.2	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DL4	pooled	protein		other	2506	14359	17.5	16.8	18.1	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL1	pooled	protein	1	KIR3DL1*015	2642	10405	25.4	24.6	26.2	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL1	pooled	protein	2	KIR3DL1*001	1617	10405	15.5	14.9	16.2	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL1	pooled	protein	3	KIR3DL1*005	1470	10405	14.1	13.5	14.8	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL1	pooled	protein		other	4676	10405	44.9	44.0	45.9	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL2	pooled	protein	1	KIR3DL2*002	1786	5802	30.8	29.6	32.0	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL2	pooled	protein	2	KIR3DL2*007	1620	5802	27.9	26.8	29.1	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL2	pooled	protein	3	KIR3DL2*001	915	5802	15.8	14.9	16.7	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL2	pooled	protein		other	1481	5802	25.5	24.4	26.7	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL3	pooled	protein	1	KIR3DL3*003	1437	6772	21.2	20.3	22.2	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL3	pooled	protein	2	KIR3DL3*001	1381	6772	20.4	19.5	21.4	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL3	pooled	protein	3	KIR3DL3*009	998	6772	14.7	13.9	15.6	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR3DL3	pooled	protein		other	2956	6772	43.7	42.5	44.8	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DS4	pooled	protein	1	KIR2DS4*001	2630	4657	56.5	55.0	57.9	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DS4	pooled	protein	2	KIR2DS4*003	1031	4657	22.1	21.0	23.4	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DS4	pooled	protein	3	KIR2DS4*010	972	4657	20.9	19.7	22.1	draft_from_43_kir_allele_freq_pooled_known_all_haps
+KIR2DS4	pooled	protein		other	24	4657	0.5	0.3	0.8	draft_from_43_kir_allele_freq_pooled_known_all_haps

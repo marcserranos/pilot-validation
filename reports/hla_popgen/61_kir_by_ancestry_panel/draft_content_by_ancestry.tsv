@@ -1,0 +1,7 @@
+ancestry	n_complete_haps	cB_pct	cB_lo	cB_hi	cB_pct_all_haps_51	basis
+AFR	4374	38.7	37.2	40.1	39.9	exact_from_51_cB_share_by_completeness
+AMR	3984	42.7	41.2	44.3	43.9	exact_from_51_cB_share_by_completeness
+EAS	2310	32.0	30.2	34.0	33.2	exact_from_51_cB_share_by_completeness
+EUR	4500	44.5	43.1	46.0	46.1	exact_from_51_cB_share_by_completeness
+MID	752	52.0	48.4	55.5	52.4	exact_from_51_cB_share_by_completeness
+SAS	1948	57.1	54.9	59.3	58.4	exact_from_51_cB_share_by_completeness

@@ -27,8 +27,8 @@ The 10-06 work already answers several original asks. Its results are in `report
 | C | `59_depth_outcome_join.py` | Does low regional depth explain incomplete KIR haplotypes (51), structurally anomalous DQ contigs (50e) and residual absences? Propose the cutoff | yes | code + tests done; runs after 58 |
 | D | `57`, `57b`, `57c` | Trio phasing QC with yak | — | **done 10-06** (179 trios). Optional: genome-wide yak; use trios to tune the confidence score |
 | E | `50_qc_foundation.py` (a) | Canonical counts | — | **mostly done 10-06** (waterfall per ancestry). Remaining: haplotype / per-gene / novel-by-class rows in the same table, for the final report |
-| F | `61_kir_by_ancestry_panel.py` | KIR gene content and allele frequencies by ancestry as a Figure 1 panel, on complete haplotypes only (51 rule), after the coverage filter | local draft + VM | pending |
-| G | `62_cole_haplotype_units.py` | Phased units for fine-mapping: DQA1~DQB1 and DRB1~DQA1~DQB1 per haplotype, with the 57b physical-evidence rule and the coverage flag | yes | pending |
+| F | `61_kir_by_ancestry_panel.py` | KIR gene content and allele frequencies by ancestry as a Figure 1 panel, on complete haplotypes only (51 rule), after the coverage filter | local draft + VM | code + tests done; local draft panel built; VM run after 59 |
+| G | `62_cole_haplotype_units.py` | Phased units for fine-mapping: DQA1~DQB1 and DRB1~DQA1~DQB1 per haplotype, with the 57b physical-evidence rule and the coverage flag | yes | code + tests done; VM run after 59 |
 | H | — | Pull the 5 missing `44_public` tables and the 53 ASE table | yes | in progress |
 | I | — | Reading: Sharon 2016, TRBV deletion prior art, AoU long-read flagship scoop check | no | **done** (`READING.md`) |
 | J | `52_mhc_haplotype_atlas.py` | Incompatibility map across MHC gene pairs | — | **done 10-06** (absent-haplotype atlas) |

@@ -1,0 +1,16 @@
+metric	value
+complete_haplotypes_unrelated_with_ancestry	17868
+complete_haplotypes_AFR	4374
+complete_haplotypes_AMR	3984
+complete_haplotypes_EAS	2310
+complete_haplotypes_EUR	4500
+complete_haplotypes_MID	752
+complete_haplotypes_SAS	1948
+content_string_mass_shown_pct_AFR	95.6
+content_string_mass_shown_pct_AMR	95.5
+content_string_mass_shown_pct_EAS	94.5
+content_string_mass_shown_pct_EUR	96.0
+content_string_mass_shown_pct_MID	91.2
+content_string_mass_shown_pct_SAS	93.2
+named_content_strings_ge20	27
+status	DRAFT from committed PUBLIC aggregates; VM run pending

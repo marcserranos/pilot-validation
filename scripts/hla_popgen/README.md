@@ -128,6 +128,8 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 58_regional_depth.py        → samtools bedcov MAPQ0/20: MHC/KIR/TRB depth vs genome-wide control windows; TRB gene copy number + HWE
 59_depth_outcome_join.py    → regional depth (58) vs KIR incompleteness, DQ anomalies, HLA absences, MHC fragmentation; cutoff scan + proposed rule
 60_trb_germline_usage.py    → TRBV copy number (58 proxy or 65) vs never-used in Aleix's repertoire usage; contingency, diagnostics, dosage
+61_kir_by_ancestry_panel.py → Figure 1 KIR panel: gene carrier freq, cA/cB, genes/haplotype, top alleles by ancestry on complete haplotypes (local draft / VM / figure modes)
+62_cole_haplotype_units.py  → per-haplotype DQA1~DQB1 and DRB1~DQ units with physical-evidence level, DQ group/anomaly, coverage flag (INTERNAL for the collaborator bucket)
 65_trb_assembly_genotype.py → TRB ~21 kb insertion (TRBV4-3/3-2/6-3/7-8) presence per haplotype from phased assemblies; frequency, HWE, co-presence
 ```
 
