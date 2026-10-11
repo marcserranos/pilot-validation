@@ -331,6 +331,50 @@ class Test59(unittest.TestCase):
         self.assertEqual(n1, len(pd.read_csv(cache, sep="\t", comment="#")))
         self.assertFalse(os.path.exists(os.path.join(internal, "59.lock")))
 
+    def test_exclude_people_file(self):
+        path = os.path.join(self.internal, "exclude_people.tsv")
+        self.assertEqual(open(path).readline().strip(), _disc.INTERNAL_HEADER_COMMENT)
+        ex = pd.read_csv(path, sep="\t", comment="#", dtype={"person_id": str})
+        self.assertEqual(list(ex.columns), dj.EXCLUDE_COLS)
+        # every person with depth, relatives included, one row per region
+        self.assertEqual(len(ex), len(self.c.pids) * 2)
+        self.assertEqual(set(ex["region"]), set(dj.REGIONS))
+        self.assertEqual(set(ex["scale"]), {"norm"})
+        self.assertEqual(set(ex["mapq"]), {0})
+        p = self.read("proposed_cutoff.tsv")
+        for region in dj.REGIONS:
+            r = p[(p["role"] == "region_proposal") & (p["scale"] == "norm") & (p["mapq"] == "0")
+                  & (p["region"] == region)].iloc[0]
+            sub = ex[ex["region"] == region]
+            self.assertEqual(set(sub["cutoff"]), {float(r["proposed_cutoff"])})
+            np.testing.assert_array_equal(sub["below_cutoff"].to_numpy(),
+                                          (sub["value"] < sub["cutoff"]).to_numpy())
+        w = ex.pivot(index="person_id", columns="region", values="below_cutoff")
+        e = ex.drop_duplicates("person_id").set_index("person_id")["exclude"]
+        np.testing.assert_array_equal(e.loc[w.index].to_numpy(), w.any(axis=1).to_numpy())
+        # planted thin people go, well-covered people stay
+        idx = {p: i for i, p in enumerate(self.c.pids)}
+        thin = [p for p in e.index if self.c.norm_mhc[idx[p]] < 0.4]
+        fine = [p for p in e.index if min(self.c.norm_mhc[idx[p]], self.c.norm_kir[idx[p]]) > 0.8]
+        self.assertTrue(e.loc[thin].all())
+        self.assertFalse(e.loc[fine].any())
+        # value is the normalised depth
+        mhc = ex[ex["region"] == "window_MHC"].set_index("person_id")["value"]
+        self.assertLess(np.median(np.abs(mhc.to_numpy() - self.c.norm_mhc[[idx[p] for p in mhc.index]])), 0.01)
+
+    def test_exclude_region_option(self):
+        out = os.path.join(self.tmp, "out_kironly")
+        internal = os.path.join(self.tmp, "internal_kironly")
+        self.c.run(out, internal, "--exclude-region", "window_KIR")
+        ex = pd.read_csv(os.path.join(internal, "exclude_people.tsv"), sep="\t", comment="#",
+                         dtype={"person_id": str})
+        kir = ex[ex["region"] == "window_KIR"].set_index("person_id")
+        mhc = ex[ex["region"] == "window_MHC"].set_index("person_id")
+        np.testing.assert_array_equal(kir["exclude"].to_numpy(), kir["below_cutoff"].to_numpy())
+        self.assertTrue((mhc["below_cutoff"] & ~mhc["exclude"]).any())  # MHC-only thin people kept
+        with self.assertRaises(SystemExit):
+            self.c.run(out, internal, "--exclude-region", "window_XYZ")
+
     def test_lock_refuses_second_run(self):
         internal = os.path.join(self.tmp, "internal_locked")
         os.makedirs(internal)

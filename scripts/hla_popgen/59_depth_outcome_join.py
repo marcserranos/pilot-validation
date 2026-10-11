@@ -69,6 +69,16 @@ shows as "<20" and every rate built on such a cell is blank):
 INTERNAL (`--internal-dir`, never in the repo, never pulled):
     per_person_depth_outcome.tsv one row per person: rel_* and norm_* depth columns, ancestry,
                                  platform, every outcome
+    exclude_people.tsv           the coverage filter, ready for 61/62: one row per person per region
+                                 (window_MHC, window_KIR): person_id, region, mapq, scale, cutoff,
+                                 value, below_cutoff, exclude. cutoff = that region's proposal on the
+                                 primary scale (--proposal-scale) at --exclude-mapq (default 0);
+                                 blank when no cutoff was proposed (nobody below). value = the
+                                 person's depth on that scale. exclude (same on both of a person's
+                                 rows) = below the cutoff in ANY region named by --exclude-region
+                                 (default both). Covers every person with depth, relatives included
+                                 (the cutoff is derived on the unrelated set, but 61/62 need a flag
+                                 for everyone).
     kir_outcomes.tsv             per-person KIR parse cache (appended + fsynced; a rerun resumes)
 
 Cutoff rule (CLI `--min-events-removed` X, `--max-people-removed` Y, `--min-ancestry-n` M). A
@@ -886,6 +896,8 @@ def build_per_person(args, internal_dir):
     pp = attach_cohort(depth, args.cohort)
     pp, meds = add_normalised(pp)
     n_depth = len(pp)
+    pp_all = pp[["person_id", "platform"] + [depth_col(r, q, sc) for r in REGIONS for q in MAPQS
+                                             for sc in SCALES]].copy()
     if args.include_related:
         log("--include-related: no kinship filter")
     else:
@@ -907,7 +919,41 @@ def build_per_person(args, internal_dir):
         pp = pp.merge(df, on="person_id", how="left")
     for outcome, _ in OUTCOMES + CONTINUOUS:
         pp[outcome] = pd.to_numeric(pp[outcome], errors="coerce")
-    return pp, genes, n_depth, meds
+    return pp, genes, n_depth, meds, pp_all
+
+
+EXCLUDE_COLS = ["person_id", "region", "mapq", "scale", "cutoff", "value", "below_cutoff", "exclude"]
+
+
+def exclude_people_table(pp_all, prop, scale, mapq=0, exclude_regions=REGIONS):
+    """INTERNAL coverage filter. pp_all: every person with depth (normalised, before the kinship
+    filter). prop: proposed_table() output. One row per person x region in REGIONS; `exclude` is
+    True when the person is below the region proposal in any of `exclude_regions`."""
+    reg = prop[(prop["role"] == "region_proposal") & (prop["scale"] == scale)
+               & (prop["mapq"].astype(int) == int(mapq))]
+    cut = {}
+    for r in reg.itertuples(index=False):
+        v = r.proposed_cutoff if r.status == "proposed" else ""
+        cut[r.region] = float(v) if str(v) != "" else None
+    rows = []
+    below_any = pd.Series(False, index=pp_all.index)
+    per_region = {}
+    for region in REGIONS:
+        col = depth_col(region, mapq, scale)
+        val = pp_all[col] if col in pp_all.columns else pd.Series(np.nan, index=pp_all.index)
+        c = cut.get(region)
+        below = (val < c).fillna(False) if c is not None else pd.Series(False, index=pp_all.index)
+        per_region[region] = (val, c, below)
+        if region in exclude_regions:
+            below_any |= below
+    for region in REGIONS:
+        val, c, below = per_region[region]
+        rows.append(pd.DataFrame({
+            "person_id": pp_all["person_id"].values, "region": region, "mapq": mapq, "scale": scale,
+            "cutoff": "" if c is None else c, "value": val.round(4).values,
+            "below_cutoff": below.astype(bool).values, "exclude": below_any.astype(bool).values}))
+    out = pd.concat(rows, ignore_index=True)[EXCLUDE_COLS]
+    return out.sort_values(["person_id", "region"]).reset_index(drop=True)
 
 
 def main(argv=None):
@@ -950,8 +996,17 @@ def main(argv=None):
     ap.add_argument("--min-ancestry-n", type=int, default=100,
                     help="M: ancestries with fewer people are not used for the Y constraint")
     ap.add_argument("--rel-clip", type=float, default=REL_CLIP)
+    ap.add_argument("--exclude-region", default=",".join(REGIONS),
+                    help="regions whose proposal feeds `exclude` in exclude_people.tsv (comma list; "
+                         "default both: a person is excluded if below in any)")
+    ap.add_argument("--exclude-mapq", type=int, default=0, choices=list(MAPQS),
+                    help="MAPQ floor of the region proposal used for exclude_people.tsv")
     _disc.add_disclosure_arg(ap)
     args = ap.parse_args(argv)
+    exclude_regions = tuple(r.strip() for r in args.exclude_region.split(",") if r.strip())
+    bad = set(exclude_regions) - set(REGIONS)
+    if bad:
+        ap.error(f"--exclude-region: unknown region(s) {sorted(bad)}; choose from {list(REGIONS)}")
 
     internal_dir = os.path.expanduser(args.internal_dir)
     internal_path = os.path.join(internal_dir, "per_person_depth_outcome.tsv")
@@ -969,7 +1024,7 @@ def main(argv=None):
                "norm": tuple(round(float(x), 4) for x in args.norm_cutoffs.split(","))}
     lock = acquire_lock(internal_dir)
     try:
-        pp, genes, n_depth, meds = build_per_person(args, internal_dir)
+        pp, genes, n_depth, meds, pp_all = build_per_person(args, internal_dir)
         _disc.write_tsv(pp, internal_path, _disc.INTERNAL)
 
         mode = args.disclosure
@@ -984,6 +1039,12 @@ def main(argv=None):
         prop = proposed_table(pp, cutoffs, args.min_events_removed, args.max_people_removed,
                               args.min_ancestry_n, mode, args.proposal_scale)
         _disc.write_tsv(prop, os.path.join(out, "proposed_cutoff.tsv"), mode)
+        excl = exclude_people_table(pp_all, prop, args.proposal_scale, args.exclude_mapq,
+                                    exclude_regions)
+        _disc.write_tsv(excl, os.path.join(internal_dir, "exclude_people.tsv"), _disc.INTERNAL)
+        n_excl = int(excl.drop_duplicates("person_id")["exclude"].sum())
+        log(f"exclude_people.tsv: {n_excl} of {excl['person_id'].nunique()} people excluded "
+            f"(regions {','.join(exclude_regions)}, MAPQ>={args.exclude_mapq}, {args.proposal_scale})")
 
         run = [dict(metric="people_with_depth", value=_cnt(n_depth, mode)),
                dict(metric="people_analysed", value=_cnt(len(pp), mode)),
@@ -998,7 +1059,10 @@ def main(argv=None):
                 dict(metric="bins_abs", value=args.bins), dict(metric="cutoffs_abs", value=args.cutoffs),
                 dict(metric="bins_norm", value=args.norm_bins),
                 dict(metric="cutoffs_norm", value=args.norm_cutoffs),
-                dict(metric="proposal_scale", value=args.proposal_scale)]
+                dict(metric="proposal_scale", value=args.proposal_scale),
+                dict(metric="exclude_regions", value=",".join(exclude_regions)),
+                dict(metric="exclude_mapq", value=args.exclude_mapq),
+                dict(metric="people_excluded_by_coverage", value=_cnt(n_excl, mode))]
         run += [dict(metric=f"cohort_median_rel_{r}_q{q}_{pl}", value=m if ok else f"{m} (all-platform)")
                 for r, q, pl, m, ok in meds]
         run += [

@@ -294,6 +294,8 @@ setsid nohup pixi run -e spechla -- python3 -u scripts/hla_popgen/59_depth_outco
   small-cell question in `context/DECISIONS.md`.
 - statsmodels is absent from the VM env, so the fallback fit is used unless it is installed.
 
+**Exclusion list.** 59 also writes INTERNAL `exclude_people.tsv` (one row per person per window, region proposal on the normalised scale at MAPQ 0; `exclude` = below the cutoff in any selected window). 61 drops excluded people; 62 takes its coverage flag from the window_MHC rows.
+
 ## 60 — TRBV germline copy number vs "never used" in the repertoire
 
 **Question.** Some TRBV genes are never used in a sizeable share of people's T-cell repertoires
@@ -401,3 +403,249 @@ pixi run -e spechla -- python3 -u scripts/hla_popgen/60_trb_germline_usage.py \
   the join is empty and `run_summary.tsv` shows 0 people in both tables.
 - Complementary suppression is within a row only (as in 58); cross-row disclosure stays with the
   open small-cell question in `context/DECISIONS.md`.
+
+## 61 — KIR gene content and alleles by ancestry (Figure 1 panel)
+
+**Question.** How do KIR gene content, cA/cB haplotype share, the number of genes per haplotype
+and the commonest alleles differ between ancestry groups, when only fully assembled KIR
+haplotypes are counted?
+
+**Why it matters.** This is the KIR panel of Figure 1. 43 reported gene presence on all
+haplotypes, but 25% of KIR haplotypes are fragmented or open-ended (51). A fragmented haplotype
+loses genes, so gene frequencies from all haplotypes are biased downwards, and the bias could
+differ by ancestry or by haplotype content. The proposed S05 rule (DECISIONS.md) is to make
+KIR haplotype-level statements only on complete haplotypes.
+
+**Inputs.** VM mode: per-person Immuannot KIR GTFs
+`~/pipeline_outputs_kir/<pid>/immuannot_output/hap{1,2}.gtf.gz` (the 43 run: 12,261 people,
+Tier-3 `sequel2` excluded), `~/pipeline_outputs/cohort_membership.tsv` (predicted ancestry), the
+AoU v9 relatedness table, and optionally the 59 exclusion list. Local draft: the committed PUBLIC
+tables `reports/hla_popgen/51_kir_structure_qc/gene_content_haplotypes.tsv`,
+`cB_share_by_completeness.tsv` and `reports/hla_popgen/43_kir_full_cohort/kir_allele_freq.tsv`,
+`kir_gene_by_ancestry.tsv`.
+
+**Method.**
+1. Parse each haplotype's KIR calls with 44's contig-aware parser (`parse_hap_gtf_full`, which
+   reuses 41's novelty tiers).
+2. Classify each haplotype with 51's rule (`classify_hap`): complete = all KIR calls on one
+   contig, and KIR3DL3 and KIR3DL2 both present.
+3. Keep unrelated people (greedy removal at kinship ≥ 0.0442, the rule used across hla_popgen),
+   minus anyone flagged `exclude = True` in 59's INTERNAL `exclude_people.tsv`
+   (`--exclude-people`; by default below 59's proposal in the MHC or the KIR window).
+4. Per ancestry, on complete haplotypes only:
+   - (a) % of haplotypes carrying each of the 17 genes, plus person-level carrier frequency
+     among people whose two haplotypes are both complete;
+   - (b) top alleles per gene;
+   - (c) cB share (any of 2DL2, 2DL5A/B, 2DS1/2/3/5, 3DS1 on the haplotype);
+   - (d) the distribution of distinct genes per haplotype.
+   - Also, per ancestry, the share of haplotypes in each completeness class, to check whether
+     the rule itself is ancestry-neutral.
+5. Allele resolution for (b):
+   - default is the protein field (first three digits). Calls that keep a known protein (known,
+     genomic-only novel, synonymous novel) take their nearest allele's protein field; protein-novel
+     calls form one pool.
+   - A second table gives full names of exact (known) matches only, which is 43's convention.
+6. Disclosure:
+   - counts 1–19 are shown as `<20` and their rates blanked;
+   - an allele is named only when ≥ 20 haplotypes carry it;
+   - complementary suppression: when a masked cell could be recovered as the total minus the shown
+     cells, the smallest shown cell is also masked (`<20*`) or folded into `other`.
+7. Local draft mode: rebuilds the same tables from the committed aggregates.
+   - (a) and (d) come from the 27 content strings with ≥ 20 complete haplotypes. The lower
+     bound sums their %; the upper bound adds the share those strings do not cover; the plotted
+     estimate renormalises over the covered share.
+   - (c) is copied from 51.
+   - (b) sums 43's pooled, known-call, all-haplotype allele counts to the protein field.
+
+**Parameters.**
+- Kinship 0.0442: same unrelated definition as 24/29/43/51.
+- n < 20 masking: project disclosure rule.
+- Top 5 alleles per gene × ancestry in the tables; 3 per gene, 6 genes (2DL1, 2DL4, 3DL1, 3DL2,
+  3DL3, 2DS4) in the figure: the genes with the most known calls.
+- Protein-field default: full-resolution KIR names are dominated by non-coding novelty (59% of
+  calls are novel, 43), so a 7-digit table would mostly describe the known minority.
+
+**Run.**
+- Local draft 2026-10-11:
+  `python3 scripts/hla_popgen/61_kir_by_ancestry_panel.py --mode local`, outputs in
+  `reports/hla_popgen/61_kir_by_ancestry_panel/`.
+- VM: pending (`vm_parts/61.sh`).
+- Tests: `tests/test_61_kir_by_ancestry_panel.py`, 12/12 on synthetic GTFs, including reading 59's exclusion file. They check the
+  completeness restriction, removal of relatives and of excluded people, masking, the absence of
+  person ids, the local draft and the figure.
+
+**Results (local draft; to be replaced by the VM run).**
+- Complete haplotypes, unrelated, with ancestry: 17,868 (AFR 4,374; AMR 3,984; EAS 2,310;
+  EUR 4,500; MID 752; SAS 1,948).
+- Content strings with ≥ 20 haplotypes cover 91.2–96.0% of complete haplotypes per ancestry
+  (MID lowest).
+- cB share, complete haplotypes, 95% CI:
+
+  | ancestry | cB share |
+  |---|---|
+  | EAS | 32.0 (30.2–34.0) |
+  | AFR | 38.7 (37.2–40.1) |
+  | AMR | 42.7 (41.2–44.3) |
+  | EUR | 44.5 (43.1–46.0) |
+  | MID | 52.0 (48.4–55.5) |
+  | SAS | 57.1 (54.9–59.3) |
+
+  Each value is 0.4–1.6 points lower than on all haplotypes, and the ancestry order does not
+  change.
+- Gene content, estimates (lower–upper bound):
+  - KIR3DS1 AFR 6.4 (6.1–10.5) against EUR 19.6 and SAS 27.0;
+  - KIR2DL5B EAS 4.0 (3.8–9.3) against AFR 23.5;
+  - KIR2DS2 EAS 13.8 (13.0–18.5) against SAS 39.1;
+  - KIR2DL3 EAS 86.2;
+  - KIR3DL1 AFR 89.7, SAS 67.7.
+- Mean distinct genes per complete haplotype: 9.35 (EAS) to 9.97 (SAS). The 9-gene class is
+  70.7% of EAS and 47.2% of SAS haplotypes.
+- Top alleles, pooled, known calls, protein field:
+
+  | gene | top allele | share |
+  |---|---|---|
+  | KIR2DL1 | *003 | 51.1% |
+  | KIR2DS4 | *001 | 56.5% |
+  | KIR2DL4 | *001 | 34.7% |
+  | KIR3DL2 | *002 | 30.8% |
+  | KIR3DL1 | *015 | 25.4% |
+  | KIR3DL3 | *003 | 21.2% |
+
+**Interpretation.**
+- The ancestry pattern of 43 holds on complete haplotypes:
+  - EAS is the most cA-rich group, SAS and MID the most cB-rich;
+  - AFR is low for the telomeric 3DS1–2DL5A–2DS5–2DS1 block.
+- Framework and common A-content genes are 2–9 points more frequent on complete haplotypes than
+  on all haplotypes. This is the size of the fragmentation bias in 43's presence values.
+
+**What it does not show.**
+- The draft gives no per-ancestry allele frequencies; 43 published only pooled ones.
+- In the draft, (a) and (d) are estimates. They assume the rare content strings look like the
+  common ones, which pulls B-content genes down by up to ~3 points. Genes that always travel
+  together on common strings (3DL1/2DS4, 3DS1/2DL5A, 2DP1/2DL1, 2DL4/3DP1) get identical
+  estimates.
+- Copy number beyond presence (duplicated 3DL1/S1 haplotypes, 51) is not shown.
+
+**Caveats.**
+- If completeness depends on ancestry or content, complete-haplotype frequencies are biased. The
+  VM table `completeness_by_ancestry.tsv` measures this.
+- The 991 `sequel2` people (mostly AFR) were never KIR-called.
+- The coverage filter (59) is not applied yet.
+- Ancestry is predicted, not self-reported.
+- The protein field of a genomic-only novel call is inherited from its nearest named allele. It
+  is correct only if Immuannot's nearest template shares that allele's protein, which is not
+  checked here.
+
+## 62 — Phased class II haplotype units for fine-mapping
+
+**Question.** For each person and each assembled haplotype, which DQA1~DQB1 and DRB1~DQA1~DQB1
+haplotype does it carry? How sure are we that the alleles really sit together on one
+chromosome?
+
+**Why it matters.**
+- Fine-mapping and association work on DQ (the G1/G2 heterodimer question) needs phased units,
+  not unphased genotypes.
+- Our long-read assemblies give physical phasing for free, but only when the genes share one
+  contig.
+- The trio benchmark (57b) showed that same-contig phasing is reliable for class II and wrong
+  about 40% of the time for A~B. Each unit therefore has to carry its own evidence level, plus
+  the QC flags a downstream user needs to filter on.
+
+**Inputs.**
+- HLA Table 1 `~/pipeline_outputs/hla_calls_rich.tsv`: `person_id`, `hap`, `contig`, `gene`,
+  `copy_index`, `consensus`, `gene_start`.
+- `~/pipeline_outputs/cohort_membership.tsv` (platform, predicted ancestry).
+- The AoU v9 relatedness table.
+- 58's INTERNAL `~/s05/internal/58/per_person_depth.tsv` (optional).
+
+**Method.**
+1. Every (person, haplotype) in Table 1 gets two rows, one per unit (DQA1~DQB1,
+   DRB1~DQA1~DQB1).
+2. Allele strings: all copies of each gene, full consensus and 2-field (`_s05_common.two_field`;
+   empty when field 1 or 2 is novel). The unit labels use copy 1.
+3. Physical evidence: copy-1 contigs of the unit's genes, plus a pair rule from 57b trio truth.
+   - The rule says, per gene pair, whether same-contig phasing counts:
+     - allowed: DQA1~DQB1, DRB1~DQA1, DRB1~DQB1, DPA1~DPB1, B~C (trio mismatch < 7.7%);
+     - flagged: DQB1~DPB1, 21%;
+     - not allowed: A~B and A~C, ~40%;
+     - any pair not listed: not allowed.
+   - Unit level:
+     - `physical`: one contig, all pairs allowed;
+     - `physical_flagged`: one contig, a flagged pair;
+     - `not_allowed_by_rule`: one contig, a pair that is not allowed;
+     - `split_contigs`: two or more contigs;
+     - `incomplete`: a gene has no call.
+   - For the two units built here, every pair is allowed, so in practice the level is decided by
+     contig sharing. The other levels exist so the same code serves DP or class I units.
+4. DQ G1/G2 class of the copy-1 pair: Petersdorf 2022 on field 1, the rule of 37/50e.
+5. DQ structural flag from the 50e follow-up:
+   - `anomalous_spacing`: same contig and |gene_start(DQB1) − gene_start(DQA1)| ≥ 100 kb;
+   - `anomalous_multicopy`: a second DQA1 or DQB1 copy;
+   - `canonical`: otherwise, on one contig;
+   - `not_assessable`: genes missing or split.
+6. Coverage flag, two sources:
+   - preferred: 59's INTERNAL `exclude_people.tsv` (`--exclude-people`). Its `window_MHC` rows give
+     each person's MHC depth on 59's scale and 59's proposed MHC cutoff. `low_coverage` below the
+     cutoff, `pass` otherwise (everyone passes if 59 proposed no MHC cutoff), `not_measured` if the
+     person is not in the file; status `set_by_59`. 59's `exclude` column is not used, because it
+     also reflects the KIR window, which says nothing about class II units;
+   - fallback (no 59 file): 58's relative depth over `window_MHC` at MAPQ ≥ 0, divided by the
+     cohort median on the person's platform (59's normalisation; platforms with < 20 people use the
+     all-platform median). `low_coverage` below 0.6 on that scale; status `provisional_until_59`.
+   - Each row records the scale, the value compared, the cutoff and the status.
+7. Unrelated flag:
+   - greedy removal at kinship ≥ 0.0442 among HLA-called people;
+   - `not_assessed` if the relatedness table is missing, so it is never silently True.
+8. Outputs:
+   - INTERNAL `haplotype_units.tsv.gz`, with an `# INTERNAL` first line, plus the dictionary and
+     an md5/sha256 manifest. Only under `~/s05/internal/62`; the script refuses repo and
+     `reports/` paths.
+   - PUBLIC:
+     - 2-field unit frequency per ancestry (unrelated, `physical`, coverage not low; units named
+       only with ≥ 20 haplotypes);
+     - a QC summary per evidence level, DQ class, DQ structure, coverage flag, platform and
+       unrelated flag;
+     - complementary suppression in both tables.
+
+**Parameters and why.**
+- Pair statuses: proposed S05 rule from 57b (179 trios), configurable with `--pair-rules`.
+- 100 kb spacing: same-contig DQA1–DQB1 spacing is 16.6–24.2 kb on 98% of haplotypes (50e
+  follow-up), so 100 kb sits far outside the normal range. The spacing definition (distance
+  between `gene_start` values) is an assumption; the raw `dq_spacing_kb` is written so the cut
+  can be moved.
+- Coverage: 59's proposal when available. The fallback cutoff 0.6 on the normalised scale is a
+  placeholder. Normalising matters because the MHC window runs ~17% under genome depth in typical
+  people (58 smoke test median 0.83), so an absolute cutoff would mean different things per region
+  and platform.
+- 2-field as the default unit resolution: 57b trio Mendelian error is about 4% at 2 fields and
+  12.6% at full resolution.
+
+**Run.**
+- VM: pending (`vm_parts/62.sh`). Best after 58 and then 59, so the coverage flag is set by 59.
+- Upload to the in-perimeter collaborator bucket is not done by the script. The `gsutil rsync`
+  commands are in the script docstring, the dictionary and `vm_parts/62.sh`, for Marc to run after
+  he has reviewed the MANIFEST.
+- Data dictionary (no data): `reports/hla_popgen/62_cole_haplotype_units/README.md`, generated by
+  `--dictionary-only`. A test checks that it matches the script.
+- Tests: `tests/test_62_cole_haplotype_units.py`, 13/13 on synthetic Table 1. They cover:
+  - every evidence level and configurable rules;
+  - DQ classes and both anomaly flags;
+  - the coverage flag from 59's file (MHC rows only, KIR-only exclusions ignored, no-cutoff case),
+    the normalised 58 fallback, and no depth data at all;
+  - the unrelated flag and `not_assessed`;
+  - masking and complementary suppression;
+  - no person ids in PUBLIC outputs;
+  - refusal of repo and `reports/` paths for INTERNAL output.
+
+**Results.** Pending the VM run.
+
+**What it does not show.**
+- `physical` means the genes share one contig. It does not mean the contig is free of phasing
+  error; 57b bounds that at < 7.7% for class II pairs.
+- `split_contigs` haplotypes keep their hap label, but 50e showed the label is not reliable
+  across a contig break.
+
+**Caveats.**
+- The 991 `sequel2` people (mostly AFR) have no HLA calls.
+- The pair rule and the coverage cutoff are proposals, not ratified decisions.
+- Platform changes novelty rates (50c) and should be a covariate in any use of the units.
