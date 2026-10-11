@@ -29,6 +29,6 @@ folder of the `REPORT #N - HLA_AoU - Marc Serrano and Aleix Ruf` slides:
   immune genes (gene → expression), incompatibility map".
 If a summary for #9 or #10 is written later, file it here as `YYYY-MM-DD_CALL_SUMMARY.md`.
 
-- `2026-10-xx_CALL_SUMMARY.md` — the most recent call (Cole, David, Marc), from a partial
-  transcript Marc pasted on 2026-10-11; exact date still to confirm. PheWAS of repertoire
+- `2026-10-06_CALL_SUMMARY.md` — call #10 (Cole, David, Marc), from a partial transcript Marc
+  pasted on 2026-10-11. PheWAS of repertoire
   features, clonotype × HLA and V/J-usage GWAS plans, regional coverage QC, KIR.

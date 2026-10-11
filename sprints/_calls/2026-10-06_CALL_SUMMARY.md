@@ -1,9 +1,9 @@
-# Call summary — most recent supervisor call (October 2026, exact date to confirm)
+# Call summary — 2026-10-06, Progress update #10
 
 *Written 2026-10-11 from a partial transcript Marc pasted into the project thread (it starts
 mid-call, during Cole's PheWAS slides). Present: Cole Shanks, David Bonet Sole, Marc, and one more
-person who left early (unnamed in the transcript; Aleix's own notes on his branch record a call on
-2026-10-06). Rename this file to its real date once confirmed.*
+person who left early (unnamed in the transcript). Date confirmed by Marc on 2026-10-11; deck
+`REPORT #10`.*
 
 ## Transcription corrections
 
