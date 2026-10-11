@@ -22,8 +22,9 @@ The 10-06 work already answers several original asks. Its results are in `report
 | WS | Script | Ask | Needs VM | Status |
 |---|---|---|---|---|
 | A | `58_regional_depth.py` | Regional coverage QC: long-read depth over the MHC and the KIR region, relative to each person's genome-wide depth (supervisor ask) | yes | code + tests done; VM run pending |
-| B | `58` (TRB part), `60_trb_germline_usage.py` | TRBV gene copy number from depth; join it to Aleix's per-person V usage. Prior art: the TRBV4-3/3-2/6-2 deletion is known (`READING.md` §B), so the contribution is scale, ancestry and the link to usage | yes | 58 done; 60 pending |
-| C | `59_depth_outcome_join.py` | Does low regional depth explain incomplete KIR haplotypes (51), structurally anomalous DQ contigs (50e) and residual absences? Propose the cutoff | yes | pending |
+| B | `58` (TRB part), `60_trb_germline_usage.py` | TRBV gene copy number from depth; join it to Aleix's per-person V usage. Prior art: the TRBV4-3/3-2/6-2 deletion is known (`READING.md` §B), so the contribution is scale, ancestry and the link to usage | yes | 58 running on VM; 60 code + tests done |
+| B2 | `65_trb_assembly_genotype.py` | TRBV4-3 has no locus on GRCh38 primary chr7 (it sits on a ~21 kb insertion carried only on an ALT contig), so 58 cannot see it. Genotype the insertion per haplotype from each person's assemblies | yes | code + tests done; VM run pending |
+| C | `59_depth_outcome_join.py` | Does low regional depth explain incomplete KIR haplotypes (51), structurally anomalous DQ contigs (50e) and residual absences? Propose the cutoff | yes | code + tests done; runs after 58 |
 | D | `57`, `57b`, `57c` | Trio phasing QC with yak | — | **done 10-06** (179 trios). Optional: genome-wide yak; use trios to tune the confidence score |
 | E | `50_qc_foundation.py` (a) | Canonical counts | — | **mostly done 10-06** (waterfall per ancestry). Remaining: haplotype / per-gene / novel-by-class rows in the same table, for the final report |
 | F | `61_kir_by_ancestry_panel.py` | KIR gene content and allele frequencies by ancestry as a Figure 1 panel, on complete haplotypes only (51 rule), after the coverage filter | local draft + VM | pending |
