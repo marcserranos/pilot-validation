@@ -53,7 +53,6 @@ panels were later redrawn in the numbered Figure 1 scripts.
 scripts 00, 03, 04 and 19, written here before the one-folder-per-script convention. They stay in
 place because those scripts and later scripts (19, 25, 49) read and write these exact paths.
 
-> **Disclosure flag (2026-10-11, open — see `context/DECISIONS.md`):** `novel_alleles.tsv` has one
-> row per novel allele with `n_persons` and per-ancestry counts; about 18,800 of its ~21,500 rows
-> are single-person alleles. This file has been public on `main` since 2026-09-16. Whether it
-> must be masked or removed (and scrubbed from history) is Marc's call.
+> **Disclosure note (resolved 2026-10-11, see `context/DECISIONS.md`):** `novel_alleles.tsv` includes
+> single-person carrier counts. Marc decided to keep it as is; the `<20` rule applies when numbers
+> go into figures, the manuscript or shared slides.

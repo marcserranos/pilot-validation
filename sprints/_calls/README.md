@@ -28,3 +28,7 @@ folder of the `REPORT #N - HLA_AoU - Marc Serrano and Aleix Ruf` slides:
   exactly?", "#2 Phasing QC — Yak trioeval still running", "#3 Other branches — expression of
   immune genes (gene → expression), incompatibility map".
 If a summary for #9 or #10 is written later, file it here as `YYYY-MM-DD_CALL_SUMMARY.md`.
+
+- `2026-10-xx_CALL_SUMMARY.md` — the most recent call (Cole, David, Marc), from a partial
+  transcript Marc pasted on 2026-10-11; exact date still to confirm. PheWAS of repertoire
+  features, clonotype × HLA and V/J-usage GWAS plans, regional coverage QC, KIR.
