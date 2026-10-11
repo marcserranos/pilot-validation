@@ -126,6 +126,7 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 **S05 continued (2026-10-11 →)** (sprint folder `sprints/S05_qc_phasing_kir_trb/`)
 ```
 58_regional_depth.py        → samtools bedcov MAPQ0/20: MHC/KIR/TRB depth vs genome-wide control windows; TRB gene copy number + HWE
+65_trb_assembly_genotype.py → TRB ~21 kb insertion (TRBV4-3/3-2/6-3/7-8) presence per haplotype from phased assemblies; frequency, HWE, co-presence
 ```
 
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can
