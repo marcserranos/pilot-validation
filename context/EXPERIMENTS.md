@@ -885,3 +885,13 @@ folder moved); `context/STATUS.md` rewritten to current state only (older dated 
 git history and in each sprint's `SPRINT.md`/`LOG.md`); disclosure flag on
 `reports/hla_popgen/novel_alleles.tsv` added to DECISIONS.md open questions; calls #9/#10
 recorded as having no notes in `sprints/_calls/README.md`.
+
+## 2026-10-11 — Repo sync: 10-06 S05 work committed; call notes untracked
+
+- PR #4 merged: the 2026-10-06 work (scripts 50–57c, reports 50–57, yak trioeval on 179 trios) that
+  existed only uncommitted on Marc's laptop is now on `main`. It keeps numbers 50–57c; new S05 scripts
+  start at 58.
+- Call notes in `sprints/_calls/` (four dated files) removed from the index, per the private-notes rule
+  in `CLAUDE.md`; the files stay local and in the project's private file store. Quotes added on 10-11
+  to S05 docs and the 50_regional_depth docstring were rewritten as neutral asks. Git history was left as is (Marc).
+

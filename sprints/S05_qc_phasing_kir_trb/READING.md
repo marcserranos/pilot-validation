@@ -505,7 +505,7 @@ deletion genotyping from depth.**
 2. **The partner's TRBV4-3 ancestry result may be the deletion.** 27% never-used overall, SAS 43.5%
    vs EUR 16.7% — these sit squarely in the published deletion-frequency range. **Genotype the
    deletion first, then interpret.** If the deletion explains it, that is still a good result (and a
-   cautionary one for every V-usage GWAS, including the supervisor's); if it does not, the residual
+   cautionary one for every V-usage GWAS); if it does not, the residual
    is the interesting finding. Either way this ordering protects us from a referee doing it for us.
 3. **Claim 2 is partly pre-empted by Immuannot's own paper.** Zhou/Song/Li already report 41% of
    HLA/KIR genes carrying novel sequence and already note African-ancestry diversity. Differentiate

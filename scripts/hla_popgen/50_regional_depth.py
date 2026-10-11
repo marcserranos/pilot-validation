@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Regional long-read depth: MHC, KIR and TRB, relative to each person's own genome-wide depth.
 
-Sprint S05, WS-A and WS-B. Source: the 2026-10-06 call (sprints/_calls/2026-10-06_CALL_SUMMARY.md).
-Cole: "if someone's 20x coverage on average or 17x, but they're like 8x or 10x over the MHC, we
-probably want to get rid of them." Marc proposed the per-region (not per-person) view. This script
+Sprint S05, WS-A and WS-B. Supervisor ask (2026-10-06): flag people whose long-read depth over the
+MHC (or KIR) is far below their genome-wide depth, e.g. ~8-10x over the MHC at ~17-20x overall,
+viewed per region rather than per person. This script
 measures it, and in the same pass reads depth over every TRB V/J/C gene, because a germline deletion
 of a TRBV gene (the lead from Aleix's W1: TRBV4-3 never used by ~27% of people) shows up in the
 GRCh38-aligned long reads as roughly half depth (one copy) or no depth (both copies) over that gene.
