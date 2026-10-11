@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regional long-read depth: MHC, KIR and TRB, relative to each person's own genome-wide depth.
 
-Sprint S05, WS-A and WS-B. Supervisor ask (2026-10-06): flag people whose long-read depth over the
+Sprint S05, WS-A and WS-B (numbered 58: 50-57c are the 10-06 scripts). Supervisor ask (2026-10-06): flag people whose long-read depth over the
 MHC (or KIR) is far below their genome-wide depth, e.g. ~8-10x over the MHC at ~17-20x overall,
 viewed per region rather than per person. This script
 measures it, and in the same pass reads depth over every TRB V/J/C gene, because a germline deletion
@@ -64,14 +64,14 @@ Robustness (ENVIRONMENT.md quirks #22, #23, #26, #35):
 
 Usage (VM, from the repo; samtools lives in the spechla pixi env):
     cd ~/repos/pilot-validation
-    pixi run -e spechla -- python3 scripts/hla_popgen/50_regional_depth.py --build-regions \\
-        --gencode-gtf ~/ref/gencode.v46.basic.annotation.gtf.gz --out-dir ~/s05/results/50
-    setsid nohup pixi run -e spechla -- python3 -u scripts/hla_popgen/50_regional_depth.py \\
-        --regions-bed ~/s05/results/50/regions.bed --out-dir ~/s05/results/50 \\
-        --internal-dir ~/s05/internal/50 --workers 24 > ~/s05/logs/50.log 2>&1 < /dev/null & disown
-    Smoke test first: add --limit 20 --internal-dir ~/s05/internal/50_smoke (own path, quirk #22).
+    pixi run -e spechla -- python3 scripts/hla_popgen/58_regional_depth.py --build-regions \\
+        --gencode-gtf ~/ref/gencode.v46.basic.annotation.gtf.gz --out-dir ~/s05/results/58
+    setsid nohup pixi run -e spechla -- python3 -u scripts/hla_popgen/58_regional_depth.py \\
+        --regions-bed ~/s05/results/58/regions.bed --out-dir ~/s05/results/58 \\
+        --internal-dir ~/s05/internal/58 --workers 24 > ~/s05/logs/58.log 2>&1 < /dev/null & disown
+    Smoke test first: add --limit 20 --internal-dir ~/s05/internal/58_smoke (own path, quirk #22).
 
-Tests: scripts/hla_popgen/tests/test_50_regional_depth.py (synthetic, no samtools needed).
+Tests: scripts/hla_popgen/tests/test_58_regional_depth.py (synthetic, no samtools needed).
 """
 import argparse
 import gzip
@@ -98,8 +98,8 @@ AOU_ROOT = os.path.expanduser("~/workspace/vwb-aou-datasets-controlled-v9")
 BUCKET_PREFIX = "gs://vwb-aou-datasets-controlled/"
 LR_MANIFEST_REL = "v9/wgs/long_read/manifest.tsv"
 DEFAULT_COHORT = os.path.expanduser("~/pipeline_outputs/cohort_membership.tsv")
-DEFAULT_OUT_DIR = os.path.expanduser("~/s05/results/50")
-DEFAULT_INTERNAL_DIR = os.path.expanduser("~/s05/internal/50")
+DEFAULT_OUT_DIR = os.path.expanduser("~/s05/results/58")
+DEFAULT_INTERNAL_DIR = os.path.expanduser("~/s05/internal/58")
 
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 MAPQS = (0, 20)
@@ -301,12 +301,12 @@ FAIL_COLS = ["person_id", "reason"]
 
 def acquire_lock(internal_dir):
     os.makedirs(internal_dir, exist_ok=True)
-    lock = os.path.join(internal_dir, "50.lock")
+    lock = os.path.join(internal_dir, "58.lock")
     if os.path.exists(lock):
         try:
             pid = int(open(lock).read().strip())
             os.kill(pid, 0)
-            raise SystemExit(f"FATAL: another 50_regional_depth.py (pid {pid}) holds {lock}")
+            raise SystemExit(f"FATAL: another 58_regional_depth.py (pid {pid}) holds {lock}")
         except (ValueError, ProcessLookupError):
             log(f"removing stale lock {lock}")
     with open(lock, "w") as fh:

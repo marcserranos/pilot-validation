@@ -123,6 +123,11 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 57c_trio_figures.py         → laptop-only; 57/57b figures
 ```
 
+**S05 continued (2026-10-11 →)** (sprint folder `sprints/S05_qc_phasing_kir_trb/`)
+```
+58_regional_depth.py        → samtools bedcov MAPQ0/20: MHC/KIR/TRB depth vs genome-wide control windows; TRB gene copy number + HWE
+```
+
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can
 settle — chiefly **whether the intermediate files survived on the production VM**. It is cheap
 (~2 minutes) and prints one JSON block to paste back. Nothing downstream should be trusted until it

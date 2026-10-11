@@ -5,7 +5,7 @@ plain words: question; why it matters; inputs (exact files and versions); method
 every parameter and why that value; what was run (script, commit, command); results (numbers);
 interpretation; what it does not show; caveats. Written as the work happens, not after.
 
-## 50 — Regional long-read depth (MHC, KIR, TRB)
+## 58 — Regional long-read depth (MHC, KIR, TRB)
 
 **Question.** Is each person's long-read coverage over the MHC (chr6), the KIR region (chr19) and
 the TRB locus (chr7) as good as over the rest of their genome? And, in the TRB locus, does depth
@@ -44,7 +44,7 @@ should drop to about half (one copy deleted) or zero (both).
 6. Per ancestry: genotype counts, deletion-allele frequency ((2·n0 + n1) / 2n), and an exact
    Hardy–Weinberg test (Wigginton 2005). A real germline biallelic deletion should fit HWE.
 
-**Run.** Pending (VM). Test suite: `tests/test_50_regional_depth.py`, 5/5 on synthetic data.
+**Run.** Pending (VM). Test suite: `tests/test_58_regional_depth.py`, 5/5 on synthetic data.
 
 **Results / interpretation / caveats.** Pending the VM run. Known caveats in advance: KIR genes
 that GRCh38 carries only on ALT contigs (most activating KIR) cannot be measured on a noalt BAM;
