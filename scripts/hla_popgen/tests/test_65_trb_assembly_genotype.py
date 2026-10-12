@@ -487,6 +487,20 @@ class TestReadsPrimitives(unittest.TestCase):
             self.assertTrue(get[("alt", "TRBV4-3")].present)
             self.assertFalse(get[("primary", "TRBV4-3")].present)
             self.assertEqual(get[("primary", CLS62)].n_loci, 1)
+        # the ALT carries a second, unrelated insertion far out in the left flank (as GRCh38's
+        # KI270803v1 does): the breakpoint must still come from the block next to the insertion
+        rng = random.Random(7)
+        cut = 2000
+        alt2 = loc.alt[:cut] + rs(rng, 4000) + loc.alt[cut:]
+        with open(alt, "w") as fh:
+            fh.write(f">chr7_KI270803v1_alt\n{alt2}\n")
+        out = os.path.join(tmp, "out_extra_indel")
+        tg.main(["--build-probes", "--probe-fasta", pf, "--alt-fasta", alt, "--ref-fasta", chrom,
+                 "--ref-region", region, "--out-dir", out, "--aligner", "kmer", "--work-dir", os.path.join(tmp, "w2")])
+        meta = tg.read_probe_meta(os.path.join(out, "probe_meta.tsv"))
+        _c, lft, rgt = tg.parse_window(meta["breakpoint"])
+        self.assertLessEqual(abs(lft - (pad + loc.B)), 300, meta)
+        self.assertLessEqual(abs(int(meta["ins_len_estimate"]) - loc.I), 50, meta)
         # samtools-faidx style header gives the offset without --ref-region
         win = os.path.join(tmp, "win.fa")
         with open(win, "w") as fh:

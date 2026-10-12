@@ -48,8 +48,8 @@ ALT contig) and `--ref-fasta` (+ `--ref-region` when it is a whole chromosome, e
 with chr7:142038120-143088503), reference_check.tsv and probe_meta.tsv with the breakpoint:
   1 kb ALT chunks every 250 bp over 40 kb on each side of the insertion genes (as located on the ALT)
   are aligned to the primary span (asm5); chunks with one forward hit (>= 98% identity, >= 90%
-  covered) give ref = alt + offset. The left offset (median of the outermost five left chunks) and
-  the right offset define the two flanks; the breakpoint interval on primary is [min, max] of (last
+  covered) give ref = alt + offset. The left and right offsets come from the innermost run of >= 3
+  consecutive chunks sharing one offset on each side (the ALT carries other indels further out); the breakpoint interval on primary is [min, max] of (last
   left-colinear hit end, first right-colinear hit start). An interval rather than a point covers
   microhomology or a duplicated unit at the junction. ins_len_estimate = left offset - right offset.
 
@@ -977,14 +977,35 @@ def find_breakpoint(alt, ins_lo, ins_hi, ref, aligner, opts, span=40000, chunk=1
             pts[name[0]].append((s, h.t_st - (s + h.q_st), h.t_st, h.t_en))
     if len(pts["L"]) < 3 or len(pts["R"]) < 3:
         return None
-    pts["L"].sort()
-    pts["R"].sort()
-    off_l = float(np.median([o for _, o, _, _ in pts["L"][:5]]))
-    off_r = float(np.median([o for _, o, _, _ in pts["R"][-5:]]))
-    bp_l = max(te for _, o, _, te in pts["L"] if abs(o - off_l) <= tol)
-    bp_r = min(ts for _, o, ts, _ in pts["R"] if abs(o - off_r) <= tol)
+    # Offsets come from the colinear block NEXT TO the insertion genes (innermost chunks), not from the
+    # outer flank ends: the GRCh38 ALT differs from primary by further indels within the flank span,
+    # so the outermost chunks sit on other offset blocks and give a too-wide breakpoint.
+    inner_l = sorted(pts["L"], reverse=True)   # nearest the insertion first
+    inner_r = sorted(pts["R"])
+    off_l, blk_l = _inner_block(inner_l, tol)
+    off_r, blk_r = _inner_block(inner_r, tol)
+    if off_l is None or off_r is None:
+        return None
+    bp_l = max(te for _, _, _, te in blk_l)
+    bp_r = min(ts for _, _, ts, _ in blk_r)
     return dict(lo0=min(bp_l, bp_r), hi0=max(bp_l, bp_r), ins_len=int(off_l - off_r),
-                n_left=len(pts["L"]), n_right=len(pts["R"]))
+                n_left=len(blk_l), n_right=len(blk_r))
+
+
+def _inner_block(pts, tol, min_chunks=3):
+    """pts ordered from the insertion outward -> (offset, chunks) of the first run of >= min_chunks
+    consecutive chunks sharing one offset (within tol); (None, []) if there is none."""
+    i = 0
+    while i < len(pts):
+        o = pts[i][1]
+        j = i
+        while j < len(pts) and abs(pts[j][1] - o) <= tol:
+            j += 1
+        if j - i >= min_chunks:
+            blk = pts[i:j]
+            return float(np.median([x[1] for x in blk])), blk
+        i = j if j > i else i + 1
+    return None, []
 
 
 def breakpoint_from_reference(alt_seqs, ref_chrom, ref_off, ref_seq, assigned_alt, ins_classes, aligner, opts):
