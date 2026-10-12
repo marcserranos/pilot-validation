@@ -2,21 +2,21 @@ unit	field	value	ancestry	n_haps	of_haps	pct
 DQA1~DQB1	evidence_level	incomplete	AFR	352	6211	5.67
 DQA1~DQB1	evidence_level	physical	AFR	5676	6211	91.39
 DQA1~DQB1	evidence_level	split_contigs	AFR	183	6211	2.95
-DQA1~DQB1	evidence_level	incomplete	AMR	301	5552	5.42
+DQA1~DQB1	evidence_level	incomplete	AMR	<20*	5552	
 DQA1~DQB1	evidence_level	physical	AMR	5146	5552	92.69
-DQA1~DQB1	evidence_level	split_contigs	AMR	105	5552	1.89
-DQA1~DQB1	evidence_level	incomplete	EAS	123	2987	4.12
+DQA1~DQB1	evidence_level	split_contigs	AMR	<20*	5552	
+DQA1~DQB1	evidence_level	incomplete	EAS	<20*	2987	
 DQA1~DQB1	evidence_level	physical	EAS	2820	2987	94.41
-DQA1~DQB1	evidence_level	split_contigs	EAS	44	2987	1.47
+DQA1~DQB1	evidence_level	split_contigs	EAS	<20*	2987	
 DQA1~DQB1	evidence_level	incomplete	EUR	350	6154	5.69
 DQA1~DQB1	evidence_level	physical	EUR	5683	6154	92.35
 DQA1~DQB1	evidence_level	split_contigs	EUR	121	6154	1.97
 DQA1~DQB1	evidence_level	incomplete	MID	<20*	987	
 DQA1~DQB1	evidence_level	physical	MID	932	987	94.43
 DQA1~DQB1	evidence_level	split_contigs	MID	<20	987	
-DQA1~DQB1	evidence_level	incomplete	SAS	87	2516	3.46
+DQA1~DQB1	evidence_level	incomplete	SAS	<20*	2516	
 DQA1~DQB1	evidence_level	physical	SAS	2384	2516	94.75
-DQA1~DQB1	evidence_level	split_contigs	SAS	45	2516	1.79
+DQA1~DQB1	evidence_level	split_contigs	SAS	<20*	2516	
 DQA1~DQB1	evidence_level	incomplete	ALL	1255	24453	5.13
 DQA1~DQB1	evidence_level	physical	ALL	22686	24453	92.77
 DQA1~DQB1	evidence_level	split_contigs	ALL	512	24453	2.09
@@ -106,8 +106,8 @@ DQA1~DQB1	unrelated	False	EUR	208	6154	3.38
 DQA1~DQB1	unrelated	True	EUR	5946	6154	96.62
 DQA1~DQB1	unrelated	False	MID	<20	987	
 DQA1~DQB1	unrelated	True	MID	<20*	987	
-DQA1~DQB1	unrelated	False	SAS	44	2516	1.75
-DQA1~DQB1	unrelated	True	SAS	2472	2516	98.25
+DQA1~DQB1	unrelated	False	SAS	<20*	2516	
+DQA1~DQB1	unrelated	True	SAS	<20*	2516	
 DQA1~DQB1	unrelated	False	ALL	754	24453	3.08
 DQA1~DQB1	unrelated	True	ALL	23699	24453	96.92
 DRB1~DQA1~DQB1	evidence_level	incomplete	AFR	494	6211	7.95
@@ -217,7 +217,7 @@ DRB1~DQA1~DQB1	unrelated	False	EUR	208	6154	3.38
 DRB1~DQA1~DQB1	unrelated	True	EUR	5946	6154	96.62
 DRB1~DQA1~DQB1	unrelated	False	MID	<20	987	
 DRB1~DQA1~DQB1	unrelated	True	MID	<20*	987	
-DRB1~DQA1~DQB1	unrelated	False	SAS	44	2516	1.75
-DRB1~DQA1~DQB1	unrelated	True	SAS	2472	2516	98.25
+DRB1~DQA1~DQB1	unrelated	False	SAS	<20*	2516	
+DRB1~DQA1~DQB1	unrelated	True	SAS	<20*	2516	
 DRB1~DQA1~DQB1	unrelated	False	ALL	754	24453	3.08
 DRB1~DQA1~DQB1	unrelated	True	ALL	23699	24453	96.92
