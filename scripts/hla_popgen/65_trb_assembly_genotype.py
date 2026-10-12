@@ -1,145 +1,111 @@
 #!/usr/bin/env python3
-"""TRB insertion/deletion genotype from each person's phased assemblies (hap1/hap2), by probe mapping.
+"""TRB insertion/deletion genotype (TRBV4-3, TRBV3-2, TRBV6-3, TRBV7-8): long reads (default) or assemblies.
 
-Sprint S05, WS-B. Why a second TRB script: the TRB locus carries a common ~21 kb insertion/deletion
-polymorphism holding TRBV4-3, TRBV3-2 and TRBV6-3 (a near-identical duplicate of TRBV6-2; TRBV7-8 is
-listed too because some nomenclatures place it in or next to the polymorphic segment). GRCh38's
-primary chr7 carries the haplotype WITHOUT the segment; the inserted sequence exists only on a GRCh38
-ALT contig. 58_regional_depth.py reads depth from noalt-GRCh38 BAMs, so reads from the inserted genes
-have nowhere to map: 58 cannot genotype TRBV4-3 at all (it is not in the GENCODE primary-assembly
-gene set it builds regions from). The phased hifiasm assemblies do not depend on the reference: if a
-haplotype carries the insertion, its contig contains the genes. This script reads them directly.
-Lead it serves: Aleix's repertoire data, TRBV4-3 never used by ~27% of people (SAS 43.5%, EUR 16.7%).
-Prior art (deletion known since the 1990s, ~21 kb, TRBV4-3/3-2/6-2-or-6-3): READING.md section B.
+Sprint S05, WS-B. The TRB locus carries a common ~21 kb insertion/deletion polymorphism holding
+TRBV4-3, TRBV3-2, TRBV7-8 and TRBV6-3 (a near-identical duplicate of TRBV6-2). GRCh38's primary chr7
+carries the haplotype WITHOUT the segment; the segment exists only on the ALT contig
+chr7_KI270803v1_alt (placed at chr7:142,038,120-143,088,503; confirmed on the VM 10-11).
+58_regional_depth.py reads depth on noalt BAMs and cannot see TRBV4-3 at all. Lead it serves: Aleix's
+repertoire data, TRBV4-3 never used by ~27% of people (SAS 43.5%, EUR 16.7%). Prior art: READING.md B.
 
-------------------------------------------------------------------------------------------------
-Step 1. Probe build (`--build-probes`, run once on the VM, which has open internet)
-------------------------------------------------------------------------------------------------
-Probes = one FASTA record per allele, header `>ALLELE` or IMGT-style `>acc|GENE*NN|Homo sapiens|...`;
-the gene is the text before `*`. Two routes, both write `<out-dir>/probes.fa` + `probe_classes.tsv`:
+Two genotyping routes (`--mode`), same probes, same output tables:
 
-  Route A (default): IMGT/GENE-DB V-REGION nucleotide FASTA, human, all TRBV alleles (F + ORF + P, so
-    pseudogene-classified segments such as TRBV3-2 in some releases are kept), fetched from
-        https://www.imgt.org/genedb/GENElect?query=7.2+TRBV&species=Homo+sapiens
-    (query code 7.2 = "F+ORF+all P" V-REGION nucleotides; the code is an IMGT convention to CONFIRM
-    on the VM by eyeballing the first header lines; if IMGT changes the page, use route B). IMGT gap
-    dots are removed. Every TRBV gene is kept as a BACKGROUND probe (used for best-hit assignment
-    only, so a locus is never credited to TRBV4-3 when TRBV4-1/4-2 explains it better); only the
-    REPORTED genes (below) appear in the outputs. TRBC1 is not a V-REGION and its IMGT C-REGION is
-    spliced (it would never align over >=90% of its length to unspliced genomic sequence), so its
-    probe is the GENOMIC gene sequence from Ensembl REST:
-        https://rest.ensembl.org/lookup/symbol/homo_sapiens/TRBC1  -> gene id
-        https://rest.ensembl.org/sequence/id/<id>?type=genomic     (exons + introns, GRCh38)
-  Route B: `--probe-fasta FILE` given by the user (e.g. a manual IMGT download), filtered to TRBV/TRBC
-    records with a `GENE*allele` or `GENE` header.
+  reads (default, fast)   per person, `samtools view -F 0x904` of the GRCh38 long-read BAM
+      (`--bam-column`, default grch38_bam; grch38_haplotagged_bam carries HP tags) over the primary
+      TRB span +/- 50 kb (`--reads-region`, chr7:142,249,011-142,863,287). Two kinds of informative read:
+        reference-allele read: aligned contiguously across the insertion site, covering
+          [breakpoint_left - flank, breakpoint_right + flank] (`--flank` 1000) with no insertion,
+          deletion or skip >= `--max-indel` (50 bp) inside that interval. Only a haplotype without
+          the segment can produce one (the segment is 21 kb; such a read would carry it as a huge I
+          or be clipped at the breakpoint).
+        insertion-allele read: any read in which a probe of TRBV4-3 / TRBV3-2 / TRBV7-8
+          (`--ins-genes`) passes --min-ident/--min-cov under best-hit assignment (below). Reads
+          spanning a breakpoint into the segment are placed on the flank with the segment
+          soft-clipped, so they are in the fetched window; reads entirely inside the segment are
+          unmapped or mis-placed and mostly missed (see caveats: this biases n_ins down for genes far
+          from both breakpoints).
+      Per gene and for 'insertion_any': AF = n_ins / (n_ins + n_ref); copies 0 if AF < 0.2,
+      1 if < 0.8, else 2 (`--af-cuts`); status 'ok' if n_ins + n_ref >= `--min-reads` (6) else
+      'low_reads'. If reads carry HP tags (haplotagged BAM), per-haplotype calls too: a haplotype is
+      'complete' with >= `--min-hap-reads` (3) informative reads, and carries the gene if its own AF
+      >= 0.5. TRBV6-3 cannot be called from reads (identical to 6-2, which is present on both alleles).
+      The breakpoint comes from the probe build (probe_meta.tsv next to probes.fa) or `--breakpoint`.
 
-  Optional reference check (`--alt-fasta`, `--ref-fasta`, each treated as one pseudo-haplotype):
-    the ALT contig that carries the insertion in GRCh38 -- expected to be chr7_KI270803v1_alt
-    (GenBank KI270803.1), TO BE CONFIRMED ON THE VM from UCSC's altLocations table:
-        curl -s https://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/altLocations.txt.gz \\
-          | zcat | awk '$2=="chr7" && $3<142900000 && $4>142200000'
-    then fetch it with
-        curl -sO https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/<name>.fa.gz
-    (NCBI equivalent: nuccore KI270803.1). `--ref-fasta` = the primary TRB window, e.g.
-        samtools faidx ~/ref/<GRCh38>.fa chr7:142250000-142860000 > trb_primary.fa
-    Expected: TRBV4-3/3-2 present on the ALT and absent on the primary window; TRBV6-2/6-3 class
-    with 2 loci on the ALT and 1 on the primary. Written to `<out-dir>/reference_check.tsv`
-    (public reference sequence only; no participant data). If the expectation fails, stop: either
-    the probes or the nomenclature are not what this script assumes.
+  assembly (validation)   per person, hap1/hap2 hifiasm assemblies (.fa.gz) streamed from the mount
+      (20-112 s per haplotype on the VM: too slow for 12k people, used on a stratified subset via
+      `--people-file`). TRB contigs = contigs whose primary PAF alignments cover >= 1 kb of
+      `--window`, cut to the projected window +/- `--pad`. Presence = called on ANY of the
+      haplotype's TRB contigs; complete = every anchor (TRBV2 5', TRBC1 3') called among those
+      contigs; the old strict rule (both anchors on ONE contig) is kept as `complete_single_contig`.
+      copies = hap1 + hap2 presence, status 'ok' only if both haplotypes complete.
+      TRBV6-2/6-3 is one merged class; '<class>[copy2]' (>= 2 loci on the haplotype) is its proxy.
 
-Reported genes (`--genes`): insertion candidates TRBV4-3, TRBV3-2, TRBV6-3, TRBV7-8; controls present
-on both haplotypes TRBV4-2, TRBV6-2, TRBV3-1, TRBV2, TRBV12-4, TRBC1.
+Probe build (`--build-probes`, once, VM with internet). Route A: IMGT/GENE-DB V-REGION nucleotides
+for all human TRBV alleles (GENElect query 7.2; 240 alleles on 10-11), gap dots removed, all TRBV kept
+as background probes for best-hit assignment; TRBC1 genomic from Ensembl REST (its IMGT C-REGION is
+spliced). Route B: `--probe-fasta`. Writes probes.fa, probe_classes.tsv and, with `--alt-fasta` (the
+ALT contig) and `--ref-fasta` (+ `--ref-region` when it is a whole chromosome, e.g. UCSC chr7.fa.gz
+with chr7:142038120-143088503), reference_check.tsv and probe_meta.tsv with the breakpoint:
+  1 kb ALT chunks every 250 bp over 40 kb on each side of the insertion genes (as located on the ALT)
+  are aligned to the primary span (asm5); chunks with one forward hit (>= 98% identity, >= 90%
+  covered) give ref = alt + offset. The left offset (median of the outermost five left chunks) and
+  the right offset define the two flanks; the breakpoint interval on primary is [min, max] of (last
+  left-colinear hit end, first right-colinear hit start). An interval rather than a point covers
+  microhomology or a duplicated unit at the junction. ins_len_estimate = left offset - right offset.
 
-------------------------------------------------------------------------------------------------
-Step 2. Per person (one worker per person; hap1 and hap2 assemblies, hifiasm dual assemblies)
-------------------------------------------------------------------------------------------------
-  a. Assemblies: `assembly_hap{1,2}_fa` (.fa.gz) and `assembly_hap{1,2}_aln2_hg38_paf` from
-     v9/wgs/long_read/manifest.tsv, resolved on the controlled-data automount exactly as 57 does
-     (gs://bucket/path -> ~/workspace/vwb-aou-datasets-controlled-v9/path). The mount is READ-ONLY:
-     `samtools faidx` there fails trying to write .fai/.gzi (57 copied each assembly locally to avoid
-     it). This script never indexes on the mount: it streams the .fa.gz once (mappy.fastx_read, C
-     kseq; pure-Python gzip fallback) and keeps only the TRB contigs, stopping as soon as it has them.
-  b. TRB contigs (`--select`, default auto = paf, else anchor):
-       paf     contigs with primary (tp:A:P) alignments >= 1 kb to the GRCh38 TRB window
-               (`--window`, default chr7:142,250,000-142,860,000; the IMGT TRB locus is
-               chr7:142,299,011-142,813,287) in the person's own hap->hg38 PAF. The contig is cut to
-               [min, max] of the projected window +/- `--pad` (50 kb). min/max, not merged pieces,
-               so an inserted 21 kb segment that the PAF leaves unaligned stays inside the cut.
-       anchor  no PAF: contigs containing >= 2 of a few exact 25-mers (both strands) taken from the
-               reported genes' probes; cut to anchor span +/- 700 kb.
-       all     map against every contig (slow: indexes the whole haplotype; use few workers).
-  c. Aligner (`--aligner`, default auto = mappy if importable, else the minimap2 binary, else kmer):
-       mappy / minimap2  probes (query) vs TRB contig pieces (target), preset `sr` with
-                 secondaries kept (`minimap2 -x sr -c --secondary=yes -N 50 -p 0.5`). Why sr and
-                 not asm5: V-REGION probes are ~290 bp; asm5 scores -A1 -B19 with a 200 minimum, so a
-                 300 bp probe with >=5 mismatches (98.3%) is never reported and lower-identity
-                 copies never appear as secondaries; best-hit assignment needs to SEE the paralog hit
-                 to reject it. sr (k21/w11 dense minimizers, -A2 -B8, -p 0.5) reports 95% copies as
-                 secondaries (checked with mappy 2.31 on synthetic data). `-c` gives base-level
-                 alignments: identity = matching bases / alignment block length (PAF col10/col11,
-                 mappy mlen/blen); coverage = aligned probe span / probe length.
-       kmer      pure-Python fallback (no minimap2 at all): 15-mer seeds on a probe-diagonal,
-                 then ungapped identity, refined by a semi-global edit distance when < 99%.
-  d. Loci = overlapping hits on a contig (>= 50% of the shorter). Best-hit assignment: each locus
-     goes to the gene class whose best probe has the highest identity (probes covering >=
-     `--min-cov` ranked first). A locus is CALLED for that class if identity >= `--min-ident`
-     (0.97) and coverage >= `--min-cov` (0.9). Ties within `--tie-eps` between two classes ->
-     'ambiguous', counted, called for neither. So a 95%-identical paralog copy is never called
-     TRBV4-3 (fails 0.97), and a TRBV4-2 locus is never TRBV4-3 even at a lower threshold.
-  e. Gene classes: genes whose closest alleles are >= `--merge-ident` (0.99) identical cannot be
-     told apart by this method and are merged into one class (TRBV6-2*01 and TRBV6-3*01 share the
-     V-REGION sequence in IMGT, so expect class 'TRBV6-2/TRBV6-3'). For a merged class the per-haplotype
-     number of called loci is reported (deletion haplotype 1, insertion haplotype 2), plus a derived
-     feature '<class>[copy2]' = ">= 2 loci on this haplotype", which is the class's insertion proxy.
-  f. Haplotype completeness (QC flag): COMPLETE if one contig carries called loci of every anchor
-     (`--anchors`, default TRBV2 = 5' end, TRBC1 = 3' end; the polymorphic segment lies between).
-     Otherwise incomplete: no_trb_contig, anchor_missing, or anchors_split (fragmented locus).
-  g. copies = hap1_present + hap2_present; status 'ok' if both haplotypes complete, else
-     'incomplete' (copies is then a lower bound and excluded from every PUBLIC genotype count).
+Alignment (both modes): probes are the query, contigs or reads the target; minimap2 preset `sr`,
+base-level (`-c`), secondaries kept (`--secondary=yes -N <n> -p 0.5`). Why not asm5: 300 bp probes
+with >= 5 mismatches (98.3%) fall below asm5's minimum score and weaker secondaries are dropped; the
+paralog hit must be seen to be rejected. Identity = matches / alignment block; coverage = aligned
+probe span / length. Loci = overlapping hits (>= 50% of the shorter); each locus goes to the class of
+its best probe (>= --min-cov first, then identity); called if identity >= --min-ident (0.97) and
+coverage >= --min-cov (0.9); a tie within --tie-eps between classes is 'ambiguous'. Genes whose
+alleles are >= --merge-ident (0.99) identical are merged into one class. Aligners: mappy (in-process),
+the minimap2 binary (`--aligner minimap2 --minimap2 PATH`), or a pure-Python k-mer fallback.
+
+Other actions
+  --sample-stratified N   unrelated (greedy, kin >= 0.0442), ancestry-balanced (equal shares, spare
+                          quota passed to larger groups), seeded (--seed) sample of people with both
+                          assembly paths -> --people-file (INTERNAL path). Then run --mode assembly
+                          --people-file on it.
+  --compare READS ASM     65b: per-person copies from two INTERNAL per_person_gene.tsv tables (status ok in
+                          both) -> PUBLIC 65b_method_concordance.tsv (per feature x stratum: n, %
+                          concordant + Wilson CI, 3x3 confusion; masked).
 
 Outputs
-  INTERNAL (`--internal-dir`, default ~/s05/internal/65; refuses any path in the repo or reports/):
+  INTERNAL (default ~/s05/internal/65_<mode>; refuses the repo and reports/; mode recorded in
+  65_mode.txt, a mismatching mode or schema refuses to append):
     per_person_gene.tsv   person x feature: hap1/2_present, hap1/2_n_loci, copies, hap1/2_complete,
-                          status, best_ident, method                     (checkpoint, append+fsync)
-    per_haplotype.tsv     person x hap: contigs, bp, complete, reason, loci called/ambiguous, timing
-    failures.tsv          person, reason (assembly_missing, timeout, aligner_error, read_error)
-  PUBLIC (`--out-dir`, default ~/s05/results/65; aggregate only; participant counts 1-19 -> '<20'
-  and any rate/frequency/HWE depending on such a cell blanked, via _disclosure):
-    probe_classes.tsv            gene -> class, max cross-gene identity (reference data)
-    genotype_by_stratum.tsv      feature x {ancestry, ALL, platform}: n measured, n complete-both,
-                                 completeness %, genotype counts 0/1/2 copies (complete-both people),
-                                 insertion(presence)-allele frequency, % with 0 copies, HWE exact p
-    haplotype_completeness.tsv   stratum: haplotypes, complete, and each incomplete reason
-    copresence.tsv               pairs of TRBV4-3 / TRBV3-2 / TRBV6-3 (or the 6-2/6-3[copy2] proxy) on
-                                 the SAME complete haplotype: 2x2 counts, concordance, r2, D'
-    haplotype_patterns.tsv       joint +/- pattern of those genes per haplotype, counts by stratum
-    failures_summary.tsv, run_summary.tsv
+                          status, best_ident, method, n_ins, n_ref, allele_fraction,
+                          hap1/2_n_ins, hap1/2_n_ref                       (checkpoint, append+fsync)
+    per_haplotype.tsv     person x hap: contigs/bp (assembly) or reads (reads), complete,
+                          complete_single_contig, reason, timing            (the 'done' marker)
+    failures.tsv          person, reason
+  PUBLIC (default ~/s05/results/65_<mode>; counts 1-19 -> '<20', dependent rates/frequencies/HWE blank):
+    probe_classes.tsv, genotype_by_stratum.tsv (n measured, n called = status ok, genotype counts,
+    insertion-allele frequency, % 0 copies, HWE exact p from 58), haplotype_completeness.tsv,
+    copresence.tsv + haplotype_patterns.tsv (genes on the same complete haplotype),
+    allele_fraction_histogram.tsv (reads mode), failures_summary.tsv, run_summary.tsv
 
-Robustness (as 58): mount + manifest hard check; PID lock in the internal dir; per-person rows
-appended + fsynced as each person finishes; reruns skip done people (`--retry-failed` retries the
-failures); `--timeout` per person (soft deadline between steps, hard on the minimap2 subprocess);
-`--limit`; `--workers` threads (mappy and gzip release the GIL).
+Robustness (as 58): mount + manifest hard check; PID lock; per-person append + fsync; resume skips done
+people (`--retry-failed`); `--timeout` per person; `--limit`; `--workers` threads.
 
-VM commands (python env ~/repos/pilot-validation/.pixi/envs/spechla/bin/python3, repo
-~/repos/pilot-validation-main; full list in sprints/S05_qc_phasing_kir_trb/vm_parts/65.sh):
+VM (exact commands: sprints/S05_qc_phasing_kir_trb/vm_parts/65.sh):
     PY=~/repos/pilot-validation/.pixi/envs/spechla/bin/python3
-    cd ~/repos/pilot-validation-main/scripts/hla_popgen
-    $PY -m pip install mappy        # else: --minimap2 ~/repos/pilot-validation/.pixi/envs/spechla/bin/minimap2
-    $PY 65_trb_assembly_genotype.py --build-probes --out-dir ~/s05/results/65 \\
-        --alt-fasta ~/ref/trb_alt.fa --ref-fasta ~/ref/trb_primary.fa
-    $PY 65_trb_assembly_genotype.py --probes ~/s05/results/65/probes.fa --limit 20 --workers 4 \\
-        --out-dir ~/s05/results/65_smoke --internal-dir ~/s05/internal/65_smoke     # smoke, own paths
-    setsid nohup $PY -u 65_trb_assembly_genotype.py --probes ~/s05/results/65/probes.fa \\
-        --workers 12 > ~/s05/logs/65.log 2>&1 < /dev/null & disown
+    export PYTHONPATH=~/envs/mappy38/lib/python3.8/site-packages     # mappy for python 3.8
+    $PY 65_trb_assembly_genotype.py --mode reads --limit 20 --workers 4 \\
+        --out-dir ~/s05/results/65_reads_smoke --internal-dir ~/s05/internal/65_reads_smoke
 
-Tests: scripts/hla_popgen/tests/test_65_trb_assembly_genotype.py (synthetic assemblies, kmer + mappy).
-Python 3.8 compatible (the spechla env pins python 3.8).
+Tests: scripts/hla_popgen/tests/test_65_trb_assembly_genotype.py (synthetic assemblies and reads).
+Python 3.8 compatible.
 """
 import argparse
 import collections
+import json
 import gzip
 import importlib.util
 import os
+import random
 import re
 import subprocess
 import sys
@@ -177,8 +143,10 @@ AOU_ROOT = os.path.expanduser("~/workspace/vwb-aou-datasets-controlled-v9")
 LR_MANIFEST_REL = "v9/wgs/long_read/manifest.tsv"
 DEFAULT_COHORT = os.path.expanduser("~/pipeline_outputs/cohort_membership.tsv")
 DEFAULT_RELATEDNESS = os.path.join(AOU_ROOT, "v9/wgs/short_read/snpindel/aux/relatedness/samples_relatedness.tsv")
-DEFAULT_OUT_DIR = os.path.expanduser("~/s05/results/65")
-DEFAULT_INTERNAL_DIR = os.path.expanduser("~/s05/internal/65")
+DEFAULT_PROBE_DIR = os.path.expanduser("~/s05/results/65")
+DEFAULT_PROBES = os.path.join(DEFAULT_PROBE_DIR, "probes.fa")
+RESULTS_ROOT = os.path.expanduser("~/s05/results")
+INTERNAL_ROOT = os.path.expanduser("~/s05/internal")
 DEFAULT_WORK_DIR = os.path.expanduser("~/s05/work65")
 
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
@@ -192,6 +160,9 @@ IMGT_URL = "https://www.imgt.org/genedb/GENElect?query=7.2+TRBV&species=Homo+sap
 ENSEMBL = "https://rest.ensembl.org"
 ANCHOR_PAD = 700_000
 COPY2 = "[copy2]"
+DEFAULT_READS_REGION = "chr7:142249011-142863287"  # IMGT TRB locus chr7:142,299,011-142,813,287 +/- 50 kb
+READS_INS_GENES = ["TRBV4-3", "TRBV3-2", "TRBV7-8"]  # unique insertion genes (TRBV6-3 is merged with 6-2)
+INS_ANY = "insertion_any"
 
 Hit = collections.namedtuple("Hit", "probe contig t_st t_en strand q_st q_en q_len ident")
 
@@ -313,7 +284,6 @@ def fetch_probes_online(genes):
         raise SystemExit("FATAL: IMGT returned no TRBV records -- check the page by hand or use --probe-fasta")
     out = list(v)
     for g in [g for g in genes if g.startswith("TRBC")]:
-        import json
         gid = json.loads(_http(f"{ENSEMBL}/lookup/symbol/homo_sapiens/{g}?content-type=application/json",
                                accept="application/json"))["id"]
         fa = _http(f"{ENSEMBL}/sequence/id/{gid}?type=genomic;content-type=text/x-fasta")
@@ -405,11 +375,33 @@ def _natkey(g):
 
 # ---- aligners: fn(probes[(name, seq)], targets{contig: seq}, opts) -> [Hit] ------------------
 def align_mappy(probes, targets, opts):
+    """Probes (query) vs targets. Few targets: one in-memory index each. Many targets (reads mode,
+    opts['single_index']): one index over a temp FASTA in the work dir, removed once loaded."""
     if mappy is None:
         raise RuntimeError("mappy not importable")
+    preset, best_n = opts.get("preset", "sr"), opts.get("best_n", 50)
     hits = []
+    if opts.get("single_index") and len(targets) > 1:
+        work = opts.get("work_dir") or None
+        if work:
+            os.makedirs(work, exist_ok=True)
+        fd, path = tempfile.mkstemp(suffix=".fa", dir=work)
+        try:
+            with os.fdopen(fd, "w") as fh:
+                for c, s in targets.items():
+                    fh.write(f">{c}\n{s}\n")
+            a = mappy.Aligner(fn_idx_in=path, preset=preset, best_n=best_n)
+        finally:
+            os.remove(path)
+        if not a:
+            raise RuntimeError("mappy index failed")
+        for name, seq in probes:
+            for h in a.map(seq):
+                hits.append(Hit(name, h.ctg, h.r_st, h.r_en, h.strand, h.q_st, h.q_en, len(seq),
+                                h.mlen / max(1, h.blen)))
+        return hits
     for ctg, tseq in targets.items():
-        a = mappy.Aligner(seq=tseq, preset=opts.get("preset", "sr"), best_n=50)
+        a = mappy.Aligner(seq=tseq, preset=preset, best_n=best_n)
         if not a:
             raise RuntimeError("mappy index failed")
         for name, seq in probes:
@@ -443,7 +435,7 @@ def align_minimap2(probes, targets, opts):
             for n, s in probes:
                 fh.write(f">{n}\n{s}\n")
         cmd = [opts.get("minimap2", "minimap2"), "-x", opts.get("preset", "sr"), "-c", "--secondary=yes",
-               "-N", "50", "-p", "0.5", "-t", "1", tfa, qfa]
+               "-N", str(opts.get("best_n", 50)), "-p", "0.5", "-t", "1", tfa, qfa]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=opts.get("timeout"), check=True)
     return parse_paf_hits(r.stdout)
 
@@ -578,6 +570,8 @@ def assign_loci(loci, probe_gene, cls, min_ident, min_cov, tie_eps):
 
 
 def summarise_haplotype(assigned, classes_reported, anchor_classes):
+    """-> (calls, complete, complete_single_contig, reason). Presence on any TRB contig; complete =
+    every anchor called somewhere among them; single-contig = all anchors on one contig."""
     calls = {}
     for c in classes_reported:
         loc = [a for a in assigned if a["called"] and a["gene_class"] == c]
@@ -587,13 +581,9 @@ def summarise_haplotype(assigned, classes_reported, anchor_classes):
                         contigs=sorted({a["contig"] for a in loc}))
     anchor_ctgs = [set(a["contig"] for a in assigned if a["called"] and a["gene_class"] == c)
                    for c in anchor_classes]
-    if any(not s for s in anchor_ctgs):
-        complete, reason = False, "anchor_missing"
-    elif set.intersection(*anchor_ctgs):
-        complete, reason = True, ""
-    else:
-        complete, reason = False, "anchors_split"
-    return calls, complete, reason
+    complete = all(anchor_ctgs)
+    single = bool(complete and set.intersection(*anchor_ctgs))
+    return calls, complete, single, "" if complete else "anchor_missing"
 
 
 # ---------------------------------------------------------------------------
@@ -602,7 +592,7 @@ def summarise_haplotype(assigned, classes_reported, anchor_classes):
 def parse_window(w):
     m = re.match(r"^([^:]+):([\d,]+)-([\d,]+)$", w)
     if not m:
-        raise ValueError(f"bad --window {w!r}")
+        raise ValueError(f"bad region {w!r}")
     return m.group(1), int(m.group(2).replace(",", "")), int(m.group(3).replace(",", ""))
 
 
@@ -685,24 +675,35 @@ def _check(deadline):
         raise _Timeout()
 
 
-def genotype_haplotype(fa, paf, probes, cls, reported_classes, anchor_classes, args_d, deadline=None):
-    """One haplotype -> dict(calls, complete, reason, n_contigs, bp, n_called, n_ambiguous, mode)."""
-    targets, mode = select_contigs(fa, paf, args_d["select"], args_d["window"], args_d["pad"],
-                                   args_d["anchors_kmers"], deadline)
-    base = dict(n_contigs=len(targets), bp=sum(len(s) for s in targets.values()), select=mode)
+def _opts(args_d, deadline=None, **kw):
+    o = dict(preset=args_d["preset"], minimap2=args_d["minimap2"], work_dir=args_d.get("work_dir"),
+             timeout=max(1, (deadline - time.time())) if deadline else None)
+    o.update(kw)
+    return o
+
+
+def genotype_targets(targets, probes, cls, reported_classes, anchor_classes, args_d, deadline=None):
+    """Probe-map a set of sequences treated as ONE haplotype -> dict(calls, complete, ..., assigned)."""
     if not targets:
         calls = {c: dict(present=False, n_loci=0, best_ident=float("nan"), contigs=[]) for c in reported_classes}
-        return dict(base, calls=calls, complete=False, reason="no_trb_contig", n_called=0, n_ambiguous=0)
-    _check(deadline)
-    opts = dict(preset=args_d["preset"], minimap2=args_d["minimap2"], work_dir=args_d.get("work_dir"),
-                timeout=max(1, (deadline - time.time())) if deadline else None)
-    hits = ALIGNERS[args_d["aligner"]]([(a, s) for a, _, s in probes], targets, opts)
+        return dict(calls=calls, complete=False, complete_single=False, reason="no_trb_contig",
+                    n_called=0, n_ambiguous=0, assigned=[])
+    hits = ALIGNERS[args_d["aligner"]]([(a, s) for a, _, s in probes], targets, _opts(args_d, deadline))
     probe_gene = {a: g for a, g, _ in probes}
     assigned = assign_loci(cluster_loci(hits), probe_gene, cls, args_d["min_ident"], args_d["min_cov"],
                            args_d["tie_eps"])
-    calls, complete, reason = summarise_haplotype(assigned, reported_classes, anchor_classes)
-    return dict(base, calls=calls, complete=complete, reason=reason,
+    calls, complete, single, reason = summarise_haplotype(assigned, reported_classes, anchor_classes)
+    return dict(calls=calls, complete=complete, complete_single=single, reason=reason, assigned=assigned,
                 n_called=sum(a["called"] for a in assigned), n_ambiguous=sum(a["ambiguous"] for a in assigned))
+
+
+def genotype_haplotype(fa, paf, probes, cls, reported_classes, anchor_classes, args_d, deadline=None):
+    targets, mode = select_contigs(fa, paf, args_d["select"], args_d["window"], args_d["pad"],
+                                   args_d["anchors_kmers"], deadline)
+    _check(deadline)
+    r = genotype_targets(targets, probes, cls, reported_classes, anchor_classes, args_d, deadline)
+    r.update(n_contigs=len(targets), bp=sum(len(s) for s in targets.values()), select=mode)
+    return r
 
 
 def features_for(reported_classes):
@@ -731,8 +732,21 @@ def hap_feature_nloci(calls, feat):
     return calls[c]["n_loci"]
 
 
+GENE_COLS = ["person_id", "feature", "hap1_present", "hap2_present", "hap1_n_loci", "hap2_n_loci", "copies",
+             "hap1_complete", "hap2_complete", "status", "best_ident", "method", "n_ins", "n_ref",
+             "allele_fraction", "hap1_n_ins", "hap1_n_ref", "hap2_n_ins", "hap2_n_ref"]
+HAP_COLS = ["person_id", "hap", "select", "n_trb_contigs", "trb_bp", "complete", "complete_single_contig",
+            "incomplete_reason", "n_loci_called", "n_loci_ambiguous", "n_reads", "n_ins", "n_ref", "method",
+            "seconds"]
+FAIL_COLS = ["person_id", "reason"]
+
+
+def _row(cols, **kw):
+    return {c: kw.get(c, "") for c in cols}
+
+
 def genotype_person(person, probes, cls, reported_classes, anchor_classes, args_d, timeout=None):
-    """-> (gene_rows, hap_rows, None) or (None, None, reason)."""
+    """Assembly mode. -> (gene_rows, hap_rows, None) or (None, None, reason)."""
     t0 = time.time()
     deadline = t0 + timeout if timeout else None
     haps = {}
@@ -755,9 +769,10 @@ def genotype_person(person, probes, cls, reported_classes, anchor_classes, args_
         r["seconds"] = round(time.time() - th, 1)
         haps[h] = r
     pid = person["person_id"]
-    hap_rows = [dict(person_id=pid, hap=h, select=r["select"], n_trb_contigs=r["n_contigs"], trb_bp=r["bp"],
-                     complete=r["complete"], incomplete_reason=r["reason"] or "", n_loci_called=r["n_called"],
-                     n_loci_ambiguous=r["n_ambiguous"], method=method, seconds=r["seconds"])
+    hap_rows = [_row(HAP_COLS, person_id=pid, hap=h, select=r["select"], n_trb_contigs=r["n_contigs"],
+                     trb_bp=r["bp"], complete=r["complete"], complete_single_contig=r["complete_single"],
+                     incomplete_reason=r["reason"] or "", n_loci_called=r["n_called"],
+                     n_loci_ambiguous=r["n_ambiguous"], method="assembly:" + method, seconds=r["seconds"])
                 for h, r in haps.items()]
     gene_rows = []
     for feat in features_for(reported_classes):
@@ -765,22 +780,244 @@ def genotype_person(person, probes, cls, reported_classes, anchor_classes, args_
         c = feat[:-len(COPY2)] if feat.endswith(COPY2) else feat
         idents = [haps[h]["calls"][c]["best_ident"] for h in (1, 2)]
         idents = [x for x in idents if np.isfinite(x)]
-        bi = max(idents) if idents else float("nan")
-        gene_rows.append(dict(person_id=pid, feature=feat, hap1_present=int(p1), hap2_present=int(p2),
+        gene_rows.append(_row(GENE_COLS, person_id=pid, feature=feat, hap1_present=int(p1), hap2_present=int(p2),
                               hap1_n_loci=hap_feature_nloci(haps[1]["calls"], feat),
                               hap2_n_loci=hap_feature_nloci(haps[2]["calls"], feat),
                               copies=int(p1) + int(p2), hap1_complete=int(haps[1]["complete"]),
                               hap2_complete=int(haps[2]["complete"]),
                               status="ok" if haps[1]["complete"] and haps[2]["complete"] else "incomplete",
-                              best_ident=round(float(bi), 4) if np.isfinite(bi) else "", method=method))
+                              best_ident=round(max(idents), 4) if idents else "", method="assembly:" + method))
     return gene_rows, hap_rows, None
+
+
+# ---------------------------------------------------------------------------
+# Reads mode
+# ---------------------------------------------------------------------------
+def run_samtools_view(bam, region, timeout, samtools="samtools"):
+    """SAM text of primary, mapped reads over region (patchable in tests, as 58's run_bedcov)."""
+    cmd = [samtools, "view", "-F", "0x904", bam, region]
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=True).stdout
+
+
+_CIG = re.compile(r"(\d+)([MIDNSHP=X])")
+
+
+def parse_sam(text):
+    reads = []
+    for line in text.splitlines():
+        if not line or line.startswith("@"):
+            continue
+        f = line.split("\t")
+        if len(f) < 11:
+            continue
+        hp = 0
+        for t in f[11:]:
+            if t.startswith("HP:i:"):
+                hp = int(t[5:])
+        reads.append(dict(name=f[0], flag=int(f[1]), pos=int(f[3]), cigar=f[5], seq=f[9].upper(), hp=hp))
+    return reads
+
+
+def spans_contiguously(pos, cigar, lo, hi, max_indel):
+    """True if the alignment (1-based pos) covers ref [lo, hi] with no I/D/N >= max_indel inside it."""
+    if cigar == "*" or not cigar:
+        return False
+    r = pos
+    for n, op in _CIG.findall(cigar):
+        n = int(n)
+        if op in "M=X":
+            r += n
+        elif op in "DN":
+            if n >= max_indel and r <= hi and r + n - 1 >= lo:
+                return False
+            r += n
+        elif op == "I":
+            if n >= max_indel and lo <= r <= hi:
+                return False
+    return pos <= lo and r - 1 >= hi
+
+
+def call_copies(af, cuts):
+    return 0 if af < cuts[0] else (1 if af < cuts[1] else 2)
+
+
+def rederive_reads_calls(gene, min_reads, cuts):
+    """Reads mode: recompute status/copies from the stored n_ins/n_ref with the current --min-reads and
+    --af-cuts, so the PUBLIC tables can be rebuilt with --aggregate-only at another floor."""
+    g = gene.copy()
+    ni, nr = pd.to_numeric(g["n_ins"], errors="coerce"), pd.to_numeric(g["n_ref"], errors="coerce")
+    tot = ni + nr
+    ok = tot >= min_reads
+    af = ni / tot.where(tot > 0)
+    g["status"] = np.where(ok, "ok", "low_reads")
+    g["copies"] = [call_copies(a, cuts) if o else "" for a, o in zip(af, ok)]
+    return g
+
+
+def genotype_person_reads(person, probes, cls, args_d, timeout=None):
+    """Reads mode. -> (gene_rows, hap_rows, None) or (None, None, reason)."""
+    t0 = time.time()
+    bam = person.get("bam")
+    if not isinstance(bam, str) or not bam or not os.path.exists(bam):
+        return None, None, "bam_missing"
+    try:
+        text = run_samtools_view(bam, args_d["reads_region"], timeout, args_d["samtools"])
+    except subprocess.TimeoutExpired:
+        return None, None, "timeout"
+    except subprocess.CalledProcessError:
+        return None, None, "samtools_error"
+    except OSError as ex:
+        return None, None, f"samtools_error:{type(ex).__name__}"
+    seen, reads = set(), []
+    for r in parse_sam(text):
+        if r["flag"] & 0x904 or r["seq"] == "*" or r["name"] in seen:
+            continue
+        seen.add(r["name"])
+        reads.append(r)
+    _chrom, bl, br = args_d["breakpoint"]
+    lo, hi = bl - args_d["flank"], br + args_d["flank"]
+    ref_names = {r["name"] for r in reads if spans_contiguously(r["pos"], r["cigar"], lo, hi, args_d["max_indel"])}
+    targets = {r["name"]: r["seq"] for r in reads if r["name"] not in ref_names}
+    deadline = t0 + timeout if timeout else None
+    try:
+        hits = ALIGNERS[args_d["aligner"]]([(a, s) for a, _, s in probes], targets,
+                                           _opts(args_d, deadline, single_index=True, best_n=5000)) if targets else []
+    except subprocess.TimeoutExpired:
+        return None, None, "timeout"
+    except (subprocess.CalledProcessError, RuntimeError):
+        return None, None, "aligner_error"
+    probe_gene = {a: g for a, g, _ in probes}
+    assigned = assign_loci(cluster_loci(hits), probe_gene, cls, args_d["min_ident"], args_d["min_cov"],
+                           args_d["tie_eps"])
+    ins_classes = args_d["ins_classes"]
+    read_genes, best_id = collections.defaultdict(set), {}
+    for a in assigned:
+        if a["called"] and a["gene_class"] in ins_classes:
+            read_genes[a["contig"]].add(a["gene_class"])
+            best_id[a["gene_class"]] = max(best_id.get(a["gene_class"], 0.0), a["ident"])
+    hp = {r["name"]: r["hp"] for r in reads}
+    has_hp = any(v in (1, 2) for v in hp.values())
+
+    def count(feat, h=None):
+        ins = sum(1 for n, gs in read_genes.items() if (feat == INS_ANY or feat in gs) and (h is None or hp[n] == h))
+        ref = sum(1 for n in ref_names if h is None or hp[n] == h)
+        return ins, ref
+
+    cuts, method = args_d["af_cuts"], f"reads:{args_d['aligner']}"
+    hap_ok = {}
+    hap_rows = []
+    for h in (1, 2):
+        ni, nr = count(INS_ANY, h)
+        ok = has_hp and ni + nr >= args_d["min_hap_reads"]
+        hap_ok[h] = ok
+        hap_rows.append(_row(HAP_COLS, person_id=person["person_id"], hap=h, select="reads", complete=ok,
+                             incomplete_reason="" if ok else ("low_reads" if has_hp else "no_hp_tag"),
+                             n_reads=sum(1 for v in hp.values() if v == h), n_ins=ni, n_ref=nr, method=method,
+                             seconds=round(time.time() - t0, 1)))
+    gene_rows = []
+    for feat in list(ins_classes) + [INS_ANY]:
+        ni, nr = count(feat)
+        tot = ni + nr
+        af = ni / tot if tot else float("nan")
+        hc = {}
+        pres = {}
+        for h in (1, 2):
+            hi_, hr_ = count(feat, h)
+            hc[h] = (hi_, hr_)
+            pres[h] = int(hap_ok[h] and hi_ + hr_ > 0 and hi_ / (hi_ + hr_) >= 0.5)
+        ok = tot >= args_d["min_reads"]
+        bi = max([best_id.get(c, 0.0) for c in ins_classes] if feat == INS_ANY else [best_id.get(feat, 0.0)])
+        gene_rows.append(_row(GENE_COLS, person_id=person["person_id"], feature=feat,
+                              hap1_present=pres[1], hap2_present=pres[2],
+                              copies=call_copies(af, cuts) if ok else "",
+                              hap1_complete=int(hap_ok[1]), hap2_complete=int(hap_ok[2]),
+                              status="ok" if ok else "low_reads", best_ident=round(bi, 4) if bi else "",
+                              method=method, n_ins=ni, n_ref=nr,
+                              allele_fraction=round(af, 4) if tot else "",
+                              hap1_n_ins=hc[1][0], hap1_n_ref=hc[1][1], hap2_n_ins=hc[2][0], hap2_n_ref=hc[2][1]))
+    return gene_rows, hap_rows, None
+
+
+# ---------------------------------------------------------------------------
+# Breakpoint (probe build)
+# ---------------------------------------------------------------------------
+def load_ref(path, region=None):
+    """-> (chrom, offset0, seq). With region 'chr7:S-E' (1-based) cut it from contig chrom; else the
+    first record, a samtools-faidx header 'chr7:S-E' giving the offset."""
+    if region:
+        chrom, s, e = parse_window(region)
+        for name, seq in iter_fasta(path):
+            if name == chrom:
+                return chrom, s - 1, seq[s - 1:e]
+        raise SystemExit(f"FATAL: {chrom} not found in {path}")
+    for name, seq in iter_fasta(path):
+        m = re.match(r"^(.+):([\d,]+)-([\d,]+)$", name)
+        if m:
+            return m.group(1), int(m.group(2).replace(",", "")) - 1, seq
+        return name, 0, seq
+    raise SystemExit(f"FATAL: no sequence in {path}")
+
+
+def find_breakpoint(alt, ins_lo, ins_hi, ref, aligner, opts, span=40000, chunk=1000, step=250, tol=50):
+    """ALT flank chunks -> colinear offsets on ref -> breakpoint interval (0-based ref coords)."""
+    def chunks(lo, hi, tag):
+        lo = max(0, lo)
+        return [(f"{tag}{s}", alt[s:s + chunk]) for s in range(lo, max(lo, hi - chunk) + 1, step)
+                if len(alt[s:s + chunk]) == chunk]
+    q = chunks(ins_lo - span, ins_lo, "L") + chunks(ins_hi, min(len(alt), ins_hi + span), "R")
+    hits = ALIGNERS[aligner](q, {"ref": ref}, opts)
+    by = collections.defaultdict(list)
+    for h in hits:
+        if h.q_en - h.q_st >= 0.9 * h.q_len and h.ident >= 0.98:
+            by[h.probe].append(h)
+    pts = {"L": [], "R": []}
+    for name, hs in by.items():
+        if len(hs) == 1 and hs[0].strand == 1:
+            h, s = hs[0], int(name[1:])
+            pts[name[0]].append((s, h.t_st - (s + h.q_st), h.t_st, h.t_en))
+    if len(pts["L"]) < 3 or len(pts["R"]) < 3:
+        return None
+    pts["L"].sort()
+    pts["R"].sort()
+    off_l = float(np.median([o for _, o, _, _ in pts["L"][:5]]))
+    off_r = float(np.median([o for _, o, _, _ in pts["R"][-5:]]))
+    bp_l = max(te for _, o, _, te in pts["L"] if abs(o - off_l) <= tol)
+    bp_r = min(ts for _, o, ts, _ in pts["R"] if abs(o - off_r) <= tol)
+    return dict(lo0=min(bp_l, bp_r), hi0=max(bp_l, bp_r), ins_len=int(off_l - off_r),
+                n_left=len(pts["L"]), n_right=len(pts["R"]))
+
+
+def breakpoint_from_reference(alt_seqs, ref_chrom, ref_off, ref_seq, assigned_alt, ins_classes, aligner, opts):
+    """Locate the insertion genes on the ALT, then find_breakpoint (retrying with the ALT reversed)."""
+    loc = [a for a in assigned_alt if a["called"] and a["gene_class"] in ins_classes]
+    if not loc:
+        return None
+    ctg = collections.Counter(a["contig"] for a in loc).most_common(1)[0][0]
+    alt = alt_seqs[ctg]
+    lo = min(a["start"] for a in loc if a["contig"] == ctg)
+    hi = max(a["end"] for a in loc if a["contig"] == ctg)
+    bp = find_breakpoint(alt, lo, hi, ref_seq, aligner, opts)
+    if bp is None:
+        bp = find_breakpoint(revcomp(alt), len(alt) - hi, len(alt) - lo, ref_seq, aligner, opts)
+    if bp is None:
+        return None
+    # 1-based: last base of the left flank .. first base of the right flank
+    bp.update(chrom=ref_chrom, left=ref_off + bp["lo0"], right=ref_off + bp["hi0"] + 1, alt_contig=ctg)
+    return bp
+
+
+def read_probe_meta(path):
+    if not path or not os.path.exists(path):
+        return {}
+    d = pd.read_csv(path, sep="\t", dtype=str, comment="#")
+    return dict(zip(d["key"], d["value"]))
 
 
 # ---------------------------------------------------------------------------
 # Inputs
 # ---------------------------------------------------------------------------
 def uri_to_local(uri, root=AOU_ROOT):
-    """gs://<bucket>/path -> root/path (57's rule); a relative path -> root/path; else None."""
+    """gs://<bucket>/path -> root/path (57/58's rule); a relative path -> root/path; else None."""
     if not isinstance(uri, str) or not uri or uri == "NA":
         return None
     if uri.startswith("gs://"):
@@ -793,48 +1030,79 @@ ASM_COLS = (("hap1_fa", "assembly_hap1_fa"), ("hap2_fa", "assembly_hap2_fa"),
             ("hap1_paf", "assembly_hap1_aln2_hg38_paf"), ("hap2_paf", "assembly_hap2_aln2_hg38_paf"))
 
 
-def load_people(cohort_path, manifest_path, root=AOU_ROOT):
-    """One row per long-read person: person_id, ancestry, platform, hap1/2_fa, hap1/2_paf.
-    Manifest row preference: cohort platform first, then any row with both assembly paths.
-    No existence check here (mount stats are slow); the worker checks."""
+def load_people(cohort_path, manifest_path, root=AOU_ROOT, bam_column="grch38_bam"):
+    """One row per long-read person: person_id, ancestry, platform, bam, hap1/2_fa, hap1/2_paf.
+    Manifest rows matching the cohort platform are preferred. No existence checks (slow on the mount)."""
     coh = pd.read_csv(cohort_path, sep="\t", dtype={"person_id": str})
     if "in_lr" in coh.columns:
         coh = coh[coh["in_lr"].astype(str).str.lower().isin(["true", "1"])]
     coh["ancestry"] = coh.get("ancestry_pred", pd.Series(index=coh.index, dtype=str)).astype(str).str.upper()
     man = pd.read_csv(manifest_path, sep="\t", dtype=str).rename(columns={"research_id": "person_id"})
-    for c in [c for _, c in ASM_COLS if c not in man.columns]:
+    for c in [c for _, c in ASM_COLS if c not in man.columns] + ([bam_column] if bam_column not in man.columns else []):
         man[c] = None
     by_pid = {pid: g for pid, g in man.groupby("person_id")}
     rows = []
     for _, r in coh.iterrows():
         g = by_pid.get(r["person_id"])
         rec = dict(person_id=r["person_id"], ancestry=r["ancestry"],
-                   platform=str(r.get("platform", "")).lower())
+                   platform=str(r.get("platform", "")).lower(), bam=None)
         if g is not None:
             cand = pd.concat([g[g["platform"].astype(str).str.lower() == rec["platform"]], g])
+            for _, m in cand.iterrows():
+                if isinstance(m[bam_column], str):
+                    rec["bam"] = uri_to_local(m[bam_column], root)
+                    break
             for _, m in cand.iterrows():
                 if isinstance(m["assembly_hap1_fa"], str) and isinstance(m["assembly_hap2_fa"], str):
                     for k, c in ASM_COLS:
                         rec[k] = uri_to_local(m[c], root)
-                    if rec["platform"] in ("", "nan", "none"):
-                        rec["platform"] = str(m["platform"]).lower()
                     break
+            if rec["platform"] in ("", "nan", "none"):
+                rec["platform"] = str(g["platform"].iloc[0]).lower()
         for k, _ in ASM_COLS:
             rec.setdefault(k, None)
         rows.append(rec)
     return pd.DataFrame(rows)
 
 
+def read_people_file(path):
+    return set(pd.read_csv(path, sep="\t", dtype={"person_id": str}, comment="#")["person_id"])
+
+
+def sample_stratified(people, n, seed, unrelated_ids, need="assembly"):
+    """Unrelated, ancestry-balanced, seeded sample. Equal shares per ancestry; a group smaller than
+    its share gives all it has and the remainder is re-split among the others."""
+    p = people[people["person_id"].isin(unrelated_ids)]
+    if need == "assembly":
+        p = p[p["hap1_fa"].notna() & p["hap2_fa"].notna()]
+    rng = random.Random(seed)
+    groups = {}
+    for a in ANCESTRY_ORDER:
+        ids = sorted(p.loc[p["ancestry"] == a, "person_id"])
+        rng.shuffle(ids)
+        if ids:
+            groups[a] = ids
+    alloc = {a: 0 for a in groups}
+    remaining = n
+    while remaining > 0:
+        open_ = [a for a in groups if alloc[a] < len(groups[a])]
+        if not open_:
+            break
+        share = max(1, remaining // len(open_))
+        for a in open_:
+            take = min(share, len(groups[a]) - alloc[a], remaining)
+            alloc[a] += take
+            remaining -= take
+            if remaining == 0:
+                break
+    pick = [pid for a in groups for pid in groups[a][:alloc[a]]]
+    out = p[p["person_id"].isin(set(pick))][["person_id", "ancestry", "platform"]]
+    return out.sort_values(["ancestry", "person_id"]).reset_index(drop=True)
+
+
 # ---------------------------------------------------------------------------
 # Checkpoint + lock
 # ---------------------------------------------------------------------------
-GENE_COLS = ["person_id", "feature", "hap1_present", "hap2_present", "hap1_n_loci", "hap2_n_loci", "copies",
-             "hap1_complete", "hap2_complete", "status", "best_ident", "method"]
-HAP_COLS = ["person_id", "hap", "select", "n_trb_contigs", "trb_bp", "complete", "incomplete_reason",
-            "n_loci_called", "n_loci_ambiguous", "method", "seconds"]
-FAIL_COLS = ["person_id", "reason"]
-
-
 def acquire_lock(internal_dir):
     os.makedirs(internal_dir, exist_ok=True)
     lock = os.path.join(internal_dir, "65.lock")
@@ -848,6 +1116,26 @@ def acquire_lock(internal_dir):
     with open(lock, "w") as fh:
         fh.write(str(os.getpid()))
     return lock
+
+
+def check_internal_dir(internal_dir, mode):
+    """Refuse to append to a checkpoint written by another mode or an older column layout."""
+    _disc.assert_internal_path_allowed(internal_dir)
+    os.makedirs(internal_dir, exist_ok=True)
+    mpath = os.path.join(internal_dir, "65_mode.txt")
+    if os.path.exists(mpath):
+        old = open(mpath).read().strip()
+        if old != mode:
+            raise SystemExit(f"FATAL: {internal_dir} holds a --mode {old} run; use another --internal-dir")
+    for name, cols in (("per_person_gene.tsv", GENE_COLS), ("per_haplotype.tsv", HAP_COLS)):
+        p = os.path.join(internal_dir, name)
+        if os.path.exists(p):
+            with open(p) as fh:
+                hdr = [ln for ln in (fh.readline(), fh.readline()) if not ln.startswith("#")]
+            if hdr and hdr[0].rstrip("\n").split("\t") != cols:
+                raise SystemExit(f"FATAL: {p} has an older column layout; use a new --internal-dir")
+    with open(mpath, "w") as fh:
+        fh.write(mode + "\n")
 
 
 def append_rows(path, rows, cols):
@@ -887,10 +1175,15 @@ def _small(mode, *ks):
     return mode == _disc.PUBLIC and any(0 < int(k) < _disc.SUPPRESS_BELOW for k in ks)
 
 
-def strata(df):
+def _true(s):
+    return s.astype(str).isin(["True", "1", "true"])
+
+
+def strata(df, platform=True):
     out = [("ancestry", a, df[df["ancestry"] == a]) for a in ANCESTRY_ORDER]
     out.append(("ancestry", "ALL", df))
-    out += [("platform", p, df[df["platform"] == p]) for p in sorted(df["platform"].dropna().unique())]
+    if platform:
+        out += [("platform", p, df[df["platform"] == p]) for p in sorted(df["platform"].dropna().unique())]
     return [(k, v, g) for k, v, g in out if len(g)]
 
 
@@ -903,10 +1196,11 @@ def genotype_table(gene, people, mode):
             n = len(g)
             ok = g[g["status"] == "ok"]
             m = len(ok)
-            c0, c1, c2 = (int((ok["copies"].astype(int) == k).sum()) for k in (0, 1, 2))
+            cp = pd.to_numeric(ok["copies"], errors="coerce")
+            c0, c1, c2 = (int((cp == k).sum()) for k in (0, 1, 2))
             rate = _disc.mask_rate(m, n, mode, pct_decimals=1)
             row = dict(feature=feat, stratum_type=kind, stratum=val, n_people_measured=_m(n, mode),
-                       n_complete_both=_m(m, mode), pct_complete_both=rate["pct"],
+                       n_called=_m(m, mode), pct_called=rate["pct"],
                        n_0copies=_m(c0, mode), n_1copy=_m(c1, mode), n_2copies=_m(c2, mode))
             blank = m == 0 or _small(mode, m, c0, c1, c2)
             row["insertion_allele_freq"] = "" if blank else round((c1 + 2 * c2) / (2 * m), 4)
@@ -916,36 +1210,39 @@ def genotype_table(gene, people, mode):
     return pd.DataFrame(rows)
 
 
+INCOMPLETE_REASONS = ["no_trb_contig", "anchor_missing", "low_reads", "no_hp_tag"]
+
+
 def completeness_table(hap, people, mode):
     d = hap.merge(people[["person_id", "ancestry", "platform"]], on="person_id", how="left")
-    d["complete"] = d["complete"].astype(str).isin(["True", "1", "true"])
-    reasons = ["no_trb_contig", "anchor_missing", "anchors_split"]
+    d["complete"] = _true(d["complete"])
+    d["single"] = _true(d["complete_single_contig"])
     rows = []
     for kind, val, g in strata(d):
         n, k = len(g), int(g["complete"].sum())
         rate = _disc.mask_rate(k, n, mode, pct_decimals=1)
         row = dict(stratum_type=kind, stratum=val, n_haplotypes=_m(n, mode), n_complete=_m(k, mode),
-                   pct_complete=rate["pct"])
-        for r in reasons:
+                   pct_complete=rate["pct"], n_complete_single_contig=_m(int(g["single"].sum()), mode))
+        for r in INCOMPLETE_REASONS:
             row[f"n_{r}"] = _m(int((g["incomplete_reason"] == r).sum()), mode)
         rows.append(row)
     return pd.DataFrame(rows)
 
 
 def hap_presence(gene, hap, feats):
-    """Long table person, hap, ancestry-free: one column per feature (0/1), complete haps only."""
+    """person, hap, one 0/1 column per feature, complete haplotypes only."""
     h = hap.copy()
-    h["complete"] = h["complete"].astype(str).isin(["True", "1", "true"])
+    h["complete"] = _true(h["complete"])
     keep = h[h["complete"]][["person_id", "hap"]]
-    rows = []
     g = gene[gene["feature"].isin(feats)]
+    if g.empty:
+        return pd.DataFrame()
+    rows = []
     for hp in (1, 2):
         x = g.pivot_table(index="person_id", columns="feature", values=f"hap{hp}_present", aggfunc="first")
         x = x.reset_index()
         x["hap"] = hp
         rows.append(x)
-    if not rows:
-        return pd.DataFrame()
     t = pd.concat(rows, ignore_index=True)
     t["hap"] = t["hap"].astype(int)
     keep = keep.assign(hap=keep["hap"].astype(int))
@@ -959,9 +1256,7 @@ def copresence_table(gene, hap, people, feats, mode):
     t = t.merge(people[["person_id", "ancestry", "platform"]], on="person_id", how="left")
     feats = [f for f in feats if f in t.columns]
     rows, pats = [], []
-    for kind, val, g in strata(t):
-        if kind == "platform":
-            continue
+    for kind, val, g in strata(t, platform=False):
         for i, a in enumerate(feats):
             for b in feats[i + 1:]:
                 x, y = g[a].astype(int), g[b].astype(int)
@@ -987,10 +1282,58 @@ def copresence_table(gene, hap, people, feats, mode):
     return pd.DataFrame(rows), pd.DataFrame(pats)
 
 
+def af_histogram(gene, people, mode, width=0.05):
+    """Reads mode: per feature x stratum, people per allele-fraction bin (status ok only)."""
+    d = gene[gene["status"] == "ok"].merge(people[["person_id", "ancestry", "platform"]], on="person_id", how="left")
+    d["af"] = pd.to_numeric(d["allele_fraction"], errors="coerce")
+    d = d[d["af"].notna()]
+    edges = np.round(np.arange(0, 1 + width / 2, width), 4)
+    rows = []
+    for feat in sorted(d["feature"].unique()):
+        f = d[d["feature"] == feat]
+        for kind, val, g in strata(f):
+            counts, _ = np.histogram(g["af"].clip(0, 1), bins=edges)
+            for k, lo in zip(counts, edges[:-1]):
+                rows.append(dict(feature=feat, stratum_type=kind, stratum=val, af_lo=float(lo),
+                                 af_hi=round(float(lo) + width, 4), n_people=_m(int(k), mode)))
+    return pd.DataFrame(rows, columns=["feature", "stratum_type", "stratum", "af_lo", "af_hi", "n_people"])
+
+
+def compare_methods(reads, asm, people, mode):
+    """65b: concordance of per-person copies between two per_person_gene tables (status ok in both)."""
+    def ok(d):
+        d = d[d["status"] == "ok"][["person_id", "feature", "copies"]].copy()
+        d["copies"] = pd.to_numeric(d["copies"], errors="coerce")
+        return d[d["copies"].isin([0, 1, 2])]
+    m = ok(reads).merge(ok(asm), on=["person_id", "feature"], suffixes=("_reads", "_asm"))
+    m = m.merge(people[["person_id", "ancestry", "platform"]], on="person_id", how="left")
+    rows = []
+    for feat in sorted(m["feature"].unique()):
+        f = m[m["feature"] == feat]
+        for kind, val, g in strata(f):
+            n = len(g)
+            k = int((g["copies_reads"] == g["copies_asm"]).sum())
+            rate = _disc.mask_rate(k, n, mode, pct_decimals=1)
+            row = dict(feature=feat, stratum_type=kind, stratum=val, n_both_called=_m(n, mode),
+                       n_concordant=_m(k, mode), pct_concordant=rate["pct"], lo=rate["lo"], hi=rate["hi"])
+            for i in (0, 1, 2):
+                for j in (0, 1, 2):
+                    row[f"n_reads{i}_asm{j}"] = _m(int(((g["copies_reads"] == i) & (g["copies_asm"] == j)).sum()), mode)
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def _unrelated_ids(people, relatedness):
     import _s05_common as C
     pairs = C.load_relatedness_pairs(relatedness)
     return C.greedy_unrelated(people["person_id"], pairs)
+
+
+def _cohort_people(path):
+    d = pd.read_csv(path, sep="\t", dtype={"person_id": str})
+    d["ancestry"] = d["ancestry_pred"].astype(str).str.upper()
+    d["platform"] = d["platform"].astype(str).str.lower()
+    return d[["person_id", "ancestry", "platform"]]
 
 
 # ---------------------------------------------------------------------------
@@ -1011,23 +1354,43 @@ def build_probes(args):
     _disc.write_tsv(tab, os.path.join(args.out_dir, "probe_classes.tsv"), _disc.PUBLIC)
     log(f"wrote {out}: {len(probes)} alleles, {tab['gene'].nunique()} genes; merged classes: "
         f"{sorted({c for c in cls.values() if '/' in c})}")
-    refs = [("alt", args.alt_fasta), ("primary", args.ref_fasta)]
-    refs = [(k, p) for k, p in refs if p]
-    if refs:
-        ad = _args_dict(args, probes, cls)
-        ad["select"] = "all"
-        rep = sorted({cls[g] for g in args.genes if g in cls}, key=_natkey)
-        anc = [cls[g] for g in args.anchors if g in cls]
-        rows = []
-        for label, path in refs:
-            r = genotype_haplotype(path, None, probes, cls, rep, anc, ad)
-            for c in rep:
-                x = r["calls"][c]
-                rows.append(dict(source=label, gene_class=c, present=x["present"], n_loci=x["n_loci"],
-                                 best_ident=round(x["best_ident"], 4) if np.isfinite(x["best_ident"]) else "",
-                                 contigs=",".join(x["contigs"]), locus_complete=r["complete"]))
-        _disc.write_tsv(pd.DataFrame(rows), os.path.join(args.out_dir, "reference_check.tsv"), _disc.PUBLIC)
-        log("reference_check.tsv written; insertion genes must be present on 'alt', absent on 'primary'")
+    if not (args.alt_fasta or args.ref_fasta):
+        return 0
+    ad = _args_dict(args, probes, cls)
+    rep = sorted({cls[g] for g in args.genes if g in cls}, key=_natkey)
+    anc = [cls[g] for g in args.anchors if g in cls]
+    rows, res = [], {}
+    alt_seqs = dict(iter_fasta(args.alt_fasta)) if args.alt_fasta else {}
+    ref = load_ref(args.ref_fasta, args.ref_region) if args.ref_fasta else None
+    srcs = []
+    if alt_seqs:
+        srcs.append(("alt", alt_seqs))
+    if ref:
+        srcs.append(("primary", {f"{ref[0]}:{ref[1] + 1}-{ref[1] + len(ref[2])}": ref[2]}))
+    for label, targets in srcs:
+        r = genotype_targets(targets, probes, cls, rep, anc, ad)
+        res[label] = r
+        for c in rep:
+            x = r["calls"][c]
+            rows.append(dict(source=label, gene_class=c, present=x["present"], n_loci=x["n_loci"],
+                             best_ident=round(x["best_ident"], 4) if np.isfinite(x["best_ident"]) else "",
+                             contigs=",".join(x["contigs"]), locus_complete=r["complete"]))
+    _disc.write_tsv(pd.DataFrame(rows), os.path.join(args.out_dir, "reference_check.tsv"), _disc.PUBLIC)
+    log("reference_check.tsv written; insertion genes must be present on 'alt', absent on 'primary'")
+    if alt_seqs and ref:
+        ins = [cls[g] for g in args.ins_genes if g in cls and "/" not in cls[g]]
+        bp = breakpoint_from_reference(alt_seqs, ref[0], ref[1], ref[2], res["alt"]["assigned"], ins,
+                                       args.aligner_resolved, _opts(ad, preset="asm5"))
+        if bp is None:
+            log("WARNING: breakpoint not found (ALT flanks did not align colinearly); use --breakpoint")
+        else:
+            meta = [("breakpoint", f"{bp['chrom']}:{bp['left']}-{bp['right']}"),
+                    ("ins_len_estimate", bp["ins_len"]), ("alt_contig", bp["alt_contig"]),
+                    ("n_left_chunks", bp["n_left"]), ("n_right_chunks", bp["n_right"]),
+                    ("ref_span", f"{ref[0]}:{ref[1] + 1}-{ref[1] + len(ref[2])}")]
+            _disc.write_tsv(pd.DataFrame(meta, columns=["key", "value"]),
+                            os.path.join(args.out_dir, "probe_meta.tsv"), _disc.PUBLIC)
+            log(f"breakpoint {meta[0][1]} (insertion ~{bp['ins_len']} bp) -> probe_meta.tsv")
     return 0
 
 
@@ -1040,22 +1403,41 @@ def _args_dict(args, probes, cls):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--mode", default="reads", choices=["reads", "assembly"])
     ap.add_argument("--build-probes", action="store_true", help="write probes.fa (+ reference check), then exit")
     ap.add_argument("--probe-fasta", help="build route B: user FASTA instead of IMGT/Ensembl download")
-    ap.add_argument("--alt-fasta", help="GRCh38 ALT contig carrying the insertion (reference check)")
-    ap.add_argument("--ref-fasta", help="GRCh38 primary TRB window (reference check)")
-    ap.add_argument("--probes", help="probes.fa written by --build-probes (genotyping run)")
+    ap.add_argument("--alt-fasta", help="GRCh38 ALT contig carrying the insertion (reference check, breakpoint)")
+    ap.add_argument("--ref-fasta", help="GRCh38 primary sequence (a window, or a chromosome + --ref-region)")
+    ap.add_argument("--ref-region", help="e.g. chr7:142038120-143088503 when --ref-fasta is a whole chromosome")
+    ap.add_argument("--probes", default=DEFAULT_PROBES, help="probes.fa written by --build-probes")
+    ap.add_argument("--probe-meta", help="default: probe_meta.tsv next to --probes")
+    ap.add_argument("--breakpoint", help="override, chr7:LEFT-RIGHT (1-based; last left-flank base, first right)")
     ap.add_argument("--genes", default=",".join(DEFAULT_GENES))
+    ap.add_argument("--ins-genes", default=",".join(READS_INS_GENES))
     ap.add_argument("--anchors", default=",".join(DEFAULT_ANCHORS))
-    ap.add_argument("--copresence", default=",".join(DEFAULT_COPRESENCE))
+    ap.add_argument("--copresence", help="default: TRBV4-3,TRBV3-2,TRBV6-3 (assembly); --ins-genes (reads)")
     ap.add_argument("--cohort", default=DEFAULT_COHORT)
     ap.add_argument("--aou-root", default=AOU_ROOT)
-    ap.add_argument("--out-dir", default=DEFAULT_OUT_DIR)
-    ap.add_argument("--internal-dir", default=DEFAULT_INTERNAL_DIR)
-    ap.add_argument("--work-dir", default=DEFAULT_WORK_DIR, help="temp FASTAs for the minimap2 binary only")
+    ap.add_argument("--out-dir", help="default ~/s05/results/65_<mode> (65 for --build-probes, 65b for --compare)")
+    ap.add_argument("--internal-dir", help="default ~/s05/internal/65_<mode>")
+    ap.add_argument("--work-dir", default=DEFAULT_WORK_DIR, help="temp FASTAs (mappy read index, minimap2 binary)")
+    ap.add_argument("--people-file", help="TSV with person_id: restrict the run to these people")
+    ap.add_argument("--sample-stratified", type=int, metavar="N",
+                    help="write N unrelated ancestry-balanced people with assemblies to --people-file, exit")
+    ap.add_argument("--seed", type=int, default=65)
+    ap.add_argument("--compare", nargs=2, metavar=("READS_TSV", "ASSEMBLY_TSV"),
+                    help="65b: concordance of two INTERNAL per_person_gene.tsv tables -> PUBLIC table, exit")
     ap.add_argument("--aligner", default="auto", choices=["auto", "mappy", "minimap2", "kmer"])
     ap.add_argument("--minimap2", default="minimap2")
     ap.add_argument("--preset", default="sr")
+    ap.add_argument("--samtools", default="samtools")
+    ap.add_argument("--bam-column", default="grch38_bam")
+    ap.add_argument("--reads-region", default=DEFAULT_READS_REGION)
+    ap.add_argument("--flank", type=int, default=1000)
+    ap.add_argument("--max-indel", type=int, default=50)
+    ap.add_argument("--min-reads", type=int, default=6)
+    ap.add_argument("--min-hap-reads", type=int, default=3)
+    ap.add_argument("--af-cuts", default="0.2,0.8")
     ap.add_argument("--select", default="auto", choices=["auto", "paf", "anchor", "all"])
     ap.add_argument("--window", default=DEFAULT_WINDOW)
     ap.add_argument("--pad", type=int, default=50_000)
@@ -1074,33 +1456,85 @@ def main(argv=None):
     _disc.add_disclosure_arg(ap)
     args = ap.parse_args(argv)
     args.genes = [g for g in args.genes.split(",") if g]
+    args.ins_genes = [g for g in args.ins_genes.split(",") if g]
     args.anchors = [g for g in args.anchors.split(",") if g]
+    mode = args.disclosure
+
+    if args.compare:
+        out = args.out_dir or os.path.join(RESULTS_ROOT, "65b")
+        reads, asm = (_read(p, GENE_COLS) for p in args.compare)
+        tab = compare_methods(reads, asm, _cohort_people(args.cohort), mode)
+        _disc.write_tsv(tab, os.path.join(out, "65b_method_concordance.tsv"), mode)
+        log(f"wrote {out}/65b_method_concordance.tsv ({len(tab)} rows)")
+        return 0
+
     args.aligner_resolved = resolve_aligner(args.aligner, args.minimap2)
     if args.work_dir:
-        _disc.assert_internal_path_allowed(args.work_dir)  # holds participant contig sequence
+        _disc.assert_internal_path_allowed(args.work_dir)  # holds participant sequence
 
     if args.build_probes:
+        args.out_dir = args.out_dir or DEFAULT_PROBE_DIR
         return build_probes(args)
 
-    if not args.probes:
-        ap.error("--probes is required (build it first with --build-probes)")
+    args.out_dir = args.out_dir or os.path.join(RESULTS_ROOT, f"65_{args.mode}")
+    args.internal_dir = args.internal_dir or os.path.join(INTERNAL_ROOT, f"65_{args.mode}")
+    manifest = os.path.join(args.aou_root, LR_MANIFEST_REL)
+
+    if args.sample_stratified:
+        if not args.people_file:
+            ap.error("--sample-stratified needs --people-file (output path, INTERNAL)")
+        _disc.assert_internal_path_allowed(args.people_file)
+        people = load_people(args.cohort, manifest, args.aou_root, args.bam_column)
+        sel = sample_stratified(people, args.sample_stratified, args.seed, _unrelated_ids(people, args.relatedness))
+        _disc.write_tsv(sel, args.people_file, _disc.INTERNAL)
+        log(f"wrote {args.people_file}: {len(sel)} people; per ancestry {sel['ancestry'].value_counts().to_dict()}")
+        return 0
+
+    if not os.path.exists(args.probes):
+        ap.error(f"--probes {args.probes} not found (build it first with --build-probes)")
     probes = read_probes(args.probes)
     cls, cls_tab = gene_classes(probes, args.merge_ident)
     reported = sorted({cls[g] for g in args.genes if g in cls}, key=_natkey)
     anchor_classes = [cls[g] for g in args.anchors if g in cls]
     if len(anchor_classes) != len(args.anchors):
         raise SystemExit(f"FATAL: anchors {args.anchors} not all in the probes")
-    cop = [feature_of_gene(g, cls) for g in args.copresence.split(",") if g in cls]
+    ins_classes = []
+    for g in args.ins_genes:
+        if g not in cls:
+            log(f"WARNING: --ins-genes {g} has no probe; skipped")
+        elif "/" in cls[g]:
+            log(f"WARNING: {g} is merged into {cls[g]} (present on both alleles); not usable from reads, skipped")
+        else:
+            ins_classes.append(cls[g])
+    cop_genes = args.copresence.split(",") if args.copresence else (
+        DEFAULT_COPRESENCE if args.mode == "assembly" else args.ins_genes)
+    cop = [feature_of_gene(g, cls) for g in cop_genes if g in cls]
+    if args.mode == "reads":
+        cop = [c for c in cop if c in ins_classes]
+
+    ad = _args_dict(args, probes, cls)
+    if args.mode == "reads":
+        bps = args.breakpoint or read_probe_meta(
+            args.probe_meta or os.path.join(os.path.dirname(os.path.abspath(args.probes)), "probe_meta.tsv")).get("breakpoint")
+        if not bps:
+            raise SystemExit("FATAL: no breakpoint: run --build-probes with --alt-fasta and --ref-fasta, or give --breakpoint")
+        ad.update(breakpoint=parse_window(bps), flank=args.flank, max_indel=args.max_indel,
+                  min_reads=args.min_reads, min_hap_reads=args.min_hap_reads, samtools=args.samtools,
+                  af_cuts=tuple(float(x) for x in args.af_cuts.split(",")), reads_region=args.reads_region,
+                  ins_classes=ins_classes)
+        log(f"reads mode: breakpoint {bps}, insertion classes {ins_classes}, region {args.reads_region}")
     log(f"{len(probes)} probe alleles; reported classes {reported}; aligner {args.aligner_resolved}")
 
-    manifest = os.path.join(args.aou_root, LR_MANIFEST_REL)
     if not args.aggregate_only and not os.path.exists(manifest):
         raise SystemExit(f"FATAL: {manifest} not found -- is the controlled-data automount up? "
                          f"(ENVIRONMENT.md quirks #26/#35). Refusing to start.")
-    people = load_people(args.cohort, manifest, args.aou_root) if os.path.exists(manifest) else \
-        pd.read_csv(args.cohort, sep="\t", dtype={"person_id": str}).assign(
-            ancestry=lambda d: d["ancestry_pred"].astype(str).str.upper(),
-            platform=lambda d: d["platform"].astype(str).str.lower())
+    if os.path.exists(manifest):
+        people = load_people(args.cohort, manifest, args.aou_root, args.bam_column)
+    else:
+        people = _cohort_people(args.cohort)
+    if args.people_file:
+        keep = read_people_file(args.people_file)
+        people = people[people["person_id"].isin(keep)]
     if args.limit:
         people = people.head(args.limit)
     log(f"{len(people)} long-read people; platforms {people['platform'].value_counts().to_dict()}")
@@ -1108,9 +1542,9 @@ def main(argv=None):
     gene_path = os.path.join(args.internal_dir, "per_person_gene.tsv")
     hap_path = os.path.join(args.internal_dir, "per_haplotype.tsv")
     fail_path = os.path.join(args.internal_dir, "failures.tsv")
-    ad = _args_dict(args, probes, cls)
     t0 = time.time()
     if not args.aggregate_only:
+        check_internal_dir(args.internal_dir, args.mode)
         lock = acquire_lock(args.internal_dir)
         try:
             done = done_people(args.internal_dir, args.retry_failed)
@@ -1118,8 +1552,11 @@ def main(argv=None):
             log(f"{len(done)} already done (resume), {len(todo)} to genotype, {args.workers} workers")
             n_ok = n_fail = 0
             with ThreadPoolExecutor(max_workers=args.workers) as ex:
-                futs = {ex.submit(genotype_person, p, probes, cls, reported, anchor_classes, ad, args.timeout): p
-                        for p in todo}
+                if args.mode == "reads":
+                    futs = {ex.submit(genotype_person_reads, p, probes, cls, ad, args.timeout): p for p in todo}
+                else:
+                    futs = {ex.submit(genotype_person, p, probes, cls, reported, anchor_classes, ad, args.timeout): p
+                            for p in todo}
                 for i, fut in enumerate(as_completed(futs), 1):
                     p = futs[fut]
                     try:
@@ -1148,7 +1585,8 @@ def main(argv=None):
     if args.unrelated:
         ids &= _unrelated_ids(people, args.relatedness)
     gene, hap = gene[gene["person_id"].isin(ids)], hap[hap["person_id"].isin(ids)]
-    mode = args.disclosure
+    if args.mode == "reads" and len(gene):
+        gene = rederive_reads_calls(gene, args.min_reads, ad["af_cuts"])
     os.makedirs(args.out_dir, exist_ok=True)
     _disc.write_tsv(cls_tab, os.path.join(args.out_dir, "probe_classes.tsv"), mode)
     _disc.write_tsv(genotype_table(gene, people, mode), os.path.join(args.out_dir, "genotype_by_stratum.tsv"), mode)
@@ -1157,26 +1595,40 @@ def main(argv=None):
     cp, pats = copresence_table(gene, hap, people, cop, mode)
     _disc.write_tsv(cp, os.path.join(args.out_dir, "copresence.tsv"), mode)
     _disc.write_tsv(pats, os.path.join(args.out_dir, "haplotype_patterns.tsv"), mode)
+    if args.mode == "reads":
+        _disc.write_tsv(af_histogram(gene, people, mode), os.path.join(args.out_dir, "allele_fraction_histogram.tsv"), mode)
     fr = fails[fails["person_id"].isin(people["person_id"])]["reason"].value_counts()
     _disc.write_tsv(pd.DataFrame([dict(reason=k, n_people=_m(v, mode)) for k, v in sorted(fr.items())],
                                  columns=["reason", "n_people"]),
                     os.path.join(args.out_dir, "failures_summary.tsv"), mode)
     measured = hap["person_id"].nunique()
-    both = gene[gene["status"] == "ok"]["person_id"].nunique()
-    run = [dict(metric="people_in_cohort", value=_m(len(people), mode)),
+    called = gene[gene["status"] == "ok"]["person_id"].nunique()
+    run = [dict(metric="mode", value=args.mode),
+           dict(metric="people_in_cohort", value=_m(len(people), mode)),
            dict(metric="people_genotyped", value=_m(measured, mode)),
-           dict(metric="people_complete_both_haplotypes", value=_m(both, mode)),
+           dict(metric="people_called_any_feature", value=_m(called, mode)),
            dict(metric="people_failed", value=_m(int(fr.sum()), mode)),
            dict(metric="unrelated_only", value=args.unrelated),
            dict(metric="aligner", value=args.aligner_resolved), dict(metric="preset", value=args.preset),
-           dict(metric="select", value=args.select), dict(metric="window", value=args.window),
            dict(metric="min_ident", value=args.min_ident), dict(metric="min_cov", value=args.min_cov),
-           dict(metric="merge_ident", value=args.merge_ident), dict(metric="anchors", value=",".join(args.anchors)),
+           dict(metric="merge_ident", value=args.merge_ident),
            dict(metric="reported_classes", value=",".join(reported)),
-           dict(metric="probe_alleles", value=len(probes)),
-           dict(metric="wall_seconds_this_invocation", value=int(time.time() - t0))]
+           dict(metric="probe_alleles", value=len(probes))]
+    if args.mode == "reads":
+        anyf = gene[gene["feature"] == INS_ANY]
+        tot = pd.to_numeric(anyf["n_ins"], errors="coerce") + pd.to_numeric(anyf["n_ref"], errors="coerce")
+        run += [dict(metric="breakpoint", value=f"{ad['breakpoint'][0]}:{ad['breakpoint'][1]}-{ad['breakpoint'][2]}"),
+                dict(metric="reads_region", value=args.reads_region), dict(metric="flank", value=args.flank),
+                dict(metric="max_indel", value=args.max_indel), dict(metric="min_reads", value=args.min_reads),
+                dict(metric="af_cuts", value=args.af_cuts), dict(metric="bam_column", value=args.bam_column),
+                dict(metric="insertion_classes", value=",".join(ins_classes)),
+                dict(metric="informative_reads_median", value=float(tot.median()) if len(tot) else "")]
+    else:
+        run += [dict(metric="select", value=args.select), dict(metric="window", value=args.window),
+                dict(metric="anchors", value=",".join(args.anchors))]
+    run.append(dict(metric="wall_seconds_this_invocation", value=int(time.time() - t0)))
     _disc.write_tsv(pd.DataFrame(run), os.path.join(args.out_dir, "run_summary.tsv"), mode)
-    log(f"done: {measured} people genotyped ({both} complete on both haplotypes); tables in {args.out_dir}")
+    log(f"done: {measured} people genotyped ({called} called); tables in {args.out_dir}")
     return 0
 
 

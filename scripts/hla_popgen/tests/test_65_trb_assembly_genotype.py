@@ -8,6 +8,12 @@ Insertion haplotypes carry TRBV4-3/3-2/6-3/7-8 together, at planted per-ancestry
 One haplotype is fragmented (anchors on two contigs), one lacks the TRB locus, one person has no PAF
 (anchor contig selection), one person's assembly is missing (failure).
 
+Reads mode: a fixed synthetic primary TRB window (deletion allele) and its insertion version (the
+"ALT"); per-person long reads sampled from both haplotypes and "aligned" to the primary the way a
+long-read aligner places them (contiguous on the deletion allele; clipped at the breakpoint or with
+one large I op on the insertion allele; reads entirely inside the insertion unmapped), served by a
+patched samtools runner. Also: breakpoint discovery at probe build, stratified sampling, 65b compare.
+
 Run: python3 -m pytest scripts/hla_popgen/tests/test_65_trb_assembly_genotype.py -q
 """
 import gzip
@@ -130,9 +136,9 @@ class World:
         pd.DataFrame(coh).to_csv(self.cohort, sep="\t", index=False)
         pd.DataFrame(man).to_csv(os.path.join(self.root, tg.LR_MANIFEST_REL), sep="\t", index=False)
 
-    def run(self, aligner="kmer", out="out", internal="internal", extra=()):
+    def run(self, aligner="kmer", out="out", internal="internal", extra=(), mode="assembly"):
         out, internal = os.path.join(self.tmp, out), os.path.join(self.tmp, internal)
-        tg.main(["--probes", self.probe_fa, "--cohort", self.cohort, "--aou-root", self.root,
+        tg.main(["--mode", mode, "--probes", self.probe_fa, "--cohort", self.cohort, "--aou-root", self.root,
                  "--out-dir", out, "--internal-dir", internal, "--work-dir", os.path.join(self.tmp, "work"),
                  "--aligner", aligner, "--workers", "4", *extra])
         return out, internal
@@ -214,7 +220,7 @@ class TestEndToEnd(unittest.TestCase):
             v = ok[ok["feature"] == feat].set_index("person_id")
             truth = pd.Series({p: int(h[0]) + int(h[1]) for p, h in self.w.truth.items()})
             self.assertTrue((v["copies"].astype(int) == truth.loc[v.index]).all(), feat)
-            self.assertGreater(len(v), 380)
+            self.assertGreater(len(v), 390)
         six = ok[ok["feature"] == CLS62].set_index("person_id")
         for pid, r in six.iterrows():
             h = self.w.truth[pid]
@@ -225,24 +231,28 @@ class TestEndToEnd(unittest.TestCase):
     def test_qc_flags_and_failures(self):
         h = read_int(os.path.join(self.internal, "per_haplotype.tsv"))
         frag = h[(h["person_id"] == "2000000") & (h["hap"].astype(int) == 2)].iloc[0]
-        self.assertEqual(frag["incomplete_reason"], "anchors_split")
+        self.assertEqual(str(frag["complete"]), "True")  # anchors on two contigs: complete collectively
+        self.assertEqual(str(frag["complete_single_contig"]), "False")
         absent = h[(h["person_id"] == "2000001") & (h["hap"].astype(int) == 1)].iloc[0]
         self.assertEqual(absent["incomplete_reason"], "no_trb_contig")
         nopaf = h[h["person_id"] == "2000002"]
         self.assertTrue((nopaf["select"] == "anchor").all())
         self.assertTrue((nopaf["complete"].astype(str) == "True").all())
         g = read_int(os.path.join(self.internal, "per_person_gene.tsv"))
-        self.assertTrue((g[g["person_id"].isin(["2000000", "2000001"])]["status"] == "incomplete").all())
+        self.assertTrue((g[g["person_id"] == "2000001"]["status"] == "incomplete").all())
+        self.assertTrue((g[g["person_id"] == "2000000"]["status"] == "ok").all())
         f = read_int(os.path.join(self.internal, "failures.tsv"))
         self.assertEqual(list(f["person_id"]), ["2000003"])
         self.assertEqual(f["reason"].iloc[0], "assembly_missing")
         run = dict(pd.read_csv(os.path.join(self.out, "run_summary.tsv"), sep="\t").values)
         self.assertEqual(run["people_genotyped"], "399")
-        self.assertEqual(run["people_complete_both_haplotypes"], "397")
+        self.assertEqual(run["people_called_any_feature"], "398")
         comp = pd.read_csv(os.path.join(self.out, "haplotype_completeness.tsv"), sep="\t", dtype=str)
         allr = comp[comp["stratum"] == "ALL"].iloc[0]
         self.assertEqual(allr["n_haplotypes"], "798")
-        self.assertEqual(allr["n_anchors_split"], "<20")
+        self.assertEqual(allr["n_complete"], "797")
+        self.assertEqual(allr["n_complete_single_contig"], "796")
+        self.assertEqual(allr["n_no_trb_contig"], "<20")
 
     def test_frequency_hwe_copresence(self):
         tab = pd.read_csv(os.path.join(self.out, "genotype_by_stratum.tsv"), sep="\t")
@@ -296,13 +306,16 @@ class TestSmallAndMappy(unittest.TestCase):
         truth = pd.Series({p: int(h[0]) + int(h[1]) for p, h in w.truth.items()})
         self.assertGreater(len(v), 30)
         self.assertTrue((v["copies"].astype(int) == truth.loc[v.index]).all())
-        self.assertTrue(v["method"].str.startswith("mappy:sr").all())
+        self.assertTrue(v["method"].str.startswith("assembly:mappy:sr").all())
 
     def test_internal_refuses_repo_paths(self):
         with self.assertRaises(ValueError):
             tg.append_rows(os.path.join(SRC, "x_internal.tsv"), [], tg.GENE_COLS)
         with self.assertRaises(ValueError):
             tg.main(["--probes", "x.fa", "--work-dir", os.path.join(SRC, "work65"), "--aligner", "kmer"])
+        with self.assertRaises(ValueError):
+            tg.main(["--internal-dir", os.path.join(SRC, "int65"), "--people-file", os.path.join(SRC, "p.tsv"),
+                     "--sample-stratified", "5", "--aligner", "kmer", "--work-dir", tempfile.mkdtemp()])
 
     def test_build_probes_route_b_and_reference_check(self):
         tmp = tempfile.mkdtemp()
@@ -325,6 +338,310 @@ class TestSmallAndMappy(unittest.TestCase):
         self.assertFalse(get[("primary", "TRBV4-3")].present)
         self.assertEqual(get[("alt", CLS62)].n_loci, 2)
         self.assertEqual(get[("primary", CLS62)].n_loci, 1)
+
+
+# ---------------------------------------------------------------------------
+# Reads mode
+# ---------------------------------------------------------------------------
+REF_OFF0 = 142_200_000  # synthetic primary window starts at chr7:142,200,001
+
+
+class Locus:
+    """Fixed synthetic TRB window: primary = L + R (deletion allele); alt = L + INS + R."""
+
+    def __init__(self, seed=31):
+        rng = random.Random(seed)
+        self.probes = make_probes(rng)
+        p = self.probes
+
+        def sp(n=None):
+            return rs(rng, n or rng.randint(300, 600))
+        self.L = "".join([rs(rng, 3000), p["TRBV2"], sp(), p["TRBV3-1"], sp(), p["TRBV4-2"], sp(), p["TRBV6-2"], sp(1500)])
+        self.INS = "".join([sp(800), p["TRBV4-3"], sp(), p["TRBV3-2"], sp(), p["TRBV6-3"], sp(), p["TRBV7-8"], sp(800)])
+        self.R = "".join([sp(1500), mut(rng, p["TRBV4-3"], frac=0.05), sp(), p["TRBV5-1"], sp(), p["TRBV12-4"], sp(),
+                          p["TRBC1"], rs(rng, 3000)])
+        self.primary = self.L + self.R
+        self.alt = self.L + self.INS + self.R
+        self.B, self.I = len(self.L), len(self.INS)
+        self.bp_left = REF_OFF0 + self.B          # 1-based last base of the left flank
+        self.breakpoint = f"chr7:{self.bp_left}-{self.bp_left + 1}"
+
+    def reads(self, rng, ins, depth, rlen, hp, name):
+        """SAM lines for one haplotype, placed on the primary as an aligner would."""
+        hap = self.alt if ins else self.primary
+        n = int(depth * len(hap) / rlen)
+        out = []
+        B, I = self.B, self.I
+        for k in range(n):
+            st = rng.randint(-rlen + 1500, len(hap) - 1500)
+            s, e = max(0, st), min(len(hap), st + rlen)
+            if not ins:
+                pos, cig = s, f"{e - s}M"
+            elif e <= B:
+                pos, cig = s, f"{e - s}M"
+            elif s >= B + I:
+                pos, cig = s - I, f"{e - s}M"
+            elif s < B and e > B + I:
+                pos, cig = s, f"{B - s}M{I}I{e - B - I}M"
+            elif s < B:  # ends inside the insertion: clipped on the left flank
+                if B - s < 200:
+                    continue
+                pos, cig = s, f"{B - s}M{e - B}S"
+            elif e > B + I:  # starts inside the insertion: clipped on the right flank
+                if e - B - I < 200:
+                    continue
+                pos, cig = B, f"{B + I - s}S{e - B - I}M"
+            else:
+                continue  # entirely inside the insertion: unmapped
+            tag = f"\tHP:i:{hp}" if rng.random() < 0.9 else ""
+            out.append(f"{name}_{k}\t0\tchr7\t{REF_OFF0 + pos + 1}\t60\t{cig}\t*\t0\t0\t{hap[s:e]}\t*{tag}")
+        return out
+
+
+class ReadsWorld:
+    def __init__(self, tmp, n, seed=13, depth=15, rlen=6000):
+        rng = random.Random(seed)
+        self.tmp, self.loc = tmp, Locus()
+        self.probe_fa = os.path.join(tmp, "probes.fa")
+        with open(self.probe_fa, "w") as fh:
+            for gname, sq in self.loc.probes.items():
+                fh.write(f">{gname}*01\n{sq}\n")
+        self.root = os.path.join(tmp, "root")
+        os.makedirs(os.path.join(self.root, "v9/wgs/long_read"), exist_ok=True)
+        os.makedirs(os.path.join(self.root, "x"), exist_ok=True)
+        self.sam, self.truth, coh, man = {}, {}, [], []
+        for i in range(n):
+            pid = str(3_000_000 + i)
+            anc = "SAS" if rng.random() < 0.5 else "EUR"
+            h = (rng.random() < INS_FREQ[anc], rng.random() < INS_FREQ[anc])
+            self.truth[pid] = h
+            bam = os.path.join(self.root, "x", f"{pid}.bam")
+            if i != 0:  # person 0: BAM missing
+                open(bam, "w").close()
+            lines = []
+            for k in (1, 2):
+                lines += self.loc.reads(rng, h[k - 1], depth, rlen, k, f"{pid}h{k}")
+            self.sam[bam] = "\n".join(lines) + "\n"
+            man.append(dict(research_id=pid, platform="revio", grch38_bam=f"gs://vwb-aou-datasets-controlled/x/{pid}.bam"))
+            coh.append(dict(person_id=pid, in_lr=True, ancestry_pred=anc.lower(), platform="revio"))
+        self.cohort = os.path.join(tmp, "cohort.tsv")
+        pd.DataFrame(coh).to_csv(self.cohort, sep="\t", index=False)
+        pd.DataFrame(man).to_csv(os.path.join(self.root, tg.LR_MANIFEST_REL), sep="\t", index=False)
+
+    def runner(self, bam, region, timeout, samtools):
+        assert region == tg.DEFAULT_READS_REGION
+        return self.sam[bam]
+
+    def run(self, aligner, extra=()):
+        out, internal = os.path.join(self.tmp, "out_r"), os.path.join(self.tmp, "int_r")
+        orig = tg.run_samtools_view
+        tg.run_samtools_view = self.runner
+        try:
+            tg.main(["--probes", self.probe_fa, "--cohort", self.cohort, "--aou-root", self.root,
+                     "--out-dir", out, "--internal-dir", internal, "--work-dir", os.path.join(self.tmp, "work"),
+                     "--aligner", aligner, "--workers", "4", "--breakpoint", self.loc.breakpoint, *extra])
+        finally:
+            tg.run_samtools_view = orig
+        return out, internal
+
+
+class TestReadsPrimitives(unittest.TestCase):
+    def test_spans_contiguously(self):
+        self.assertTrue(tg.spans_contiguously(100, "5000M", 1000, 3000, 50))
+        self.assertFalse(tg.spans_contiguously(1500, "5000M", 1000, 3000, 50))       # starts inside
+        self.assertFalse(tg.spans_contiguously(100, "2000M3000S", 1000, 3000, 50))   # clipped at the site
+        self.assertFalse(tg.spans_contiguously(100, "1500M4000I3000M", 1000, 3000, 50))  # carries the insertion
+        self.assertTrue(tg.spans_contiguously(100, "1500M10I3000M", 1000, 3000, 50))  # small indel ok
+        self.assertFalse(tg.spans_contiguously(100, "1500M200D3000M", 1000, 3000, 50))
+        self.assertTrue(tg.spans_contiguously(100, "500M200D3000M", 1000, 3000, 50))  # deletion outside window
+        r = tg.parse_sam("r1\t0\tchr7\t10\t60\t5M\t*\t0\t0\tACGTA\t*\tHP:i:2\n@HD\tx\n")
+        self.assertEqual((r[0]["name"], r[0]["hp"], r[0]["pos"]), ("r1", 2, 10))
+        self.assertEqual([tg.call_copies(x, (0.2, 0.8)) for x in (0.0, 0.19, 0.2, 0.5, 0.79, 0.8, 1.0)],
+                         [0, 0, 1, 1, 1, 2, 2])
+
+    def test_breakpoint_found_at_probe_build(self):
+        loc = Locus()
+        tmp = tempfile.mkdtemp()
+        pf = os.path.join(tmp, "user.fa")
+        with open(pf, "w") as fh:
+            for gname, sq in loc.probes.items():
+                fh.write(f">{gname}*01\n{sq}\n")
+        alt = os.path.join(tmp, "alt.fa")
+        with open(alt, "w") as fh:
+            fh.write(f">chr7_KI270803v1_alt\n{loc.alt}\n")
+        pad = 5000
+        chrom = os.path.join(tmp, "chr7.fa.gz")
+        write_fa_gz(chrom, [("chr7", rs(random.Random(2), pad) + loc.primary + rs(random.Random(3), 2000))])
+        region = f"chr7:{pad + 1}-{pad + len(loc.primary)}"
+        for aligner in ["kmer"] + (["mappy"] if tg.mappy is not None else []):
+            out = os.path.join(tmp, "out_" + aligner)
+            tg.main(["--build-probes", "--probe-fasta", pf, "--alt-fasta", alt, "--ref-fasta", chrom,
+                     "--ref-region", region, "--out-dir", out, "--aligner", aligner, "--work-dir", os.path.join(tmp, "w")])
+            meta = tg.read_probe_meta(os.path.join(out, "probe_meta.tsv"))
+            _c, lft, rgt = tg.parse_window(meta["breakpoint"])
+            self.assertLessEqual(abs(lft - (pad + loc.B)), 300, (aligner, meta))
+            self.assertLessEqual(abs(rgt - (pad + loc.B + 1)), 300, (aligner, meta))
+            self.assertLessEqual(abs(int(meta["ins_len_estimate"]) - loc.I), 50, (aligner, meta))
+            rc = pd.read_csv(os.path.join(out, "reference_check.tsv"), sep="\t")
+            get = {(r.source, r.gene_class): r for r in rc.itertuples()}
+            self.assertTrue(get[("alt", "TRBV4-3")].present)
+            self.assertFalse(get[("primary", "TRBV4-3")].present)
+            self.assertEqual(get[("primary", CLS62)].n_loci, 1)
+        # samtools-faidx style header gives the offset without --ref-region
+        win = os.path.join(tmp, "win.fa")
+        with open(win, "w") as fh:
+            fh.write(f">chr7:142038120-142040000\nACGT\n")
+        self.assertEqual(tg.load_ref(win)[:2], ("chr7", 142038119))
+
+
+@unittest.skipIf(tg.mappy is None, "mappy not installed")
+class TestReadsEndToEnd(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp()
+        cls.w = ReadsWorld(cls.tmp, n=160)
+        cls.out, cls.internal = cls.w.run("mappy")
+
+    def test_genotypes_and_haplotypes(self):
+        g = read_int(os.path.join(self.internal, "per_person_gene.tsv"))
+        truth = pd.Series({p: int(h[0]) + int(h[1]) for p, h in self.w.truth.items()})
+        for feat in ("TRBV4-3", "TRBV3-2", "TRBV7-8", tg.INS_ANY):
+            v = g[(g["feature"] == feat) & (g["status"] == "ok")].set_index("person_id")
+            self.assertGreater(len(v), 150, feat)
+            acc = (v["copies"].astype(int) == truth.loc[v.index]).mean()
+            self.assertGreater(acc, 0.93, feat)
+        self.assertFalse(any(f.startswith("TRBV6-2") for f in g["feature"].unique()))  # merged class not callable
+        v = g[g["feature"] == "TRBV4-3"].set_index("person_id")
+        hom_del = [p for p, h in self.w.truth.items() if not any(h) and p in v.index]
+        self.assertTrue((v.loc[hom_del, "n_ins"].astype(int) == 0).all())  # the 95% decoy never counts
+        # HP-based per-haplotype calls
+        both = v[(v["hap1_complete"].astype(int) == 1) & (v["hap2_complete"].astype(int) == 1)]
+        ok = [(int(r.hap1_present), int(r.hap2_present)) == tuple(int(x) for x in self.w.truth[p])
+              for p, r in both.iterrows()]
+        self.assertGreater(len(ok), 140)
+        self.assertGreater(sum(ok) / len(ok), 0.9)
+        self.assertTrue(v["method"].str.startswith("reads:mappy").all())
+
+    def test_public_tables(self):
+        tab = pd.read_csv(os.path.join(self.out, "genotype_by_stratum.tsv"), sep="\t")
+        r = tab[(tab["feature"] == "TRBV4-3") & (tab["stratum"] == "ALL")].iloc[0]
+        self.assertAlmostEqual(float(r["insertion_allele_freq"]), 0.525, delta=0.08)
+        hist = pd.read_csv(os.path.join(self.out, "allele_fraction_histogram.tsv"), sep="\t", dtype=str)
+        self.assertEqual(len(hist[(hist["feature"] == "TRBV4-3") & (hist["stratum"] == "ALL")]), 20)
+        self.assertTrue(hist["n_people"].isin(["0", "<20"] + [str(k) for k in range(20, 200)]).all())
+        cp = pd.read_csv(os.path.join(self.out, "copresence.tsv"), sep="\t")
+        allr = cp[cp["stratum"] == "ALL"]
+        self.assertEqual(len(allr), 3)
+        self.assertTrue((allr["concordance"].astype(float) > 0.9).all())
+        run = dict(pd.read_csv(os.path.join(self.out, "run_summary.tsv"), sep="\t").values)
+        self.assertEqual(run["mode"], "reads")
+        self.assertEqual(run["people_failed"], "<20")
+        fs = pd.read_csv(os.path.join(self.out, "failures_summary.tsv"), sep="\t")
+        self.assertEqual(list(fs["reason"]), ["bam_missing"])
+        for f in os.listdir(self.out):
+            txt = open(os.path.join(self.out, f)).read()
+            for pid in ("3000000", "3000001", "3000159"):
+                self.assertNotIn(pid, txt, f)
+
+    def test_aggregate_only_new_floor(self):
+        out = os.path.join(self.tmp, "out_floor")
+        self.w.run("mappy", extra=("--aggregate-only", "--min-reads", "1000", "--out-dir", out))
+        tab = pd.read_csv(os.path.join(out, "genotype_by_stratum.tsv"), sep="\t", dtype=str, keep_default_na=False)
+        self.assertTrue((tab["n_called"] == "0").all())
+
+    def test_mode_guard_and_resume(self):
+        n0 = len(read_int(os.path.join(self.internal, "per_haplotype.tsv")))
+        self.w.run("mappy")
+        self.assertEqual(n0, len(read_int(os.path.join(self.internal, "per_haplotype.tsv"))))
+        with self.assertRaises(SystemExit):
+            tg.main(["--mode", "assembly", "--probes", self.w.probe_fa, "--cohort", self.w.cohort,
+                     "--aou-root", self.w.root, "--out-dir", os.path.join(self.tmp, "o2"),
+                     "--internal-dir", self.internal, "--work-dir", os.path.join(self.tmp, "work"),
+                     "--aligner", "kmer"])
+
+
+class TestReadsKmerSmall(unittest.TestCase):
+    def test_kmer_path(self):
+        tmp = tempfile.mkdtemp()
+        w = ReadsWorld(tmp, n=8, seed=4)
+        out, internal = w.run("kmer")
+        g = read_int(os.path.join(internal, "per_person_gene.tsv"))
+        v = g[(g["feature"] == "TRBV4-3") & (g["status"] == "ok")].set_index("person_id")
+        truth = pd.Series({p: int(h[0]) + int(h[1]) for p, h in w.truth.items()})
+        self.assertGreaterEqual(len(v), 6)
+        self.assertGreaterEqual((v["copies"].astype(int) == truth.loc[v.index]).mean(), 0.85)
+        tab = pd.read_csv(os.path.join(out, "genotype_by_stratum.tsv"), sep="\t", dtype=str, keep_default_na=False)
+        self.assertTrue((tab["n_people_measured"] == "<20").all())
+        self.assertTrue((tab["insertion_allele_freq"] == "").all())
+
+    def test_no_breakpoint_refuses(self):
+        tmp = tempfile.mkdtemp()
+        w = ReadsWorld(tmp, n=2)
+        with self.assertRaises(SystemExit):
+            tg.main(["--probes", w.probe_fa, "--cohort", w.cohort, "--aou-root", w.root, "--aligner", "kmer",
+                     "--out-dir", os.path.join(tmp, "o"), "--internal-dir", os.path.join(tmp, "i"),
+                     "--work-dir", os.path.join(tmp, "w")])
+
+
+class TestStratifiedAndCompare(unittest.TestCase):
+    def test_sample_stratified_then_assembly_subset(self):
+        tmp = tempfile.mkdtemp()
+        w = World(tmp, n=60, seed=3)
+        rel = os.path.join(tmp, "rel.tsv")
+        sas = sorted(p for p, a in w.anc.items() if a == "SAS")
+        pd.DataFrame([dict(**{"i.s": sas[0], "j.s": sas[1], "kin": 0.25}),
+                      dict(**{"i.s": sas[2], "j.s": sas[3], "kin": 0.5})]).to_csv(rel, sep="\t", index=False)
+        pf = os.path.join(tmp, "internal_x", "strat.tsv")
+        args = ["--cohort", w.cohort, "--aou-root", w.root, "--relatedness", rel, "--aligner", "kmer",
+                "--work-dir", os.path.join(tmp, "w"), "--people-file", pf, "--seed", "1"]
+        tg.main(["--sample-stratified", "20"] + args)
+        sel = pd.read_csv(pf, sep="\t", comment="#", dtype={"person_id": str})
+        self.assertEqual(len(sel), 20)
+        self.assertEqual(sel["ancestry"].value_counts().to_dict(), {"SAS": 10, "EUR": 10})
+        self.assertFalse({sas[0], sas[1]} <= set(sel["person_id"]))
+        self.assertFalse({sas[2], sas[3]} <= set(sel["person_id"]))
+        tg.main(["--sample-stratified", "20"] + args[:-1] + ["2"])
+        sel2 = pd.read_csv(pf, sep="\t", comment="#", dtype={"person_id": str})
+        self.assertNotEqual(set(sel["person_id"]), set(sel2["person_id"]))  # seed matters
+        # water-filling: ask for more than the smaller group holds
+        tg.main(["--sample-stratified", "50"] + args)
+        sel3 = pd.read_csv(pf, sep="\t", comment="#", dtype={"person_id": str})
+        counts = sel3["ancestry"].value_counts().to_dict()
+        self.assertEqual(sum(counts.values()), 50)
+        self.assertTrue(counts["SAS"] == len(sas) - 2 or counts["EUR"] == 60 - len(sas))
+        out, internal = w.run("kmer", extra=("--people-file", pf), out="o_sub", internal="i_sub")
+        h = read_int(os.path.join(internal, "per_haplotype.tsv"))
+        f = tg._read(os.path.join(internal, "failures.tsv"), tg.FAIL_COLS)
+        self.assertEqual(set(h["person_id"]) | set(f["person_id"]), set(sel3["person_id"]))
+
+    def test_compare(self):
+        tmp = tempfile.mkdtemp()
+        rng = random.Random(8)
+        ids = [str(4_000_000 + i) for i in range(80)]
+        coh = pd.DataFrame(dict(person_id=ids, ancestry_pred=["sas" if i % 2 else "eur" for i in range(80)],
+                                platform="revio", in_lr=True))
+        cpath = os.path.join(tmp, "cohort.tsv")
+        coh.to_csv(cpath, sep="\t", index=False)
+        cop = {p: rng.choice([0, 1, 2]) for p in ids}
+        rows_r, rows_a = [], []
+        for i, p in enumerate(ids):
+            ca = cop[p] if i >= 6 else (cop[p] + 1) % 3  # 6 discordant
+            rows_r.append(tg._row(tg.GENE_COLS, person_id=p, feature="TRBV4-3", copies=cop[p], status="ok"))
+            rows_a.append(tg._row(tg.GENE_COLS, person_id=p, feature="TRBV4-3", copies=ca,
+                                  status="ok" if i < 75 else "incomplete"))
+        rp, apath = os.path.join(tmp, "r.tsv"), os.path.join(tmp, "a.tsv")
+        pd.DataFrame(rows_r).to_csv(rp, sep="\t", index=False)
+        pd.DataFrame(rows_a).to_csv(apath, sep="\t", index=False)
+        out = os.path.join(tmp, "out")
+        tg.main(["--compare", rp, apath, "--cohort", cpath, "--out-dir", out])
+        t = pd.read_csv(os.path.join(out, "65b_method_concordance.tsv"), sep="\t", dtype=str, keep_default_na=False)
+        allr = t[t["stratum"] == "ALL"].iloc[0]
+        self.assertEqual(allr["n_both_called"], "75")
+        self.assertEqual(allr["n_concordant"], "69")
+        self.assertEqual(allr["pct_concordant"], "92.0")
+        offdiag = [allr[f"n_reads{i}_asm{j}"] for i in range(3) for j in range(3) if i != j]
+        self.assertTrue(all(x in ("0", "<20") for x in offdiag))
+        self.assertFalse(any(p in open(os.path.join(out, "65b_method_concordance.tsv")).read() for p in ids))
 
 
 if __name__ == "__main__":
