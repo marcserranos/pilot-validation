@@ -314,6 +314,16 @@ def child_env(python):
     return env
 
 
+def resolve_tool(name, python):
+    """A bare tool name (minimap2, samtools) resolves to the copy in the --python env's bin dir when
+    one is there; otherwise it is left for PATH. The parent process runs these tools itself in
+    --prepare-refs, where child_env's PATH does not apply."""
+    if os.sep in name:
+        return name
+    cand = os.path.join(os.path.dirname(os.path.abspath(python)), name)
+    return cand if os.access(cand, os.X_OK) else name
+
+
 def run_person_locus(pid, locus, args, refs, attempt, runner=subprocess.run):
     outroot = locus_outroot(args.internal_dir, locus)
     pdir = os.path.join(outroot, str(pid), "immuannot_output")
@@ -480,6 +490,8 @@ def build_parser():
 
 def main(argv=None, runner=subprocess.run):
     args = build_parser().parse_args(argv)
+    args.minimap2 = resolve_tool(args.minimap2, args.python)
+    args.samtools = resolve_tool(args.samtools, args.python)
     if args.smoke:
         args.internal_dir = args.internal_dir.rstrip("/") + "_smoke"
         args.out_dir = args.out_dir.rstrip("/") + "_smoke"
