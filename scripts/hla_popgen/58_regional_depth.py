@@ -372,8 +372,50 @@ def depth_summary(per, people, regions, mode):
             for cut in (0.5, 0.6, 0.7):
                 k = int((rel < cut).sum())
                 row[f"n_rel_lt_{cut}"] = _disc.mask(k, _disc.PARTICIPANT, mode).display
+                row[f"_raw_n_rel_lt_{cut}"] = k
             out.append(row)
-    return pd.DataFrame(out)
+    df = pd.DataFrame(out)
+    if mode == _disc.PUBLIC and len(df):
+        df = _suppress_partitions(df)
+    return df.drop(columns=[c for c in df.columns if c.startswith("_raw_")])
+
+
+SECONDARY = "<20*"
+
+
+def secondary_suppress(values, shown):
+    """Complementary suppression for counts that sum to a published total: when exactly one cell
+    is masked, the smallest other non-zero cell is masked too ('<20*'), so the masked cell cannot
+    be recovered by subtraction. values: true counts; shown: display strings (same order).
+    -> new display list."""
+    shown = list(shown)
+    masked = [i for i, d in enumerate(shown) if d in ("<20", SECONDARY)]
+    if len(masked) != 1:
+        return shown
+    cand = [i for i, v in enumerate(values) if i not in masked and v > 0 and shown[i] not in ("<20", SECONDARY)]
+    if cand:
+        shown[min(cand, key=lambda i: values[i])] = SECONDARY
+    return shown
+
+
+def _suppress_partitions(df):
+    """Partitions whose cells sum to the ALL row: the ancestries, and the platforms."""
+    cols = [c for c in df.columns if c.startswith("n_rel_lt_")]
+    df = df.copy()
+    for (_r, _q), g in df.groupby(["region", "mapq"]):
+        for kind, members in (("ancestry", list(ANCESTRY_ORDER)), ("platform", None)):
+            part = g[(g["stratum_type"] == kind) & (g["stratum"] != "ALL")]
+            if members is not None:
+                part = part[part["stratum"].isin(members)]
+            if len(part) < 2:
+                continue
+            for c in cols:
+                raw = part["_raw_" + c]
+                if raw.isna().any():   # a whole stratum was suppressed (n < 20): already hidden
+                    continue
+                new = secondary_suppress([int(v) for v in raw], part[c].tolist())
+                df.loc[part.index, c] = new
+    return df
 
 
 def trb_assessability(per, regions, min_unique_frac):
@@ -446,12 +488,15 @@ def trb_tables(per, people, regions, assess, cuts, mapq, mode):
                 continue
             c0, c1, c2 = (int((sub["copies"] == k).sum()) for k in (0, 1, 2))
             del_af = (2 * c0 + c1) / (2 * n)
+            shown = [_disc.mask(k, _disc.PARTICIPANT, mode).display for k in (c0, c1, c2)]
+            if mode == _disc.PUBLIC:   # the three classes sum to n_people
+                shown = secondary_suppress([c0, c1, c2], shown)
             row = dict(gene=gene, ancestry=anc,
                        n_people=_disc.mask(n, _disc.PARTICIPANT, mode).display,
-                       n_0copies=_disc.mask(c0, _disc.PARTICIPANT, mode).display,
-                       n_1copy=_disc.mask(c1, _disc.PARTICIPANT, mode).display,
-                       n_2copies=_disc.mask(c2, _disc.PARTICIPANT, mode).display)
-            small = mode == _disc.PUBLIC and any(0 < k < _disc.SUPPRESS_BELOW for k in (n, c0, c1, c2))
+                       n_0copies=shown[0], n_1copy=shown[1], n_2copies=shown[2])
+            # any masked cell (primary or secondary) also blanks the rates, which would undo it
+            small = mode == _disc.PUBLIC and (0 < n < _disc.SUPPRESS_BELOW
+                                              or any(d in ("<20", SECONDARY) for d in shown))
             row["pct_0copies"] = "" if small else round(100 * c0 / n, 2)
             row["deletion_allele_freq"] = "" if small else round(del_af, 4)
             row["hwe_p"] = "" if small else float(f"{hwe_exact_p(c0, c1, c2):.3g}")
@@ -461,10 +506,12 @@ def trb_tables(per, people, regions, assess, cuts, mapq, mode):
     bins = np.round(np.arange(0, 1.55, 0.05), 2)
     for gene, g in d.groupby("region"):
         counts, edges = np.histogram(g["rel_depth"].clip(upper=1.5 - 1e-9), bins=bins)
-        for k, lo in zip(counts, edges[:-1]):
+        shown = [_disc.mask(int(k), _disc.PARTICIPANT, mode).display for k in counts]
+        if mode == _disc.PUBLIC:   # bins sum to the people measured
+            shown = secondary_suppress([int(k) for k in counts], shown)
+        for k, lo, disp in zip(counts, edges[:-1], shown):
             hist_rows.append(dict(gene=gene, bin_lo=float(lo), bin_hi=round(float(lo) + 0.05, 2),
-                                  n_people=_disc.mask(int(k), _disc.PARTICIPANT, mode).display,
-                                  assessable=gene in ok))
+                                  n_people=disp, assessable=gene in ok))
     per_person = d[["person_id", "region", "rel_depth", "copies", "assessable"]].rename(
         columns={"region": "gene"})
     return pd.DataFrame(cn_rows), pd.DataFrame(hist_rows), per_person

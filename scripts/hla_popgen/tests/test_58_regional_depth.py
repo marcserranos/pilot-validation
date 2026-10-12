@@ -89,6 +89,13 @@ class Test50(unittest.TestCase):
         a = self.regions[self.regions["name"] == "HLA-A"].iloc[0]
         self.assertEqual(a.start, 29_940_999)
 
+    def test_secondary_suppression(self):
+        f = rd.secondary_suppress
+        self.assertEqual(f([5, 700, 300], ["<20", "700", "300"]), ["<20", "700", "<20*"])
+        self.assertEqual(f([5, 7, 900], ["<20", "<20", "900"]), ["<20", "<20", "900"])   # already 2
+        self.assertEqual(f([0, 900, 100], ["0", "900", "100"]), ["0", "900", "100"])      # none masked
+        self.assertEqual(f([5, 0, 900], ["<20", "0", "900"]), ["<20", "0", "<20*"])       # skips zeros
+
     def test_hwe(self):
         self.assertGreater(rd.hwe_exact_p(25, 50, 25), 0.9)
         self.assertLess(rd.hwe_exact_p(50, 0, 50), 1e-10)
@@ -151,6 +158,20 @@ class Test50(unittest.TestCase):
         summ = pd.read_csv(os.path.join(out, "depth_summary_by_region.tsv"), sep="\t")
         mhc = summ[(summ["region"] == "window_MHC") & (summ["mapq"] == 0) & (summ["stratum"] == "ALL")].iloc[0]
         self.assertAlmostEqual(mhc["rel_p50"], 0.75, delta=0.05)
+        # complementary suppression: no partition leaves exactly one masked cell to subtract back
+        m = lambda x: x in ("<20", "<20*")
+        tab_s = pd.read_csv(os.path.join(out, "trb_cn_by_ancestry.tsv"), sep="\t", dtype=str)
+        for _, r in tab_s[tab_s["n_people"] != "<20"].iterrows():
+            self.assertNotEqual(sum(m(r[c]) for c in ("n_0copies", "n_1copy", "n_2copies")), 1, dict(r))
+        hist = pd.read_csv(os.path.join(out, "trb_rel_depth_histogram.tsv"), sep="\t", dtype=str)
+        for g, h in hist.groupby("gene"):
+            self.assertNotEqual(sum(m(x) for x in h["n_people"]), 1, g)
+        summ_s = pd.read_csv(os.path.join(out, "depth_summary_by_region.tsv"), sep="\t", dtype=str)
+        plat = summ_s[summ_s["stratum_type"] == "platform"]
+        for _, g in plat.groupby(["region", "mapq"]):
+            for c in ("n_rel_lt_0.5", "n_rel_lt_0.6", "n_rel_lt_0.7"):
+                if g[c].notna().all():
+                    self.assertNotEqual(sum(m(x) for x in g[c]), 1)
         # PUBLIC outputs never carry person ids
         for f in os.listdir(out):
             txt = open(os.path.join(out, f)).read()
