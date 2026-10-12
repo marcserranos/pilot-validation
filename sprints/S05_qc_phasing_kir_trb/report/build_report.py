@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""Build the S05 sprint report: report_src.html -> ../S05_REPORT.html (one self-contained file).
+
+What the builder does:
+  - <img data-src="reports/...png"> becomes an inline data: URI (PNG figures from the repo; wide
+    images are downscaled to 1600 px);
+  - <figure class="plate" id="f-..."> elements are numbered in order, and <a class="fref" href="#f-...">
+    links get "Figure N";
+  - <!--SVG:name--> placeholders become inline SVG charts drawn here from committed PUBLIC tables
+    (theme-aware: colours come from the page's CSS tokens).
+
+Only PUBLIC repo files are read. Run from anywhere:
+    python3 sprints/S05_qc_phasing_kir_trb/report/build_report.py [--extra-root DIR ...]
+--extra-root: extra directories searched for repo-relative paths that are not in the checkout yet
+(e.g. result tables still on a branch).
+"""
+import argparse
+import base64
+import html
+import io
+import os
+import re
+
+import pandas as pd
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+SRC = os.path.join(HERE, "report_src.html")
+OUT = os.path.join(os.path.dirname(HERE), "S05_REPORT.html")
+ANC = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
+ROOTS = [REPO]
+
+
+def find(rel):
+    for r in ROOTS:
+        p = os.path.join(r, rel)
+        if os.path.exists(p):
+            return p
+    raise FileNotFoundError(rel)
+
+
+def img_uri(rel, max_w=1600):
+    p = find(rel)
+    data = open(p, "rb").read()
+    try:
+        from PIL import Image
+        im = Image.open(io.BytesIO(data))
+        if im.width > max_w:
+            im = im.convert("RGB").resize((max_w, round(im.height * max_w / im.width)), Image.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, "PNG", optimize=True)
+            data = buf.getvalue()
+    except ImportError:
+        pass
+    return "data:image/png;base64," + base64.b64encode(data).decode()
+
+
+def esc(s):
+    return html.escape(str(s), quote=True)
+
+
+# ----------------------------------------------------------------- inline charts
+
+def svg_hbars(rows, xmax, unit="%", width=640, row_h=26, label_w=150, ticks=None, ref=None,
+              title=None):
+    """rows: (label, value, css_class, text) ; value None = no bar (text only)."""
+    h = row_h * len(rows) + 34
+    plot_w = width - label_w - 70
+    sx = lambda v: label_w + plot_w * v / xmax  # noqa: E731
+    out = [f'<svg viewBox="0 0 {width} {h}" class="chart" role="img"'
+           f'{f" aria-label=\"{esc(title)}\"" if title else ""}>']
+    for t in ticks or []:
+        x = sx(t)
+        out.append(f'<line x1="{x:.1f}" y1="4" x2="{x:.1f}" y2="{h - 26}" class="grid"/>')
+        out.append(f'<text x="{x:.1f}" y="{h - 10}" class="tick" text-anchor="middle">{t:g}{unit}</text>')
+    if ref is not None:
+        x = sx(ref[0])
+        out.append(f'<line x1="{x:.1f}" y1="0" x2="{x:.1f}" y2="{h - 26}" class="refline"/>')
+        out.append(f'<text x="{x + 4:.1f}" y="10" class="reflabel">{esc(ref[1])}</text>')
+    for i, (lab, v, cls, txt) in enumerate(rows):
+        y = 6 + i * row_h
+        out.append(f'<text x="{label_w - 8}" y="{y + row_h / 2 + 4:.1f}" class="lab" text-anchor="end">{esc(lab)}</text>')
+        if v is not None:
+            out.append(f'<rect x="{label_w}" y="{y + 4}" width="{max(sx(v) - label_w, 1):.1f}" height="{row_h - 10}" class="{cls}"/>')
+        tx = sx(v) + 6 if v is not None else label_w + 4
+        out.append(f'<text x="{tx:.1f}" y="{y + row_h / 2 + 4:.1f}" class="val">{esc(txt)}</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def chart_65_zero_copy():
+    """65 reads mode, unrelated people: % with no TRBV4-3 copy, next to Aleix's 'never used' rates.
+    Aggregates from the VM summary (logged in LOG.md 10-12); the PUBLIC tables follow."""
+    zero = {"AFR": 38.5, "AMR": 30.1, "EAS": 37.1, "EUR": 19.5, "MID": 32.2, "SAS": 55.1}
+    freq = {"AFR": 0.424, "AMR": 0.477, "EAS": 0.421, "EUR": 0.584, "MID": 0.466, "SAS": 0.287}
+    never = {"SAS": 43.5, "EUR": 16.7}
+    order = sorted(ANC, key=lambda a: zero[a])
+    rows = []
+    for a in order:
+        rows.append((f"{a}  germline", zero[a], "bar-a", f"{zero[a]:.1f}%  (insertion freq {freq[a]:.2f})"))
+        if a in never:
+            rows.append((f"{a}  never used", never[a], "bar-b", f"{never[a]:.1f}%  (repertoire)"))
+    rows.append(("ALL  germline", 33.0, "bar-a", "33.0%  (11,075 people called)"))
+    rows.append(("ALL  never used", 27.0, "bar-b", "~27%  (repertoire)"))
+    return svg_hbars(rows, 60, ticks=[0, 20, 40, 60], width=680, label_w=160,
+                     title="People with no TRBV4-3 copy vs people who never use TRBV4-3, by ancestry")
+
+
+def chart_59():
+    rows = [("KIR incomplete", 6.7, "bar-a", "6.7% of events removed"),
+            ("KIR framework missing", 9.4, "bar-a", "9.4%"),
+            ("HLA gene absent", 3.9, "bar-a", "3.9%"),
+            ("people removed", 4.7, "bar-c", "3.5–4.7% of people")]
+    return svg_hbars(rows, 60, ticks=[0, 10, 20, 30, 40, 50, 60], ref=(50, "rule needs ≥ 50% of events"),
+                     width=680, label_w=170,
+                     title="Best admissible depth cutoff removes few of the distrusted calls")
+
+
+def heat_class(v):
+    if v is None:
+        return "h0"
+    for cut, c in ((90, "h6"), (70, "h5"), (50, "h4"), (30, "h3"), (15, "h2"), (5, "h1")):
+        if v >= cut:
+            return c
+    return "h0"
+
+
+def chart_61_heatmap(rel):
+    t = pd.read_csv(find(rel), sep="\t", dtype=str, keep_default_na=False)
+    order = ["KIR3DL3", "KIR2DS2", "KIR2DL2", "KIR2DL3", "KIR2DL5B", "KIR2DS3", "KIR2DP1", "KIR2DL1",
+             "KIR3DP1", "KIR2DL4", "KIR3DL1", "KIR3DS1", "KIR2DL5A", "KIR2DS5", "KIR2DS1", "KIR2DS4", "KIR3DL2"]
+    order = [g for g in order if g in set(t["gene"])]
+    cw, rh, lw, top = 46, 22, 86, 26
+    w, h = lw + cw * len(ANC) + 10, top + rh * len(order) + 6
+    out = [f'<svg viewBox="0 0 {w} {h}" class="chart heat" role="img" aria-label="KIR gene frequency on complete haplotypes by ancestry">']
+    for j, a in enumerate(ANC):
+        out.append(f'<text x="{lw + cw * j + cw / 2}" y="16" class="tick" text-anchor="middle">{a}</text>')
+    for i, g in enumerate(order):
+        y = top + i * rh
+        out.append(f'<text x="{lw - 6}" y="{y + rh / 2 + 4}" class="lab" text-anchor="end">{g.replace("KIR", "")}</text>')
+        for j, a in enumerate(ANC):
+            r = t[(t["gene"] == g) & (t["ancestry"] == a)]
+            v = pd.to_numeric(r["hap_freq_pct"], errors="coerce").iloc[0] if len(r) else float("nan")
+            v = None if pd.isna(v) else float(v)
+            x = lw + cw * j
+            out.append(f'<rect x="{x + 1}" y="{y + 1}" width="{cw - 2}" height="{rh - 2}" class="{heat_class(v)}"/>')
+            txt = "—" if v is None else f"{v:.0f}"
+            out.append(f'<text x="{x + cw / 2}" y="{y + rh / 2 + 4}" class="cell {heat_class(v)}t" text-anchor="middle">{txt}</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def chart_trb_map():
+    """Schematic of GRCh38 primary vs the ALT KI270803v1 over the TRB V cluster (from the probe-mapping table)."""
+    w, h = 720, 150
+    out = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" aria-label="TRB locus: primary vs ALT">']
+    out.append('<text x="10" y="34" class="lab">GRCh38 primary chr7</text>')
+    out.append('<text x="10" y="104" class="lab">ALT KI270803v1</text>')
+    out.append('<line x1="150" y1="30" x2="710" y2="30" class="axis"/>')
+    out.append('<line x1="150" y1="100" x2="710" y2="100" class="axis"/>')
+    genes_p = [("V2", 170), ("V3-1", 205), ("V4-1", 240), ("V5-1", 275), ("V6-1", 310), ("V4-2", 345),
+               ("V6-2/3", 385), ("V7-2", 420), ("V7-3", 470), ("…", 600)]
+    genes_a = [("V2", 170), ("V3-1", 205), ("V4-1", 240), ("V5-1", 275), ("V6-1", 310), ("V4-2", 345),
+               ("V3-2", 380), ("V4-3", 412), ("V6-2/3", 444), ("V6-2/3", 478), ("V7-2", 512), ("V7-3", 552),
+               ("V7-8", 640)]
+    for lab, x in genes_p:
+        out.append(f'<rect x="{x - 3}" y="24" width="6" height="12" class="gene"/>')
+        out.append(f'<text x="{x}" y="52" class="tiny" text-anchor="middle">{lab}</text>')
+    out.append('<rect x="364" y="82" width="132" height="36" class="insA"/>')
+    out.append('<text x="430" y="78" class="tiny strong" text-anchor="middle">insertion A, 21.6 kb</text>')
+    out.append('<rect x="612" y="82" width="56" height="36" class="insB"/>')
+    out.append('<text x="640" y="78" class="tiny strong" text-anchor="middle">segment B, ~40 kb</text>')
+    for lab, x in genes_a:
+        out.append(f'<rect x="{x - 3}" y="94" width="6" height="12" class="gene"/>')
+        out.append(f'<text x="{x}" y="124" class="tiny" text-anchor="middle">{lab}</text>')
+    out.append('<path d="M365 36 L364 82" class="arr"/>')
+    out.append('<text x="368" y="66" class="tiny">breakpoint chr7:142,346,200–142,352,104</text>')
+    out.append('<text x="150" y="146" class="tiny">Not to scale. Genes after insertion A shift by +21.7 kb; TRBV7-8 has no ≥92% copy on primary.</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+CHARTS = {
+    "65_zero_copy": chart_65_zero_copy,
+    "59_cutoff": chart_59,
+    "trb_map": chart_trb_map,
+    "61_heat": lambda: chart_61_heatmap(
+        "reports/hla_popgen/61_kir_by_ancestry_panel/vm_2026-10-12/gene_freq_by_ancestry.tsv"),
+}
+
+
+def build():
+    src = open(SRC).read()
+    src = re.sub(r'<img data-src="([^"]+)"', lambda m: f'<img src="{img_uri(m.group(1))}"', src)
+    src = re.sub(r"<!--SVG:(\w+)-->", lambda m: CHARTS[m.group(1)](), src)
+    ids = re.findall(r'<figure class="plate[^"]*" id="([^"]+)"', src)
+    num = {fid: i + 1 for i, fid in enumerate(ids)}
+    src = re.sub(r'(<figure class="plate[^"]*" id="([^"]+)"[^>]*>)', lambda m: m.group(1), src)
+    src = re.sub(r'<span class="fnum" data-for="([^"]+)"></span>',
+                 lambda m: f'<span class="fnum">Figure {num[m.group(1)]}</span>', src)
+    src = re.sub(r'<a class="fref" href="#([^"]+)"></a>',
+                 lambda m: f'<a class="fref" href="#{m.group(1)}">Figure {num[m.group(1)]}</a>', src)
+    missing = re.findall(r'class="fref" href="#([^"]+)"></a>', src)
+    assert not missing, missing
+    open(OUT, "w").write(src)
+    print(f"wrote {os.path.relpath(OUT, REPO)}: {len(src) / 1e6:.2f} MB, {len(ids)} figures")
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--extra-root", action="append", default=[])
+    a = ap.parse_args()
+    ROOTS.extend(a.extra_root)
+    build()
