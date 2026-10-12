@@ -1,0 +1,8 @@
+ancestry	n_haps	complete_pct	one_contig_open_end_pct	multi_contig_pct	empty_pct
+AFR	6050	72.3	8.5	18.7	0.5
+AMR	5327	74.8	6.6	18.0	0.6
+EAS	2926	78.9		14.7	
+EUR	5960	75.5	6.8	17.2	0.5
+MID	972	77.4		15.8	
+SAS	2474	78.7		14.9	
+ALL	23755	75.4	7.0	17.2	0.5

@@ -1,0 +1,101 @@
+ancestry	n_genes	n_haps	n_complete_haps	pct	basis
+AFR	2	<20	4374		vm_complete_haplotypes
+AFR	3	<20	4374		vm_complete_haplotypes
+AFR	4	<20	4374		vm_complete_haplotypes
+AFR	5	<20	4374		vm_complete_haplotypes
+AFR	6	<20*	4374		vm_complete_haplotypes
+AFR	7	229	4374	5.2	vm_complete_haplotypes
+AFR	8	366	4374	8.4	vm_complete_haplotypes
+AFR	9	2640	4374	60.4	vm_complete_haplotypes
+AFR	10	62	4374	1.4	vm_complete_haplotypes
+AFR	11	381	4374	8.7	vm_complete_haplotypes
+AFR	12	544	4374	12.4	vm_complete_haplotypes
+AFR	13	37	4374	0.8	vm_complete_haplotypes
+AFR	14	73	4374	1.7	vm_complete_haplotypes
+AFR	15	<20	4374		vm_complete_haplotypes
+AFR	mean		4374	9.47	vm_complete_haplotypes
+AFR	median		4374	9.0	vm_complete_haplotypes
+AMR	2	<20	3984		vm_complete_haplotypes
+AMR	3	<20	3984		vm_complete_haplotypes
+AMR	4	0	3984	0.0	vm_complete_haplotypes
+AMR	5	<20	3984		vm_complete_haplotypes
+AMR	6	<20	3984		vm_complete_haplotypes
+AMR	7	<20*	3984		vm_complete_haplotypes
+AMR	8	436	3984	10.9	vm_complete_haplotypes
+AMR	9	2289	3984	57.5	vm_complete_haplotypes
+AMR	10	191	3984	4.8	vm_complete_haplotypes
+AMR	11	572	3984	14.4	vm_complete_haplotypes
+AMR	12	241	3984	6.0	vm_complete_haplotypes
+AMR	13	82	3984	2.1	vm_complete_haplotypes
+AMR	14	81	3984	2.0	vm_complete_haplotypes
+AMR	mean		3984	9.54	vm_complete_haplotypes
+AMR	median		3984	9.0	vm_complete_haplotypes
+EAS	5	<20	2310		vm_complete_haplotypes
+EAS	6	<20	2310		vm_complete_haplotypes
+EAS	7	63	2310	2.7	vm_complete_haplotypes
+EAS	8	139	2310	6.0	vm_complete_haplotypes
+EAS	9	1553	2310	67.2	vm_complete_haplotypes
+EAS	10	99	2310	4.3	vm_complete_haplotypes
+EAS	11	349	2310	15.1	vm_complete_haplotypes
+EAS	12	67	2310	2.9	vm_complete_haplotypes
+EAS	13	<20*	2310		vm_complete_haplotypes
+EAS	14	<20	2310		vm_complete_haplotypes
+EAS	mean		2310	9.38	vm_complete_haplotypes
+EAS	median		2310	9.0	vm_complete_haplotypes
+EUR	3	<20	4500		vm_complete_haplotypes
+EUR	4	<20	4500		vm_complete_haplotypes
+EUR	5	<20	4500		vm_complete_haplotypes
+EUR	6	<20	4500		vm_complete_haplotypes
+EUR	7	122	4500	2.7	vm_complete_haplotypes
+EUR	8	623	4500	13.8	vm_complete_haplotypes
+EUR	9	2471	4500	54.9	vm_complete_haplotypes
+EUR	10	149	4500	3.3	vm_complete_haplotypes
+EUR	11	555	4500	12.3	vm_complete_haplotypes
+EUR	12	338	4500	7.5	vm_complete_haplotypes
+EUR	13	109	4500	2.4	vm_complete_haplotypes
+EUR	14	111	4500	2.5	vm_complete_haplotypes
+EUR	15	<20	4500		vm_complete_haplotypes
+EUR	mean		4500	9.52	vm_complete_haplotypes
+EUR	median		4500	9.0	vm_complete_haplotypes
+MID	6	<20	752		vm_complete_haplotypes
+MID	7	<20	752		vm_complete_haplotypes
+MID	8	110	752	14.6	vm_complete_haplotypes
+MID	9	365	752	48.5	vm_complete_haplotypes
+MID	10	<20	752		vm_complete_haplotypes
+MID	11	82	752	10.9	vm_complete_haplotypes
+MID	12	106	752	14.1	vm_complete_haplotypes
+MID	13	27	752	3.6	vm_complete_haplotypes
+MID	14	32	752	4.3	vm_complete_haplotypes
+MID	mean		752	9.83	vm_complete_haplotypes
+MID	median		752	9.0	vm_complete_haplotypes
+SAS	3	<20	1948		vm_complete_haplotypes
+SAS	4	0	1948	0.0	vm_complete_haplotypes
+SAS	5	<20	1948		vm_complete_haplotypes
+SAS	6	<20	1948		vm_complete_haplotypes
+SAS	7	103	1948	5.3	vm_complete_haplotypes
+SAS	8	147	1948	7.5	vm_complete_haplotypes
+SAS	9	869	1948	44.6	vm_complete_haplotypes
+SAS	10	87	1948	4.5	vm_complete_haplotypes
+SAS	11	293	1948	15.0	vm_complete_haplotypes
+SAS	12	270	1948	13.9	vm_complete_haplotypes
+SAS	13	<20*	1948		vm_complete_haplotypes
+SAS	14	139	1948	7.1	vm_complete_haplotypes
+SAS	15	<20	1948		vm_complete_haplotypes
+SAS	mean		1948	9.98	vm_complete_haplotypes
+SAS	median		1948	9.0	vm_complete_haplotypes
+ALL	2	<20	17905		vm_complete_haplotypes
+ALL	3	<20	17905		vm_complete_haplotypes
+ALL	4	<20	17905		vm_complete_haplotypes
+ALL	5	<20	17905		vm_complete_haplotypes
+ALL	6	53	17905	0.3	vm_complete_haplotypes
+ALL	7	610	17905	3.4	vm_complete_haplotypes
+ALL	8	1824	17905	10.2	vm_complete_haplotypes
+ALL	9	10213	17905	57.0	vm_complete_haplotypes
+ALL	10	604	17905	3.4	vm_complete_haplotypes
+ALL	11	2235	17905	12.5	vm_complete_haplotypes
+ALL	12	1567	17905	8.8	vm_complete_haplotypes
+ALL	13	308	17905	1.7	vm_complete_haplotypes
+ALL	14	450	17905	2.5	vm_complete_haplotypes
+ALL	15	<20	17905		vm_complete_haplotypes
+ALL	mean		17905	9.55	vm_complete_haplotypes
+ALL	median		17905	9.0	vm_complete_haplotypes

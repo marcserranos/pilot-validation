@@ -1,0 +1,223 @@
+unit	field	value	ancestry	n_haps	of_haps	pct
+DQA1~DQB1	evidence_level	incomplete	AFR	352	6211	5.67
+DQA1~DQB1	evidence_level	physical	AFR	5676	6211	91.39
+DQA1~DQB1	evidence_level	split_contigs	AFR	183	6211	2.95
+DQA1~DQB1	evidence_level	incomplete	AMR	301	5552	5.42
+DQA1~DQB1	evidence_level	physical	AMR	5146	5552	92.69
+DQA1~DQB1	evidence_level	split_contigs	AMR	105	5552	1.89
+DQA1~DQB1	evidence_level	incomplete	EAS	123	2987	4.12
+DQA1~DQB1	evidence_level	physical	EAS	2820	2987	94.41
+DQA1~DQB1	evidence_level	split_contigs	EAS	44	2987	1.47
+DQA1~DQB1	evidence_level	incomplete	EUR	350	6154	5.69
+DQA1~DQB1	evidence_level	physical	EUR	5683	6154	92.35
+DQA1~DQB1	evidence_level	split_contigs	EUR	121	6154	1.97
+DQA1~DQB1	evidence_level	incomplete	MID	<20*	987	
+DQA1~DQB1	evidence_level	physical	MID	932	987	94.43
+DQA1~DQB1	evidence_level	split_contigs	MID	<20	987	
+DQA1~DQB1	evidence_level	incomplete	SAS	87	2516	3.46
+DQA1~DQB1	evidence_level	physical	SAS	2384	2516	94.75
+DQA1~DQB1	evidence_level	split_contigs	SAS	45	2516	1.79
+DQA1~DQB1	evidence_level	incomplete	ALL	1255	24453	5.13
+DQA1~DQB1	evidence_level	physical	ALL	22686	24453	92.77
+DQA1~DQB1	evidence_level	split_contigs	ALL	512	24453	2.09
+DQA1~DQB1	dq_g1g2	G1	AFR	3105	6211	49.99
+DQA1~DQB1	dq_g1g2	G2	AFR	2734	6211	44.02
+DQA1~DQB1	dq_g1g2	not_called	AFR	352	6211	5.67
+DQA1~DQB1	dq_g1g2	predicted_incompatible	AFR	<20	6211	
+DQA1~DQB1	dq_g1g2	unclassified	AFR	<20	6211	
+DQA1~DQB1	dq_g1g2	G1	AMR	3535	5552	63.67
+DQA1~DQB1	dq_g1g2	G2	AMR	1700	5552	30.62
+DQA1~DQB1	dq_g1g2	not_called	AMR	<20*	5552	
+DQA1~DQB1	dq_g1g2	predicted_incompatible	AMR	<20	5552	
+DQA1~DQB1	dq_g1g2	G1	EAS	1710	2987	57.25
+DQA1~DQB1	dq_g1g2	G2	EAS	1150	2987	38.50
+DQA1~DQB1	dq_g1g2	not_called	EAS	<20*	2987	
+DQA1~DQB1	dq_g1g2	predicted_incompatible	EAS	<20	2987	
+DQA1~DQB1	dq_g1g2	unclassified	EAS	<20	2987	
+DQA1~DQB1	dq_g1g2	G1	EUR	3495	6154	56.79
+DQA1~DQB1	dq_g1g2	G2	EUR	2288	6154	37.18
+DQA1~DQB1	dq_g1g2	not_called	EUR	350	6154	5.69
+DQA1~DQB1	dq_g1g2	predicted_incompatible	EUR	21	6154	0.34
+DQA1~DQB1	dq_g1g2	G1	MID	634	987	64.24
+DQA1~DQB1	dq_g1g2	G2	MID	310	987	31.41
+DQA1~DQB1	dq_g1g2	not_called	MID	<20*	987	
+DQA1~DQB1	dq_g1g2	predicted_incompatible	MID	<20	987	
+DQA1~DQB1	dq_g1g2	G1	SAS	1223	2516	48.61
+DQA1~DQB1	dq_g1g2	G2	SAS	1200	2516	47.69
+DQA1~DQB1	dq_g1g2	not_called	SAS	<20*	2516	
+DQA1~DQB1	dq_g1g2	predicted_incompatible	SAS	<20	2516	
+DQA1~DQB1	dq_g1g2	G1	ALL	13734	24453	56.16
+DQA1~DQB1	dq_g1g2	G2	ALL	9396	24453	38.42
+DQA1~DQB1	dq_g1g2	not_called	ALL	1255	24453	5.13
+DQA1~DQB1	dq_g1g2	predicted_incompatible	ALL	<20*	24453	
+DQA1~DQB1	dq_g1g2	unclassified	ALL	<20	24453	
+DQA1~DQB1	dq_structure	anomalous_multicopy	AFR	<20*	6211	
+DQA1~DQB1	dq_structure	anomalous_spacing;anomalous_multicopy	AFR	<20	6211	
+DQA1~DQB1	dq_structure	canonical	AFR	5522	6211	88.91
+DQA1~DQB1	dq_structure	not_assessable	AFR	500	6211	8.05
+DQA1~DQB1	dq_structure	anomalous_multicopy	AMR	<20*	5552	
+DQA1~DQB1	dq_structure	anomalous_spacing;anomalous_multicopy	AMR	<20	5552	
+DQA1~DQB1	dq_structure	canonical	AMR	5004	5552	90.13
+DQA1~DQB1	dq_structure	not_assessable	AMR	385	5552	6.93
+DQA1~DQB1	dq_structure	anomalous_multicopy	EAS	80	2987	2.68
+DQA1~DQB1	dq_structure	canonical	EAS	2750	2987	92.07
+DQA1~DQB1	dq_structure	not_assessable	EAS	157	2987	5.26
+DQA1~DQB1	dq_structure	anomalous_multicopy	EUR	187	6154	3.04
+DQA1~DQB1	dq_structure	canonical	EUR	5524	6154	89.76
+DQA1~DQB1	dq_structure	not_assessable	EUR	443	6154	7.20
+DQA1~DQB1	dq_structure	anomalous_multicopy	MID	24	987	2.43
+DQA1~DQB1	dq_structure	canonical	MID	909	987	92.10
+DQA1~DQB1	dq_structure	not_assessable	MID	54	987	5.47
+DQA1~DQB1	dq_structure	anomalous_multicopy	SAS	39	2516	1.55
+DQA1~DQB1	dq_structure	canonical	SAS	2348	2516	93.32
+DQA1~DQB1	dq_structure	not_assessable	SAS	129	2516	5.13
+DQA1~DQB1	dq_structure	anomalous_multicopy	ALL	<20*	24453	
+DQA1~DQB1	dq_structure	anomalous_spacing;anomalous_multicopy	ALL	<20	24453	
+DQA1~DQB1	dq_structure	canonical	ALL	22102	24453	90.39
+DQA1~DQB1	dq_structure	not_assessable	ALL	1669	24453	6.83
+DQA1~DQB1	coverage_flag	pass	AFR	6211	6211	100.00
+DQA1~DQB1	coverage_flag	pass	AMR	5552	5552	100.00
+DQA1~DQB1	coverage_flag	pass	EAS	2987	2987	100.00
+DQA1~DQB1	coverage_flag	pass	EUR	6154	6154	100.00
+DQA1~DQB1	coverage_flag	pass	MID	987	987	100.00
+DQA1~DQB1	coverage_flag	pass	SAS	2516	2516	100.00
+DQA1~DQB1	coverage_flag	pass	ALL	24453	24453	100.00
+DQA1~DQB1	platform	revio	AFR	5696	6211	91.71
+DQA1~DQB1	platform	sequel2e	AFR	515	6211	8.29
+DQA1~DQB1	platform	revio	AMR	4539	5552	81.75
+DQA1~DQB1	platform	sequel2e	AMR	1013	5552	18.25
+DQA1~DQB1	platform	revio	EAS	2729	2987	91.36
+DQA1~DQB1	platform	sequel2e	EAS	258	2987	8.64
+DQA1~DQB1	platform	revio	EUR	5667	6154	92.09
+DQA1~DQB1	platform	sequel2e	EUR	487	6154	7.91
+DQA1~DQB1	platform	revio	MID	937	987	94.93
+DQA1~DQB1	platform	sequel2e	MID	50	987	5.07
+DQA1~DQB1	platform	revio	SAS	2406	2516	95.63
+DQA1~DQB1	platform	sequel2e	SAS	110	2516	4.37
+DQA1~DQB1	platform	revio	ALL	22020	24453	90.05
+DQA1~DQB1	platform	sequel2e	ALL	2433	24453	9.95
+DQA1~DQB1	unrelated	False	AFR	176	6211	2.83
+DQA1~DQB1	unrelated	True	AFR	6035	6211	97.17
+DQA1~DQB1	unrelated	False	AMR	242	5552	4.36
+DQA1~DQB1	unrelated	True	AMR	5310	5552	95.64
+DQA1~DQB1	unrelated	False	EAS	68	2987	2.28
+DQA1~DQB1	unrelated	True	EAS	2919	2987	97.72
+DQA1~DQB1	unrelated	False	EUR	208	6154	3.38
+DQA1~DQB1	unrelated	True	EUR	5946	6154	96.62
+DQA1~DQB1	unrelated	False	MID	<20	987	
+DQA1~DQB1	unrelated	True	MID	<20*	987	
+DQA1~DQB1	unrelated	False	SAS	44	2516	1.75
+DQA1~DQB1	unrelated	True	SAS	2472	2516	98.25
+DQA1~DQB1	unrelated	False	ALL	754	24453	3.08
+DQA1~DQB1	unrelated	True	ALL	23699	24453	96.92
+DRB1~DQA1~DQB1	evidence_level	incomplete	AFR	494	6211	7.95
+DRB1~DQA1~DQB1	evidence_level	physical	AFR	5336	6211	85.91
+DRB1~DQA1~DQB1	evidence_level	split_contigs	AFR	381	6211	6.13
+DRB1~DQA1~DQB1	evidence_level	incomplete	AMR	468	5552	8.43
+DRB1~DQA1~DQB1	evidence_level	physical	AMR	4803	5552	86.51
+DRB1~DQA1~DQB1	evidence_level	split_contigs	AMR	281	5552	5.06
+DRB1~DQA1~DQB1	evidence_level	incomplete	EAS	191	2987	6.39
+DRB1~DQA1~DQB1	evidence_level	physical	EAS	2671	2987	89.42
+DRB1~DQA1~DQB1	evidence_level	split_contigs	EAS	125	2987	4.18
+DRB1~DQA1~DQB1	evidence_level	incomplete	EUR	508	6154	8.25
+DRB1~DQA1~DQB1	evidence_level	physical	EUR	5355	6154	87.02
+DRB1~DQA1~DQB1	evidence_level	split_contigs	EUR	291	6154	4.73
+DRB1~DQA1~DQB1	evidence_level	incomplete	MID	65	987	6.59
+DRB1~DQA1~DQB1	evidence_level	physical	MID	890	987	90.17
+DRB1~DQA1~DQB1	evidence_level	split_contigs	MID	32	987	3.24
+DRB1~DQA1~DQB1	evidence_level	incomplete	SAS	141	2516	5.60
+DRB1~DQA1~DQB1	evidence_level	physical	SAS	2260	2516	89.83
+DRB1~DQA1~DQB1	evidence_level	split_contigs	SAS	115	2516	4.57
+DRB1~DQA1~DQB1	evidence_level	incomplete	ALL	1867	24453	7.64
+DRB1~DQA1~DQB1	evidence_level	physical	ALL	21360	24453	87.35
+DRB1~DQA1~DQB1	evidence_level	split_contigs	ALL	1226	24453	5.01
+DRB1~DQA1~DQB1	dq_g1g2	G1	AFR	3105	6211	49.99
+DRB1~DQA1~DQB1	dq_g1g2	G2	AFR	2734	6211	44.02
+DRB1~DQA1~DQB1	dq_g1g2	not_called	AFR	352	6211	5.67
+DRB1~DQA1~DQB1	dq_g1g2	predicted_incompatible	AFR	<20	6211	
+DRB1~DQA1~DQB1	dq_g1g2	unclassified	AFR	<20	6211	
+DRB1~DQA1~DQB1	dq_g1g2	G1	AMR	3535	5552	63.67
+DRB1~DQA1~DQB1	dq_g1g2	G2	AMR	1700	5552	30.62
+DRB1~DQA1~DQB1	dq_g1g2	not_called	AMR	<20*	5552	
+DRB1~DQA1~DQB1	dq_g1g2	predicted_incompatible	AMR	<20	5552	
+DRB1~DQA1~DQB1	dq_g1g2	G1	EAS	1710	2987	57.25
+DRB1~DQA1~DQB1	dq_g1g2	G2	EAS	1150	2987	38.50
+DRB1~DQA1~DQB1	dq_g1g2	not_called	EAS	<20*	2987	
+DRB1~DQA1~DQB1	dq_g1g2	predicted_incompatible	EAS	<20	2987	
+DRB1~DQA1~DQB1	dq_g1g2	unclassified	EAS	<20	2987	
+DRB1~DQA1~DQB1	dq_g1g2	G1	EUR	3495	6154	56.79
+DRB1~DQA1~DQB1	dq_g1g2	G2	EUR	2288	6154	37.18
+DRB1~DQA1~DQB1	dq_g1g2	not_called	EUR	350	6154	5.69
+DRB1~DQA1~DQB1	dq_g1g2	predicted_incompatible	EUR	21	6154	0.34
+DRB1~DQA1~DQB1	dq_g1g2	G1	MID	634	987	64.24
+DRB1~DQA1~DQB1	dq_g1g2	G2	MID	310	987	31.41
+DRB1~DQA1~DQB1	dq_g1g2	not_called	MID	<20*	987	
+DRB1~DQA1~DQB1	dq_g1g2	predicted_incompatible	MID	<20	987	
+DRB1~DQA1~DQB1	dq_g1g2	G1	SAS	1223	2516	48.61
+DRB1~DQA1~DQB1	dq_g1g2	G2	SAS	1200	2516	47.69
+DRB1~DQA1~DQB1	dq_g1g2	not_called	SAS	<20*	2516	
+DRB1~DQA1~DQB1	dq_g1g2	predicted_incompatible	SAS	<20	2516	
+DRB1~DQA1~DQB1	dq_g1g2	G1	ALL	13734	24453	56.16
+DRB1~DQA1~DQB1	dq_g1g2	G2	ALL	9396	24453	38.42
+DRB1~DQA1~DQB1	dq_g1g2	not_called	ALL	1255	24453	5.13
+DRB1~DQA1~DQB1	dq_g1g2	predicted_incompatible	ALL	<20*	24453	
+DRB1~DQA1~DQB1	dq_g1g2	unclassified	ALL	<20	24453	
+DRB1~DQA1~DQB1	dq_structure	anomalous_multicopy	AFR	<20*	6211	
+DRB1~DQA1~DQB1	dq_structure	anomalous_spacing;anomalous_multicopy	AFR	<20	6211	
+DRB1~DQA1~DQB1	dq_structure	canonical	AFR	5522	6211	88.91
+DRB1~DQA1~DQB1	dq_structure	not_assessable	AFR	500	6211	8.05
+DRB1~DQA1~DQB1	dq_structure	anomalous_multicopy	AMR	<20*	5552	
+DRB1~DQA1~DQB1	dq_structure	anomalous_spacing;anomalous_multicopy	AMR	<20	5552	
+DRB1~DQA1~DQB1	dq_structure	canonical	AMR	5004	5552	90.13
+DRB1~DQA1~DQB1	dq_structure	not_assessable	AMR	385	5552	6.93
+DRB1~DQA1~DQB1	dq_structure	anomalous_multicopy	EAS	80	2987	2.68
+DRB1~DQA1~DQB1	dq_structure	canonical	EAS	2750	2987	92.07
+DRB1~DQA1~DQB1	dq_structure	not_assessable	EAS	157	2987	5.26
+DRB1~DQA1~DQB1	dq_structure	anomalous_multicopy	EUR	187	6154	3.04
+DRB1~DQA1~DQB1	dq_structure	canonical	EUR	5524	6154	89.76
+DRB1~DQA1~DQB1	dq_structure	not_assessable	EUR	443	6154	7.20
+DRB1~DQA1~DQB1	dq_structure	anomalous_multicopy	MID	24	987	2.43
+DRB1~DQA1~DQB1	dq_structure	canonical	MID	909	987	92.10
+DRB1~DQA1~DQB1	dq_structure	not_assessable	MID	54	987	5.47
+DRB1~DQA1~DQB1	dq_structure	anomalous_multicopy	SAS	39	2516	1.55
+DRB1~DQA1~DQB1	dq_structure	canonical	SAS	2348	2516	93.32
+DRB1~DQA1~DQB1	dq_structure	not_assessable	SAS	129	2516	5.13
+DRB1~DQA1~DQB1	dq_structure	anomalous_multicopy	ALL	<20*	24453	
+DRB1~DQA1~DQB1	dq_structure	anomalous_spacing;anomalous_multicopy	ALL	<20	24453	
+DRB1~DQA1~DQB1	dq_structure	canonical	ALL	22102	24453	90.39
+DRB1~DQA1~DQB1	dq_structure	not_assessable	ALL	1669	24453	6.83
+DRB1~DQA1~DQB1	coverage_flag	pass	AFR	6211	6211	100.00
+DRB1~DQA1~DQB1	coverage_flag	pass	AMR	5552	5552	100.00
+DRB1~DQA1~DQB1	coverage_flag	pass	EAS	2987	2987	100.00
+DRB1~DQA1~DQB1	coverage_flag	pass	EUR	6154	6154	100.00
+DRB1~DQA1~DQB1	coverage_flag	pass	MID	987	987	100.00
+DRB1~DQA1~DQB1	coverage_flag	pass	SAS	2516	2516	100.00
+DRB1~DQA1~DQB1	coverage_flag	pass	ALL	24453	24453	100.00
+DRB1~DQA1~DQB1	platform	revio	AFR	5696	6211	91.71
+DRB1~DQA1~DQB1	platform	sequel2e	AFR	515	6211	8.29
+DRB1~DQA1~DQB1	platform	revio	AMR	4539	5552	81.75
+DRB1~DQA1~DQB1	platform	sequel2e	AMR	1013	5552	18.25
+DRB1~DQA1~DQB1	platform	revio	EAS	2729	2987	91.36
+DRB1~DQA1~DQB1	platform	sequel2e	EAS	258	2987	8.64
+DRB1~DQA1~DQB1	platform	revio	EUR	5667	6154	92.09
+DRB1~DQA1~DQB1	platform	sequel2e	EUR	487	6154	7.91
+DRB1~DQA1~DQB1	platform	revio	MID	937	987	94.93
+DRB1~DQA1~DQB1	platform	sequel2e	MID	50	987	5.07
+DRB1~DQA1~DQB1	platform	revio	SAS	2406	2516	95.63
+DRB1~DQA1~DQB1	platform	sequel2e	SAS	110	2516	4.37
+DRB1~DQA1~DQB1	platform	revio	ALL	22020	24453	90.05
+DRB1~DQA1~DQB1	platform	sequel2e	ALL	2433	24453	9.95
+DRB1~DQA1~DQB1	unrelated	False	AFR	176	6211	2.83
+DRB1~DQA1~DQB1	unrelated	True	AFR	6035	6211	97.17
+DRB1~DQA1~DQB1	unrelated	False	AMR	242	5552	4.36
+DRB1~DQA1~DQB1	unrelated	True	AMR	5310	5552	95.64
+DRB1~DQA1~DQB1	unrelated	False	EAS	68	2987	2.28
+DRB1~DQA1~DQB1	unrelated	True	EAS	2919	2987	97.72
+DRB1~DQA1~DQB1	unrelated	False	EUR	208	6154	3.38
+DRB1~DQA1~DQB1	unrelated	True	EUR	5946	6154	96.62
+DRB1~DQA1~DQB1	unrelated	False	MID	<20	987	
+DRB1~DQA1~DQB1	unrelated	True	MID	<20*	987	
+DRB1~DQA1~DQB1	unrelated	False	SAS	44	2516	1.75
+DRB1~DQA1~DQB1	unrelated	True	SAS	2472	2516	98.25
+DRB1~DQA1~DQB1	unrelated	False	ALL	754	24453	3.08
+DRB1~DQA1~DQB1	unrelated	True	ALL	23699	24453	96.92

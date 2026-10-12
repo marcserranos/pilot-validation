@@ -1,0 +1,8 @@
+ancestry	n_complete_haps	n_cB	n_cA	cB_pct	cB_lo	cB_hi	basis
+AFR	4374	1691	2683	38.7	37.2	40.1	vm_complete_haplotypes
+AMR	3984	1703	2281	42.7	41.2	44.3	vm_complete_haplotypes
+EAS	2310	740	1570	32.0	30.2	34.0	vm_complete_haplotypes
+EUR	4500	2004	2496	44.5	43.1	46.0	vm_complete_haplotypes
+MID	752	391	361	52.0	48.4	55.5	vm_complete_haplotypes
+SAS	1948	1112	836	57.1	54.9	59.3	vm_complete_haplotypes
+ALL	17905	7652	10253	42.7	42.0	43.5	vm_complete_haplotypes

@@ -1,0 +1,1127 @@
+gene	ancestry	resolution	rank	allele	n_haps	n_calls_gene	freq_pct	freq_lo	freq_hi	basis
+KIR3DL3	AFR	protein	1	KIR3DL3*009	703	4374	16.1	15.0	17.2	vm_complete_haplotypes
+KIR3DL3	AFR	protein	2	KIR3DL3*014	407	4374	9.3	8.5	10.2	vm_complete_haplotypes
+KIR3DL3	AFR	protein	3	KIR3DL3*003	332	4374	7.6	6.8	8.4	vm_complete_haplotypes
+KIR3DL3	AFR	protein	4	KIR3DL3*002	328	4374	7.5	6.8	8.3	vm_complete_haplotypes
+KIR3DL3	AFR	protein	5	KIR3DL3*001	199	4374	4.5	4.0	5.2	vm_complete_haplotypes
+KIR3DL3	AFR	protein		novel protein	640	4374	14.6	13.6	15.7	vm_complete_haplotypes
+KIR3DL3	AFR	protein		other	1765	4374	40.4	38.9	41.8	vm_complete_haplotypes
+KIR3DL3	AMR	protein	1	KIR3DL3*009	796	3981	20.0	18.8	21.3	vm_complete_haplotypes
+KIR3DL3	AMR	protein	2	KIR3DL3*003	428	3981	10.8	9.8	11.8	vm_complete_haplotypes
+KIR3DL3	AMR	protein	3	KIR3DL3*001	348	3981	8.7	7.9	9.7	vm_complete_haplotypes
+KIR3DL3	AMR	protein	4	KIR3DL3*008	337	3981	8.5	7.6	9.4	vm_complete_haplotypes
+KIR3DL3	AMR	protein	5	KIR3DL3*002	290	3981	7.3	6.5	8.1	vm_complete_haplotypes
+KIR3DL3	AMR	protein		novel protein	190	3981	4.8	4.2	5.5	vm_complete_haplotypes
+KIR3DL3	AMR	protein		other	1592	3981	40.0	38.5	41.5	vm_complete_haplotypes
+KIR3DL3	EAS	protein	1	KIR3DL3*010	849	2310	36.8	34.8	38.7	vm_complete_haplotypes
+KIR3DL3	EAS	protein	2	KIR3DL3*009	378	2310	16.4	14.9	17.9	vm_complete_haplotypes
+KIR3DL3	EAS	protein	3	KIR3DL3*008	219	2310	9.5	8.4	10.7	vm_complete_haplotypes
+KIR3DL3	EAS	protein	4	KIR3DL3*004	117	2310	5.1	4.2	6.0	vm_complete_haplotypes
+KIR3DL3	EAS	protein	5	KIR3DL3*028	100	2310	4.3	3.6	5.2	vm_complete_haplotypes
+KIR3DL3	EAS	protein		novel protein	122	2310	5.3	4.4	6.3	vm_complete_haplotypes
+KIR3DL3	EAS	protein		other	525	2310	22.7	21.1	24.5	vm_complete_haplotypes
+KIR3DL3	EUR	protein	1	KIR3DL3*001	720	4499	16.0	15.0	17.1	vm_complete_haplotypes
+KIR3DL3	EUR	protein	2	KIR3DL3*003	679	4499	15.1	14.1	16.2	vm_complete_haplotypes
+KIR3DL3	EUR	protein	3	KIR3DL3*002	519	4499	11.5	10.6	12.5	vm_complete_haplotypes
+KIR3DL3	EUR	protein	4	KIR3DL3*009	437	4499	9.7	8.9	10.6	vm_complete_haplotypes
+KIR3DL3	EUR	protein	5	KIR3DL3*013	383	4499	8.5	7.7	9.4	vm_complete_haplotypes
+KIR3DL3	EUR	protein		novel protein	144	4499	3.2	2.7	3.8	vm_complete_haplotypes
+KIR3DL3	EUR	protein		other	1617	4499	35.9	34.6	37.4	vm_complete_haplotypes
+KIR3DL3	MID	protein	1	KIR3DL3*003	128	752	17.0	14.5	19.9	vm_complete_haplotypes
+KIR3DL3	MID	protein	2	KIR3DL3*001	96	752	12.8	10.6	15.3	vm_complete_haplotypes
+KIR3DL3	MID	protein	3	KIR3DL3*002	81	752	10.8	8.8	13.2	vm_complete_haplotypes
+KIR3DL3	MID	protein	4	KIR3DL3*014	61	752	8.1	6.4	10.3	vm_complete_haplotypes
+KIR3DL3	MID	protein	5	KIR3DL3*009	52	752	6.9	5.3	9.0	vm_complete_haplotypes
+KIR3DL3	MID	protein		novel protein	37	752	4.9	3.6	6.7	vm_complete_haplotypes
+KIR3DL3	MID	protein		other	297	752	39.5	36.1	43.0	vm_complete_haplotypes
+KIR3DL3	SAS	protein	1	KIR3DL3*003	411	1948	21.1	19.3	23.0	vm_complete_haplotypes
+KIR3DL3	SAS	protein	2	KIR3DL3*001	247	1948	12.7	11.3	14.2	vm_complete_haplotypes
+KIR3DL3	SAS	protein	3	KIR3DL3*009	226	1948	11.6	10.3	13.1	vm_complete_haplotypes
+KIR3DL3	SAS	protein	4	KIR3DL3*002	178	1948	9.1	7.9	10.5	vm_complete_haplotypes
+KIR3DL3	SAS	protein	5	KIR3DL3*014	151	1948	7.8	6.6	9.0	vm_complete_haplotypes
+KIR3DL3	SAS	protein		novel protein	75	1948	3.9	3.1	4.8	vm_complete_haplotypes
+KIR3DL3	SAS	protein		other	660	1948	33.9	31.8	36.0	vm_complete_haplotypes
+KIR3DL3	ALL	protein	1	KIR3DL3*009	2600	17901	14.5	14.0	15.0	vm_complete_haplotypes
+KIR3DL3	ALL	protein	2	KIR3DL3*003	2051	17901	11.5	11.0	11.9	vm_complete_haplotypes
+KIR3DL3	ALL	protein	3	KIR3DL3*001	1679	17901	9.4	9.0	9.8	vm_complete_haplotypes
+KIR3DL3	ALL	protein	4	KIR3DL3*002	1426	17901	8.0	7.6	8.4	vm_complete_haplotypes
+KIR3DL3	ALL	protein	5	KIR3DL3*010	1395	17901	7.8	7.4	8.2	vm_complete_haplotypes
+KIR3DL3	ALL	protein		novel protein	1213	17901	6.8	6.4	7.2	vm_complete_haplotypes
+KIR3DL3	ALL	protein		other	7537	17901	42.1	41.4	42.8	vm_complete_haplotypes
+KIR2DS2	AFR	protein	1	KIR2DS2*001	946	1203	78.6	76.2	80.9	vm_complete_haplotypes
+KIR2DS2	AFR	protein	2	KIR2DS2*004	86	1203	7.1	5.8	8.7	vm_complete_haplotypes
+KIR2DS2	AFR	protein		novel protein	139	1203	11.6	9.9	13.5	vm_complete_haplotypes
+KIR2DS2	AFR	protein		other	32	1203	2.7	1.9	3.7	vm_complete_haplotypes
+KIR2DS2	AMR	protein	1	KIR2DS2*001	978	1091	89.6	87.7	91.3	vm_complete_haplotypes
+KIR2DS2	AMR	protein	2	KIR2DS2*002	50	1091	4.6	3.5	6.0	vm_complete_haplotypes
+KIR2DS2	AMR	protein		novel protein	43	1091	3.9	2.9	5.3	vm_complete_haplotypes
+KIR2DS2	AMR	protein		other	20	1091	1.8	1.2	2.8	vm_complete_haplotypes
+KIR2DS2	EAS	protein	1	KIR2DS2*001	331	360	91.9	88.7	94.3	vm_complete_haplotypes
+KIR2DS2	EAS	protein		other	29	360	8.1	5.7	11.3	vm_complete_haplotypes
+KIR2DS2	EUR	protein	1	KIR2DS2*001	1235	1422	86.8	85.0	88.5	vm_complete_haplotypes
+KIR2DS2	EUR	protein	2	KIR2DS2*002	101	1422	7.1	5.9	8.6	vm_complete_haplotypes
+KIR2DS2	EUR	protein	3	KIR2DS2*005	20	1422	1.4	0.9	2.2	vm_complete_haplotypes
+KIR2DS2	EUR	protein		novel protein	46	1422	3.2	2.4	4.3	vm_complete_haplotypes
+KIR2DS2	EUR	protein		other	20	1422	1.4	0.9	2.2	vm_complete_haplotypes
+KIR2DS2	MID	protein	1	KIR2DS2*001	249	296	84.1	79.5	87.8	vm_complete_haplotypes
+KIR2DS2	MID	protein	2	KIR2DS2*002	26	296	8.8	6.1	12.6	vm_complete_haplotypes
+KIR2DS2	MID	protein		other	21	296	7.1	4.7	10.6	vm_complete_haplotypes
+KIR2DS2	SAS	protein	1	KIR2DS2*001	668	779	85.8	83.1	88.0	vm_complete_haplotypes
+KIR2DS2	SAS	protein	2	KIR2DS2*005	35	779	4.5	3.2	6.2	vm_complete_haplotypes
+KIR2DS2	SAS	protein		novel protein	56	779	7.2	5.6	9.2	vm_complete_haplotypes
+KIR2DS2	SAS	protein		other	20	779	2.6	1.7	3.9	vm_complete_haplotypes
+KIR2DS2	ALL	protein	1	KIR2DS2*001	4413	5158	85.6	84.6	86.5	vm_complete_haplotypes
+KIR2DS2	ALL	protein	2	KIR2DS2*002	207	5158	4.0	3.5	4.6	vm_complete_haplotypes
+KIR2DS2	ALL	protein	3	KIR2DS2*004	91	5158	1.8	1.4	2.2	vm_complete_haplotypes
+KIR2DS2	ALL	protein	4	KIR2DS2*005	71	5158	1.4	1.1	1.7	vm_complete_haplotypes
+KIR2DS2	ALL	protein	5	KIR2DS2*016	28	5158	0.5	0.4	0.8	vm_complete_haplotypes
+KIR2DS2	ALL	protein		novel protein	321	5158	6.2	5.6	6.9	vm_complete_haplotypes
+KIR2DS2	ALL	protein		other	27	5158	0.5	0.4	0.8	vm_complete_haplotypes
+KIR2DL2	AFR	protein	1	KIR2DL2*001	697	1401	49.8	47.1	52.4	vm_complete_haplotypes
+KIR2DL2	AFR	protein	2	KIR2DL2*003	309	1401	22.1	20.0	24.3	vm_complete_haplotypes
+KIR2DL2	AFR	protein	3	KIR2DL2*006	216	1401	15.4	13.6	17.4	vm_complete_haplotypes
+KIR2DL2	AFR	protein	4	KIR2DL2*004	86	1401	6.1	5.0	7.5	vm_complete_haplotypes
+KIR2DL2	AFR	protein		novel protein	93	1401	6.6	5.4	8.1	vm_complete_haplotypes
+KIR2DL2	AMR	protein	1	KIR2DL2*003	513	1119	45.8	42.9	48.8	vm_complete_haplotypes
+KIR2DL2	AMR	protein	2	KIR2DL2*001	504	1119	45.0	42.1	48.0	vm_complete_haplotypes
+KIR2DL2	AMR	protein		novel protein	63	1119	5.6	4.4	7.1	vm_complete_haplotypes
+KIR2DL2	AMR	protein		other	39	1119	3.5	2.6	4.7	vm_complete_haplotypes
+KIR2DL2	EAS	protein	1	KIR2DL2*003	216	371	58.2	53.1	63.1	vm_complete_haplotypes
+KIR2DL2	EAS	protein	2	KIR2DL2*001	118	371	31.8	27.3	36.7	vm_complete_haplotypes
+KIR2DL2	EAS	protein		other	37	371	10.0	7.3	13.4	vm_complete_haplotypes
+KIR2DL2	EUR	protein	1	KIR2DL2*001	743	1420	52.3	49.7	54.9	vm_complete_haplotypes
+KIR2DL2	EUR	protein	2	KIR2DL2*003	563	1420	39.6	37.1	42.2	vm_complete_haplotypes
+KIR2DL2	EUR	protein		novel protein	89	1420	6.3	5.1	7.7	vm_complete_haplotypes
+KIR2DL2	EUR	protein		other	25	1420	1.8	1.2	2.6	vm_complete_haplotypes
+KIR2DL2	MID	protein	1	KIR2DL2*001	177	295	60.0	54.3	65.4	vm_complete_haplotypes
+KIR2DL2	MID	protein	2	KIR2DL2*003	81	295	27.5	22.7	32.8	vm_complete_haplotypes
+KIR2DL2	MID	protein		other	37	295	12.5	9.2	16.8	vm_complete_haplotypes
+KIR2DL2	SAS	protein	1	KIR2DL2*001	560	726	77.1	73.9	80.0	vm_complete_haplotypes
+KIR2DL2	SAS	protein	2	KIR2DL2*003	130	726	17.9	15.3	20.9	vm_complete_haplotypes
+KIR2DL2	SAS	protein		other	36	726	5.0	3.6	6.8	vm_complete_haplotypes
+KIR2DL2	ALL	protein	1	KIR2DL2*001	2801	5340	52.5	51.1	53.8	vm_complete_haplotypes
+KIR2DL2	ALL	protein	2	KIR2DL2*003	1816	5340	34.0	32.7	35.3	vm_complete_haplotypes
+KIR2DL2	ALL	protein	3	KIR2DL2*006	273	5340	5.1	4.6	5.7	vm_complete_haplotypes
+KIR2DL2	ALL	protein	4	KIR2DL2*004	91	5340	1.7	1.4	2.1	vm_complete_haplotypes
+KIR2DL2	ALL	protein	5	KIR2DL2*012	28	5340	0.5	0.4	0.8	vm_complete_haplotypes
+KIR2DL2	ALL	protein		novel protein	309	5340	5.8	5.2	6.4	vm_complete_haplotypes
+KIR2DL2	ALL	protein		other	22	5340	0.4	0.3	0.6	vm_complete_haplotypes
+KIR2DL3	AFR	protein	1	KIR2DL3*001	1727	2931	58.9	57.1	60.7	vm_complete_haplotypes
+KIR2DL3	AFR	protein	2	KIR2DL3*005	318	2931	10.8	9.8	12.0	vm_complete_haplotypes
+KIR2DL3	AFR	protein	3	KIR2DL3*002	270	2931	9.2	8.2	10.3	vm_complete_haplotypes
+KIR2DL3	AFR	protein	4	KIR2DL3*006	198	2931	6.8	5.9	7.7	vm_complete_haplotypes
+KIR2DL3	AFR	protein	5	KIR2DL3*012	115	2931	3.9	3.3	4.7	vm_complete_haplotypes
+KIR2DL3	AFR	protein		novel protein	185	2931	6.3	5.5	7.3	vm_complete_haplotypes
+KIR2DL3	AFR	protein		other	118	2931	4.0	3.4	4.8	vm_complete_haplotypes
+KIR2DL3	AMR	protein	1	KIR2DL3*001	1902	2847	66.8	65.1	68.5	vm_complete_haplotypes
+KIR2DL3	AMR	protein	2	KIR2DL3*002	481	2847	16.9	15.6	18.3	vm_complete_haplotypes
+KIR2DL3	AMR	protein	3	KIR2DL3*005	148	2847	5.2	4.4	6.1	vm_complete_haplotypes
+KIR2DL3	AMR	protein	4	KIR2DL3*009	120	2847	4.2	3.5	5.0	vm_complete_haplotypes
+KIR2DL3	AMR	protein	5	KIR2DL3*006	32	2847	1.1	0.8	1.6	vm_complete_haplotypes
+KIR2DL3	AMR	protein		novel protein	114	2847	4.0	3.3	4.8	vm_complete_haplotypes
+KIR2DL3	AMR	protein		other	50	2847	1.8	1.3	2.3	vm_complete_haplotypes
+KIR2DL3	EAS	protein	1	KIR2DL3*001	1571	1939	81.0	79.2	82.7	vm_complete_haplotypes
+KIR2DL3	EAS	protein	2	KIR2DL3*002	228	1939	11.8	10.4	13.3	vm_complete_haplotypes
+KIR2DL3	EAS	protein	3	KIR2DL3*023	28	1939	1.4	1.0	2.1	vm_complete_haplotypes
+KIR2DL3	EAS	protein		novel protein	65	1939	3.4	2.6	4.3	vm_complete_haplotypes
+KIR2DL3	EAS	protein		other	47	1939	2.4	1.8	3.2	vm_complete_haplotypes
+KIR2DL3	EUR	protein	1	KIR2DL3*001	1755	3048	57.6	55.8	59.3	vm_complete_haplotypes
+KIR2DL3	EUR	protein	2	KIR2DL3*002	990	3048	32.5	30.8	34.2	vm_complete_haplotypes
+KIR2DL3	EUR	protein	3	KIR2DL3*005	174	3048	5.7	4.9	6.6	vm_complete_haplotypes
+KIR2DL3	EUR	protein		novel protein	101	3048	3.3	2.7	4.0	vm_complete_haplotypes
+KIR2DL3	EUR	protein		other	28	3048	0.9	0.6	1.3	vm_complete_haplotypes
+KIR2DL3	MID	protein	1	KIR2DL3*001	258	452	57.1	52.5	61.6	vm_complete_haplotypes
+KIR2DL3	MID	protein	2	KIR2DL3*002	124	452	27.4	23.5	31.7	vm_complete_haplotypes
+KIR2DL3	MID	protein	3	KIR2DL3*005	37	452	8.2	6.0	11.1	vm_complete_haplotypes
+KIR2DL3	MID	protein		other	33	452	7.3	5.2	10.1	vm_complete_haplotypes
+KIR2DL3	SAS	protein	1	KIR2DL3*001	832	1180	70.5	67.8	73.0	vm_complete_haplotypes
+KIR2DL3	SAS	protein	2	KIR2DL3*002	233	1180	19.7	17.6	22.1	vm_complete_haplotypes
+KIR2DL3	SAS	protein		novel protein	56	1180	4.7	3.7	6.1	vm_complete_haplotypes
+KIR2DL3	SAS	protein		other	59	1180	5.0	3.9	6.4	vm_complete_haplotypes
+KIR2DL3	ALL	protein	1	KIR2DL3*001	8066	12426	64.9	64.1	65.7	vm_complete_haplotypes
+KIR2DL3	ALL	protein	2	KIR2DL3*002	2329	12426	18.7	18.1	19.4	vm_complete_haplotypes
+KIR2DL3	ALL	protein	3	KIR2DL3*005	735	12426	5.9	5.5	6.3	vm_complete_haplotypes
+KIR2DL3	ALL	protein	4	KIR2DL3*006	243	12426	2.0	1.7	2.2	vm_complete_haplotypes
+KIR2DL3	ALL	protein	5	KIR2DL3*012	138	12426	1.1	0.9	1.3	vm_complete_haplotypes
+KIR2DL3	ALL	protein		novel protein	545	12426	4.4	4.0	4.8	vm_complete_haplotypes
+KIR2DL3	ALL	protein		other	370	12426	3.0	2.7	3.3	vm_complete_haplotypes
+KIR2DP1	AFR	protein	1	KIR2DP1*002	1646	3771	43.6	42.1	45.2	vm_complete_haplotypes
+KIR2DP1	AFR	protein	2	KIR2DP1*001	590	3771	15.6	14.5	16.8	vm_complete_haplotypes
+KIR2DP1	AFR	protein	3	KIR2DP1*003	295	3771	7.8	7.0	8.7	vm_complete_haplotypes
+KIR2DP1	AFR	protein	4	KIR2DP1*007	187	3771	5.0	4.3	5.7	vm_complete_haplotypes
+KIR2DP1	AFR	protein	5	KIR2DP1*010	159	3771	4.2	3.6	4.9	vm_complete_haplotypes
+KIR2DP1	AFR	protein		novel protein	471	3771	12.5	11.5	13.6	vm_complete_haplotypes
+KIR2DP1	AFR	protein		other	423	3771	11.2	10.2	12.3	vm_complete_haplotypes
+KIR2DP1	AMR	protein	1	KIR2DP1*002	1891	3294	57.4	55.7	59.1	vm_complete_haplotypes
+KIR2DP1	AMR	protein	2	KIR2DP1*003	443	3294	13.4	12.3	14.7	vm_complete_haplotypes
+KIR2DP1	AMR	protein	3	KIR2DP1*001	395	3294	12.0	10.9	13.1	vm_complete_haplotypes
+KIR2DP1	AMR	protein	4	KIR2DP1*025	82	3294	2.5	2.0	3.1	vm_complete_haplotypes
+KIR2DP1	AMR	protein	5	KIR2DP1*016	82	3294	2.5	2.0	3.1	vm_complete_haplotypes
+KIR2DP1	AMR	protein		novel protein	189	3294	5.7	5.0	6.6	vm_complete_haplotypes
+KIR2DP1	AMR	protein		other	212	3294	6.4	5.6	7.3	vm_complete_haplotypes
+KIR2DP1	EAS	protein	1	KIR2DP1*002	1522	2050	74.2	72.3	76.1	vm_complete_haplotypes
+KIR2DP1	EAS	protein	2	KIR2DP1*003	213	2050	10.4	9.1	11.8	vm_complete_haplotypes
+KIR2DP1	EAS	protein	3	KIR2DP1*001	90	2050	4.4	3.6	5.4	vm_complete_haplotypes
+KIR2DP1	EAS	protein		novel protein	161	2050	7.9	6.8	9.1	vm_complete_haplotypes
+KIR2DP1	EAS	protein		other	64	2050	3.1	2.5	4.0	vm_complete_haplotypes
+KIR2DP1	EUR	protein	1	KIR2DP1*002	1549	3624	42.7	41.1	44.4	vm_complete_haplotypes
+KIR2DP1	EUR	protein	2	KIR2DP1*003	942	3624	26.0	24.6	27.4	vm_complete_haplotypes
+KIR2DP1	EUR	protein	3	KIR2DP1*001	557	3624	15.4	14.2	16.6	vm_complete_haplotypes
+KIR2DP1	EUR	protein	4	KIR2DP1*016	160	3624	4.4	3.8	5.1	vm_complete_haplotypes
+KIR2DP1	EUR	protein	5	KIR2DP1*025	124	3624	3.4	2.9	4.1	vm_complete_haplotypes
+KIR2DP1	EUR	protein		novel protein	141	3624	3.9	3.3	4.6	vm_complete_haplotypes
+KIR2DP1	EUR	protein		other	151	3624	4.2	3.6	4.9	vm_complete_haplotypes
+KIR2DP1	MID	protein	1	KIR2DP1*002	201	610	33.0	29.3	36.8	vm_complete_haplotypes
+KIR2DP1	MID	protein	2	KIR2DP1*001	157	610	25.7	22.4	29.4	vm_complete_haplotypes
+KIR2DP1	MID	protein	3	KIR2DP1*003	117	610	19.2	16.3	22.5	vm_complete_haplotypes
+KIR2DP1	MID	protein	4	KIR2DP1*025	45	610	7.4	5.6	9.7	vm_complete_haplotypes
+KIR2DP1	MID	protein	5	KIR2DP1*016	31	610	5.1	3.6	7.1	vm_complete_haplotypes
+KIR2DP1	MID	protein		novel protein	36	610	5.9	4.3	8.1	vm_complete_haplotypes
+KIR2DP1	MID	protein		other	23	610	3.8	2.5	5.6	vm_complete_haplotypes
+KIR2DP1	SAS	protein	1	KIR2DP1*002	746	1645	45.3	43.0	47.8	vm_complete_haplotypes
+KIR2DP1	SAS	protein	2	KIR2DP1*001	426	1645	25.9	23.8	28.1	vm_complete_haplotypes
+KIR2DP1	SAS	protein	3	KIR2DP1*003	222	1645	13.5	11.9	15.2	vm_complete_haplotypes
+KIR2DP1	SAS	protein	4	KIR2DP1*025	79	1645	4.8	3.9	5.9	vm_complete_haplotypes
+KIR2DP1	SAS	protein	5	KIR2DP1*016	49	1645	3.0	2.3	3.9	vm_complete_haplotypes
+KIR2DP1	SAS	protein		novel protein	94	1645	5.7	4.7	6.9	vm_complete_haplotypes
+KIR2DP1	SAS	protein		other	29	1645	1.8	1.2	2.5	vm_complete_haplotypes
+KIR2DP1	ALL	protein	1	KIR2DP1*002	7575	15025	50.4	49.6	51.2	vm_complete_haplotypes
+KIR2DP1	ALL	protein	2	KIR2DP1*003	2235	15025	14.9	14.3	15.5	vm_complete_haplotypes
+KIR2DP1	ALL	protein	3	KIR2DP1*001	2216	15025	14.7	14.2	15.3	vm_complete_haplotypes
+KIR2DP1	ALL	protein	4	KIR2DP1*025	427	15025	2.8	2.6	3.1	vm_complete_haplotypes
+KIR2DP1	ALL	protein	5	KIR2DP1*016	356	15025	2.4	2.1	2.6	vm_complete_haplotypes
+KIR2DP1	ALL	protein		novel protein	1095	15025	7.3	6.9	7.7	vm_complete_haplotypes
+KIR2DP1	ALL	protein		other	1121	15025	7.5	7.1	7.9	vm_complete_haplotypes
+KIR2DL1	AFR	protein	1	KIR2DL1*003	1940	3859	50.3	48.7	51.8	vm_complete_haplotypes
+KIR2DL1	AFR	protein	2	KIR2DL1*004	554	3859	14.4	13.3	15.5	vm_complete_haplotypes
+KIR2DL1	AFR	protein	3	KIR2DL1*002	305	3859	7.9	7.1	8.8	vm_complete_haplotypes
+KIR2DL1	AFR	protein	4	KIR2DL1*012	187	3859	4.8	4.2	5.6	vm_complete_haplotypes
+KIR2DL1	AFR	protein	5	KIR2DL1*011	174	3859	4.5	3.9	5.2	vm_complete_haplotypes
+KIR2DL1	AFR	protein		novel protein	124	3859	3.2	2.7	3.8	vm_complete_haplotypes
+KIR2DL1	AFR	protein		other	575	3859	14.9	13.8	16.1	vm_complete_haplotypes
+KIR2DL1	AMR	protein	1	KIR2DL1*003	2048	3306	61.9	60.3	63.6	vm_complete_haplotypes
+KIR2DL1	AMR	protein	2	KIR2DL1*002	485	3306	14.7	13.5	15.9	vm_complete_haplotypes
+KIR2DL1	AMR	protein	3	KIR2DL1*004	336	3306	10.2	9.2	11.2	vm_complete_haplotypes
+KIR2DL1	AMR	protein	4	KIR2DL1*007	103	3306	3.1	2.6	3.8	vm_complete_haplotypes
+KIR2DL1	AMR	protein	5	KIR2DL1*001	88	3306	2.7	2.2	3.3	vm_complete_haplotypes
+KIR2DL1	AMR	protein		novel protein	67	3306	2.0	1.6	2.6	vm_complete_haplotypes
+KIR2DL1	AMR	protein		other	179	3306	5.4	4.7	6.2	vm_complete_haplotypes
+KIR2DL1	EAS	protein	1	KIR2DL1*003	1590	2051	77.5	75.7	79.3	vm_complete_haplotypes
+KIR2DL1	EAS	protein	2	KIR2DL1*002	210	2051	10.2	9.0	11.6	vm_complete_haplotypes
+KIR2DL1	EAS	protein	3	KIR2DL1*004	98	2051	4.8	3.9	5.8	vm_complete_haplotypes
+KIR2DL1	EAS	protein	4	KIR2DL1*020	20	2051	1.0	0.6	1.5	vm_complete_haplotypes
+KIR2DL1	EAS	protein		novel protein	79	2051	3.9	3.1	4.8	vm_complete_haplotypes
+KIR2DL1	EAS	protein		other	54	2051	2.6	2.0	3.4	vm_complete_haplotypes
+KIR2DL1	EUR	protein	1	KIR2DL1*003	1712	3636	47.1	45.5	48.7	vm_complete_haplotypes
+KIR2DL1	EUR	protein	2	KIR2DL1*002	974	3636	26.8	25.4	28.3	vm_complete_haplotypes
+KIR2DL1	EUR	protein	3	KIR2DL1*004	488	3636	13.4	12.4	14.6	vm_complete_haplotypes
+KIR2DL1	EUR	protein	4	KIR2DL1*001	168	3636	4.6	4.0	5.4	vm_complete_haplotypes
+KIR2DL1	EUR	protein	5	KIR2DL1*007	89	3636	2.4	2.0	3.0	vm_complete_haplotypes
+KIR2DL1	EUR	protein		novel protein	99	3636	2.7	2.2	3.3	vm_complete_haplotypes
+KIR2DL1	EUR	protein		other	106	3636	2.9	2.4	3.5	vm_complete_haplotypes
+KIR2DL1	MID	protein	1	KIR2DL1*003	281	631	44.5	40.7	48.4	vm_complete_haplotypes
+KIR2DL1	MID	protein	2	KIR2DL1*002	125	631	19.8	16.9	23.1	vm_complete_haplotypes
+KIR2DL1	MID	protein	3	KIR2DL1*004	118	631	18.7	15.9	21.9	vm_complete_haplotypes
+KIR2DL1	MID	protein	4	KIR2DL1*007	41	631	6.5	4.8	8.7	vm_complete_haplotypes
+KIR2DL1	MID	protein	5	KIR2DL1*001	32	631	5.1	3.6	7.1	vm_complete_haplotypes
+KIR2DL1	MID	protein		other	34	631	5.4	3.9	7.4	vm_complete_haplotypes
+KIR2DL1	SAS	protein	1	KIR2DL1*003	838	1659	50.5	48.1	52.9	vm_complete_haplotypes
+KIR2DL1	SAS	protein	2	KIR2DL1*004	381	1659	23.0	21.0	25.1	vm_complete_haplotypes
+KIR2DL1	SAS	protein	3	KIR2DL1*002	230	1659	13.9	12.3	15.6	vm_complete_haplotypes
+KIR2DL1	SAS	protein	4	KIR2DL1*001	53	1659	3.2	2.5	4.2	vm_complete_haplotypes
+KIR2DL1	SAS	protein	5	KIR2DL1*084	44	1659	2.7	2.0	3.5	vm_complete_haplotypes
+KIR2DL1	SAS	protein		novel protein	70	1659	4.2	3.4	5.3	vm_complete_haplotypes
+KIR2DL1	SAS	protein		other	43	1659	2.6	1.9	3.5	vm_complete_haplotypes
+KIR2DL1	ALL	protein	1	KIR2DL1*003	8430	15175	55.6	54.8	56.3	vm_complete_haplotypes
+KIR2DL1	ALL	protein	2	KIR2DL1*002	2332	15175	15.4	14.8	15.9	vm_complete_haplotypes
+KIR2DL1	ALL	protein	3	KIR2DL1*004	1975	15175	13.0	12.5	13.6	vm_complete_haplotypes
+KIR2DL1	ALL	protein	4	KIR2DL1*007	421	15175	2.8	2.5	3.0	vm_complete_haplotypes
+KIR2DL1	ALL	protein	5	KIR2DL1*001	390	15175	2.6	2.3	2.8	vm_complete_haplotypes
+KIR2DL1	ALL	protein		novel protein	457	15175	3.0	2.8	3.3	vm_complete_haplotypes
+KIR2DL1	ALL	protein		other	1170	15175	7.7	7.3	8.1	vm_complete_haplotypes
+KIR3DP1	AFR	protein	1	KIR3DP1*003	2246	4209	53.4	51.9	54.9	vm_complete_haplotypes
+KIR3DP1	AFR	protein	2	KIR3DP1*010	1008	4209	23.9	22.7	25.3	vm_complete_haplotypes
+KIR3DP1	AFR	protein	3	KIR3DP1*006	148	4209	3.5	3.0	4.1	vm_complete_haplotypes
+KIR3DP1	AFR	protein	4	KIR3DP1*009	122	4209	2.9	2.4	3.4	vm_complete_haplotypes
+KIR3DP1	AFR	protein	5	KIR3DP1*015	93	4209	2.2	1.8	2.7	vm_complete_haplotypes
+KIR3DP1	AFR	protein		novel protein	239	4209	5.7	5.0	6.4	vm_complete_haplotypes
+KIR3DP1	AFR	protein		other	353	4209	8.4	7.6	9.3	vm_complete_haplotypes
+KIR3DP1	AMR	protein	1	KIR3DP1*003	2289	3963	57.8	56.2	59.3	vm_complete_haplotypes
+KIR3DP1	AMR	protein	2	KIR3DP1*010	303	3963	7.6	6.9	8.5	vm_complete_haplotypes
+KIR3DP1	AMR	protein	3	KIR3DP1*006	297	3963	7.5	6.7	8.4	vm_complete_haplotypes
+KIR3DP1	AMR	protein	4	KIR3DP1*007	200	3963	5.0	4.4	5.8	vm_complete_haplotypes
+KIR3DP1	AMR	protein	5	KIR3DP1*009	189	3963	4.8	4.1	5.5	vm_complete_haplotypes
+KIR3DP1	AMR	protein		novel protein	161	3963	4.1	3.5	4.7	vm_complete_haplotypes
+KIR3DP1	AMR	protein		other	524	3963	13.2	12.2	14.3	vm_complete_haplotypes
+KIR3DP1	EAS	protein	1	KIR3DP1*003	1685	2304	73.1	71.3	74.9	vm_complete_haplotypes
+KIR3DP1	EAS	protein	2	KIR3DP1*009	156	2304	6.8	5.8	7.9	vm_complete_haplotypes
+KIR3DP1	EAS	protein	3	KIR3DP1*006	113	2304	4.9	4.1	5.9	vm_complete_haplotypes
+KIR3DP1	EAS	protein	4	KIR3DP1*010	83	2304	3.6	2.9	4.4	vm_complete_haplotypes
+KIR3DP1	EAS	protein	5	KIR3DP1*015	77	2304	3.3	2.7	4.2	vm_complete_haplotypes
+KIR3DP1	EAS	protein		novel protein	82	2304	3.6	2.9	4.4	vm_complete_haplotypes
+KIR3DP1	EAS	protein		other	108	2304	4.7	3.9	5.6	vm_complete_haplotypes
+KIR3DP1	EUR	protein	1	KIR3DP1*003	2250	4452	50.5	49.1	52.0	vm_complete_haplotypes
+KIR3DP1	EUR	protein	2	KIR3DP1*006	559	4452	12.6	11.6	13.6	vm_complete_haplotypes
+KIR3DP1	EUR	protein	3	KIR3DP1*009	431	4452	9.7	8.8	10.6	vm_complete_haplotypes
+KIR3DP1	EUR	protein	4	KIR3DP1*015	303	4452	6.8	6.1	7.6	vm_complete_haplotypes
+KIR3DP1	EUR	protein	5	KIR3DP1*001	241	4452	5.4	4.8	6.1	vm_complete_haplotypes
+KIR3DP1	EUR	protein		novel protein	161	4452	3.6	3.1	4.2	vm_complete_haplotypes
+KIR3DP1	EUR	protein		other	507	4452	11.4	10.5	12.4	vm_complete_haplotypes
+KIR3DP1	MID	protein	1	KIR3DP1*003	406	755	53.8	50.2	57.3	vm_complete_haplotypes
+KIR3DP1	MID	protein	2	KIR3DP1*009	67	755	8.9	7.0	11.1	vm_complete_haplotypes
+KIR3DP1	MID	protein	3	KIR3DP1*006	66	755	8.7	6.9	11.0	vm_complete_haplotypes
+KIR3DP1	MID	protein	4	KIR3DP1*010	36	755	4.8	3.5	6.5	vm_complete_haplotypes
+KIR3DP1	MID	protein	5	KIR3DP1*015	35	755	4.6	3.4	6.4	vm_complete_haplotypes
+KIR3DP1	MID	protein		novel protein	31	755	4.1	2.9	5.8	vm_complete_haplotypes
+KIR3DP1	MID	protein		other	114	755	15.1	12.7	17.8	vm_complete_haplotypes
+KIR3DP1	SAS	protein	1	KIR3DP1*003	1218	1882	64.7	62.5	66.8	vm_complete_haplotypes
+KIR3DP1	SAS	protein	2	KIR3DP1*006	165	1882	8.8	7.6	10.1	vm_complete_haplotypes
+KIR3DP1	SAS	protein	3	KIR3DP1*001	94	1882	5.0	4.1	6.1	vm_complete_haplotypes
+KIR3DP1	SAS	protein	4	KIR3DP1*009	83	1882	4.4	3.6	5.4	vm_complete_haplotypes
+KIR3DP1	SAS	protein	5	KIR3DP1*015	59	1882	3.1	2.4	4.0	vm_complete_haplotypes
+KIR3DP1	SAS	protein		novel protein	68	1882	3.6	2.9	4.6	vm_complete_haplotypes
+KIR3DP1	SAS	protein		other	195	1882	10.4	9.1	11.8	vm_complete_haplotypes
+KIR3DP1	ALL	protein	1	KIR3DP1*003	10114	17601	57.5	56.7	58.2	vm_complete_haplotypes
+KIR3DP1	ALL	protein	2	KIR3DP1*010	1589	17601	9.0	8.6	9.5	vm_complete_haplotypes
+KIR3DP1	ALL	protein	3	KIR3DP1*006	1349	17601	7.7	7.3	8.1	vm_complete_haplotypes
+KIR3DP1	ALL	protein	4	KIR3DP1*009	1048	17601	6.0	5.6	6.3	vm_complete_haplotypes
+KIR3DP1	ALL	protein	5	KIR3DP1*015	701	17601	4.0	3.7	4.3	vm_complete_haplotypes
+KIR3DP1	ALL	protein		novel protein	742	17601	4.2	3.9	4.5	vm_complete_haplotypes
+KIR3DP1	ALL	protein		other	2058	17601	11.7	11.2	12.2	vm_complete_haplotypes
+KIR2DL4	AFR	protein	1	KIR2DL4*001	1905	4210	45.2	43.8	46.8	vm_complete_haplotypes
+KIR2DL4	AFR	protein	2	KIR2DL4*008	848	4210	20.1	19.0	21.4	vm_complete_haplotypes
+KIR2DL4	AFR	protein	3	KIR2DL4*005	379	4210	9.0	8.2	9.9	vm_complete_haplotypes
+KIR2DL4	AFR	protein	4	KIR2DL4*011	233	4210	5.5	4.9	6.3	vm_complete_haplotypes
+KIR2DL4	AFR	protein	5	KIR2DL4*006	193	4210	4.6	4.0	5.3	vm_complete_haplotypes
+KIR2DL4	AFR	protein		novel protein	162	4210	3.8	3.3	4.5	vm_complete_haplotypes
+KIR2DL4	AFR	protein		other	490	4210	11.6	10.7	12.6	vm_complete_haplotypes
+KIR2DL4	AMR	protein	1	KIR2DL4*001	1464	3965	36.9	35.4	38.4	vm_complete_haplotypes
+KIR2DL4	AMR	protein	2	KIR2DL4*008	933	3965	23.5	22.2	24.9	vm_complete_haplotypes
+KIR2DL4	AMR	protein	3	KIR2DL4*005	887	3965	22.4	21.1	23.7	vm_complete_haplotypes
+KIR2DL4	AMR	protein	4	KIR2DL4*011	360	3965	9.1	8.2	10.0	vm_complete_haplotypes
+KIR2DL4	AMR	protein	5	KIR2DL4*006	94	3965	2.4	1.9	2.9	vm_complete_haplotypes
+KIR2DL4	AMR	protein		novel protein	121	3965	3.1	2.6	3.6	vm_complete_haplotypes
+KIR2DL4	AMR	protein		other	106	3965	2.7	2.2	3.2	vm_complete_haplotypes
+KIR2DL4	EAS	protein	1	KIR2DL4*001	998	2307	43.3	41.3	45.3	vm_complete_haplotypes
+KIR2DL4	EAS	protein	2	KIR2DL4*005	492	2307	21.3	19.7	23.0	vm_complete_haplotypes
+KIR2DL4	EAS	protein	3	KIR2DL4*011	385	2307	16.7	15.2	18.3	vm_complete_haplotypes
+KIR2DL4	EAS	protein	4	KIR2DL4*006	197	2307	8.5	7.5	9.7	vm_complete_haplotypes
+KIR2DL4	EAS	protein	5	KIR2DL4*008	154	2307	6.7	5.7	7.8	vm_complete_haplotypes
+KIR2DL4	EAS	protein		other	81	2307	3.5	2.8	4.3	vm_complete_haplotypes
+KIR2DL4	EUR	protein	1	KIR2DL4*008	1523	4455	34.2	32.8	35.6	vm_complete_haplotypes
+KIR2DL4	EUR	protein	2	KIR2DL4*001	1146	4455	25.7	24.5	27.0	vm_complete_haplotypes
+KIR2DL4	EUR	protein	3	KIR2DL4*005	919	4455	20.6	19.5	21.8	vm_complete_haplotypes
+KIR2DL4	EUR	protein	4	KIR2DL4*011	563	4455	12.6	11.7	13.6	vm_complete_haplotypes
+KIR2DL4	EUR	protein	5	KIR2DL4*006	151	4455	3.4	2.9	4.0	vm_complete_haplotypes
+KIR2DL4	EUR	protein		novel protein	115	4455	2.6	2.2	3.1	vm_complete_haplotypes
+KIR2DL4	EUR	protein		other	38	4455	0.9	0.6	1.2	vm_complete_haplotypes
+KIR2DL4	MID	protein	1	KIR2DL4*008	244	755	32.3	29.1	35.7	vm_complete_haplotypes
+KIR2DL4	MID	protein	2	KIR2DL4*001	221	755	29.3	26.1	32.6	vm_complete_haplotypes
+KIR2DL4	MID	protein	3	KIR2DL4*005	153	755	20.3	17.6	23.3	vm_complete_haplotypes
+KIR2DL4	MID	protein	4	KIR2DL4*011	44	755	5.8	4.4	7.7	vm_complete_haplotypes
+KIR2DL4	MID	protein	5	KIR2DL4*006	32	755	4.2	3.0	5.9	vm_complete_haplotypes
+KIR2DL4	MID	protein		novel protein	29	755	3.8	2.7	5.5	vm_complete_haplotypes
+KIR2DL4	MID	protein		other	32	755	4.2	3.0	5.9	vm_complete_haplotypes
+KIR2DL4	SAS	protein	1	KIR2DL4*008	542	1879	28.8	26.8	30.9	vm_complete_haplotypes
+KIR2DL4	SAS	protein	2	KIR2DL4*005	536	1879	28.5	26.5	30.6	vm_complete_haplotypes
+KIR2DL4	SAS	protein	3	KIR2DL4*001	500	1879	26.6	24.7	28.7	vm_complete_haplotypes
+KIR2DL4	SAS	protein	4	KIR2DL4*011	135	1879	7.2	6.1	8.4	vm_complete_haplotypes
+KIR2DL4	SAS	protein		novel protein	78	1879	4.2	3.3	5.2	vm_complete_haplotypes
+KIR2DL4	SAS	protein		other	88	1879	4.7	3.8	5.7	vm_complete_haplotypes
+KIR2DL4	ALL	protein	1	KIR2DL4*001	6250	17607	35.5	34.8	36.2	vm_complete_haplotypes
+KIR2DL4	ALL	protein	2	KIR2DL4*008	4255	17607	24.2	23.5	24.8	vm_complete_haplotypes
+KIR2DL4	ALL	protein	3	KIR2DL4*005	3372	17607	19.2	18.6	19.7	vm_complete_haplotypes
+KIR2DL4	ALL	protein	4	KIR2DL4*011	1721	17607	9.8	9.3	10.2	vm_complete_haplotypes
+KIR2DL4	ALL	protein	5	KIR2DL4*006	740	17607	4.2	3.9	4.5	vm_complete_haplotypes
+KIR2DL4	ALL	protein		novel protein	573	17607	3.3	3.0	3.5	vm_complete_haplotypes
+KIR2DL4	ALL	protein		other	696	17607	4.0	3.7	4.3	vm_complete_haplotypes
+KIR3DL1	AFR	protein	1	KIR3DL1*015	1205	3853	31.3	29.8	32.8	vm_complete_haplotypes
+KIR3DL1	AFR	protein	2	KIR3DL1*004	423	3853	11.0	10.0	12.0	vm_complete_haplotypes
+KIR3DL1	AFR	protein	3	KIR3DL1*001	385	3853	10.0	9.1	11.0	vm_complete_haplotypes
+KIR3DL1	AFR	protein	4	KIR3DL1*031	281	3853	7.3	6.5	8.2	vm_complete_haplotypes
+KIR3DL1	AFR	protein	5	KIR3DL1*005	234	3853	6.1	5.4	6.9	vm_complete_haplotypes
+KIR3DL1	AFR	protein		novel protein	145	3853	3.8	3.2	4.4	vm_complete_haplotypes
+KIR3DL1	AFR	protein		other	1180	3853	30.6	29.2	32.1	vm_complete_haplotypes
+KIR3DL1	AMR	protein	1	KIR3DL1*015	783	3057	25.6	24.1	27.2	vm_complete_haplotypes
+KIR3DL1	AMR	protein	2	KIR3DL1*001	472	3057	15.4	14.2	16.8	vm_complete_haplotypes
+KIR3DL1	AMR	protein	3	KIR3DL1*004	417	3057	13.6	12.5	14.9	vm_complete_haplotypes
+KIR3DL1	AMR	protein	4	KIR3DL1*005	348	3057	11.4	10.3	12.6	vm_complete_haplotypes
+KIR3DL1	AMR	protein	5	KIR3DL1*002	244	3057	8.0	7.1	9.0	vm_complete_haplotypes
+KIR3DL1	AMR	protein		novel protein	113	3057	3.7	3.1	4.4	vm_complete_haplotypes
+KIR3DL1	AMR	protein		other	680	3057	22.2	20.8	23.8	vm_complete_haplotypes
+KIR3DL1	EAS	protein	1	KIR3DL1*015	900	1806	49.8	47.5	52.1	vm_complete_haplotypes
+KIR3DL1	EAS	protein	2	KIR3DL1*005	372	1806	20.6	18.8	22.5	vm_complete_haplotypes
+KIR3DL1	EAS	protein	3	KIR3DL1*007	199	1806	11.0	9.7	12.5	vm_complete_haplotypes
+KIR3DL1	EAS	protein	4	KIR3DL1*001	130	1806	7.2	6.1	8.5	vm_complete_haplotypes
+KIR3DL1	EAS	protein	5	KIR3DL1*020	42	1806	2.3	1.7	3.1	vm_complete_haplotypes
+KIR3DL1	EAS	protein		novel protein	53	1806	2.9	2.3	3.8	vm_complete_haplotypes
+KIR3DL1	EAS	protein		other	110	1806	6.1	5.1	7.3	vm_complete_haplotypes
+KIR3DL1	EUR	protein	1	KIR3DL1*001	748	3503	21.4	20.0	22.7	vm_complete_haplotypes
+KIR3DL1	EUR	protein	2	KIR3DL1*004	615	3503	17.6	16.3	18.9	vm_complete_haplotypes
+KIR3DL1	EUR	protein	3	KIR3DL1*005	540	3503	15.4	14.3	16.6	vm_complete_haplotypes
+KIR3DL1	EUR	protein	4	KIR3DL1*002	475	3503	13.6	12.5	14.7	vm_complete_haplotypes
+KIR3DL1	EUR	protein	5	KIR3DL1*015	296	3503	8.4	7.6	9.4	vm_complete_haplotypes
+KIR3DL1	EUR	protein		novel protein	149	3503	4.3	3.6	5.0	vm_complete_haplotypes
+KIR3DL1	EUR	protein		other	680	3503	19.4	18.1	20.8	vm_complete_haplotypes
+KIR3DL1	MID	protein	1	KIR3DL1*001	153	587	26.1	22.7	29.8	vm_complete_haplotypes
+KIR3DL1	MID	protein	2	KIR3DL1*004	94	587	16.0	13.3	19.2	vm_complete_haplotypes
+KIR3DL1	MID	protein	3	KIR3DL1*002	83	587	14.1	11.6	17.2	vm_complete_haplotypes
+KIR3DL1	MID	protein	4	KIR3DL1*015	47	587	8.0	6.1	10.5	vm_complete_haplotypes
+KIR3DL1	MID	protein	5	KIR3DL1*008	44	587	7.5	5.6	9.9	vm_complete_haplotypes
+KIR3DL1	MID	protein		other	166	587	28.3	24.8	32.1	vm_complete_haplotypes
+KIR3DL1	SAS	protein	1	KIR3DL1*001	439	1298	33.8	31.3	36.4	vm_complete_haplotypes
+KIR3DL1	SAS	protein	2	KIR3DL1*015	247	1298	19.0	17.0	21.3	vm_complete_haplotypes
+KIR3DL1	SAS	protein	3	KIR3DL1*008	213	1298	16.4	14.5	18.5	vm_complete_haplotypes
+KIR3DL1	SAS	protein	4	KIR3DL1*005	129	1298	9.9	8.4	11.7	vm_complete_haplotypes
+KIR3DL1	SAS	protein	5	KIR3DL1*004	82	1298	6.3	5.1	7.8	vm_complete_haplotypes
+KIR3DL1	SAS	protein		novel protein	41	1298	3.2	2.3	4.3	vm_complete_haplotypes
+KIR3DL1	SAS	protein		other	147	1298	11.3	9.7	13.2	vm_complete_haplotypes
+KIR3DL1	ALL	protein	1	KIR3DL1*015	3487	14134	24.7	24.0	25.4	vm_complete_haplotypes
+KIR3DL1	ALL	protein	2	KIR3DL1*001	2335	14134	16.5	15.9	17.1	vm_complete_haplotypes
+KIR3DL1	ALL	protein	3	KIR3DL1*005	1663	14134	11.8	11.2	12.3	vm_complete_haplotypes
+KIR3DL1	ALL	protein	4	KIR3DL1*004	1652	14134	11.7	11.2	12.2	vm_complete_haplotypes
+KIR3DL1	ALL	protein	5	KIR3DL1*002	955	14134	6.8	6.4	7.2	vm_complete_haplotypes
+KIR3DL1	ALL	protein		novel protein	516	14134	3.7	3.4	4.0	vm_complete_haplotypes
+KIR3DL1	ALL	protein		other	3526	14134	24.9	24.2	25.7	vm_complete_haplotypes
+KIR3DS1	AFR	protein	1	KIR3DS1*013	315	348	90.5	87.0	93.2	vm_complete_haplotypes
+KIR3DS1	AFR	protein		other	33	348	9.5	6.8	13.0	vm_complete_haplotypes
+KIR3DS1	AMR	protein	1	KIR3DS1*013	837	906	92.4	90.5	93.9	vm_complete_haplotypes
+KIR3DS1	AMR	protein		other	69	906	7.6	6.1	9.5	vm_complete_haplotypes
+KIR3DS1	EAS	protein	1	KIR3DS1*013	459	494	92.9	90.3	94.9	vm_complete_haplotypes
+KIR3DS1	EAS	protein		other	35	494	7.1	5.1	9.7	vm_complete_haplotypes
+KIR3DS1	EUR	protein	1	KIR3DS1*013	899	951	94.5	92.9	95.8	vm_complete_haplotypes
+KIR3DS1	EUR	protein		other	52	951	5.5	4.2	7.1	vm_complete_haplotypes
+KIR3DS1	MID	protein		other	168	168	100.0	97.8	100.0	vm_complete_haplotypes
+KIR3DS1	SAS	protein	1	KIR3DS1*013	542	584	92.8	90.4	94.6	vm_complete_haplotypes
+KIR3DS1	SAS	protein		novel protein	21	584	3.6	2.4	5.4	vm_complete_haplotypes
+KIR3DS1	SAS	protein		other	21	584	3.6	2.4	5.4	vm_complete_haplotypes
+KIR3DS1	ALL	protein	1	KIR3DS1*013	3213	3457	92.9	92.0	93.7	vm_complete_haplotypes
+KIR3DS1	ALL	protein		novel protein	162	3457	4.7	4.0	5.4	vm_complete_haplotypes
+KIR3DS1	ALL	protein		other	82	3457	2.4	1.9	2.9	vm_complete_haplotypes
+KIR2DL5A	AFR	protein	1	KIR2DL5A*001	210	325	64.6	59.3	69.6	vm_complete_haplotypes
+KIR2DL5A	AFR	protein		novel protein	61	325	18.8	14.9	23.4	vm_complete_haplotypes
+KIR2DL5A	AFR	protein		other	54	325	16.6	13.0	21.0	vm_complete_haplotypes
+KIR2DL5A	AMR	protein	1	KIR2DL5A*001	708	860	82.3	79.6	84.7	vm_complete_haplotypes
+KIR2DL5A	AMR	protein	2	KIR2DL5A*005	121	860	14.1	11.9	16.6	vm_complete_haplotypes
+KIR2DL5A	AMR	protein		other	31	860	3.6	2.6	5.1	vm_complete_haplotypes
+KIR2DL5A	EAS	protein	1	KIR2DL5A*001	271	457	59.3	54.7	63.7	vm_complete_haplotypes
+KIR2DL5A	EAS	protein	2	KIR2DL5A*005	148	457	32.4	28.3	36.8	vm_complete_haplotypes
+KIR2DL5A	EAS	protein		other	38	457	8.3	6.1	11.2	vm_complete_haplotypes
+KIR2DL5A	EUR	protein	1	KIR2DL5A*001	707	898	78.7	75.9	81.3	vm_complete_haplotypes
+KIR2DL5A	EUR	protein	2	KIR2DL5A*005	159	898	17.7	15.3	20.3	vm_complete_haplotypes
+KIR2DL5A	EUR	protein		other	32	898	3.6	2.5	5.0	vm_complete_haplotypes
+KIR2DL5A	MID	protein	1	KIR2DL5A*001	102	149	68.5	60.6	75.4	vm_complete_haplotypes
+KIR2DL5A	MID	protein		other	47	149	31.5	24.6	39.4	vm_complete_haplotypes
+KIR2DL5A	SAS	protein	1	KIR2DL5A*001	481	568	84.7	81.5	87.4	vm_complete_haplotypes
+KIR2DL5A	SAS	protein		other	87	568	15.3	12.6	18.5	vm_complete_haplotypes
+KIR2DL5A	ALL	protein	1	KIR2DL5A*001	2485	3263	76.2	74.7	77.6	vm_complete_haplotypes
+KIR2DL5A	ALL	protein	2	KIR2DL5A*005	588	3263	18.0	16.7	19.4	vm_complete_haplotypes
+KIR2DL5A	ALL	protein		novel protein	153	3263	4.7	4.0	5.5	vm_complete_haplotypes
+KIR2DL5A	ALL	protein		other	37	3263	1.1	0.8	1.6	vm_complete_haplotypes
+KIR2DS3	AFR	protein	1	KIR2DS3*001	577	646	89.3	86.7	91.5	vm_complete_haplotypes
+KIR2DS3	AFR	protein	2	KIR2DS3*002	33	646	5.1	3.7	7.1	vm_complete_haplotypes
+KIR2DS3	AFR	protein		other	36	646	5.6	4.1	7.6	vm_complete_haplotypes
+KIR2DS3	AMR	protein	1	KIR2DS3*001	397	551	72.1	68.2	75.6	vm_complete_haplotypes
+KIR2DS3	AMR	protein	2	KIR2DS3*002	127	551	23.0	19.7	26.7	vm_complete_haplotypes
+KIR2DS3	AMR	protein		other	27	551	4.9	3.4	7.0	vm_complete_haplotypes
+KIR2DS3	EAS	protein	1	KIR2DS3*002	176	287	61.3	55.6	66.8	vm_complete_haplotypes
+KIR2DS3	EAS	protein	2	KIR2DS3*001	90	287	31.4	26.3	36.9	vm_complete_haplotypes
+KIR2DS3	EAS	protein		other	21	287	7.3	4.8	10.9	vm_complete_haplotypes
+KIR2DS3	EUR	protein	1	KIR2DS3*001	542	717	75.6	72.3	78.6	vm_complete_haplotypes
+KIR2DS3	EUR	protein	2	KIR2DS3*002	131	717	18.3	15.6	21.3	vm_complete_haplotypes
+KIR2DS3	EUR	protein		other	44	717	6.1	4.6	8.1	vm_complete_haplotypes
+KIR2DS3	MID	protein	1	KIR2DS3*001	159	201	79.1	73.0	84.2	vm_complete_haplotypes
+KIR2DS3	MID	protein		other	42	201	20.9	15.8	27.0	vm_complete_haplotypes
+KIR2DS3	SAS	protein	1	KIR2DS3*001	390	483	80.7	77.0	84.0	vm_complete_haplotypes
+KIR2DS3	SAS	protein	2	KIR2DS3*002	53	483	11.0	8.5	14.1	vm_complete_haplotypes
+KIR2DS3	SAS	protein		other	40	483	8.3	6.1	11.1	vm_complete_haplotypes
+KIR2DS3	ALL	protein	1	KIR2DS3*001	2157	2887	74.7	73.1	76.3	vm_complete_haplotypes
+KIR2DS3	ALL	protein	2	KIR2DS3*002	553	2887	19.2	17.8	20.6	vm_complete_haplotypes
+KIR2DS3	ALL	protein	3	KIR2DS3*003	33	2887	1.1	0.8	1.6	vm_complete_haplotypes
+KIR2DS3	ALL	protein		novel protein	105	2887	3.6	3.0	4.4	vm_complete_haplotypes
+KIR2DS3	ALL	protein		other	39	2887	1.4	1.0	1.8	vm_complete_haplotypes
+KIR2DS5	AFR	protein	1	KIR2DS5*002	229	784	29.2	26.1	32.5	vm_complete_haplotypes
+KIR2DS5	AFR	protein	2	KIR2DS5*007	139	784	17.7	15.2	20.6	vm_complete_haplotypes
+KIR2DS5	AFR	protein	3	KIR2DS5*009	114	784	14.5	12.2	17.2	vm_complete_haplotypes
+KIR2DS5	AFR	protein	4	KIR2DS5*003	78	784	9.9	8.0	12.2	vm_complete_haplotypes
+KIR2DS5	AFR	protein	5	KIR2DS5*006	52	784	6.6	5.1	8.6	vm_complete_haplotypes
+KIR2DS5	AFR	protein		novel protein	91	784	11.6	9.5	14.0	vm_complete_haplotypes
+KIR2DS5	AFR	protein		other	81	784	10.3	8.4	12.7	vm_complete_haplotypes
+KIR2DS5	AMR	protein	1	KIR2DS5*002	725	829	87.5	85.0	89.5	vm_complete_haplotypes
+KIR2DS5	AMR	protein	2	KIR2DS5*007	25	829	3.0	2.1	4.4	vm_complete_haplotypes
+KIR2DS5	AMR	protein	3	KIR2DS5*009	21	829	2.5	1.7	3.8	vm_complete_haplotypes
+KIR2DS5	AMR	protein		novel protein	28	829	3.4	2.3	4.8	vm_complete_haplotypes
+KIR2DS5	AMR	protein		other	30	829	3.6	2.5	5.1	vm_complete_haplotypes
+KIR2DS5	EAS	protein	1	KIR2DS5*002	300	321	93.5	90.2	95.7	vm_complete_haplotypes
+KIR2DS5	EAS	protein		other	21	321	6.5	4.3	9.8	vm_complete_haplotypes
+KIR2DS5	EUR	protein	1	KIR2DS5*002	814	845	96.3	94.8	97.4	vm_complete_haplotypes
+KIR2DS5	EUR	protein		other	31	845	3.7	2.6	5.2	vm_complete_haplotypes
+KIR2DS5	MID	protein	1	KIR2DS5*002	110	132	83.3	76.1	88.7	vm_complete_haplotypes
+KIR2DS5	MID	protein		other	22	132	16.7	11.3	23.9	vm_complete_haplotypes
+KIR2DS5	SAS	protein	1	KIR2DS5*002	527	599	88.0	85.1	90.3	vm_complete_haplotypes
+KIR2DS5	SAS	protein	2	KIR2DS5*023	28	599	4.7	3.3	6.7	vm_complete_haplotypes
+KIR2DS5	SAS	protein		novel protein	23	599	3.8	2.6	5.7	vm_complete_haplotypes
+KIR2DS5	SAS	protein		other	21	599	3.5	2.3	5.3	vm_complete_haplotypes
+KIR2DS5	ALL	protein	1	KIR2DS5*002	2711	3517	77.1	75.7	78.4	vm_complete_haplotypes
+KIR2DS5	ALL	protein	2	KIR2DS5*007	167	3517	4.7	4.1	5.5	vm_complete_haplotypes
+KIR2DS5	ALL	protein	3	KIR2DS5*009	139	3517	4.0	3.4	4.6	vm_complete_haplotypes
+KIR2DS5	ALL	protein	4	KIR2DS5*003	83	3517	2.4	1.9	2.9	vm_complete_haplotypes
+KIR2DS5	ALL	protein	5	KIR2DS5*005	66	3517	1.9	1.5	2.4	vm_complete_haplotypes
+KIR2DS5	ALL	protein		novel protein	186	3517	5.3	4.6	6.1	vm_complete_haplotypes
+KIR2DS5	ALL	protein		other	165	3517	4.7	4.0	5.4	vm_complete_haplotypes
+KIR2DS1	AFR	protein	1	KIR2DS1*002	377	506	74.5	70.5	78.1	vm_complete_haplotypes
+KIR2DS1	AFR	protein	2	KIR2DS1*004	72	506	14.2	11.5	17.5	vm_complete_haplotypes
+KIR2DS1	AFR	protein		novel protein	35	506	6.9	5.0	9.5	vm_complete_haplotypes
+KIR2DS1	AFR	protein		other	22	506	4.3	2.9	6.5	vm_complete_haplotypes
+KIR2DS1	AMR	protein	1	KIR2DS1*002	788	922	85.5	83.0	87.6	vm_complete_haplotypes
+KIR2DS1	AMR	protein	2	KIR2DS1*005	74	922	8.0	6.4	10.0	vm_complete_haplotypes
+KIR2DS1	AMR	protein	3	KIR2DS1*006	30	922	3.3	2.3	4.6	vm_complete_haplotypes
+KIR2DS1	AMR	protein		other	30	922	3.3	2.3	4.6	vm_complete_haplotypes
+KIR2DS1	EAS	protein	1	KIR2DS1*002	471	497	94.8	92.4	96.4	vm_complete_haplotypes
+KIR2DS1	EAS	protein		other	26	497	5.2	3.6	7.6	vm_complete_haplotypes
+KIR2DS1	EUR	protein	1	KIR2DS1*002	912	992	91.9	90.1	93.5	vm_complete_haplotypes
+KIR2DS1	EUR	protein	2	KIR2DS1*006	48	992	4.8	3.7	6.4	vm_complete_haplotypes
+KIR2DS1	EUR	protein		other	32	992	3.2	2.3	4.5	vm_complete_haplotypes
+KIR2DS1	MID	protein		other	165	165	100.0	97.7	100.0	vm_complete_haplotypes
+KIR2DS1	SAS	protein	1	KIR2DS1*002	616	652	94.5	92.5	96.0	vm_complete_haplotypes
+KIR2DS1	SAS	protein		other	36	652	5.5	4.0	7.5	vm_complete_haplotypes
+KIR2DS1	ALL	protein	1	KIR2DS1*002	3322	3741	88.8	87.7	89.8	vm_complete_haplotypes
+KIR2DS1	ALL	protein	2	KIR2DS1*006	90	3741	2.4	2.0	2.9	vm_complete_haplotypes
+KIR2DS1	ALL	protein	3	KIR2DS1*005	90	3741	2.4	2.0	2.9	vm_complete_haplotypes
+KIR2DS1	ALL	protein	4	KIR2DS1*004	77	3741	2.1	1.7	2.6	vm_complete_haplotypes
+KIR2DS1	ALL	protein		novel protein	129	3741	3.4	2.9	4.1	vm_complete_haplotypes
+KIR2DS1	ALL	protein		other	33	3741	0.9	0.6	1.2	vm_complete_haplotypes
+KIR2DS4	AFR	protein	1	KIR2DS4*001	1983	3848	51.5	50.0	53.1	vm_complete_haplotypes
+KIR2DS4	AFR	protein	2	KIR2DS4*006	524	3848	13.6	12.6	14.7	vm_complete_haplotypes
+KIR2DS4	AFR	protein	3	KIR2DS4*003	485	3848	12.6	11.6	13.7	vm_complete_haplotypes
+KIR2DS4	AFR	protein	4	KIR2DS4*004	254	3848	6.6	5.9	7.4	vm_complete_haplotypes
+KIR2DS4	AFR	protein	5	KIR2DS4*010	246	3848	6.4	5.7	7.2	vm_complete_haplotypes
+KIR2DS4	AFR	protein		novel protein	308	3848	8.0	7.2	8.9	vm_complete_haplotypes
+KIR2DS4	AFR	protein		other	48	3848	1.2	0.9	1.6	vm_complete_haplotypes
+KIR2DS4	AMR	protein	1	KIR2DS4*001	1363	3054	44.6	42.9	46.4	vm_complete_haplotypes
+KIR2DS4	AMR	protein	2	KIR2DS4*003	625	3054	20.5	19.1	21.9	vm_complete_haplotypes
+KIR2DS4	AMR	protein	3	KIR2DS4*006	463	3054	15.2	13.9	16.5	vm_complete_haplotypes
+KIR2DS4	AMR	protein	4	KIR2DS4*010	356	3054	11.7	10.6	12.8	vm_complete_haplotypes
+KIR2DS4	AMR	protein		novel protein	119	3054	3.9	3.3	4.6	vm_complete_haplotypes
+KIR2DS4	AMR	protein		other	128	3054	4.2	3.5	5.0	vm_complete_haplotypes
+KIR2DS4	EAS	protein	1	KIR2DS4*001	993	1803	55.1	52.8	57.4	vm_complete_haplotypes
+KIR2DS4	EAS	protein	2	KIR2DS4*010	384	1803	21.3	19.5	23.2	vm_complete_haplotypes
+KIR2DS4	EAS	protein	3	KIR2DS4*004	187	1803	10.4	9.0	11.9	vm_complete_haplotypes
+KIR2DS4	EAS	protein	4	KIR2DS4*003	147	1803	8.2	7.0	9.5	vm_complete_haplotypes
+KIR2DS4	EAS	protein	5	KIR2DS4*006	23	1803	1.3	0.9	1.9	vm_complete_haplotypes
+KIR2DS4	EAS	protein		novel protein	69	1803	3.8	3.0	4.8	vm_complete_haplotypes
+KIR2DS4	EUR	protein	1	KIR2DS4*003	1045	3501	29.8	28.4	31.4	vm_complete_haplotypes
+KIR2DS4	EUR	protein	2	KIR2DS4*001	904	3501	25.8	24.4	27.3	vm_complete_haplotypes
+KIR2DS4	EUR	protein	3	KIR2DS4*006	718	3501	20.5	19.2	21.9	vm_complete_haplotypes
+KIR2DS4	EUR	protein	4	KIR2DS4*010	558	3501	15.9	14.8	17.2	vm_complete_haplotypes
+KIR2DS4	EUR	protein	5	KIR2DS4*004	163	3501	4.7	4.0	5.4	vm_complete_haplotypes
+KIR2DS4	EUR	protein		other	113	3501	3.2	2.7	3.9	vm_complete_haplotypes
+KIR2DS4	MID	protein	1	KIR2DS4*003	201	585	34.4	30.6	38.3	vm_complete_haplotypes
+KIR2DS4	MID	protein	2	KIR2DS4*001	171	585	29.2	25.7	33.0	vm_complete_haplotypes
+KIR2DS4	MID	protein	3	KIR2DS4*006	104	585	17.8	14.9	21.1	vm_complete_haplotypes
+KIR2DS4	MID	protein	4	KIR2DS4*010	42	585	7.2	5.4	9.6	vm_complete_haplotypes
+KIR2DS4	MID	protein	5	KIR2DS4*004	42	585	7.2	5.4	9.6	vm_complete_haplotypes
+KIR2DS4	MID	protein		novel protein	25	585	4.3	2.9	6.2	vm_complete_haplotypes
+KIR2DS4	SAS	protein	1	KIR2DS4*003	677	1299	52.1	49.4	54.8	vm_complete_haplotypes
+KIR2DS4	SAS	protein	2	KIR2DS4*001	297	1299	22.9	20.7	25.2	vm_complete_haplotypes
+KIR2DS4	SAS	protein	3	KIR2DS4*010	135	1299	10.4	8.8	12.2	vm_complete_haplotypes
+KIR2DS4	SAS	protein	4	KIR2DS4*006	81	1299	6.2	5.0	7.7	vm_complete_haplotypes
+KIR2DS4	SAS	protein	5	KIR2DS4*004	71	1299	5.5	4.4	6.8	vm_complete_haplotypes
+KIR2DS4	SAS	protein		novel protein	38	1299	2.9	2.1	4.0	vm_complete_haplotypes
+KIR2DS4	ALL	protein	1	KIR2DS4*001	5725	14120	40.5	39.7	41.4	vm_complete_haplotypes
+KIR2DS4	ALL	protein	2	KIR2DS4*003	3190	14120	22.6	21.9	23.3	vm_complete_haplotypes
+KIR2DS4	ALL	protein	3	KIR2DS4*006	1917	14120	13.6	13.0	14.2	vm_complete_haplotypes
+KIR2DS4	ALL	protein	4	KIR2DS4*010	1722	14120	12.2	11.7	12.7	vm_complete_haplotypes
+KIR2DS4	ALL	protein	5	KIR2DS4*004	836	14120	5.9	5.5	6.3	vm_complete_haplotypes
+KIR2DS4	ALL	protein		novel protein	664	14120	4.7	4.4	5.1	vm_complete_haplotypes
+KIR2DS4	ALL	protein		other	66	14120	0.5	0.4	0.6	vm_complete_haplotypes
+KIR2DL5B	AFR	protein	1	KIR2DL5B*002	399	1102	36.2	33.4	39.1	vm_complete_haplotypes
+KIR2DL5B	AFR	protein	2	KIR2DL5B*017	106	1102	9.6	8.0	11.5	vm_complete_haplotypes
+KIR2DL5B	AFR	protein	3	KIR2DL5B*008	75	1102	6.8	5.5	8.4	vm_complete_haplotypes
+KIR2DL5B	AFR	protein		novel protein	441	1102	40.0	37.2	42.9	vm_complete_haplotypes
+KIR2DL5B	AFR	protein		other	81	1102	7.4	6.0	9.0	vm_complete_haplotypes
+KIR2DL5B	AMR	protein	1	KIR2DL5B*002	382	523	73.0	69.1	76.7	vm_complete_haplotypes
+KIR2DL5B	AMR	protein	2	KIR2DL5B*008	28	523	5.4	3.7	7.6	vm_complete_haplotypes
+KIR2DL5B	AMR	protein		novel protein	83	523	15.9	13.0	19.2	vm_complete_haplotypes
+KIR2DL5B	AMR	protein		other	30	523	5.7	4.0	8.1	vm_complete_haplotypes
+KIR2DL5B	EAS	protein	1	KIR2DL5B*002	86	155	55.5	47.6	63.1	vm_complete_haplotypes
+KIR2DL5B	EAS	protein		other	69	155	44.5	36.9	52.4	vm_complete_haplotypes
+KIR2DL5B	EUR	protein	1	KIR2DL5B*002	543	674	80.6	77.4	83.4	vm_complete_haplotypes
+KIR2DL5B	EUR	protein	2	KIR2DL5B*008	85	674	12.6	10.3	15.3	vm_complete_haplotypes
+KIR2DL5B	EUR	protein		other	46	674	6.8	5.2	9.0	vm_complete_haplotypes
+KIR2DL5B	MID	protein	1	KIR2DL5B*002	148	173	85.5	79.5	90.0	vm_complete_haplotypes
+KIR2DL5B	MID	protein		other	25	173	14.5	10.0	20.5	vm_complete_haplotypes
+KIR2DL5B	SAS	protein	1	KIR2DL5B*002	402	515	78.1	74.3	81.4	vm_complete_haplotypes
+KIR2DL5B	SAS	protein	2	KIR2DL5B*008	58	515	11.3	8.8	14.3	vm_complete_haplotypes
+KIR2DL5B	SAS	protein		other	55	515	10.7	8.3	13.6	vm_complete_haplotypes
+KIR2DL5B	ALL	protein	1	KIR2DL5B*002	1962	3145	62.4	60.7	64.1	vm_complete_haplotypes
+KIR2DL5B	ALL	protein	2	KIR2DL5B*008	265	3145	8.4	7.5	9.4	vm_complete_haplotypes
+KIR2DL5B	ALL	protein	3	KIR2DL5B*017	123	3145	3.9	3.3	4.6	vm_complete_haplotypes
+KIR2DL5B	ALL	protein	4	KIR2DL5B*006	82	3145	2.6	2.1	3.2	vm_complete_haplotypes
+KIR2DL5B	ALL	protein		novel protein	686	3145	21.8	20.4	23.3	vm_complete_haplotypes
+KIR2DL5B	ALL	protein		other	27	3145	0.9	0.6	1.2	vm_complete_haplotypes
+KIR3DL2	AFR	protein	1	KIR3DL2*001	1301	4373	29.8	28.4	31.1	vm_complete_haplotypes
+KIR3DL2	AFR	protein	2	KIR3DL2*013	504	4373	11.5	10.6	12.5	vm_complete_haplotypes
+KIR3DL2	AFR	protein	3	KIR3DL2*002	324	4373	7.4	6.7	8.2	vm_complete_haplotypes
+KIR3DL2	AFR	protein	4	KIR3DL2*003	324	4373	7.4	6.7	8.2	vm_complete_haplotypes
+KIR3DL2	AFR	protein	5	KIR3DL2*008	234	4373	5.4	4.7	6.1	vm_complete_haplotypes
+KIR3DL2	AFR	protein		novel protein	233	4373	5.3	4.7	6.0	vm_complete_haplotypes
+KIR3DL2	AFR	protein		other	1453	4373	33.2	31.8	34.6	vm_complete_haplotypes
+KIR3DL2	AMR	protein	1	KIR3DL2*002	1013	3984	25.4	24.1	26.8	vm_complete_haplotypes
+KIR3DL2	AMR	protein	2	KIR3DL2*007	813	3984	20.4	19.2	21.7	vm_complete_haplotypes
+KIR3DL2	AMR	protein	3	KIR3DL2*001	681	3984	17.1	16.0	18.3	vm_complete_haplotypes
+KIR3DL2	AMR	protein	4	KIR3DL2*010	258	3984	6.5	5.8	7.3	vm_complete_haplotypes
+KIR3DL2	AMR	protein	5	KIR3DL2*005	195	3984	4.9	4.3	5.6	vm_complete_haplotypes
+KIR3DL2	AMR	protein		novel protein	145	3984	3.6	3.1	4.3	vm_complete_haplotypes
+KIR3DL2	AMR	protein		other	879	3984	22.1	20.8	23.4	vm_complete_haplotypes
+KIR3DL2	EAS	protein	1	KIR3DL2*002	1016	2310	44.0	42.0	46.0	vm_complete_haplotypes
+KIR3DL2	EAS	protein	2	KIR3DL2*007	350	2310	15.2	13.7	16.7	vm_complete_haplotypes
+KIR3DL2	EAS	protein	3	KIR3DL2*010	336	2310	14.5	13.2	16.0	vm_complete_haplotypes
+KIR3DL2	EAS	protein	4	KIR3DL2*008	149	2310	6.5	5.5	7.5	vm_complete_haplotypes
+KIR3DL2	EAS	protein	5	KIR3DL2*001	112	2310	4.8	4.0	5.8	vm_complete_haplotypes
+KIR3DL2	EAS	protein		novel protein	114	2310	4.9	4.1	5.9	vm_complete_haplotypes
+KIR3DL2	EAS	protein		other	233	2310	10.1	8.9	11.4	vm_complete_haplotypes
+KIR3DL2	EUR	protein	1	KIR3DL2*001	1013	4498	22.5	21.3	23.8	vm_complete_haplotypes
+KIR3DL2	EUR	protein	2	KIR3DL2*007	874	4498	19.4	18.3	20.6	vm_complete_haplotypes
+KIR3DL2	EUR	protein	3	KIR3DL2*002	738	4498	16.4	15.4	17.5	vm_complete_haplotypes
+KIR3DL2	EUR	protein	4	KIR3DL2*005	378	4498	8.4	7.6	9.3	vm_complete_haplotypes
+KIR3DL2	EUR	protein	5	KIR3DL2*009	317	4498	7.0	6.3	7.8	vm_complete_haplotypes
+KIR3DL2	EUR	protein		novel protein	192	4498	4.3	3.7	4.9	vm_complete_haplotypes
+KIR3DL2	EUR	protein		other	986	4498	21.9	20.7	23.2	vm_complete_haplotypes
+KIR3DL2	MID	protein	1	KIR3DL2*001	170	752	22.6	19.8	25.7	vm_complete_haplotypes
+KIR3DL2	MID	protein	2	KIR3DL2*007	137	752	18.2	15.6	21.1	vm_complete_haplotypes
+KIR3DL2	MID	protein	3	KIR3DL2*002	100	752	13.3	11.1	15.9	vm_complete_haplotypes
+KIR3DL2	MID	protein	4	KIR3DL2*009	67	752	8.9	7.1	11.2	vm_complete_haplotypes
+KIR3DL2	MID	protein	5	KIR3DL2*005	65	752	8.6	6.8	10.9	vm_complete_haplotypes
+KIR3DL2	MID	protein		novel protein	31	752	4.1	2.9	5.8	vm_complete_haplotypes
+KIR3DL2	MID	protein		other	182	752	24.2	21.3	27.4	vm_complete_haplotypes
+KIR3DL2	SAS	protein	1	KIR3DL2*007	562	1945	28.9	26.9	30.9	vm_complete_haplotypes
+KIR3DL2	SAS	protein	2	KIR3DL2*001	481	1945	24.7	22.9	26.7	vm_complete_haplotypes
+KIR3DL2	SAS	protein	3	KIR3DL2*002	243	1945	12.5	11.1	14.0	vm_complete_haplotypes
+KIR3DL2	SAS	protein	4	KIR3DL2*009	198	1945	10.2	8.9	11.6	vm_complete_haplotypes
+KIR3DL2	SAS	protein	5	KIR3DL2*010	115	1945	5.9	4.9	7.1	vm_complete_haplotypes
+KIR3DL2	SAS	protein		novel protein	86	1945	4.4	3.6	5.4	vm_complete_haplotypes
+KIR3DL2	SAS	protein		other	260	1945	13.4	11.9	15.0	vm_complete_haplotypes
+KIR3DL2	ALL	protein	1	KIR3DL2*001	3766	17899	21.0	20.4	21.6	vm_complete_haplotypes
+KIR3DL2	ALL	protein	2	KIR3DL2*002	3441	17899	19.2	18.7	19.8	vm_complete_haplotypes
+KIR3DL2	ALL	protein	3	KIR3DL2*007	2965	17899	16.6	16.0	17.1	vm_complete_haplotypes
+KIR3DL2	ALL	protein	4	KIR3DL2*010	1137	17899	6.4	6.0	6.7	vm_complete_haplotypes
+KIR3DL2	ALL	protein	5	KIR3DL2*009	983	17899	5.5	5.2	5.8	vm_complete_haplotypes
+KIR3DL2	ALL	protein		novel protein	803	17899	4.5	4.2	4.8	vm_complete_haplotypes
+KIR3DL2	ALL	protein		other	4804	17899	26.8	26.2	27.5	vm_complete_haplotypes
+KIR3DL3	AFR	full_known	1	KIR3DL3*0090101	245	851	28.8	25.8	31.9	vm_complete_haplotypes
+KIR3DL3	AFR	full_known	2	KIR3DL3*0030112	103	851	12.1	10.1	14.5	vm_complete_haplotypes
+KIR3DL3	AFR	full_known	3	KIR3DL3*0010101	73	851	8.6	6.9	10.7	vm_complete_haplotypes
+KIR3DL3	AFR	full_known	4	KIR3DL3*0040202	63	851	7.4	5.8	9.4	vm_complete_haplotypes
+KIR3DL3	AFR	full_known	5	KIR3DL3*0140203	58	851	6.8	5.3	8.7	vm_complete_haplotypes
+KIR3DL3	AFR	full_known		other	309	851	36.3	33.1	39.6	vm_complete_haplotypes
+KIR3DL3	AMR	full_known	1	KIR3DL3*0040201	150	1387	10.8	9.3	12.6	vm_complete_haplotypes
+KIR3DL3	AMR	full_known	2	KIR3DL3*00802	140	1387	10.1	8.6	11.8	vm_complete_haplotypes
+KIR3DL3	AMR	full_known	3	KIR3DL3*0030112	139	1387	10.0	8.6	11.7	vm_complete_haplotypes
+KIR3DL3	AMR	full_known	4	KIR3DL3*0010101	133	1387	9.6	8.1	11.3	vm_complete_haplotypes
+KIR3DL3	AMR	full_known	5	KIR3DL3*0090101	124	1387	8.9	7.5	10.6	vm_complete_haplotypes
+KIR3DL3	AMR	full_known		other	701	1387	50.5	47.9	53.2	vm_complete_haplotypes
+KIR3DL3	EAS	full_known	1	KIR3DL3*0040201	43	239	18.0	13.6	23.4	vm_complete_haplotypes
+KIR3DL3	EAS	full_known	2	KIR3DL3*00802	40	239	16.7	12.5	22.0	vm_complete_haplotypes
+KIR3DL3	EAS	full_known	3	KIR3DL3*0060101	24	239	10.0	6.8	14.5	vm_complete_haplotypes
+KIR3DL3	EAS	full_known	4	KIR3DL3*0010101	21	239	8.8	5.8	13.1	vm_complete_haplotypes
+KIR3DL3	EAS	full_known	5	KIR3DL3*0030112	20	239	8.4	5.5	12.6	vm_complete_haplotypes
+KIR3DL3	EAS	full_known		other	91	239	38.1	32.2	44.4	vm_complete_haplotypes
+KIR3DL3	EUR	full_known	1	KIR3DL3*0010101	267	2092	12.8	11.4	14.3	vm_complete_haplotypes
+KIR3DL3	EUR	full_known	2	KIR3DL3*0030112	258	2092	12.3	11.0	13.8	vm_complete_haplotypes
+KIR3DL3	EUR	full_known	3	KIR3DL3*0010104	159	2092	7.6	6.5	8.8	vm_complete_haplotypes
+KIR3DL3	EUR	full_known	4	KIR3DL3*0090101	151	2092	7.2	6.2	8.4	vm_complete_haplotypes
+KIR3DL3	EUR	full_known	5	KIR3DL3*0030103	112	2092	5.4	4.5	6.4	vm_complete_haplotypes
+KIR3DL3	EUR	full_known		other	1145	2092	54.7	52.6	56.9	vm_complete_haplotypes
+KIR3DL3	MID	full_known	1	KIR3DL3*0030112	35	268	13.1	9.5	17.6	vm_complete_haplotypes
+KIR3DL3	MID	full_known	2	KIR3DL3*0010104	29	268	10.8	7.6	15.1	vm_complete_haplotypes
+KIR3DL3	MID	full_known	3	KIR3DL3*0010101	27	268	10.1	7.0	14.3	vm_complete_haplotypes
+KIR3DL3	MID	full_known	4	KIR3DL3*0090101	24	268	9.0	6.1	13.0	vm_complete_haplotypes
+KIR3DL3	MID	full_known		other	153	268	57.1	51.1	62.9	vm_complete_haplotypes
+KIR3DL3	SAS	full_known	1	KIR3DL3*0030112	157	564	27.8	24.3	31.7	vm_complete_haplotypes
+KIR3DL3	SAS	full_known	2	KIR3DL3*0010101	114	564	20.2	17.1	23.7	vm_complete_haplotypes
+KIR3DL3	SAS	full_known	3	KIR3DL3*0140205	31	564	5.5	3.9	7.7	vm_complete_haplotypes
+KIR3DL3	SAS	full_known	4	KIR3DL3*0090101	27	564	4.8	3.3	6.9	vm_complete_haplotypes
+KIR3DL3	SAS	full_known	5	KIR3DL3*0070103	25	564	4.4	3.0	6.5	vm_complete_haplotypes
+KIR3DL3	SAS	full_known		other	210	564	37.2	33.3	41.3	vm_complete_haplotypes
+KIR3DL3	ALL	full_known	1	KIR3DL3*0030112	713	5414	13.2	12.3	14.1	vm_complete_haplotypes
+KIR3DL3	ALL	full_known	2	KIR3DL3*0010101	637	5414	11.8	10.9	12.7	vm_complete_haplotypes
+KIR3DL3	ALL	full_known	3	KIR3DL3*0090101	580	5414	10.7	9.9	11.6	vm_complete_haplotypes
+KIR3DL3	ALL	full_known	4	KIR3DL3*0010104	313	5414	5.8	5.2	6.4	vm_complete_haplotypes
+KIR3DL3	ALL	full_known	5	KIR3DL3*0030103	240	5414	4.4	3.9	5.0	vm_complete_haplotypes
+KIR3DL3	ALL	full_known		other	2931	5414	54.1	52.8	55.5	vm_complete_haplotypes
+KIR2DS2	AFR	full_known	1	KIR2DS2*0010111	65	217	30.0	24.3	36.4	vm_complete_haplotypes
+KIR2DS2	AFR	full_known	2	KIR2DS2*0010109	29	217	13.4	9.5	18.5	vm_complete_haplotypes
+KIR2DS2	AFR	full_known	3	KIR2DS2*0010108	28	217	12.9	9.1	18.0	vm_complete_haplotypes
+KIR2DS2	AFR	full_known	4	KIR2DS2*0010103	26	217	12.0	8.3	17.0	vm_complete_haplotypes
+KIR2DS2	AFR	full_known		other	69	217	31.8	26.0	38.3	vm_complete_haplotypes
+KIR2DS2	AMR	full_known	1	KIR2DS2*0010108	144	399	36.1	31.5	40.9	vm_complete_haplotypes
+KIR2DS2	AMR	full_known	2	KIR2DS2*0010103	77	399	19.3	15.7	23.5	vm_complete_haplotypes
+KIR2DS2	AMR	full_known	3	KIR2DS2*0010105	50	399	12.5	9.6	16.1	vm_complete_haplotypes
+KIR2DS2	AMR	full_known	4	KIR2DS2*0010115	34	399	8.5	6.2	11.7	vm_complete_haplotypes
+KIR2DS2	AMR	full_known	5	KIR2DS2*0010102	31	399	7.8	5.5	10.8	vm_complete_haplotypes
+KIR2DS2	AMR	full_known		other	63	399	15.8	12.5	19.7	vm_complete_haplotypes
+KIR2DS2	EAS	full_known	1	KIR2DS2*0010108	48	124	38.7	30.6	47.5	vm_complete_haplotypes
+KIR2DS2	EAS	full_known	2	KIR2DS2*0010110	37	124	29.8	22.5	38.4	vm_complete_haplotypes
+KIR2DS2	EAS	full_known		other	39	124	31.5	23.9	40.1	vm_complete_haplotypes
+KIR2DS2	EUR	full_known	1	KIR2DS2*0010103	120	502	23.9	20.4	27.8	vm_complete_haplotypes
+KIR2DS2	EUR	full_known	2	KIR2DS2*0010108	108	502	21.5	18.1	25.3	vm_complete_haplotypes
+KIR2DS2	EUR	full_known	3	KIR2DS2*0010105	71	502	14.1	11.4	17.5	vm_complete_haplotypes
+KIR2DS2	EUR	full_known	4	KIR2DS2*0010115	50	502	10.0	7.6	12.9	vm_complete_haplotypes
+KIR2DS2	EUR	full_known	5	KIR2DS2*0010102	48	502	9.6	7.3	12.4	vm_complete_haplotypes
+KIR2DS2	EUR	full_known		other	105	502	20.9	17.6	24.7	vm_complete_haplotypes
+KIR2DS2	MID	full_known	1	KIR2DS2*0010103	30	103	29.1	21.2	38.5	vm_complete_haplotypes
+KIR2DS2	MID	full_known		other	73	103	70.9	61.5	78.8	vm_complete_haplotypes
+KIR2DS2	SAS	full_known	1	KIR2DS2*0010102	70	202	34.7	28.4	41.4	vm_complete_haplotypes
+KIR2DS2	SAS	full_known	2	KIR2DS2*0010112	56	202	27.7	22.0	34.3	vm_complete_haplotypes
+KIR2DS2	SAS	full_known	3	KIR2DS2*0010108	28	202	13.9	9.8	19.3	vm_complete_haplotypes
+KIR2DS2	SAS	full_known		other	48	202	23.8	18.4	30.1	vm_complete_haplotypes
+KIR2DS2	ALL	full_known	1	KIR2DS2*0010108	372	1550	24.0	21.9	26.2	vm_complete_haplotypes
+KIR2DS2	ALL	full_known	2	KIR2DS2*0010103	266	1550	17.2	15.4	19.1	vm_complete_haplotypes
+KIR2DS2	ALL	full_known	3	KIR2DS2*0010102	199	1550	12.8	11.3	14.6	vm_complete_haplotypes
+KIR2DS2	ALL	full_known	4	KIR2DS2*0010105	173	1550	11.2	9.7	12.8	vm_complete_haplotypes
+KIR2DS2	ALL	full_known	5	KIR2DS2*0010115	112	1550	7.2	6.0	8.6	vm_complete_haplotypes
+KIR2DS2	ALL	full_known		other	428	1550	27.6	25.4	29.9	vm_complete_haplotypes
+KIR2DL2	AFR	full_known		other	<20	<20				vm_complete_haplotypes
+KIR2DL2	AMR	full_known	1	KIR2DL2*0030105	41	69	59.4	47.6	70.2	vm_complete_haplotypes
+KIR2DL2	AMR	full_known		other	28	69	40.6	29.8	52.4	vm_complete_haplotypes
+KIR2DL2	EAS	full_known		other	<20	<20				vm_complete_haplotypes
+KIR2DL2	EUR	full_known	1	KIR2DL2*0030102	23	50	46.0	33.0	59.6	vm_complete_haplotypes
+KIR2DL2	EUR	full_known		other	27	50	54.0	40.4	67.0	vm_complete_haplotypes
+KIR2DL2	MID	full_known		other	<20	<20				vm_complete_haplotypes
+KIR2DL2	SAS	full_known		other	<20	<20				vm_complete_haplotypes
+KIR2DL2	ALL	full_known	1	KIR2DL2*0030102	42	144	29.2	22.4	37.1	vm_complete_haplotypes
+KIR2DL2	ALL	full_known	2	KIR2DL2*0030105	41	144	28.5	21.7	36.3	vm_complete_haplotypes
+KIR2DL2	ALL	full_known	3	KIR2DL2*0030106	20	144	13.9	9.2	20.5	vm_complete_haplotypes
+KIR2DL2	ALL	full_known		other	41	144	28.5	21.7	36.3	vm_complete_haplotypes
+KIR2DL3	AFR	full_known		other	45	45	100.0	92.1	100.0	vm_complete_haplotypes
+KIR2DL3	AMR	full_known	1	KIR2DL3*00501	25	54	46.3	33.7	59.4	vm_complete_haplotypes
+KIR2DL3	AMR	full_known		other	29	54	53.7	40.6	66.3	vm_complete_haplotypes
+KIR2DL3	EAS	full_known		other	<20	<20				vm_complete_haplotypes
+KIR2DL3	EUR	full_known	1	KIR2DL3*00501	57	95	60.0	49.9	69.3	vm_complete_haplotypes
+KIR2DL3	EUR	full_known		other	38	95	40.0	30.7	50.1	vm_complete_haplotypes
+KIR2DL3	MID	full_known		other	<20	<20				vm_complete_haplotypes
+KIR2DL3	SAS	full_known		other	29	29	100.0	88.3	100.0	vm_complete_haplotypes
+KIR2DL3	ALL	full_known	1	KIR2DL3*00501	106	242	43.8	37.7	50.1	vm_complete_haplotypes
+KIR2DL3	ALL	full_known	2	KIR2DL3*0010103	58	242	24.0	19.0	29.7	vm_complete_haplotypes
+KIR2DL3	ALL	full_known	3	KIR2DL3*0010109	21	242	8.7	5.7	12.9	vm_complete_haplotypes
+KIR2DL3	ALL	full_known		other	57	242	23.6	18.6	29.3	vm_complete_haplotypes
+KIR2DP1	AFR	full_known	1	KIR2DP1*0020109	426	1327	32.1	29.6	34.7	vm_complete_haplotypes
+KIR2DP1	AFR	full_known	2	KIR2DP1*0010203	144	1327	10.9	9.3	12.6	vm_complete_haplotypes
+KIR2DP1	AFR	full_known	3	KIR2DP1*0030102	126	1327	9.5	8.0	11.2	vm_complete_haplotypes
+KIR2DP1	AFR	full_known	4	KIR2DP1*010	88	1327	6.6	5.4	8.1	vm_complete_haplotypes
+KIR2DP1	AFR	full_known	5	KIR2DP1*00105	83	1327	6.3	5.1	7.7	vm_complete_haplotypes
+KIR2DP1	AFR	full_known		other	460	1327	34.7	32.2	37.3	vm_complete_haplotypes
+KIR2DP1	AMR	full_known	1	KIR2DP1*0020119	456	1734	26.3	24.3	28.4	vm_complete_haplotypes
+KIR2DP1	AMR	full_known	2	KIR2DP1*0030102	225	1734	13.0	11.5	14.6	vm_complete_haplotypes
+KIR2DP1	AMR	full_known	3	KIR2DP1*0020120	181	1734	10.4	9.1	12.0	vm_complete_haplotypes
+KIR2DP1	AMR	full_known	4	KIR2DP1*0010201	139	1734	8.0	6.8	9.4	vm_complete_haplotypes
+KIR2DP1	AMR	full_known	5	KIR2DP1*0020301	87	1734	5.0	4.1	6.1	vm_complete_haplotypes
+KIR2DP1	AMR	full_known		other	646	1734	37.3	35.0	39.6	vm_complete_haplotypes
+KIR2DP1	EAS	full_known	1	KIR2DP1*0020119	385	736	52.3	48.7	55.9	vm_complete_haplotypes
+KIR2DP1	EAS	full_known	2	KIR2DP1*0020120	120	736	16.3	13.8	19.1	vm_complete_haplotypes
+KIR2DP1	EAS	full_known	3	KIR2DP1*0030103	101	736	13.7	11.4	16.4	vm_complete_haplotypes
+KIR2DP1	EAS	full_known	4	KIR2DP1*0010201	41	736	5.6	4.1	7.5	vm_complete_haplotypes
+KIR2DP1	EAS	full_known	5	KIR2DP1*0030102	37	736	5.0	3.7	6.9	vm_complete_haplotypes
+KIR2DP1	EAS	full_known		other	52	736	7.1	5.4	9.1	vm_complete_haplotypes
+KIR2DP1	EUR	full_known	1	KIR2DP1*0030102	459	2006	22.9	21.1	24.8	vm_complete_haplotypes
+KIR2DP1	EUR	full_known	2	KIR2DP1*0020120	213	2006	10.6	9.3	12.0	vm_complete_haplotypes
+KIR2DP1	EUR	full_known	3	KIR2DP1*0010201	190	2006	9.5	8.3	10.8	vm_complete_haplotypes
+KIR2DP1	EUR	full_known	4	KIR2DP1*0020301	152	2006	7.6	6.5	8.8	vm_complete_haplotypes
+KIR2DP1	EUR	full_known	5	KIR2DP1*0020102	95	2006	4.7	3.9	5.8	vm_complete_haplotypes
+KIR2DP1	EUR	full_known		other	897	2006	44.7	42.6	46.9	vm_complete_haplotypes
+KIR2DP1	MID	full_known	1	KIR2DP1*0030102	45	289	15.6	11.8	20.2	vm_complete_haplotypes
+KIR2DP1	MID	full_known	2	KIR2DP1*0010201	32	289	11.1	8.0	15.2	vm_complete_haplotypes
+KIR2DP1	MID	full_known	3	KIR2DP1*0020102	28	289	9.7	6.8	13.6	vm_complete_haplotypes
+KIR2DP1	MID	full_known	4	KIR2DP1*0010203	27	289	9.3	6.5	13.3	vm_complete_haplotypes
+KIR2DP1	MID	full_known	5	KIR2DP1*0020120	24	289	8.3	5.6	12.1	vm_complete_haplotypes
+KIR2DP1	MID	full_known		other	133	289	46.0	40.4	51.8	vm_complete_haplotypes
+KIR2DP1	SAS	full_known	1	KIR2DP1*0020120	162	650	24.9	21.8	28.4	vm_complete_haplotypes
+KIR2DP1	SAS	full_known	2	KIR2DP1*0010201	72	650	11.1	8.9	13.7	vm_complete_haplotypes
+KIR2DP1	SAS	full_known	3	KIR2DP1*0030102	64	650	9.8	7.8	12.4	vm_complete_haplotypes
+KIR2DP1	SAS	full_known	4	KIR2DP1*0020111	53	650	8.2	6.3	10.5	vm_complete_haplotypes
+KIR2DP1	SAS	full_known	5	KIR2DP1*0250202	48	650	7.4	5.6	9.7	vm_complete_haplotypes
+KIR2DP1	SAS	full_known		other	251	650	38.6	34.9	42.4	vm_complete_haplotypes
+KIR2DP1	ALL	full_known	1	KIR2DP1*0020119	960	6754	14.2	13.4	15.1	vm_complete_haplotypes
+KIR2DP1	ALL	full_known	2	KIR2DP1*0030102	958	6754	14.2	13.4	15.0	vm_complete_haplotypes
+KIR2DP1	ALL	full_known	3	KIR2DP1*0020120	751	6754	11.1	10.4	11.9	vm_complete_haplotypes
+KIR2DP1	ALL	full_known	4	KIR2DP1*0020109	540	6754	8.0	7.4	8.7	vm_complete_haplotypes
+KIR2DP1	ALL	full_known	5	KIR2DP1*0010201	520	6754	7.7	7.1	8.4	vm_complete_haplotypes
+KIR2DP1	ALL	full_known		other	3025	6754	44.8	43.6	46.0	vm_complete_haplotypes
+KIR2DL1	AFR	full_known	1	KIR2DL1*0040101	185	1381	13.4	11.7	15.3	vm_complete_haplotypes
+KIR2DL1	AFR	full_known	2	KIR2DL1*0030282	158	1381	11.4	9.9	13.2	vm_complete_haplotypes
+KIR2DL1	AFR	full_known	3	KIR2DL1*0030204	128	1381	9.3	7.9	10.9	vm_complete_haplotypes
+KIR2DL1	AFR	full_known	4	KIR2DL1*0030285	100	1381	7.2	6.0	8.7	vm_complete_haplotypes
+KIR2DL1	AFR	full_known	5	KIR2DL1*0020102	62	1381	4.5	3.5	5.7	vm_complete_haplotypes
+KIR2DL1	AFR	full_known		other	748	1381	54.2	51.5	56.8	vm_complete_haplotypes
+KIR2DL1	AMR	full_known	1	KIR2DL1*0030205	393	1856	21.2	19.4	23.1	vm_complete_haplotypes
+KIR2DL1	AMR	full_known	2	KIR2DL1*0030204	236	1856	12.7	11.3	14.3	vm_complete_haplotypes
+KIR2DL1	AMR	full_known	3	KIR2DL1*0040101	183	1856	9.9	8.6	11.3	vm_complete_haplotypes
+KIR2DL1	AMR	full_known	4	KIR2DL1*0030212	100	1856	5.4	4.4	6.5	vm_complete_haplotypes
+KIR2DL1	AMR	full_known	5	KIR2DL1*0020102	87	1856	4.7	3.8	5.7	vm_complete_haplotypes
+KIR2DL1	AMR	full_known		other	857	1856	46.2	43.9	48.4	vm_complete_haplotypes
+KIR2DL1	EAS	full_known	1	KIR2DL1*0030205	258	830	31.1	28.0	34.3	vm_complete_haplotypes
+KIR2DL1	EAS	full_known	2	KIR2DL1*0030204	208	830	25.1	22.2	28.1	vm_complete_haplotypes
+KIR2DL1	EAS	full_known	3	KIR2DL1*0030219	126	830	15.2	12.9	17.8	vm_complete_haplotypes
+KIR2DL1	EAS	full_known	4	KIR2DL1*0020105	71	830	8.6	6.8	10.7	vm_complete_haplotypes
+KIR2DL1	EAS	full_known	5	KIR2DL1*0030245	50	830	6.0	4.6	7.9	vm_complete_haplotypes
+KIR2DL1	EAS	full_known		other	117	830	14.1	11.9	16.6	vm_complete_haplotypes
+KIR2DL1	EUR	full_known	1	KIR2DL1*0030204	438	2515	17.4	16.0	18.9	vm_complete_haplotypes
+KIR2DL1	EUR	full_known	2	KIR2DL1*0040101	273	2515	10.9	9.7	12.1	vm_complete_haplotypes
+KIR2DL1	EUR	full_known	3	KIR2DL1*0020102	203	2515	8.1	7.1	9.2	vm_complete_haplotypes
+KIR2DL1	EUR	full_known	4	KIR2DL1*0030212	187	2515	7.4	6.5	8.5	vm_complete_haplotypes
+KIR2DL1	EUR	full_known	5	KIR2DL1*0020105	173	2515	6.9	6.0	7.9	vm_complete_haplotypes
+KIR2DL1	EUR	full_known		other	1241	2515	49.3	47.4	51.3	vm_complete_haplotypes
+KIR2DL1	MID	full_known	1	KIR2DL1*0040101	59	317	18.6	14.7	23.3	vm_complete_haplotypes
+KIR2DL1	MID	full_known	2	KIR2DL1*0020102	44	317	13.9	10.5	18.1	vm_complete_haplotypes
+KIR2DL1	MID	full_known	3	KIR2DL1*0030204	25	317	7.9	5.4	11.4	vm_complete_haplotypes
+KIR2DL1	MID	full_known	4	KIR2DL1*0010103	20	317	6.3	4.1	9.5	vm_complete_haplotypes
+KIR2DL1	MID	full_known		other	169	317	53.3	47.8	58.7	vm_complete_haplotypes
+KIR2DL1	SAS	full_known	1	KIR2DL1*0030204	181	831	21.8	19.1	24.7	vm_complete_haplotypes
+KIR2DL1	SAS	full_known	2	KIR2DL1*0040101	106	831	12.8	10.7	15.2	vm_complete_haplotypes
+KIR2DL1	SAS	full_known	3	KIR2DL1*0020102	67	831	8.1	6.4	10.1	vm_complete_haplotypes
+KIR2DL1	SAS	full_known	4	KIR2DL1*0030225	59	831	7.1	5.5	9.1	vm_complete_haplotypes
+KIR2DL1	SAS	full_known	5	KIR2DL1*0030205	58	831	7.0	5.4	8.9	vm_complete_haplotypes
+KIR2DL1	SAS	full_known		other	360	831	43.3	40.0	46.7	vm_complete_haplotypes
+KIR2DL1	ALL	full_known	1	KIR2DL1*0030204	1218	7748	15.7	14.9	16.5	vm_complete_haplotypes
+KIR2DL1	ALL	full_known	2	KIR2DL1*0040101	839	7748	10.8	10.2	11.5	vm_complete_haplotypes
+KIR2DL1	ALL	full_known	3	KIR2DL1*0030205	756	7748	9.8	9.1	10.4	vm_complete_haplotypes
+KIR2DL1	ALL	full_known	4	KIR2DL1*0020102	472	7748	6.1	5.6	6.6	vm_complete_haplotypes
+KIR2DL1	ALL	full_known	5	KIR2DL1*0020105	383	7748	4.9	4.5	5.4	vm_complete_haplotypes
+KIR2DL1	ALL	full_known		other	4080	7748	52.7	51.5	53.8	vm_complete_haplotypes
+KIR3DP1	AFR	full_known	1	KIR3DP1*0030101	582	2770	21.0	19.5	22.6	vm_complete_haplotypes
+KIR3DP1	AFR	full_known	2	KIR3DP1*0030202	515	2770	18.6	17.2	20.1	vm_complete_haplotypes
+KIR3DP1	AFR	full_known	3	KIR3DP1*0100102	368	2770	13.3	12.1	14.6	vm_complete_haplotypes
+KIR3DP1	AFR	full_known	4	KIR3DP1*0030209	193	2770	7.0	6.1	8.0	vm_complete_haplotypes
+KIR3DP1	AFR	full_known	5	KIR3DP1*0060101	121	2770	4.4	3.7	5.2	vm_complete_haplotypes
+KIR3DP1	AFR	full_known		other	991	2770	35.8	34.0	37.6	vm_complete_haplotypes
+KIR3DP1	AMR	full_known	1	KIR3DP1*0030202	956	2957	32.3	30.7	34.0	vm_complete_haplotypes
+KIR3DP1	AMR	full_known	2	KIR3DP1*0030212	361	2957	12.2	11.1	13.4	vm_complete_haplotypes
+KIR3DP1	AMR	full_known	3	KIR3DP1*0030101	283	2957	9.6	8.6	10.7	vm_complete_haplotypes
+KIR3DP1	AMR	full_known	4	KIR3DP1*0060101	224	2957	7.6	6.7	8.6	vm_complete_haplotypes
+KIR3DP1	AMR	full_known	5	KIR3DP1*0100102	168	2957	5.7	4.9	6.6	vm_complete_haplotypes
+KIR3DP1	AMR	full_known		other	965	2957	32.6	31.0	34.3	vm_complete_haplotypes
+KIR3DP1	EAS	full_known	1	KIR3DP1*0030202	1273	1888	67.4	65.3	69.5	vm_complete_haplotypes
+KIR3DP1	EAS	full_known	2	KIR3DP1*0030212	113	1888	6.0	5.0	7.1	vm_complete_haplotypes
+KIR3DP1	EAS	full_known	3	KIR3DP1*0060101	96	1888	5.1	4.2	6.2	vm_complete_haplotypes
+KIR3DP1	EAS	full_known	4	KIR3DP1*0100102	66	1888	3.5	2.8	4.4	vm_complete_haplotypes
+KIR3DP1	EAS	full_known	5	KIR3DP1*0030101	65	1888	3.4	2.7	4.4	vm_complete_haplotypes
+KIR3DP1	EAS	full_known		other	275	1888	14.6	13.0	16.2	vm_complete_haplotypes
+KIR3DP1	EUR	full_known	1	KIR3DP1*0030202	1052	3564	29.5	28.0	31.0	vm_complete_haplotypes
+KIR3DP1	EUR	full_known	2	KIR3DP1*0060101	443	3564	12.4	11.4	13.6	vm_complete_haplotypes
+KIR3DP1	EUR	full_known	3	KIR3DP1*0030101	376	3564	10.5	9.6	11.6	vm_complete_haplotypes
+KIR3DP1	EUR	full_known	4	KIR3DP1*0090102	345	3564	9.7	8.8	10.7	vm_complete_haplotypes
+KIR3DP1	EUR	full_known	5	KIR3DP1*0150101	269	3564	7.5	6.7	8.5	vm_complete_haplotypes
+KIR3DP1	EUR	full_known		other	1079	3564	30.3	28.8	31.8	vm_complete_haplotypes
+KIR3DP1	MID	full_known	1	KIR3DP1*0030202	188	576	32.6	28.9	36.6	vm_complete_haplotypes
+KIR3DP1	MID	full_known	2	KIR3DP1*0030101	95	576	16.5	13.7	19.7	vm_complete_haplotypes
+KIR3DP1	MID	full_known	3	KIR3DP1*0090102	51	576	8.9	6.8	11.5	vm_complete_haplotypes
+KIR3DP1	MID	full_known	4	KIR3DP1*0060101	45	576	7.8	5.9	10.3	vm_complete_haplotypes
+KIR3DP1	MID	full_known	5	KIR3DP1*0030102	35	576	6.1	4.4	8.3	vm_complete_haplotypes
+KIR3DP1	MID	full_known		other	162	576	28.1	24.6	31.9	vm_complete_haplotypes
+KIR3DP1	SAS	full_known	1	KIR3DP1*0030202	601	1422	42.3	39.7	44.8	vm_complete_haplotypes
+KIR3DP1	SAS	full_known	2	KIR3DP1*0030101	307	1422	21.6	19.5	23.8	vm_complete_haplotypes
+KIR3DP1	SAS	full_known	3	KIR3DP1*0060101	153	1422	10.8	9.3	12.5	vm_complete_haplotypes
+KIR3DP1	SAS	full_known	4	KIR3DP1*0090102	61	1422	4.3	3.4	5.5	vm_complete_haplotypes
+KIR3DP1	SAS	full_known	5	KIR3DP1*0150101	49	1422	3.4	2.6	4.5	vm_complete_haplotypes
+KIR3DP1	SAS	full_known		other	251	1422	17.7	15.8	19.7	vm_complete_haplotypes
+KIR3DP1	ALL	full_known	1	KIR3DP1*0030202	4598	13203	34.8	34.0	35.6	vm_complete_haplotypes
+KIR3DP1	ALL	full_known	2	KIR3DP1*0030101	1709	13203	12.9	12.4	13.5	vm_complete_haplotypes
+KIR3DP1	ALL	full_known	3	KIR3DP1*0060101	1083	13203	8.2	7.7	8.7	vm_complete_haplotypes
+KIR3DP1	ALL	full_known	4	KIR3DP1*0090102	751	13203	5.7	5.3	6.1	vm_complete_haplotypes
+KIR3DP1	ALL	full_known	5	KIR3DP1*0100102	716	13203	5.4	5.0	5.8	vm_complete_haplotypes
+KIR3DP1	ALL	full_known		other	4346	13203	32.9	32.1	33.7	vm_complete_haplotypes
+KIR2DL4	AFR	full_known	1	KIR2DL4*0080101	319	1972	16.2	14.6	17.9	vm_complete_haplotypes
+KIR2DL4	AFR	full_known	2	KIR2DL4*0080204	294	1972	14.9	13.4	16.5	vm_complete_haplotypes
+KIR2DL4	AFR	full_known	3	KIR2DL4*0010306	261	1972	13.2	11.8	14.8	vm_complete_haplotypes
+KIR2DL4	AFR	full_known	4	KIR2DL4*0050101	203	1972	10.3	9.0	11.7	vm_complete_haplotypes
+KIR2DL4	AFR	full_known	5	KIR2DL4*0110101	164	1972	8.3	7.2	9.6	vm_complete_haplotypes
+KIR2DL4	AFR	full_known		other	731	1972	37.1	35.0	39.2	vm_complete_haplotypes
+KIR2DL4	AMR	full_known	1	KIR2DL4*0010201	839	2764	30.4	28.7	32.1	vm_complete_haplotypes
+KIR2DL4	AMR	full_known	2	KIR2DL4*0050101	588	2764	21.3	19.8	22.8	vm_complete_haplotypes
+KIR2DL4	AMR	full_known	3	KIR2DL4*0080204	312	2764	11.3	10.2	12.5	vm_complete_haplotypes
+KIR2DL4	AMR	full_known	4	KIR2DL4*0110101	283	2764	10.2	9.2	11.4	vm_complete_haplotypes
+KIR2DL4	AMR	full_known	5	KIR2DL4*0080101	261	2764	9.4	8.4	10.6	vm_complete_haplotypes
+KIR2DL4	AMR	full_known		other	481	2764	17.4	16.0	18.9	vm_complete_haplotypes
+KIR2DL4	EAS	full_known	1	KIR2DL4*0010201	760	1698	44.8	42.4	47.1	vm_complete_haplotypes
+KIR2DL4	EAS	full_known	2	KIR2DL4*0050101	404	1698	23.8	21.8	25.9	vm_complete_haplotypes
+KIR2DL4	EAS	full_known	3	KIR2DL4*0110101	264	1698	15.5	13.9	17.3	vm_complete_haplotypes
+KIR2DL4	EAS	full_known	4	KIR2DL4*0060201	168	1698	9.9	8.6	11.4	vm_complete_haplotypes
+KIR2DL4	EAS	full_known	5	KIR2DL4*0010304	39	1698	2.3	1.7	3.1	vm_complete_haplotypes
+KIR2DL4	EAS	full_known		other	63	1698	3.7	2.9	4.7	vm_complete_haplotypes
+KIR2DL4	EUR	full_known	1	KIR2DL4*0050101	572	3329	17.2	15.9	18.5	vm_complete_haplotypes
+KIR2DL4	EUR	full_known	2	KIR2DL4*0010201	540	3329	16.2	15.0	17.5	vm_complete_haplotypes
+KIR2DL4	EUR	full_known	3	KIR2DL4*0110101	488	3329	14.7	13.5	15.9	vm_complete_haplotypes
+KIR2DL4	EUR	full_known	4	KIR2DL4*0080101	480	3329	14.4	13.3	15.7	vm_complete_haplotypes
+KIR2DL4	EUR	full_known	5	KIR2DL4*0080204	478	3329	14.4	13.2	15.6	vm_complete_haplotypes
+KIR2DL4	EUR	full_known		other	771	3329	23.2	21.8	24.6	vm_complete_haplotypes
+KIR2DL4	MID	full_known	1	KIR2DL4*0050101	101	503	20.1	16.8	23.8	vm_complete_haplotypes
+KIR2DL4	MID	full_known	2	KIR2DL4*0010201	85	503	16.9	13.9	20.4	vm_complete_haplotypes
+KIR2DL4	MID	full_known	3	KIR2DL4*0080101	84	503	16.7	13.7	20.2	vm_complete_haplotypes
+KIR2DL4	MID	full_known	4	KIR2DL4*0080204	58	503	11.5	9.0	14.6	vm_complete_haplotypes
+KIR2DL4	MID	full_known	5	KIR2DL4*0110101	34	503	6.8	4.9	9.3	vm_complete_haplotypes
+KIR2DL4	MID	full_known		other	141	503	28.0	24.3	32.1	vm_complete_haplotypes
+KIR2DL4	SAS	full_known	1	KIR2DL4*0050101	385	1243	31.0	28.5	33.6	vm_complete_haplotypes
+KIR2DL4	SAS	full_known	2	KIR2DL4*0080101	263	1243	21.2	19.0	23.5	vm_complete_haplotypes
+KIR2DL4	SAS	full_known	3	KIR2DL4*0010201	156	1243	12.6	10.8	14.5	vm_complete_haplotypes
+KIR2DL4	SAS	full_known	4	KIR2DL4*0110101	112	1243	9.0	7.5	10.7	vm_complete_haplotypes
+KIR2DL4	SAS	full_known	5	KIR2DL4*0010203	73	1243	5.9	4.7	7.3	vm_complete_haplotypes
+KIR2DL4	SAS	full_known		other	254	1243	20.4	18.3	22.8	vm_complete_haplotypes
+KIR2DL4	ALL	full_known	1	KIR2DL4*0010201	2526	11532	21.9	21.2	22.7	vm_complete_haplotypes
+KIR2DL4	ALL	full_known	2	KIR2DL4*0050101	2255	11532	19.6	18.8	20.3	vm_complete_haplotypes
+KIR2DL4	ALL	full_known	3	KIR2DL4*0080101	1436	11532	12.5	11.9	13.1	vm_complete_haplotypes
+KIR2DL4	ALL	full_known	4	KIR2DL4*0110101	1346	11532	11.7	11.1	12.3	vm_complete_haplotypes
+KIR2DL4	ALL	full_known	5	KIR2DL4*0080204	1205	11532	10.4	9.9	11.0	vm_complete_haplotypes
+KIR2DL4	ALL	full_known		other	2764	11532	24.0	23.2	24.8	vm_complete_haplotypes
+KIR3DL1	AFR	full_known	1	KIR3DL1*0150101	475	1866	25.5	23.5	27.5	vm_complete_haplotypes
+KIR3DL1	AFR	full_known	2	KIR3DL1*0040102	159	1866	8.5	7.3	9.9	vm_complete_haplotypes
+KIR3DL1	AFR	full_known	3	KIR3DL1*0310101	113	1866	6.1	5.1	7.2	vm_complete_haplotypes
+KIR3DL1	AFR	full_known	4	KIR3DL1*0070101	112	1866	6.0	5.0	7.2	vm_complete_haplotypes
+KIR3DL1	AFR	full_known	5	KIR3DL1*0050101	89	1866	4.8	3.9	5.8	vm_complete_haplotypes
+KIR3DL1	AFR	full_known		other	918	1866	49.2	46.9	51.5	vm_complete_haplotypes
+KIR3DL1	AMR	full_known	1	KIR3DL1*0150204	268	1931	13.9	12.4	15.5	vm_complete_haplotypes
+KIR3DL1	AMR	full_known	2	KIR3DL1*0020103	170	1931	8.8	7.6	10.2	vm_complete_haplotypes
+KIR3DL1	AMR	full_known	3	KIR3DL1*0050101	139	1931	7.2	6.1	8.4	vm_complete_haplotypes
+KIR3DL1	AMR	full_known	4	KIR3DL1*0050103	124	1931	6.4	5.4	7.6	vm_complete_haplotypes
+KIR3DL1	AMR	full_known	5	KIR3DL1*0290101	121	1931	6.3	5.3	7.4	vm_complete_haplotypes
+KIR3DL1	AMR	full_known		other	1109	1931	57.4	55.2	59.6	vm_complete_haplotypes
+KIR3DL1	EAS	full_known	1	KIR3DL1*0150204	336	1011	33.2	30.4	36.2	vm_complete_haplotypes
+KIR3DL1	EAS	full_known	2	KIR3DL1*0050103	170	1011	16.8	14.6	19.2	vm_complete_haplotypes
+KIR3DL1	EAS	full_known	3	KIR3DL1*0070104	134	1011	13.3	11.3	15.5	vm_complete_haplotypes
+KIR3DL1	EAS	full_known	4	KIR3DL1*0150203	123	1011	12.2	10.3	14.3	vm_complete_haplotypes
+KIR3DL1	EAS	full_known	5	KIR3DL1*0150208	45	1011	4.5	3.3	5.9	vm_complete_haplotypes
+KIR3DL1	EAS	full_known		other	203	1011	20.1	17.7	22.7	vm_complete_haplotypes
+KIR3DL1	EUR	full_known	1	KIR3DL1*0050101	344	2581	13.3	12.1	14.7	vm_complete_haplotypes
+KIR3DL1	EUR	full_known	2	KIR3DL1*0020103	344	2581	13.3	12.1	14.7	vm_complete_haplotypes
+KIR3DL1	EUR	full_known	3	KIR3DL1*0040101	191	2581	7.4	6.5	8.5	vm_complete_haplotypes
+KIR3DL1	EUR	full_known	4	KIR3DL1*0080101	157	2581	6.1	5.2	7.1	vm_complete_haplotypes
+KIR3DL1	EUR	full_known	5	KIR3DL1*0010109	156	2581	6.0	5.2	7.0	vm_complete_haplotypes
+KIR3DL1	EUR	full_known		other	1389	2581	53.8	51.9	55.7	vm_complete_haplotypes
+KIR3DL1	MID	full_known	1	KIR3DL1*0020103	59	374	15.8	12.4	19.8	vm_complete_haplotypes
+KIR3DL1	MID	full_known	2	KIR3DL1*0010116	29	374	7.8	5.5	10.9	vm_complete_haplotypes
+KIR3DL1	MID	full_known	3	KIR3DL1*0040101	27	374	7.2	5.0	10.3	vm_complete_haplotypes
+KIR3DL1	MID	full_known	4	KIR3DL1*0010107	27	374	7.2	5.0	10.3	vm_complete_haplotypes
+KIR3DL1	MID	full_known	5	KIR3DL1*0010109	26	374	7.0	4.8	10.0	vm_complete_haplotypes
+KIR3DL1	MID	full_known		other	206	374	55.1	50.0	60.0	vm_complete_haplotypes
+KIR3DL1	SAS	full_known	1	KIR3DL1*0010109	161	753	21.4	18.6	24.5	vm_complete_haplotypes
+KIR3DL1	SAS	full_known	2	KIR3DL1*0080101	131	753	17.4	14.9	20.3	vm_complete_haplotypes
+KIR3DL1	SAS	full_known	3	KIR3DL1*0150204	125	753	16.6	14.1	19.4	vm_complete_haplotypes
+KIR3DL1	SAS	full_known	4	KIR3DL1*0010111	48	753	6.4	4.8	8.4	vm_complete_haplotypes
+KIR3DL1	SAS	full_known	5	KIR3DL1*0050101	34	753	4.5	3.2	6.2	vm_complete_haplotypes
+KIR3DL1	SAS	full_known		other	254	753	33.7	30.4	37.2	vm_complete_haplotypes
+KIR3DL1	ALL	full_known	1	KIR3DL1*0150204	906	8537	10.6	10.0	11.3	vm_complete_haplotypes
+KIR3DL1	ALL	full_known	2	KIR3DL1*0020103	672	8537	7.9	7.3	8.5	vm_complete_haplotypes
+KIR3DL1	ALL	full_known	3	KIR3DL1*0050101	629	8537	7.4	6.8	7.9	vm_complete_haplotypes
+KIR3DL1	ALL	full_known	4	KIR3DL1*0150101	586	8537	6.9	6.3	7.4	vm_complete_haplotypes
+KIR3DL1	ALL	full_known	5	KIR3DL1*0010109	469	8537	5.5	5.0	6.0	vm_complete_haplotypes
+KIR3DL1	ALL	full_known		other	5275	8537	61.8	60.8	62.8	vm_complete_haplotypes
+KIR3DS1	AFR	full_known	1	KIR3DS1*0130101	153	178	86.0	80.1	90.3	vm_complete_haplotypes
+KIR3DS1	AFR	full_known		other	25	178	14.0	9.7	19.9	vm_complete_haplotypes
+KIR3DS1	AMR	full_known	1	KIR3DS1*0130101	511	583	87.7	84.7	90.1	vm_complete_haplotypes
+KIR3DS1	AMR	full_known	2	KIR3DS1*0130127	27	583	4.6	3.2	6.7	vm_complete_haplotypes
+KIR3DS1	AMR	full_known		other	45	583	7.7	5.8	10.2	vm_complete_haplotypes
+KIR3DS1	EAS	full_known	1	KIR3DS1*0130101	109	235	46.4	40.1	52.8	vm_complete_haplotypes
+KIR3DS1	EAS	full_known	2	KIR3DS1*0130103	70	235	29.8	24.3	35.9	vm_complete_haplotypes
+KIR3DS1	EAS	full_known	3	KIR3DS1*0130111	25	235	10.6	7.3	15.2	vm_complete_haplotypes
+KIR3DS1	EAS	full_known		other	31	235	13.2	9.5	18.1	vm_complete_haplotypes
+KIR3DS1	EUR	full_known	1	KIR3DS1*0130101	536	652	82.2	79.1	85.0	vm_complete_haplotypes
+KIR3DS1	EUR	full_known	2	KIR3DS1*0130113	50	652	7.7	5.9	10.0	vm_complete_haplotypes
+KIR3DS1	EUR	full_known		other	66	652	10.1	8.0	12.7	vm_complete_haplotypes
+KIR3DS1	MID	full_known	1	KIR3DS1*0130101	79	101	78.2	69.2	85.2	vm_complete_haplotypes
+KIR3DS1	MID	full_known		other	22	101	21.8	14.8	30.8	vm_complete_haplotypes
+KIR3DS1	SAS	full_known	1	KIR3DS1*0130101	297	333	89.2	85.4	92.1	vm_complete_haplotypes
+KIR3DS1	SAS	full_known		other	36	333	10.8	7.9	14.6	vm_complete_haplotypes
+KIR3DS1	ALL	full_known	1	KIR3DS1*0130101	1689	2087	80.9	79.2	82.6	vm_complete_haplotypes
+KIR3DS1	ALL	full_known	2	KIR3DS1*0130113	90	2087	4.3	3.5	5.3	vm_complete_haplotypes
+KIR3DS1	ALL	full_known	3	KIR3DS1*0130103	82	2087	3.9	3.2	4.9	vm_complete_haplotypes
+KIR3DS1	ALL	full_known	4	KIR3DS1*0130127	82	2087	3.9	3.2	4.9	vm_complete_haplotypes
+KIR3DS1	ALL	full_known	5	KIR3DS1*0130118	37	2087	1.8	1.3	2.4	vm_complete_haplotypes
+KIR3DS1	ALL	full_known		other	107	2087	5.1	4.3	6.2	vm_complete_haplotypes
+KIR2DL5A	AFR	full_known	1	KIR2DL5A*0010103	97	161	60.2	52.5	67.5	vm_complete_haplotypes
+KIR2DL5A	AFR	full_known	2	KIR2DL5A*0010101	31	161	19.3	13.9	26.0	vm_complete_haplotypes
+KIR2DL5A	AFR	full_known		other	33	161	20.5	15.0	27.4	vm_complete_haplotypes
+KIR2DL5A	AMR	full_known	1	KIR2DL5A*0010103	203	426	47.7	43.0	52.4	vm_complete_haplotypes
+KIR2DL5A	AMR	full_known	2	KIR2DL5A*0050101	77	426	18.1	14.7	22.0	vm_complete_haplotypes
+KIR2DL5A	AMR	full_known	3	KIR2DL5A*0010101	77	426	18.1	14.7	22.0	vm_complete_haplotypes
+KIR2DL5A	AMR	full_known		other	69	426	16.2	13.0	20.0	vm_complete_haplotypes
+KIR2DL5A	EAS	full_known	1	KIR2DL5A*0010103	135	288	46.9	41.2	52.6	vm_complete_haplotypes
+KIR2DL5A	EAS	full_known	2	KIR2DL5A*0050104	100	288	34.7	29.5	40.4	vm_complete_haplotypes
+KIR2DL5A	EAS	full_known		other	53	288	18.4	14.4	23.3	vm_complete_haplotypes
+KIR2DL5A	EUR	full_known	1	KIR2DL5A*0010103	392	663	59.1	55.3	62.8	vm_complete_haplotypes
+KIR2DL5A	EUR	full_known	2	KIR2DL5A*0010101	157	663	23.7	20.6	27.1	vm_complete_haplotypes
+KIR2DL5A	EUR	full_known	3	KIR2DL5A*0050101	92	663	13.9	11.5	16.7	vm_complete_haplotypes
+KIR2DL5A	EUR	full_known		other	22	663	3.3	2.2	5.0	vm_complete_haplotypes
+KIR2DL5A	MID	full_known	1	KIR2DL5A*0010103	47	79	59.5	48.5	69.6	vm_complete_haplotypes
+KIR2DL5A	MID	full_known		other	32	79	40.5	30.4	51.5	vm_complete_haplotypes
+KIR2DL5A	SAS	full_known	1	KIR2DL5A*0010103	276	326	84.7	80.3	88.2	vm_complete_haplotypes
+KIR2DL5A	SAS	full_known		other	50	326	15.3	11.8	19.7	vm_complete_haplotypes
+KIR2DL5A	ALL	full_known	1	KIR2DL5A*0010103	1150	1944	59.2	57.0	61.3	vm_complete_haplotypes
+KIR2DL5A	ALL	full_known	2	KIR2DL5A*0010101	319	1944	16.4	14.8	18.1	vm_complete_haplotypes
+KIR2DL5A	ALL	full_known	3	KIR2DL5A*0050101	226	1944	11.6	10.3	13.1	vm_complete_haplotypes
+KIR2DL5A	ALL	full_known	4	KIR2DL5A*0050104	111	1944	5.7	4.8	6.8	vm_complete_haplotypes
+KIR2DL5A	ALL	full_known	5	KIR2DL5A*00103	57	1944	2.9	2.3	3.8	vm_complete_haplotypes
+KIR2DL5A	ALL	full_known		other	81	1944	4.2	3.4	5.1	vm_complete_haplotypes
+KIR2DS3	AFR	full_known	1	KIR2DS3*0010302	118	197	59.9	52.9	66.5	vm_complete_haplotypes
+KIR2DS3	AFR	full_known	2	KIR2DS3*0010301	44	197	22.3	17.1	28.6	vm_complete_haplotypes
+KIR2DS3	AFR	full_known		other	35	197	17.8	13.1	23.7	vm_complete_haplotypes
+KIR2DS3	AMR	full_known	1	KIR2DS3*0010301	112	278	40.3	34.7	46.1	vm_complete_haplotypes
+KIR2DS3	AMR	full_known	2	KIR2DS3*0010302	51	278	18.3	14.2	23.3	vm_complete_haplotypes
+KIR2DS3	AMR	full_known	3	KIR2DS3*0020103	47	278	16.9	13.0	21.8	vm_complete_haplotypes
+KIR2DS3	AMR	full_known	4	KIR2DS3*0020101	21	278	7.6	5.0	11.3	vm_complete_haplotypes
+KIR2DS3	AMR	full_known		other	47	278	16.9	13.0	21.8	vm_complete_haplotypes
+KIR2DS3	EAS	full_known	1	KIR2DS3*0020101	64	115	55.7	46.5	64.4	vm_complete_haplotypes
+KIR2DS3	EAS	full_known	2	KIR2DS3*0010301	23	115	20.0	13.7	28.2	vm_complete_haplotypes
+KIR2DS3	EAS	full_known		other	28	115	24.3	17.4	32.9	vm_complete_haplotypes
+KIR2DS3	EUR	full_known	1	KIR2DS3*0010301	195	388	50.3	45.3	55.2	vm_complete_haplotypes
+KIR2DS3	EUR	full_known	2	KIR2DS3*0020103	72	388	18.6	15.0	22.7	vm_complete_haplotypes
+KIR2DS3	EUR	full_known	3	KIR2DS3*0010302	26	388	6.7	4.6	9.6	vm_complete_haplotypes
+KIR2DS3	EUR	full_known		other	95	388	24.5	20.5	29.0	vm_complete_haplotypes
+KIR2DS3	MID	full_known	1	KIR2DS3*0010301	46	90	51.1	41.0	61.2	vm_complete_haplotypes
+KIR2DS3	MID	full_known		other	44	90	48.9	38.8	59.0	vm_complete_haplotypes
+KIR2DS3	SAS	full_known	1	KIR2DS3*0010301	79	153	51.6	43.8	59.4	vm_complete_haplotypes
+KIR2DS3	SAS	full_known	2	KIR2DS3*0010317	51	153	33.3	26.4	41.1	vm_complete_haplotypes
+KIR2DS3	SAS	full_known		other	23	153	15.0	10.2	21.5	vm_complete_haplotypes
+KIR2DS3	ALL	full_known	1	KIR2DS3*0010301	499	1223	40.8	38.1	43.6	vm_complete_haplotypes
+KIR2DS3	ALL	full_known	2	KIR2DS3*0010302	214	1223	17.5	15.5	19.7	vm_complete_haplotypes
+KIR2DS3	ALL	full_known	3	KIR2DS3*0020103	160	1223	13.1	11.3	15.1	vm_complete_haplotypes
+KIR2DS3	ALL	full_known	4	KIR2DS3*0020101	89	1223	7.3	6.0	8.9	vm_complete_haplotypes
+KIR2DS3	ALL	full_known	5	KIR2DS3*0010317	52	1223	4.3	3.3	5.5	vm_complete_haplotypes
+KIR2DS3	ALL	full_known		other	209	1223	17.1	15.1	19.3	vm_complete_haplotypes
+KIR2DS5	AFR	full_known	1	KIR2DS5*0070101	82	190	43.2	36.3	50.3	vm_complete_haplotypes
+KIR2DS5	AFR	full_known	2	KIR2DS5*0020111	48	190	25.3	19.6	31.9	vm_complete_haplotypes
+KIR2DS5	AFR	full_known		other	60	190	31.6	25.4	38.5	vm_complete_haplotypes
+KIR2DS5	AMR	full_known	1	KIR2DS5*0020111	188	301	62.5	56.9	67.7	vm_complete_haplotypes
+KIR2DS5	AMR	full_known	2	KIR2DS5*0020126	36	301	12.0	8.8	16.1	vm_complete_haplotypes
+KIR2DS5	AMR	full_known	3	KIR2DS5*0020104	23	301	7.6	5.1	11.2	vm_complete_haplotypes
+KIR2DS5	AMR	full_known		other	54	301	17.9	14.0	22.7	vm_complete_haplotypes
+KIR2DS5	EAS	full_known		other	129	129	100.0	97.1	100.0	vm_complete_haplotypes
+KIR2DS5	EUR	full_known	1	KIR2DS5*0020111	332	487	68.2	63.9	72.2	vm_complete_haplotypes
+KIR2DS5	EUR	full_known	2	KIR2DS5*0020126	71	487	14.6	11.7	18.0	vm_complete_haplotypes
+KIR2DS5	EUR	full_known	3	KIR2DS5*0020104	35	487	7.2	5.2	9.8	vm_complete_haplotypes
+KIR2DS5	EUR	full_known	4	KIR2DS5*0020106	24	487	4.9	3.3	7.2	vm_complete_haplotypes
+KIR2DS5	EUR	full_known		other	25	487	5.1	3.5	7.5	vm_complete_haplotypes
+KIR2DS5	MID	full_known		other	58	58	100.0	93.8	100.0	vm_complete_haplotypes
+KIR2DS5	SAS	full_known	1	KIR2DS5*0020111	157	207	75.8	69.6	81.2	vm_complete_haplotypes
+KIR2DS5	SAS	full_known		other	50	207	24.2	18.8	30.4	vm_complete_haplotypes
+KIR2DS5	ALL	full_known	1	KIR2DS5*0020111	881	1372	64.2	61.6	66.7	vm_complete_haplotypes
+KIR2DS5	ALL	full_known	2	KIR2DS5*0020126	138	1372	10.1	8.6	11.8	vm_complete_haplotypes
+KIR2DS5	ALL	full_known	3	KIR2DS5*0070101	95	1372	6.9	5.7	8.4	vm_complete_haplotypes
+KIR2DS5	ALL	full_known	4	KIR2DS5*0020104	72	1372	5.2	4.2	6.6	vm_complete_haplotypes
+KIR2DS5	ALL	full_known	5	KIR2DS5*0020106	62	1372	4.5	3.5	5.8	vm_complete_haplotypes
+KIR2DS5	ALL	full_known		other	124	1372	9.0	7.6	10.7	vm_complete_haplotypes
+KIR2DS1	AFR	full_known	1	KIR2DS1*0020103	74	112	66.1	56.9	74.2	vm_complete_haplotypes
+KIR2DS1	AFR	full_known		other	38	112	33.9	25.8	43.1	vm_complete_haplotypes
+KIR2DS1	AMR	full_known	1	KIR2DS1*0020103	166	305	54.4	48.8	59.9	vm_complete_haplotypes
+KIR2DS1	AMR	full_known	2	KIR2DS1*0020104	77	305	25.2	20.7	30.4	vm_complete_haplotypes
+KIR2DS1	AMR	full_known	3	KIR2DS1*0020115	23	305	7.5	5.1	11.1	vm_complete_haplotypes
+KIR2DS1	AMR	full_known		other	39	305	12.8	9.5	17.0	vm_complete_haplotypes
+KIR2DS1	EAS	full_known	1	KIR2DS1*0020103	159	186	85.5	79.7	89.8	vm_complete_haplotypes
+KIR2DS1	EAS	full_known		other	27	186	14.5	10.2	20.3	vm_complete_haplotypes
+KIR2DS1	EUR	full_known	1	KIR2DS1*0020103	266	454	58.6	54.0	63.0	vm_complete_haplotypes
+KIR2DS1	EUR	full_known	2	KIR2DS1*0020104	88	454	19.4	16.0	23.3	vm_complete_haplotypes
+KIR2DS1	EUR	full_known	3	KIR2DS1*0020115	50	454	11.0	8.5	14.2	vm_complete_haplotypes
+KIR2DS1	EUR	full_known		other	50	454	11.0	8.5	14.2	vm_complete_haplotypes
+KIR2DS1	MID	full_known	1	KIR2DS1*0020103	45	81	55.6	44.7	65.9	vm_complete_haplotypes
+KIR2DS1	MID	full_known		other	36	81	44.4	34.1	55.3	vm_complete_haplotypes
+KIR2DS1	SAS	full_known		other	313	313	100.0	98.8	100.0	vm_complete_haplotypes
+KIR2DS1	ALL	full_known	1	KIR2DS1*0020103	1004	1451	69.2	66.8	71.5	vm_complete_haplotypes
+KIR2DS1	ALL	full_known	2	KIR2DS1*0020104	210	1451	14.5	12.8	16.4	vm_complete_haplotypes
+KIR2DS1	ALL	full_known	3	KIR2DS1*0020115	109	1451	7.5	6.3	9.0	vm_complete_haplotypes
+KIR2DS1	ALL	full_known	4	KIR2DS1*006	70	1451	4.8	3.8	6.1	vm_complete_haplotypes
+KIR2DS1	ALL	full_known	5	KIR2DS1*0020114	26	1451	1.8	1.2	2.6	vm_complete_haplotypes
+KIR2DS1	ALL	full_known		other	32	1451	2.2	1.6	3.1	vm_complete_haplotypes
+KIR2DS4	AFR	full_known	1	KIR2DS4*010	123	453	27.2	23.3	31.4	vm_complete_haplotypes
+KIR2DS4	AFR	full_known	2	KIR2DS4*0010101	89	453	19.6	16.2	23.6	vm_complete_haplotypes
+KIR2DS4	AFR	full_known	3	KIR2DS4*0010108	66	453	14.6	11.6	18.1	vm_complete_haplotypes
+KIR2DS4	AFR	full_known	4	KIR2DS4*0010105	52	453	11.5	8.9	14.7	vm_complete_haplotypes
+KIR2DS4	AFR	full_known	5	KIR2DS4*0030101	51	453	11.3	8.7	14.5	vm_complete_haplotypes
+KIR2DS4	AFR	full_known		other	72	453	15.9	12.8	19.5	vm_complete_haplotypes
+KIR2DS4	AMR	full_known	1	KIR2DS4*0010102	491	1155	42.5	39.7	45.4	vm_complete_haplotypes
+KIR2DS4	AMR	full_known	2	KIR2DS4*0010101	218	1155	18.9	16.7	21.2	vm_complete_haplotypes
+KIR2DS4	AMR	full_known	3	KIR2DS4*010	198	1155	17.1	15.1	19.4	vm_complete_haplotypes
+KIR2DS4	AMR	full_known	4	KIR2DS4*0030101	135	1155	11.7	10.0	13.7	vm_complete_haplotypes
+KIR2DS4	AMR	full_known	5	KIR2DS4*0030103	52	1155	4.5	3.4	5.9	vm_complete_haplotypes
+KIR2DS4	AMR	full_known		other	61	1155	5.3	4.1	6.7	vm_complete_haplotypes
+KIR2DS4	EAS	full_known	1	KIR2DS4*0010102	487	713	68.3	64.8	71.6	vm_complete_haplotypes
+KIR2DS4	EAS	full_known	2	KIR2DS4*010	172	713	24.1	21.1	27.4	vm_complete_haplotypes
+KIR2DS4	EAS	full_known	3	KIR2DS4*0010107	24	713	3.4	2.3	5.0	vm_complete_haplotypes
+KIR2DS4	EAS	full_known		other	30	713	4.2	3.0	5.9	vm_complete_haplotypes
+KIR2DS4	EUR	full_known	1	KIR2DS4*0010101	370	1090	33.9	31.2	36.8	vm_complete_haplotypes
+KIR2DS4	EUR	full_known	2	KIR2DS4*010	253	1090	23.2	20.8	25.8	vm_complete_haplotypes
+KIR2DS4	EUR	full_known	3	KIR2DS4*0030101	249	1090	22.8	20.4	25.4	vm_complete_haplotypes
+KIR2DS4	EUR	full_known	4	KIR2DS4*0030103	121	1090	11.1	9.4	13.1	vm_complete_haplotypes
+KIR2DS4	EUR	full_known	5	KIR2DS4*0010106	60	1090	5.5	4.3	7.0	vm_complete_haplotypes
+KIR2DS4	EUR	full_known		other	37	1090	3.4	2.5	4.6	vm_complete_haplotypes
+KIR2DS4	MID	full_known	1	KIR2DS4*0010101	46	135	34.1	26.6	42.4	vm_complete_haplotypes
+KIR2DS4	MID	full_known	2	KIR2DS4*0030101	28	135	20.7	14.8	28.3	vm_complete_haplotypes
+KIR2DS4	MID	full_known	3	KIR2DS4*0030103	25	135	18.5	12.9	25.9	vm_complete_haplotypes
+KIR2DS4	MID	full_known		other	36	135	26.7	19.9	34.7	vm_complete_haplotypes
+KIR2DS4	SAS	full_known	1	KIR2DS4*0030101	131	348	37.6	32.7	42.8	vm_complete_haplotypes
+KIR2DS4	SAS	full_known	2	KIR2DS4*0010102	92	348	26.4	22.1	31.3	vm_complete_haplotypes
+KIR2DS4	SAS	full_known	3	KIR2DS4*0010101	41	348	11.8	8.8	15.6	vm_complete_haplotypes
+KIR2DS4	SAS	full_known	4	KIR2DS4*010	40	348	11.5	8.6	15.3	vm_complete_haplotypes
+KIR2DS4	SAS	full_known		other	44	348	12.6	9.6	16.5	vm_complete_haplotypes
+KIR2DS4	ALL	full_known	1	KIR2DS4*0010102	1134	3903	29.1	27.7	30.5	vm_complete_haplotypes
+KIR2DS4	ALL	full_known	2	KIR2DS4*010	802	3903	20.5	19.3	21.8	vm_complete_haplotypes
+KIR2DS4	ALL	full_known	3	KIR2DS4*0010101	781	3903	20.0	18.8	21.3	vm_complete_haplotypes
+KIR2DS4	ALL	full_known	4	KIR2DS4*0030101	609	3903	15.6	14.5	16.8	vm_complete_haplotypes
+KIR2DS4	ALL	full_known	5	KIR2DS4*0030103	255	3903	6.5	5.8	7.4	vm_complete_haplotypes
+KIR2DS4	ALL	full_known		other	322	3903	8.3	7.4	9.2	vm_complete_haplotypes
+KIR2DL5B	AFR	full_known	1	KIR2DL5B*0020107	194	240	80.8	75.4	85.3	vm_complete_haplotypes
+KIR2DL5B	AFR	full_known		other	46	240	19.2	14.7	24.6	vm_complete_haplotypes
+KIR2DL5B	AMR	full_known	1	KIR2DL5B*0020107	240	288	83.3	78.6	87.2	vm_complete_haplotypes
+KIR2DL5B	AMR	full_known		other	48	288	16.7	12.8	21.4	vm_complete_haplotypes
+KIR2DL5B	EAS	full_known	1	KIR2DL5B*0020107	40	40	100.0	91.2	100.0	vm_complete_haplotypes
+KIR2DL5B	EUR	full_known	1	KIR2DL5B*0020107	350	452	77.4	73.4	81.0	vm_complete_haplotypes
+KIR2DL5B	EUR	full_known	2	KIR2DL5B*0020109	66	452	14.6	11.6	18.2	vm_complete_haplotypes
+KIR2DL5B	EUR	full_known		other	36	452	8.0	5.8	10.8	vm_complete_haplotypes
+KIR2DL5B	MID	full_known	1	KIR2DL5B*0020107	80	119	67.2	58.4	75.0	vm_complete_haplotypes
+KIR2DL5B	MID	full_known		other	39	119	32.8	25.0	41.6	vm_complete_haplotypes
+KIR2DL5B	SAS	full_known	1	KIR2DL5B*0020107	212	272	77.9	72.6	82.5	vm_complete_haplotypes
+KIR2DL5B	SAS	full_known	2	KIR2DL5B*0020101	31	272	11.4	8.1	15.7	vm_complete_haplotypes
+KIR2DL5B	SAS	full_known		other	29	272	10.7	7.5	14.9	vm_complete_haplotypes
+KIR2DL5B	ALL	full_known	1	KIR2DL5B*0020107	1118	1413	79.1	76.9	81.2	vm_complete_haplotypes
+KIR2DL5B	ALL	full_known	2	KIR2DL5B*0020109	138	1413	9.8	8.3	11.4	vm_complete_haplotypes
+KIR2DL5B	ALL	full_known	3	KIR2DL5B*0020101	92	1413	6.5	5.3	7.9	vm_complete_haplotypes
+KIR2DL5B	ALL	full_known	4	KIR2DL5B*0080101	30	1413	2.1	1.5	3.0	vm_complete_haplotypes
+KIR2DL5B	ALL	full_known		other	35	1413	2.5	1.8	3.4	vm_complete_haplotypes
+KIR3DL2	AFR	full_known	1	KIR3DL2*0020105	54	474	11.4	8.8	14.6	vm_complete_haplotypes
+KIR3DL2	AFR	full_known	2	KIR3DL2*023	52	474	11.0	8.5	14.1	vm_complete_haplotypes
+KIR3DL2	AFR	full_known	3	KIR3DL2*01001	50	474	10.5	8.1	13.6	vm_complete_haplotypes
+KIR3DL2	AFR	full_known	4	KIR3DL2*0020102	41	474	8.6	6.4	11.5	vm_complete_haplotypes
+KIR3DL2	AFR	full_known	5	KIR3DL2*0070102	41	474	8.6	6.4	11.5	vm_complete_haplotypes
+KIR3DL2	AFR	full_known		other	236	474	49.8	45.3	54.3	vm_complete_haplotypes
+KIR3DL2	AMR	full_known	1	KIR3DL2*0020105	371	1358	27.3	25.0	29.8	vm_complete_haplotypes
+KIR3DL2	AMR	full_known	2	KIR3DL2*0070110	176	1358	13.0	11.3	14.9	vm_complete_haplotypes
+KIR3DL2	AMR	full_known	3	KIR3DL2*0050101	105	1358	7.7	6.4	9.3	vm_complete_haplotypes
+KIR3DL2	AMR	full_known	4	KIR3DL2*0020106	98	1358	7.2	6.0	8.7	vm_complete_haplotypes
+KIR3DL2	AMR	full_known	5	KIR3DL2*0070103	89	1358	6.6	5.4	8.0	vm_complete_haplotypes
+KIR3DL2	AMR	full_known		other	519	1358	38.2	35.7	40.8	vm_complete_haplotypes
+KIR3DL2	EAS	full_known	1	KIR3DL2*0020105	431	741	58.2	54.6	61.7	vm_complete_haplotypes
+KIR3DL2	EAS	full_known	2	KIR3DL2*01001	89	741	12.0	9.9	14.5	vm_complete_haplotypes
+KIR3DL2	EAS	full_known	3	KIR3DL2*0070110	75	741	10.1	8.2	12.5	vm_complete_haplotypes
+KIR3DL2	EAS	full_known	4	KIR3DL2*0020113	66	741	8.9	7.1	11.2	vm_complete_haplotypes
+KIR3DL2	EAS	full_known	5	KIR3DL2*0070102	47	741	6.3	4.8	8.3	vm_complete_haplotypes
+KIR3DL2	EAS	full_known		other	33	741	4.5	3.2	6.2	vm_complete_haplotypes
+KIR3DL2	EUR	full_known	1	KIR3DL2*0050101	180	1445	12.5	10.9	14.3	vm_complete_haplotypes
+KIR3DL2	EUR	full_known	2	KIR3DL2*0020105	143	1445	9.9	8.5	11.5	vm_complete_haplotypes
+KIR3DL2	EUR	full_known	3	KIR3DL2*0010302	141	1445	9.8	8.3	11.4	vm_complete_haplotypes
+KIR3DL2	EUR	full_known	4	KIR3DL2*0090101	136	1445	9.4	8.0	11.0	vm_complete_haplotypes
+KIR3DL2	EUR	full_known	5	KIR3DL2*0070110	129	1445	8.9	7.6	10.5	vm_complete_haplotypes
+KIR3DL2	EUR	full_known		other	716	1445	49.6	47.0	52.1	vm_complete_haplotypes
+KIR3DL2	MID	full_known	1	KIR3DL2*0050101	23	180	12.8	8.7	18.4	vm_complete_haplotypes
+KIR3DL2	MID	full_known	2	KIR3DL2*0090101	22	180	12.2	8.2	17.8	vm_complete_haplotypes
+KIR3DL2	MID	full_known	3	KIR3DL2*0070103	21	180	11.7	7.8	17.2	vm_complete_haplotypes
+KIR3DL2	MID	full_known		other	114	180	63.3	56.1	70.0	vm_complete_haplotypes
+KIR3DL2	SAS	full_known	1	KIR3DL2*0090101	127	551	23.0	19.7	26.7	vm_complete_haplotypes
+KIR3DL2	SAS	full_known	2	KIR3DL2*0070110	124	551	22.5	19.2	26.2	vm_complete_haplotypes
+KIR3DL2	SAS	full_known	3	KIR3DL2*0020105	93	551	16.9	14.0	20.2	vm_complete_haplotypes
+KIR3DL2	SAS	full_known	4	KIR3DL2*0010101	40	551	7.3	5.4	9.7	vm_complete_haplotypes
+KIR3DL2	SAS	full_known	5	KIR3DL2*01001	31	551	5.6	4.0	7.9	vm_complete_haplotypes
+KIR3DL2	SAS	full_known		other	136	551	24.7	21.3	28.4	vm_complete_haplotypes
+KIR3DL2	ALL	full_known	1	KIR3DL2*0020105	1108	4760	23.3	22.1	24.5	vm_complete_haplotypes
+KIR3DL2	ALL	full_known	2	KIR3DL2*0070110	552	4760	11.6	10.7	12.5	vm_complete_haplotypes
+KIR3DL2	ALL	full_known	3	KIR3DL2*0090101	376	4760	7.9	7.2	8.7	vm_complete_haplotypes
+KIR3DL2	ALL	full_known	4	KIR3DL2*0050101	360	4760	7.6	6.8	8.3	vm_complete_haplotypes
+KIR3DL2	ALL	full_known	5	KIR3DL2*01001	287	4760	6.0	5.4	6.7	vm_complete_haplotypes
+KIR3DL2	ALL	full_known		other	2077	4760	43.6	42.2	45.0	vm_complete_haplotypes

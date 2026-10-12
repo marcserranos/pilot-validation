@@ -1,0 +1,14 @@
+metric	value
+people_kept_unrelated_not_excluded	11882
+haplotypes_parsed_kept_people	23755
+haplotypes_complete	17905
+complete_haplotypes_AFR	4374
+complete_haplotypes_AMR	3984
+complete_haplotypes_EAS	2310
+complete_haplotypes_EUR	4500
+complete_haplotypes_MID	752
+complete_haplotypes_SAS	1948
+people_with_kir_haplotypes	12261
+people_excluded_by_list	0
+exclude_list_used	True
+unrelated_only	True
