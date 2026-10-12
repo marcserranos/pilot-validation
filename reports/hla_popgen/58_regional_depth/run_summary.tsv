@@ -1,0 +1,10 @@
+metric	value
+people_in_cohort	12233
+people_measured	12233
+people_failed	0
+regions	137
+trb_genes_assessable	78
+cn_cuts	0.25,0.75
+cn_mapq	0
+min_unique_frac	0.8
+wall_seconds_this_invocation	21
