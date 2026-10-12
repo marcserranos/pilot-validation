@@ -38,7 +38,9 @@ $PY 65_trb_assembly_genotype.py --build-probes --probe-fasta ~/ref/trb/probes_im
     --ref-fasta ~/ref/trb/chr7.fa.gz --ref-region chr7:142038120-143088503
 cat ~/s05/results/65/reference_check.tsv ~/s05/results/65/probe_meta.tsv
 # PASS = TRBV4-3/3-2/7-8 present on alt, absent on primary; 6-2/6-3 n_loci 2 vs 1; a breakpoint line
-# with ins_len_estimate ~ 20-22 kb. If no breakpoint: stop and report (do not guess one).
+# with ins_len_estimate ~ 20-22 kb, block_classes TRBV3-2,TRBV4-3 and classes_elsewhere TRBV7-8
+# (GRCh38's ALT holds TRBV7-8 on a separate ALT-only segment, so reads mode leaves it out).
+# If no breakpoint: stop and report (do not guess one).
 
 # --- 4. Which BAM column has HP tags? (needed for per-haplotype calls / co-presence) ---------------
 M=~/workspace/vwb-aou-datasets-controlled-v9/v9/wgs/long_read/manifest.tsv

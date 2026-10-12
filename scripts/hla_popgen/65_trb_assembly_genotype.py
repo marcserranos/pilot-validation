@@ -18,7 +18,7 @@ Two genotyping routes (`--mode`), same probes, same output tables:
           deletion or skip >= `--max-indel` (50 bp) inside that interval. Only a haplotype without
           the segment can produce one (the segment is 21 kb; such a read would carry it as a huge I
           or be clipped at the breakpoint).
-        insertion-allele read: any read in which a probe of TRBV4-3 / TRBV3-2 / TRBV7-8
+        insertion-allele read: any read in which a probe of TRBV4-3 / TRBV3-2
           (`--ins-genes`) passes --min-ident/--min-cov under best-hit assignment (below). Reads
           spanning a breakpoint into the segment are placed on the flank with the segment
           soft-clipped, so they are in the fetched window; reads entirely inside the segment are
@@ -161,7 +161,10 @@ ENSEMBL = "https://rest.ensembl.org"
 ANCHOR_PAD = 700_000
 COPY2 = "[copy2]"
 DEFAULT_READS_REGION = "chr7:142249011-142863287"  # IMGT TRB locus chr7:142,299,011-142,813,287 +/- 50 kb
-READS_INS_GENES = ["TRBV4-3", "TRBV3-2", "TRBV7-8"]  # unique insertion genes (TRBV6-3 is merged with 6-2)
+# unique genes of the ~21.6 kb insertion (TRBV6-3 is merged with 6-2). TRBV7-8 is NOT here: on GRCh38's
+# ALT it sits on a separate ALT-only segment ~180 kb downstream, so it needs its own breakpoint.
+READS_INS_GENES = ["TRBV4-3", "TRBV3-2"]
+BLOCK_MAX_GAP = 50_000
 INS_ANY = "insertion_any"
 
 Hit = collections.namedtuple("Hit", "probe contig t_st t_en strand q_st q_en q_len ident")
@@ -1015,16 +1018,41 @@ def breakpoint_from_reference(alt_seqs, ref_chrom, ref_off, ref_seq, assigned_al
         return None
     ctg = collections.Counter(a["contig"] for a in loc).most_common(1)[0][0]
     alt = alt_seqs[ctg]
-    lo = min(a["start"] for a in loc if a["contig"] == ctg)
-    hi = max(a["end"] for a in loc if a["contig"] == ctg)
+    block, elsewhere = insertion_block(loc, ctg, ins_classes)
+    lo = min(a["start"] for a in block)
+    hi = max(a["end"] for a in block)
     bp = find_breakpoint(alt, lo, hi, ref_seq, aligner, opts)
     if bp is None:
         bp = find_breakpoint(revcomp(alt), len(alt) - hi, len(alt) - lo, ref_seq, aligner, opts)
     if bp is None:
         return None
     # 1-based: last base of the left flank .. first base of the right flank
-    bp.update(chrom=ref_chrom, left=ref_off + bp["lo0"], right=ref_off + bp["hi0"] + 1, alt_contig=ctg)
+    bp.update(chrom=ref_chrom, left=ref_off + bp["lo0"], right=ref_off + bp["hi0"] + 1, alt_contig=ctg,
+              block_classes=sorted({a["gene_class"] for a in block}, key=_natkey),
+              classes_elsewhere=sorted(elsewhere, key=_natkey))
     return bp
+
+
+def insertion_block(loc, ctg, ins_classes, max_gap=BLOCK_MAX_GAP):
+    """Insertion-gene loci on the ALT contig, grouped into blocks (a gap > max_gap starts a new one).
+    GRCh38's KI270803v1 carries TWO ALT-only segments relative to primary: the ~21.6 kb insertion
+    (TRBV3-2, TRBV4-3, second TRBV6-2/6-3 copy, between TRBV4-2 and TRBV6-2) and a separate ~40 kb
+    segment ~180 kb downstream holding TRBV7-8. One breakpoint can only describe one of them, so the
+    block holding the lead class (the first of ins_classes, TRBV4-3) is used.
+    -> (loci of that block, classes found only outside it)."""
+    on = sorted((a for a in loc if a["contig"] == ctg), key=lambda a: a["start"])
+    blocks, cur = [], [on[0]]
+    for a in on[1:]:
+        if a["start"] - max(x["end"] for x in cur) > max_gap:
+            blocks.append(cur)
+            cur = []
+        cur.append(a)
+    blocks.append(cur)
+    lead = ins_classes[0]
+    block = next((b for b in blocks if any(a["gene_class"] == lead for a in b)), max(blocks, key=len))
+    inside = {a["gene_class"] for a in block}
+    elsewhere = {a["gene_class"] for b in blocks if b is not block for a in b} - inside
+    return block, elsewhere
 
 
 def read_probe_meta(path):
@@ -1408,10 +1436,15 @@ def build_probes(args):
             meta = [("breakpoint", f"{bp['chrom']}:{bp['left']}-{bp['right']}"),
                     ("ins_len_estimate", bp["ins_len"]), ("alt_contig", bp["alt_contig"]),
                     ("n_left_chunks", bp["n_left"]), ("n_right_chunks", bp["n_right"]),
+                    ("block_classes", ",".join(bp["block_classes"])),
+                    ("classes_elsewhere", ",".join(bp["classes_elsewhere"])),
                     ("ref_span", f"{ref[0]}:{ref[1] + 1}-{ref[1] + len(ref[2])}")]
             _disc.write_tsv(pd.DataFrame(meta, columns=["key", "value"]),
                             os.path.join(args.out_dir, "probe_meta.tsv"), _disc.PUBLIC)
-            log(f"breakpoint {meta[0][1]} (insertion ~{bp['ins_len']} bp) -> probe_meta.tsv")
+            log(f"breakpoint {meta[0][1]} (insertion ~{bp['ins_len']} bp, genes {bp['block_classes']}) -> probe_meta.tsv")
+            if bp["classes_elsewhere"]:
+                log(f"NOTE: {bp['classes_elsewhere']} lie on a separate ALT-only segment; reads mode cannot "
+                    "genotype them against this breakpoint and drops them")
     return 0
 
 
@@ -1539,6 +1572,13 @@ def main(argv=None):
             args.probe_meta or os.path.join(os.path.dirname(os.path.abspath(args.probes)), "probe_meta.tsv")).get("breakpoint")
         if not bps:
             raise SystemExit("FATAL: no breakpoint: run --build-probes with --alt-fasta and --ref-fasta, or give --breakpoint")
+        meta = read_probe_meta(args.probe_meta or os.path.join(os.path.dirname(os.path.abspath(args.probes)),
+                                                               "probe_meta.tsv"))
+        away = [c for c in str(meta.get("classes_elsewhere", "")).split(",") if c and c in ins_classes]
+        if away and not args.breakpoint:
+            log(f"WARNING: {away} lie outside the insertion block of breakpoint {bps}; dropped from reads mode")
+            ins_classes = [c for c in ins_classes if c not in away]
+            cop = [c for c in cop if c not in away]
         ad.update(breakpoint=parse_window(bps), flank=args.flank, max_indel=args.max_indel,
                   min_reads=args.min_reads, min_hap_reads=args.min_hap_reads, samtools=args.samtools,
                   af_cuts=tuple(float(x) for x in args.af_cuts.split(",")), reads_region=args.reads_region,
