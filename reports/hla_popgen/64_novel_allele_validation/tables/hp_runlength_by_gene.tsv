@@ -1,0 +1,9 @@
+gene	novelty_class	n_calls_with_hp	n_read_observations	pct_called_len	pct_nearest_len	pct_other_len
+A	protein	421	2201	31.1	59.9	9.0
+B	protein	461	2450	37.8	60.0	2.2
+C	protein	545	2628	38.0	58.4	3.6
+DPA1	protein	293	1178	41.3	56.5	2.1
+DPB1	protein	408	1530	41.9	55.5	2.6
+DQA1	protein	262	1202	38.4	55.4	6.2
+DQB1	protein	340	1305	39.0	57.7	3.3
+DRB1	protein	332	1376	26.4	67.0	6.6

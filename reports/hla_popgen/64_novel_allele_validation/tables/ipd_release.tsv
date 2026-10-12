@@ -1,0 +1,52 @@
+item	value
+ipd_repository	ANHIG/IMGTHLA
+ipd_release_ref	Latest
+ipd_version	IPD-IMGT/HLA 3.65.0
+baseline	3.55.0 via Allelelist_history.txt column 3550
+n_cds_records	46647
+n_genomic_records	0
+gene_A	9279 alleles; 1181 added since baseline
+gene_B	11258 alleles; 1602 added since baseline
+gene_C	9416 alleles; 1333 added since baseline
+gene_DMA	106 alleles; 47 added since baseline
+gene_DMB	165 alleles; 83 added since baseline
+gene_DOA	169 alleles; 76 added since baseline
+gene_DOB	125 alleles; 62 added since baseline
+gene_DPA1	956 alleles; 317 added since baseline
+gene_DPA2	6 alleles; 0 added since baseline
+gene_DPB1	3170 alleles; 684 added since baseline
+gene_DPB2	7 alleles; 0 added since baseline
+gene_DQA1	1056 alleles; 334 added since baseline
+gene_DQA2	42 alleles; 0 added since baseline
+gene_DQB1	3121 alleles; 611 added since baseline
+gene_DQB2	41 alleles; 0 added since baseline
+gene_DRA	129 alleles; 62 added since baseline
+gene_DRB1	4023 alleles; 395 added since baseline
+gene_DRB2	1 alleles; 0 added since baseline
+gene_DRB3	771 alleles; 283 added since baseline
+gene_DRB4	357 alleles; 107 added since baseline
+gene_DRB5	269 alleles; 68 added since baseline
+gene_DRB6	4 alleles; 0 added since baseline
+gene_DRB7	2 alleles; 0 added since baseline
+gene_DRB8	1 alleles; 0 added since baseline
+gene_DRB9	6 alleles; 0 added since baseline
+gene_E	390 alleles; 38 added since baseline
+gene_F	139 alleles; 49 added since baseline
+gene_G	204 alleles; 46 added since baseline
+gene_H	106 alleles; 36 added since baseline
+gene_HFE	6 alleles; 0 added since baseline
+gene_J	34 alleles; 1 added since baseline
+gene_K	7 alleles; 0 added since baseline
+gene_L	6 alleles; 0 added since baseline
+gene_MICA	728 alleles; 200 added since baseline
+gene_MICB	372 alleles; 128 added since baseline
+gene_N	5 alleles; 0 added since baseline
+gene_R	2 alleles; 2 added since baseline
+gene_S	7 alleles; 0 added since baseline
+gene_T	9 alleles; 0 added since baseline
+gene_TAP1	19 alleles; 7 added since baseline
+gene_TAP2	106 alleles; 0 added since baseline
+gene_U	7 alleles; 0 added since baseline
+gene_V	4 alleles; 0 added since baseline
+gene_W	13 alleles; 0 added since baseline
+gene_Y	3 alleles; 0 added since baseline

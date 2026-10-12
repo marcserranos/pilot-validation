@@ -1,0 +1,850 @@
+novelty_class	gene	platform	ancestry	hp_split	n_keys	n_calls	n_calls_tested	pct_keys_known_in_baseline	pct_keys_protein_known_in_baseline	pct_keys_now_known	pct_keys_now_known_protein	pct_keys_now_known_partial	n_supported	pct_supported	n_contradicted	pct_contradicted	n_ambiguous	pct_ambiguous
+protein	A	revio	AFR	all	178	182	154	1.69	0.0	0.0	0.0	0.0	<20		23	14.9	122	79.2
+protein	A	revio	AFR	hp_only	150	152	135	2.0	0.0	0.0	0.0	0.0	<20		21	15.6	108	80.0
+protein	A	revio	AFR	other	28	30	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	A	revio	AMR	all	85	94	65	1.18	1.18	1.18	0.0	0.0	<20		<20		56	86.2
+protein	A	revio	AMR	hp_only	72	76	58	1.39	1.39	1.39	0.0	0.0	<20		<20		51	87.9
+protein	A	revio	AMR	other	13	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	A	revio	EAS	all	68	71	53	2.94	0.0	1.47	0.0	0.0	<20		<20		47	88.7
+protein	A	revio	EAS	hp_only	54	55	44	1.85	0.0	0.0	0.0	0.0	<20		<20		41	93.2
+protein	A	revio	EAS	other	14	<20	<20	7.14	0.0	7.14	0.0	0.0	<20		<20		<20	
+protein	A	revio	EUR	all	142	147	127	4.23	0.0	0.0	0.0	0.0	<20		<20		112	88.2
+protein	A	revio	EUR	hp_only	119	122	105	5.04	0.0	0.0	0.0	0.0	<20		<20		94	89.5
+protein	A	revio	EUR	other	23	25	22	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		<20	
+protein	A	revio	MID	all	19	<20	<20	15.79	0.0	5.26	0.0	0.0	<20		<20		<20	
+protein	A	revio	MID	hp_only	17	<20	<20	17.65	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	A	revio	MID	other	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		<20	
+protein	A	revio	SAS	all	43	47	31	4.65	2.33	2.33	0.0	0.0	<20		<20		25	80.6
+protein	A	revio	SAS	hp_only	33	34	23	6.06	3.03	0.0	0.0	0.0	<20		<20		<20	
+protein	A	revio	SAS	other	10	<20	<20	0.0	0.0	10.0	0.0	0.0	<20		0		<20	
+protein	A	revio	ALL	all	515	560	446	2.14	0.19	0.78	0.0	0.0	<20		54	12.1	374	83.9
+protein	A	revio	ALL	hp_only	425	456	379	2.35	0.24	0.24	0.0	0.0	<20		45	11.9	323	85.2
+protein	A	revio	ALL	other	90	104	67	1.11	0.0	3.33	0.0	0.0	<20		<20		51	76.1
+protein	A	sequel2e	AFR	all	18	<20	<20	5.56	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	A	sequel2e	AFR	hp_only	15	<20	<20	6.67	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	A	sequel2e	AFR	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	A	sequel2e	AMR	all	32	37	31	3.12	0.0	0.0	0.0	0.0	0	0.0	<20		23	74.2
+protein	A	sequel2e	AMR	hp_only	31	33	30	3.23	0.0	0.0	0.0	0.0	0	0.0	<20		22	73.3
+protein	A	sequel2e	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	A	sequel2e	EAS	all	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	A	sequel2e	EAS	hp_only	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	A	sequel2e	EUR	all	18	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	A	sequel2e	EUR	hp_only	17	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	A	sequel2e	EUR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+protein	A	sequel2e	MID	all	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	A	sequel2e	MID	hp_only	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	A	sequel2e	MID	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	A	sequel2e	SAS	all	8	<20	<20	0.0	0.0	0.0	12.5	0.0	0		<20		<20	
+protein	A	sequel2e	SAS	hp_only	6	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	A	sequel2e	SAS	other	2	<20	<20	0.0	0.0	0.0	50.0	0.0	0		<20		<20	
+protein	A	sequel2e	ALL	all	84	91	74	1.19	0.0	0.0	1.19	0.0	<20		<20		56	75.7
+protein	A	sequel2e	ALL	hp_only	75	78	65	1.33	0.0	0.0	0.0	0.0	0	0.0	<20		50	76.9
+protein	A	sequel2e	ALL	other	9	<20	<20	0.0	0.0	0.0	11.11	0.0	<20		<20		<20	
+protein	A	ALL	AFR	all	196	200	170	2.04	0.0	0.0	0.0	0.0	<20		25	14.7	135	79.4
+protein	A	ALL	AFR	hp_only	165	167	148	2.42	0.0	0.0	0.0	0.0	<20		23	15.5	119	80.4
+protein	A	ALL	AFR	other	31	33	22	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	A	ALL	AMR	all	116	131	96	1.72	0.86	0.86	0.0	0.0	<20		<20		79	82.3
+protein	A	ALL	AMR	hp_only	102	109	88	1.96	0.98	0.98	0.0	0.0	<20		<20		73	83.0
+protein	A	ALL	AMR	other	14	22	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	A	ALL	EAS	all	73	76	57	2.74	0.0	1.37	0.0	0.0	<20		<20		50	87.7
+protein	A	ALL	EAS	hp_only	59	60	48	1.69	0.0	0.0	0.0	0.0	<20		<20		44	91.7
+protein	A	ALL	EAS	other	14	<20	<20	7.14	0.0	7.14	0.0	0.0	<20		<20		<20	
+protein	A	ALL	EUR	all	160	166	141	3.75	0.0	0.0	0.0	0.0	<20		<20		121	85.8
+protein	A	ALL	EUR	hp_only	136	139	118	4.41	0.0	0.0	0.0	0.0	<20		<20		103	87.3
+protein	A	ALL	EUR	other	24	27	23	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		<20	
+protein	A	ALL	MID	all	23	23	20	13.04	0.0	4.35	0.0	0.0	<20		<20		<20	
+protein	A	ALL	MID	hp_only	19	<20	<20	15.79	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	A	ALL	MID	other	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+protein	A	ALL	SAS	all	51	55	36	3.92	1.96	1.96	1.96	0.0	<20		<20		29	80.6
+protein	A	ALL	SAS	hp_only	39	40	26	5.13	2.56	0.0	0.0	0.0	<20		<20		21	80.8
+protein	A	ALL	SAS	other	12	<20	<20	0.0	0.0	8.33	8.33	0.0	<20		<20		<20	
+protein	A	ALL	ALL	all	596	651	520	1.85	0.17	0.67	0.17	0.0	<20		71	13.7	430	82.7
+protein	A	ALL	ALL	hp_only	497	534	444	2.01	0.2	0.2	0.0	0.0	<20		60	13.5	373	84.0
+protein	A	ALL	ALL	other	99	117	76	1.01	0.0	3.03	1.01	0.0	<20		<20		57	75.0
+protein	B	revio	AFR	all	200	201	157	0.0	0.0	1.0	0.0	0.0	<20		<20		143	91.1
+protein	B	revio	AFR	hp_only	159	159	125	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		120	96.0
+protein	B	revio	AFR	other	41	42	32	0.0	0.0	4.88	0.0	0.0	<20		<20		23	71.9
+protein	B	revio	AMR	all	104	104	83	0.0	0.0	0.0	0.0	0.0	<20		<20		79	95.2
+protein	B	revio	AMR	hp_only	85	85	67	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		66	98.5
+protein	B	revio	AMR	other	19	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	B	revio	EAS	all	78	78	65	0.0	0.0	0.0	0.0	0.0	<20		<20		61	93.8
+protein	B	revio	EAS	hp_only	63	63	51	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		49	96.1
+protein	B	revio	EAS	other	15	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	B	revio	EUR	all	153	155	119	0.65	0.0	0.0	0.0	0.65	<20		<20		108	90.8
+protein	B	revio	EUR	hp_only	116	117	86	0.86	0.0	0.0	0.0	0.86	<20		<20		84	97.7
+protein	B	revio	EUR	other	37	38	33	0.0	0.0	0.0	0.0	0.0	<20		<20		24	72.7
+protein	B	revio	MID	all	23	24	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	B	revio	MID	hp_only	19	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	revio	MID	other	4	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	B	revio	SAS	all	63	63	49	1.59	0.0	0.0	0.0	0.0	<20		<20		44	89.8
+protein	B	revio	SAS	hp_only	52	52	39	1.92	0.0	0.0	0.0	0.0	0	0.0	<20		38	97.4
+protein	B	revio	SAS	other	11	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	B	revio	ALL	all	619	630	496	0.32	0.0	0.32	0.0	0.16	22	4.4	<20		457	92.1
+protein	B	revio	ALL	hp_only	491	499	385	0.41	0.0	0.0	0.0	0.2	<20		<20		374	97.1
+protein	B	revio	ALL	other	128	131	111	0.0	0.0	1.56	0.0	0.0	21	18.9	<20		83	74.8
+protein	B	sequel2e	AFR	all	15	<20	<20	6.67	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	B	sequel2e	AFR	hp_only	9	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	B	sequel2e	AFR	other	6	<20	<20	16.67	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	B	sequel2e	AMR	all	45	47	37	0.0	0.0	0.0	0.0	0.0	<20		<20		33	89.2
+protein	B	sequel2e	AMR	hp_only	38	40	30	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		29	96.7
+protein	B	sequel2e	AMR	other	7	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	B	sequel2e	EAS	all	22	22	20	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	20	100.0
+protein	B	sequel2e	EAS	hp_only	20	20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	sequel2e	EAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	sequel2e	EUR	all	17	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	B	sequel2e	EUR	hp_only	17	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	B	sequel2e	MID	all	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	sequel2e	MID	hp_only	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	sequel2e	SAS	all	8	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	sequel2e	SAS	hp_only	8	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	sequel2e	ALL	all	110	114	94	0.91	0.0	0.0	0.0	0.0	<20		<20		86	91.5
+protein	B	sequel2e	ALL	hp_only	95	98	79	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		75	94.9
+protein	B	sequel2e	ALL	other	15	<20	<20	6.67	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	B	ALL	AFR	all	214	217	170	0.47	0.0	0.93	0.0	0.0	<20		<20		153	90.0
+protein	B	ALL	AFR	hp_only	167	168	132	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		125	94.7
+protein	B	ALL	AFR	other	47	49	38	2.13	0.0	4.26	0.0	0.0	<20		<20		28	73.7
+protein	B	ALL	AMR	all	149	151	120	0.0	0.0	0.0	0.0	0.0	<20		<20		112	93.3
+protein	B	ALL	AMR	hp_only	123	125	97	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		95	97.9
+protein	B	ALL	AMR	other	26	26	23	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	B	ALL	EAS	all	100	100	85	0.0	0.0	0.0	0.0	0.0	<20		<20		81	95.3
+protein	B	ALL	EAS	hp_only	83	83	69	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		67	97.1
+protein	B	ALL	EAS	other	17	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	B	ALL	EUR	all	170	173	134	0.59	0.0	0.0	0.0	0.59	<20		<20		122	91.0
+protein	B	ALL	EUR	hp_only	133	135	101	0.75	0.0	0.0	0.0	0.75	<20		<20		98	97.0
+protein	B	ALL	EUR	other	37	38	33	0.0	0.0	0.0	0.0	0.0	<20		<20		24	72.7
+protein	B	ALL	MID	all	26	27	20	0.0	0.0	0.0	0.0	0.0	<20		0	0.0	<20	
+protein	B	ALL	MID	hp_only	22	22	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	B	ALL	MID	other	4	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	B	ALL	SAS	all	71	71	56	1.41	0.0	0.0	0.0	0.0	<20		<20		51	91.1
+protein	B	ALL	SAS	hp_only	60	60	46	1.67	0.0	0.0	0.0	0.0	0	0.0	<20		45	97.8
+protein	B	ALL	SAS	other	11	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	B	ALL	ALL	all	728	744	590	0.41	0.0	0.27	0.0	0.14	24	4.1	23	3.9	543	92.0
+protein	B	ALL	ALL	hp_only	585	597	464	0.34	0.0	0.0	0.0	0.17	<20		<20		449	96.8
+protein	B	ALL	ALL	other	143	147	126	0.7	0.0	1.4	0.0	0.0	23	18.3	<20		94	74.6
+protein	C	revio	AFR	all	178	180	144	0.56	0.0	0.0	0.56	0.0	0	0.0	<20		139	96.5
+protein	C	revio	AFR	hp_only	139	141	116	0.72	0.0	0.0	0.0	0.0	0	0.0	<20		113	97.4
+protein	C	revio	AFR	other	39	39	28	0.0	0.0	0.0	2.56	0.0	0	0.0	<20		26	92.9
+protein	C	revio	AMR	all	146	148	127	0.68	0.0	0.0	0.0	0.0	<20		<20		120	94.5
+protein	C	revio	AMR	hp_only	122	124	106	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		101	95.3
+protein	C	revio	AMR	other	24	24	21	4.17	0.0	0.0	0.0	0.0	<20		0	0.0	<20	
+protein	C	revio	EAS	all	98	98	84	1.02	1.02	0.0	0.0	0.0	<20		<20		81	96.4
+protein	C	revio	EAS	hp_only	77	77	66	1.3	1.3	0.0	0.0	0.0	0	0.0	<20		64	97.0
+protein	C	revio	EAS	other	21	21	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	C	revio	EUR	all	169	171	136	0.0	0.0	0.0	0.0	0.0	<20		<20		131	96.3
+protein	C	revio	EUR	hp_only	136	138	109	0.0	0.0	0.0	0.0	0.0	<20		<20		107	98.2
+protein	C	revio	EUR	other	33	33	27	0.0	0.0	0.0	0.0	0.0	<20		<20		24	88.9
+protein	C	revio	MID	all	26	26	22	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	22	100.0
+protein	C	revio	MID	hp_only	20	20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	revio	MID	other	6	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	revio	SAS	all	71	71	63	0.0	0.0	0.0	0.0	0.0	<20		<20		61	96.8
+protein	C	revio	SAS	hp_only	61	61	53	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		52	98.1
+protein	C	revio	SAS	other	10	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	C	revio	ALL	all	681	695	577	0.44	0.15	0.0	0.15	0.0	<20		<20		555	96.2
+protein	C	revio	ALL	hp_only	547	561	469	0.37	0.18	0.0	0.0	0.0	<20		<20		456	97.2
+protein	C	revio	ALL	other	134	134	108	0.75	0.0	0.0	0.75	0.0	<20		<20		99	91.7
+protein	C	sequel2e	AFR	all	22	22	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	C	sequel2e	AFR	hp_only	18	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	C	sequel2e	AFR	other	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	AMR	all	60	61	52	1.67	0.0	0.0	0.0	0.0	<20		<20		44	84.6
+protein	C	sequel2e	AMR	hp_only	49	49	40	2.04	0.0	0.0	0.0	0.0	0	0.0	<20		37	92.5
+protein	C	sequel2e	AMR	other	11	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	C	sequel2e	EAS	all	14	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	C	sequel2e	EAS	hp_only	13	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	C	sequel2e	EAS	other	1	<20	0	0.0	0.0	0.0	0.0	0.0	0		0		0	
+protein	C	sequel2e	EUR	all	23	23	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	EUR	hp_only	19	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	EUR	other	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	MID	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	C	sequel2e	MID	hp_only	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+protein	C	sequel2e	MID	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	SAS	all	10	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	SAS	hp_only	7	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	SAS	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	sequel2e	ALL	all	129	133	111	0.78	0.0	0.0	0.0	0.0	<20		<20		99	89.2
+protein	C	sequel2e	ALL	hp_only	105	108	88	0.95	0.0	0.0	0.0	0.0	0	0.0	<20		81	92.0
+protein	C	sequel2e	ALL	other	24	25	23	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	C	ALL	AFR	all	200	202	161	0.5	0.0	0.0	0.5	0.0	0	0.0	<20		155	96.3
+protein	C	ALL	AFR	hp_only	157	159	130	0.64	0.0	0.0	0.0	0.0	0	0.0	<20		126	96.9
+protein	C	ALL	AFR	other	43	43	31	0.0	0.0	0.0	2.33	0.0	0	0.0	<20		29	93.5
+protein	C	ALL	AMR	all	206	209	179	0.97	0.0	0.0	0.0	0.0	<20		<20		164	91.6
+protein	C	ALL	AMR	hp_only	171	173	146	0.58	0.0	0.0	0.0	0.0	0	0.0	<20		138	94.5
+protein	C	ALL	AMR	other	35	36	33	2.86	0.0	0.0	0.0	0.0	<20		<20		26	78.8
+protein	C	ALL	EAS	all	112	113	97	0.89	0.89	0.0	0.0	0.0	<20		<20		92	94.8
+protein	C	ALL	EAS	hp_only	90	91	79	1.11	1.11	0.0	0.0	0.0	0	0.0	<20		75	94.9
+protein	C	ALL	EAS	other	22	22	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	C	ALL	EUR	all	192	194	153	0.0	0.0	0.0	0.0	0.0	<20		<20		148	96.7
+protein	C	ALL	EUR	hp_only	155	157	122	0.0	0.0	0.0	0.0	0.0	<20		<20		120	98.4
+protein	C	ALL	EUR	other	37	37	31	0.0	0.0	0.0	0.0	0.0	<20		<20		28	90.3
+protein	C	ALL	MID	all	28	28	24	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		23	95.8
+protein	C	ALL	MID	hp_only	21	21	20	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		<20	
+protein	C	ALL	MID	other	7	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	C	ALL	SAS	all	81	81	73	0.0	0.0	0.0	0.0	0.0	<20		<20		71	97.3
+protein	C	ALL	SAS	hp_only	68	68	60	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		59	98.3
+protein	C	ALL	SAS	other	13	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	C	ALL	ALL	all	807	828	688	0.5	0.12	0.0	0.12	0.0	<20		27	3.9	654	95.1
+protein	C	ALL	ALL	hp_only	649	669	557	0.46	0.15	0.0	0.0	0.0	<20		<20		537	96.4
+protein	C	ALL	ALL	other	158	159	131	0.63	0.0	0.0	0.63	0.0	<20		<20		117	89.3
+protein	DPA1	revio	AFR	all	105	116	112	0.95	1.9	1.9	0.0	0.0	<20		<20		99	88.4
+protein	DPA1	revio	AFR	hp_only	89	96	93	1.12	0.0	1.12	0.0	0.0	<20		<20		87	93.5
+protein	DPA1	revio	AFR	other	16	20	<20	0.0	12.5	6.25	0.0	0.0	<20		<20		<20	
+protein	DPA1	revio	AMR	all	51	58	53	0.0	0.0	1.96	0.0	1.96	<20		<20		49	92.5
+protein	DPA1	revio	AMR	hp_only	45	47	43	0.0	0.0	0.0	0.0	2.22	0	0.0	<20		42	97.7
+protein	DPA1	revio	AMR	other	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+protein	DPA1	revio	EAS	all	34	34	33	2.94	0.0	2.94	0.0	2.94	<20		<20		28	84.8
+protein	DPA1	revio	EAS	hp_only	29	29	29	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		27	93.1
+protein	DPA1	revio	EAS	other	5	<20	<20	20.0	0.0	20.0	0.0	20.0	<20		0		<20	
+protein	DPA1	revio	EUR	all	86	95	86	0.0	0.0	1.16	0.0	0.0	<20		<20		80	93.0
+protein	DPA1	revio	EUR	hp_only	72	77	70	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	70	100.0
+protein	DPA1	revio	EUR	other	14	<20	<20	0.0	0.0	7.14	0.0	0.0	<20		<20		<20	
+protein	DPA1	revio	MID	all	13	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPA1	revio	MID	hp_only	10	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPA1	revio	MID	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPA1	revio	SAS	all	35	35	34	0.0	0.0	0.0	0.0	0.0	<20		<20		32	94.1
+protein	DPA1	revio	SAS	hp_only	32	32	31	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		30	96.8
+protein	DPA1	revio	SAS	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPA1	revio	ALL	all	296	354	330	0.68	0.68	1.69	0.0	0.68	21	6.4	<20		299	90.6
+protein	DPA1	revio	ALL	hp_only	249	294	275	0.4	0.0	0.4	0.0	0.4	<20		<20		265	96.4
+protein	DPA1	revio	ALL	other	47	60	55	2.13	4.26	8.51	0.0	2.13	<20		<20		34	61.8
+protein	DPA1	sequel2e	AFR	all	9	<20	<20	0.0	0.0	11.11	0.0	0.0	<20		<20		<20	
+protein	DPA1	sequel2e	AFR	hp_only	6	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DPA1	sequel2e	AFR	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+protein	DPA1	sequel2e	AMR	all	22	24	22	0.0	0.0	0.0	0.0	4.55	<20		<20		<20	
+protein	DPA1	sequel2e	AMR	hp_only	19	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DPA1	sequel2e	AMR	other	3	<20	<20	0.0	0.0	0.0	0.0	33.33	<20		0		<20	
+protein	DPA1	sequel2e	EAS	all	4	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPA1	sequel2e	EAS	hp_only	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPA1	sequel2e	EAS	other	0	<20	<20						<20		0		0	
+protein	DPA1	sequel2e	EUR	all	13	<20	<20	0.0	0.0	7.69	0.0	0.0	0		<20		<20	
+protein	DPA1	sequel2e	EUR	hp_only	11	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DPA1	sequel2e	EUR	other	2	<20	<20	0.0	0.0	50.0	0.0	0.0	0		0		<20	
+protein	DPA1	sequel2e	MID	all	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPA1	sequel2e	MID	hp_only	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPA1	sequel2e	SAS	all	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPA1	sequel2e	SAS	hp_only	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPA1	sequel2e	ALL	all	54	61	56	0.0	0.0	3.7	0.0	1.85	<20		<20		47	83.9
+protein	DPA1	sequel2e	ALL	hp_only	46	50	45	0.0	0.0	0.0	0.0	0.0	<20		<20		40	88.9
+protein	DPA1	sequel2e	ALL	other	8	<20	<20	0.0	0.0	25.0	0.0	12.5	<20		0		<20	
+protein	DPA1	ALL	AFR	all	114	125	120	0.88	1.75	2.63	0.0	0.0	<20		<20		104	86.7
+protein	DPA1	ALL	AFR	hp_only	95	102	98	1.05	0.0	1.05	0.0	0.0	<20		<20		90	91.8
+protein	DPA1	ALL	AFR	other	19	23	22	0.0	10.53	10.53	0.0	0.0	<20		<20		<20	
+protein	DPA1	ALL	AMR	all	73	82	75	0.0	0.0	1.37	0.0	2.74	<20		<20		68	90.7
+protein	DPA1	ALL	AMR	hp_only	64	66	60	0.0	0.0	0.0	0.0	1.56	0	0.0	<20		58	96.7
+protein	DPA1	ALL	AMR	other	9	<20	<20	0.0	0.0	11.11	0.0	11.11	<20		0		<20	
+protein	DPA1	ALL	EAS	all	38	40	38	2.63	0.0	2.63	0.0	2.63	<20		<20		32	84.2
+protein	DPA1	ALL	EAS	hp_only	33	34	33	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		31	93.9
+protein	DPA1	ALL	EAS	other	5	<20	<20	20.0	0.0	20.0	0.0	20.0	<20		0		<20	
+protein	DPA1	ALL	EUR	all	98	108	98	0.0	0.0	2.04	0.0	0.0	<20		<20		90	91.8
+protein	DPA1	ALL	EUR	hp_only	82	88	80	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		78	97.5
+protein	DPA1	ALL	EUR	other	16	20	<20	0.0	0.0	12.5	0.0	0.0	<20		<20		<20	
+protein	DPA1	ALL	MID	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPA1	ALL	MID	hp_only	13	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPA1	ALL	MID	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPA1	ALL	SAS	all	40	41	40	0.0	0.0	0.0	0.0	0.0	<20		<20		38	95.0
+protein	DPA1	ALL	SAS	hp_only	37	38	37	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		36	97.3
+protein	DPA1	ALL	SAS	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPA1	ALL	ALL	all	339	415	386	0.59	0.59	2.06	0.0	0.88	26	6.7	<20		346	89.6
+protein	DPA1	ALL	ALL	hp_only	284	344	320	0.35	0.0	0.35	0.0	0.35	<20		<20		305	95.3
+protein	DPA1	ALL	ALL	other	55	71	66	1.82	3.64	10.91	0.0	3.64	23	34.8	<20		41	62.1
+protein	DPB1	revio	AFR	all	138	149	143	1.45	0.0	0.0	0.0	0.0	<20		<20		133	93.0
+protein	DPB1	revio	AFR	hp_only	116	127	122	0.86	0.0	0.0	0.0	0.0	<20		<20		116	95.1
+protein	DPB1	revio	AFR	other	22	22	21	4.55	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DPB1	revio	AMR	all	88	97	89	1.14	0.0	1.14	0.0	1.14	<20		0	0.0	84	94.4
+protein	DPB1	revio	AMR	hp_only	73	82	74	1.37	0.0	0.0	0.0	0.0	<20		0	0.0	72	97.3
+protein	DPB1	revio	AMR	other	15	<20	<20	0.0	0.0	6.67	0.0	6.67	<20		0		<20	
+protein	DPB1	revio	EAS	all	57	63	54	0.0	0.0	3.51	0.0	0.0	<20		<20		46	85.2
+protein	DPB1	revio	EAS	hp_only	49	54	47	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		45	95.7
+protein	DPB1	revio	EAS	other	8	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+protein	DPB1	revio	EUR	all	105	119	104	0.0	0.95	0.0	0.0	0.95	<20		<20		93	89.4
+protein	DPB1	revio	EUR	hp_only	92	106	92	0.0	1.09	0.0	0.0	0.0	<20		<20		86	93.5
+protein	DPB1	revio	EUR	other	13	<20	<20	0.0	0.0	0.0	0.0	7.69	<20		<20		<20	
+protein	DPB1	revio	MID	all	24	24	24	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	24	100.0
+protein	DPB1	revio	MID	hp_only	22	22	22	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	22	100.0
+protein	DPB1	revio	MID	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	revio	SAS	all	37	40	36	0.0	0.0	2.7	0.0	0.0	<20		<20		30	83.3
+protein	DPB1	revio	SAS	hp_only	30	33	29	0.0	0.0	3.33	0.0	0.0	<20		0	0.0	27	93.1
+protein	DPB1	revio	SAS	other	7	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DPB1	revio	ALL	all	406	492	450	0.74	0.25	0.74	0.0	0.49	27	6.0	<20		410	91.1
+protein	DPB1	revio	ALL	hp_only	340	424	386	0.59	0.29	0.29	0.0	0.0	<20		<20		368	95.3
+protein	DPB1	revio	ALL	other	66	68	64	1.52	0.0	3.03	0.0	3.03	<20		<20		42	65.6
+protein	DPB1	sequel2e	AFR	all	14	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DPB1	sequel2e	AFR	hp_only	12	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	sequel2e	AFR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DPB1	sequel2e	AMR	all	30	30	27	0.0	0.0	0.0	0.0	0.0	<20		<20		25	92.6
+protein	DPB1	sequel2e	AMR	hp_only	28	28	26	0.0	0.0	0.0	0.0	0.0	<20		<20		24	92.3
+protein	DPB1	sequel2e	AMR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	sequel2e	EAS	all	6	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPB1	sequel2e	EAS	hp_only	6	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DPB1	sequel2e	EUR	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DPB1	sequel2e	EUR	hp_only	13	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DPB1	sequel2e	EUR	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	sequel2e	SAS	all	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	sequel2e	SAS	hp_only	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	sequel2e	SAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	sequel2e	ALL	all	70	72	65	0.0	0.0	0.0	0.0	0.0	<20		<20		59	90.8
+protein	DPB1	sequel2e	ALL	hp_only	62	64	58	0.0	0.0	0.0	0.0	0.0	<20		<20		53	91.4
+protein	DPB1	sequel2e	ALL	other	8	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DPB1	ALL	AFR	all	150	163	156	1.33	0.0	0.0	0.0	0.0	<20		<20		145	92.9
+protein	DPB1	ALL	AFR	hp_only	126	139	133	0.79	0.0	0.0	0.0	0.0	<20		<20		127	95.5
+protein	DPB1	ALL	AFR	other	24	24	23	4.17	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DPB1	ALL	AMR	all	114	127	116	0.88	0.0	0.88	0.0	0.88	<20		<20		109	94.0
+protein	DPB1	ALL	AMR	hp_only	97	110	100	1.03	0.0	0.0	0.0	0.0	<20		<20		96	96.0
+protein	DPB1	ALL	AMR	other	17	<20	<20	0.0	0.0	5.88	0.0	5.88	<20		0		<20	
+protein	DPB1	ALL	EAS	all	62	69	59	0.0	0.0	3.23	0.0	0.0	<20		<20		50	84.7
+protein	DPB1	ALL	EAS	hp_only	54	60	52	0.0	0.0	0.0	0.0	0.0	<20		<20		49	94.2
+protein	DPB1	ALL	EAS	other	8	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+protein	DPB1	ALL	EUR	all	120	136	120	0.0	0.83	0.0	0.0	0.83	<20		<20		107	89.2
+protein	DPB1	ALL	EUR	hp_only	104	120	105	0.0	0.96	0.0	0.0	0.0	<20		<20		97	92.4
+protein	DPB1	ALL	EUR	other	16	<20	<20	0.0	0.0	0.0	0.0	6.25	<20		<20		<20	
+protein	DPB1	ALL	MID	all	24	24	24	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	24	100.0
+protein	DPB1	ALL	MID	hp_only	22	22	22	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	22	100.0
+protein	DPB1	ALL	MID	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DPB1	ALL	SAS	all	42	45	40	0.0	0.0	2.38	0.0	0.0	<20		<20		34	85.0
+protein	DPB1	ALL	SAS	hp_only	34	37	32	0.0	0.0	2.94	0.0	0.0	<20		0	0.0	30	93.8
+protein	DPB1	ALL	SAS	other	8	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DPB1	ALL	ALL	all	466	564	515	0.64	0.21	0.64	0.0	0.43	29	5.6	<20		469	91.1
+protein	DPB1	ALL	ALL	hp_only	392	488	444	0.51	0.26	0.26	0.0	0.0	<20		<20		421	94.8
+protein	DPB1	ALL	ALL	other	74	76	71	1.35	0.0	2.7	0.0	2.7	<20		<20		48	67.6
+protein	DQA1	revio	AFR	all	114	116	104	0.0	0.88	0.0	0.0	0.0	<20		<20		93	89.4
+protein	DQA1	revio	AFR	hp_only	93	93	82	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		78	95.1
+protein	DQA1	revio	AFR	other	21	23	22	0.0	4.76	0.0	0.0	0.0	<20		<20		<20	
+protein	DQA1	revio	AMR	all	59	62	55	0.0	0.0	0.0	0.0	0.0	<20		<20		48	87.3
+protein	DQA1	revio	AMR	hp_only	41	41	37	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	37	100.0
+protein	DQA1	revio	AMR	other	18	21	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQA1	revio	EAS	all	35	35	33	0.0	0.0	0.0	0.0	0.0	<20		<20		29	87.9
+protein	DQA1	revio	EAS	hp_only	26	26	24	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	24	100.0
+protein	DQA1	revio	EAS	other	9	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQA1	revio	EUR	all	80	82	77	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		73	94.8
+protein	DQA1	revio	EUR	hp_only	70	72	68	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		65	95.6
+protein	DQA1	revio	EUR	other	10	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	revio	MID	all	9	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQA1	revio	MID	hp_only	7	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	revio	MID	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DQA1	revio	SAS	all	34	34	33	2.94	0.0	0.0	0.0	0.0	<20		<20		27	81.8
+protein	DQA1	revio	SAS	hp_only	25	25	24	4.0	0.0	0.0	0.0	0.0	<20		<20		22	91.7
+protein	DQA1	revio	SAS	other	9	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DQA1	revio	ALL	all	320	339	310	0.31	0.31	0.0	0.0	0.0	<20		<20		276	89.0
+protein	DQA1	revio	ALL	hp_only	251	264	241	0.4	0.0	0.0	0.0	0.0	<20		<20		231	95.9
+protein	DQA1	revio	ALL	other	69	75	69	0.0	1.45	0.0	0.0	0.0	<20		<20		45	65.2
+protein	DQA1	sequel2e	AFR	all	14	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	sequel2e	AFR	hp_only	8	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	sequel2e	AFR	other	6	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	sequel2e	AMR	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	sequel2e	AMR	hp_only	15	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	sequel2e	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	EAS	all	6	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	EAS	hp_only	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	EAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	EUR	all	7	<20	<20	14.29	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	sequel2e	EUR	hp_only	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	sequel2e	EUR	other	3	<20	<20	33.33	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	MID	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	MID	hp_only	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	MID	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	SAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	SAS	hp_only	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQA1	sequel2e	ALL	all	47	48	46	2.13	0.0	0.0	0.0	0.0	0	0.0	<20		40	87.0
+protein	DQA1	sequel2e	ALL	hp_only	35	35	34	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		30	88.2
+protein	DQA1	sequel2e	ALL	other	12	<20	<20	8.33	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	ALL	AFR	all	128	131	119	0.0	0.78	0.0	0.0	0.0	<20		<20		105	88.2
+protein	DQA1	ALL	AFR	hp_only	101	101	90	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		85	94.4
+protein	DQA1	ALL	AFR	other	27	30	29	0.0	3.7	0.0	0.0	0.0	<20		<20		20	69.0
+protein	DQA1	ALL	AMR	all	75	78	71	0.0	0.0	0.0	0.0	0.0	<20		<20		62	87.3
+protein	DQA1	ALL	AMR	hp_only	56	56	52	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		50	96.2
+protein	DQA1	ALL	AMR	other	19	22	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQA1	ALL	EAS	all	41	41	38	0.0	0.0	0.0	0.0	0.0	<20		<20		34	89.5
+protein	DQA1	ALL	EAS	hp_only	31	31	28	0.0	0.0	0.0	0.0	0.0	0	0.0	0	0.0	28	100.0
+protein	DQA1	ALL	EAS	other	10	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQA1	ALL	EUR	all	87	89	83	1.15	0.0	0.0	0.0	0.0	0	0.0	<20		78	94.0
+protein	DQA1	ALL	EUR	hp_only	74	76	72	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		68	94.4
+protein	DQA1	ALL	EUR	other	13	<20	<20	7.69	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	ALL	MID	all	11	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQA1	ALL	MID	hp_only	8	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQA1	ALL	MID	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DQA1	ALL	SAS	all	36	36	35	2.78	0.0	0.0	0.0	0.0	<20		<20		29	82.9
+protein	DQA1	ALL	SAS	hp_only	27	27	26	3.7	0.0	0.0	0.0	0.0	<20		<20		24	92.3
+protein	DQA1	ALL	SAS	other	9	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DQA1	ALL	ALL	all	366	387	356	0.55	0.27	0.0	0.0	0.0	<20		22	6.2	316	88.8
+protein	DQA1	ALL	ALL	hp_only	285	299	275	0.35	0.0	0.0	0.0	0.0	<20		<20		261	94.9
+protein	DQA1	ALL	ALL	other	81	88	81	1.23	1.23	0.0	0.0	0.0	<20		<20		55	67.9
+protein	DQB1	revio	AFR	all	135	152	141	2.22	0.74	0.0	0.0	0.0	<20		<20		121	85.8
+protein	DQB1	revio	AFR	hp_only	117	130	125	2.56	0.0	0.0	0.0	0.0	<20		<20		111	88.8
+protein	DQB1	revio	AFR	other	18	22	<20	0.0	5.56	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	revio	AMR	all	94	97	89	0.0	1.06	0.0	0.0	0.0	<20		<20		74	83.1
+protein	DQB1	revio	AMR	hp_only	82	83	79	0.0	0.0	0.0	0.0	0.0	<20		<20		67	84.8
+protein	DQB1	revio	AMR	other	12	<20	<20	0.0	8.33	0.0	0.0	0.0	<20		0		<20	
+protein	DQB1	revio	EAS	all	38	39	38	0.0	0.0	0.0	0.0	0.0	<20		<20		31	81.6
+protein	DQB1	revio	EAS	hp_only	33	34	33	0.0	0.0	0.0	0.0	0.0	<20		<20		28	84.8
+protein	DQB1	revio	EAS	other	5	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	revio	EUR	all	98	105	100	0.0	0.0	0.0	0.0	0.0	<20		<20		93	93.0
+protein	DQB1	revio	EUR	hp_only	83	90	87	0.0	0.0	0.0	0.0	0.0	<20		0	0.0	83	95.4
+protein	DQB1	revio	EUR	other	15	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	revio	MID	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	revio	MID	hp_only	14	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	revio	MID	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DQB1	revio	SAS	all	38	38	34	0.0	0.0	0.0	0.0	0.0	<20		<20		28	82.4
+protein	DQB1	revio	SAS	hp_only	34	34	30	0.0	0.0	0.0	0.0	0.0	<20		<20		27	90.0
+protein	DQB1	revio	SAS	other	4	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	revio	ALL	all	399	447	418	0.75	0.25	0.0	0.0	0.0	35	8.4	22	5.3	361	86.4
+protein	DQB1	revio	ALL	hp_only	345	385	368	0.87	0.0	0.0	0.0	0.0	23	6.2	<20		329	89.4
+protein	DQB1	revio	ALL	other	54	62	50	0.0	1.85	0.0	0.0	0.0	<20		<20		32	64.0
+protein	DQB1	sequel2e	AFR	all	13	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQB1	sequel2e	AFR	hp_only	11	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQB1	sequel2e	AFR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQB1	sequel2e	AMR	all	26	27	23	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		21	91.3
+protein	DQB1	sequel2e	AMR	hp_only	21	22	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	sequel2e	AMR	other	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQB1	sequel2e	EAS	all	13	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	sequel2e	EAS	hp_only	12	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQB1	sequel2e	EAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+protein	DQB1	sequel2e	EUR	all	17	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	sequel2e	EUR	hp_only	15	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	sequel2e	EUR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQB1	sequel2e	SAS	all	5	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	sequel2e	SAS	hp_only	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	sequel2e	SAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DQB1	sequel2e	ALL	all	72	75	68	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		63	92.6
+protein	DQB1	sequel2e	ALL	hp_only	61	64	58	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		54	93.1
+protein	DQB1	sequel2e	ALL	other	11	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	ALL	AFR	all	148	165	154	2.03	0.68	0.0	0.0	0.0	<20		<20		134	87.0
+protein	DQB1	ALL	AFR	hp_only	128	141	136	2.34	0.0	0.0	0.0	0.0	<20		<20		122	89.7
+protein	DQB1	ALL	AFR	other	20	24	<20	0.0	5.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	ALL	AMR	all	119	124	112	0.0	0.84	0.0	0.0	0.0	<20		<20		95	84.8
+protein	DQB1	ALL	AMR	hp_only	102	105	98	0.0	0.0	0.0	0.0	0.0	<20		<20		84	85.7
+protein	DQB1	ALL	AMR	other	17	<20	<20	0.0	5.88	0.0	0.0	0.0	<20		0		<20	
+protein	DQB1	ALL	EAS	all	51	52	49	0.0	0.0	0.0	0.0	0.0	<20		<20		41	83.7
+protein	DQB1	ALL	EAS	hp_only	45	46	43	0.0	0.0	0.0	0.0	0.0	<20		<20		38	88.4
+protein	DQB1	ALL	EAS	other	6	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	ALL	EUR	all	115	122	116	0.0	0.0	0.0	0.0	0.0	<20		<20		108	93.1
+protein	DQB1	ALL	EUR	hp_only	98	105	101	0.0	0.0	0.0	0.0	0.0	<20		<20		96	95.0
+protein	DQB1	ALL	EUR	other	17	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	ALL	MID	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	ALL	MID	hp_only	14	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DQB1	ALL	MID	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	DQB1	ALL	SAS	all	43	43	39	0.0	0.0	0.0	0.0	0.0	<20		<20		32	82.1
+protein	DQB1	ALL	SAS	hp_only	38	38	34	0.0	0.0	0.0	0.0	0.0	<20		<20		30	88.2
+protein	DQB1	ALL	SAS	other	5	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DQB1	ALL	ALL	all	467	522	486	0.64	0.21	0.0	0.0	0.0	35	7.2	27	5.6	424	87.2
+protein	DQB1	ALL	ALL	hp_only	402	449	426	0.75	0.0	0.0	0.0	0.0	23	5.4	20	4.7	383	89.9
+protein	DQB1	ALL	ALL	other	65	73	60	0.0	1.54	0.0	0.0	0.0	<20		<20		41	68.3
+protein	DRB1	revio	AFR	all	115	119	118	0.87	0.0	0.87	0.0	0.0	<20		21	17.8	90	76.3
+protein	DRB1	revio	AFR	hp_only	99	102	101	1.01	0.0	0.0	0.0	0.0	<20		<20		80	79.2
+protein	DRB1	revio	AFR	other	16	<20	<20	0.0	0.0	6.25	0.0	0.0	<20		<20		<20	
+protein	DRB1	revio	AMR	all	73	77	72	1.37	0.0	0.0	0.0	0.0	<20		<20		58	80.6
+protein	DRB1	revio	AMR	hp_only	61	65	61	1.64	0.0	0.0	0.0	0.0	<20		<20		49	80.3
+protein	DRB1	revio	AMR	other	12	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	revio	EAS	all	56	58	54	1.79	0.0	0.0	0.0	0.0	<20		<20		40	74.1
+protein	DRB1	revio	EAS	hp_only	48	50	47	2.08	0.0	0.0	0.0	0.0	<20		<20		35	74.5
+protein	DRB1	revio	EAS	other	8	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	revio	EUR	all	104	117	105	0.96	0.0	0.0	0.0	0.0	<20		<20		85	81.0
+protein	DRB1	revio	EUR	hp_only	93	106	94	1.08	0.0	0.0	0.0	0.0	<20		<20		78	83.0
+protein	DRB1	revio	EUR	other	11	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	revio	MID	all	17	21	<20	0.0	0.0	5.88	0.0	0.0	<20		<20		<20	
+protein	DRB1	revio	MID	hp_only	14	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	revio	MID	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+protein	DRB1	revio	SAS	all	38	41	38	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		34	89.5
+protein	DRB1	revio	SAS	hp_only	32	35	32	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		29	90.6
+protein	DRB1	revio	SAS	other	6	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	revio	ALL	all	393	434	406	1.02	0.0	0.51	0.0	0.0	20	4.9	66	16.3	320	78.8
+protein	DRB1	revio	ALL	hp_only	337	377	351	1.19	0.0	0.0	0.0	0.0	<20		57	16.2	283	80.6
+protein	DRB1	revio	ALL	other	56	57	55	0.0	0.0	3.57	0.0	0.0	<20		<20		37	67.3
+protein	DRB1	sequel2e	AFR	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	sequel2e	AFR	hp_only	14	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	sequel2e	AFR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	sequel2e	AMR	all	23	24	23	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		<20	
+protein	DRB1	sequel2e	AMR	hp_only	19	20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	sequel2e	AMR	other	4	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	sequel2e	EAS	all	12	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	sequel2e	EAS	hp_only	11	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	sequel2e	EAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DRB1	sequel2e	EUR	all	18	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	sequel2e	EUR	hp_only	15	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	sequel2e	EUR	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+protein	DRB1	sequel2e	MID	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		0	
+protein	DRB1	sequel2e	MID	hp_only	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+protein	DRB1	sequel2e	MID	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+protein	DRB1	sequel2e	SAS	all	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	sequel2e	SAS	hp_only	3	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	sequel2e	ALL	all	74	76	73	0.0	0.0	0.0	0.0	0.0	<20		<20		52	71.2
+protein	DRB1	sequel2e	ALL	hp_only	63	65	62	0.0	0.0	0.0	0.0	0.0	<20		<20		44	71.0
+protein	DRB1	sequel2e	ALL	other	11	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	ALL	AFR	all	131	136	134	0.76	0.0	0.76	0.0	0.0	<20		26	19.4	100	74.6
+protein	DRB1	ALL	AFR	hp_only	113	117	115	0.88	0.0	0.0	0.0	0.0	<20		23	20.0	89	77.4
+protein	DRB1	ALL	AFR	other	18	<20	<20	0.0	0.0	5.56	0.0	0.0	<20		<20		<20	
+protein	DRB1	ALL	AMR	all	96	101	95	1.04	0.0	0.0	0.0	0.0	<20		<20		77	81.1
+protein	DRB1	ALL	AMR	hp_only	80	85	80	1.25	0.0	0.0	0.0	0.0	<20		<20		65	81.2
+protein	DRB1	ALL	AMR	other	16	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	ALL	EAS	all	68	70	65	1.47	0.0	0.0	0.0	0.0	<20		<20		48	73.8
+protein	DRB1	ALL	EAS	hp_only	59	61	57	1.69	0.0	0.0	0.0	0.0	<20		<20		42	73.7
+protein	DRB1	ALL	EAS	other	9	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	ALL	EUR	all	122	135	123	0.82	0.0	0.0	0.0	0.0	<20		<20		98	79.7
+protein	DRB1	ALL	EUR	hp_only	108	121	109	0.93	0.0	0.0	0.0	0.0	<20		<20		88	80.7
+protein	DRB1	ALL	EUR	other	14	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	ALL	MID	all	19	23	20	0.0	0.0	5.26	0.0	0.0	<20		<20		<20	
+protein	DRB1	ALL	MID	hp_only	15	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	DRB1	ALL	MID	other	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+protein	DRB1	ALL	SAS	all	41	44	41	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		36	87.8
+protein	DRB1	ALL	SAS	hp_only	35	38	35	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		31	88.6
+protein	DRB1	ALL	SAS	other	6	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	DRB1	ALL	ALL	all	461	510	479	0.87	0.0	0.43	0.0	0.0	23	4.8	84	17.5	372	77.7
+protein	DRB1	ALL	ALL	hp_only	395	442	413	1.01	0.0	0.0	0.0	0.0	<20		73	17.7	327	79.2
+protein	DRB1	ALL	ALL	other	66	68	66	0.0	0.0	3.03	0.0	0.0	<20		<20		45	68.2
+protein	classical_8	revio	AFR	all	1163	1215	1073	0.95	0.34	0.43	0.09	0.0	55	5.1	78	7.3	940	87.6
+protein	classical_8	revio	AFR	hp_only	962	1000	899	1.04	0.0	0.1	0.0	0.0	23	2.6	63	7.0	813	90.4
+protein	classical_8	revio	AFR	other	201	215	174	0.5	1.99	1.99	0.5	0.0	32	18.4	<20		127	73.0
+protein	classical_8	revio	AMR	all	700	737	633	0.57	0.29	0.43	0.0	0.29	28	4.4	37	5.8	568	89.7
+protein	classical_8	revio	AMR	hp_only	581	603	525	0.52	0.17	0.17	0.0	0.17	<20		30	5.7	485	92.4
+protein	classical_8	revio	AMR	other	119	134	108	0.84	0.84	1.68	0.0	0.84	<20		<20		83	76.9
+protein	classical_8	revio	EAS	all	464	476	414	1.08	0.22	0.86	0.0	0.22	21	5.1	30	7.2	363	87.7
+protein	classical_8	revio	EAS	hp_only	379	388	341	0.79	0.26	0.0	0.0	0.0	<20		24	7.0	313	91.8
+protein	classical_8	revio	EAS	other	85	88	73	2.35	0.0	4.71	0.0	1.18	<20		<20		50	68.5
+protein	classical_8	revio	EUR	all	937	991	854	0.85	0.11	0.11	0.0	0.21	34	4.0	45	5.3	775	90.7
+protein	classical_8	revio	EUR	hp_only	781	828	711	1.02	0.13	0.0	0.0	0.13	<20		28	3.9	667	93.8
+protein	classical_8	revio	EUR	other	156	163	143	0.0	0.0	0.64	0.0	0.64	<20		<20		108	75.5
+protein	classical_8	revio	MID	all	147	155	133	2.04	0.0	1.36	0.0	0.0	<20		<20		117	88.0
+protein	classical_8	revio	MID	hp_only	123	129	111	2.44	0.0	0.0	0.0	0.0	<20		<20		102	91.9
+protein	classical_8	revio	MID	other	24	26	22	0.0	0.0	8.33	0.0	0.0	<20		0	0.0	<20	
+protein	classical_8	revio	SAS	all	359	369	318	1.11	0.28	0.56	0.0	0.0	<20		<20		281	88.4
+protein	classical_8	revio	SAS	hp_only	299	306	261	1.34	0.33	0.33	0.0	0.0	<20		<20		243	93.1
+protein	classical_8	revio	SAS	other	60	63	57	0.0	0.0	1.67	0.0	0.0	<20		<20		38	66.7
+protein	classical_8	revio	ALL	all	3629	3951	3433	0.8	0.19	0.44	0.03	0.14	167	4.9	214	6.2	3052	88.9
+protein	classical_8	revio	ALL	hp_only	2985	3260	2854	0.84	0.1	0.1	0.0	0.07	61	2.1	164	5.7	2629	92.1
+protein	classical_8	revio	ALL	other	644	691	579	0.62	0.62	2.02	0.16	0.47	106	18.3	50	8.6	423	73.1
+protein	classical_8	sequel2e	AFR	all	121	124	111	1.65	0.0	0.83	0.0	0.0	<20		<20		91	82.0
+protein	classical_8	sequel2e	AFR	hp_only	93	94	83	1.08	0.0	0.0	0.0	0.0	<20		<20		70	84.3
+protein	classical_8	sequel2e	AFR	other	28	30	28	3.57	0.0	3.57	0.0	0.0	<20		<20		21	75.0
+protein	classical_8	sequel2e	AMR	all	254	266	231	0.79	0.0	0.0	0.0	0.39	<20		28	12.1	198	85.7
+protein	classical_8	sequel2e	AMR	hp_only	220	226	196	0.91	0.0	0.0	0.0	0.0	<20		21	10.7	174	88.8
+protein	classical_8	sequel2e	AMR	other	34	40	35	0.0	0.0	0.0	0.0	2.94	<20		<20		24	68.6
+protein	classical_8	sequel2e	EAS	all	82	85	74	0.0	0.0	0.0	0.0	0.0	<20		<20		65	87.8
+protein	classical_8	sequel2e	EAS	hp_only	76	78	68	0.0	0.0	0.0	0.0	0.0	<20		<20		61	89.7
+protein	classical_8	sequel2e	EAS	other	6	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	classical_8	sequel2e	EUR	all	129	132	114	0.78	0.0	0.78	0.0	0.0	0	0.0	<20		97	85.1
+protein	classical_8	sequel2e	EUR	hp_only	111	113	97	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		81	83.5
+protein	classical_8	sequel2e	EUR	other	18	<20	<20	5.56	0.0	5.56	0.0	0.0	0		<20		<20	
+protein	classical_8	sequel2e	MID	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	classical_8	sequel2e	MID	hp_only	11	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	classical_8	sequel2e	MID	other	5	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	classical_8	sequel2e	SAS	all	46	47	42	0.0	0.0	0.0	2.17	0.0	0	0.0	<20		39	92.9
+protein	classical_8	sequel2e	SAS	hp_only	39	40	35	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		33	94.3
+protein	classical_8	sequel2e	SAS	other	7	<20	<20	0.0	0.0	0.0	14.29	0.0	0		<20		<20	
+protein	classical_8	sequel2e	ALL	all	640	670	587	0.62	0.0	0.31	0.16	0.16	<20		71	12.1	502	85.5
+protein	classical_8	sequel2e	ALL	hp_only	542	562	489	0.37	0.0	0.0	0.0	0.0	<20		57	11.7	427	87.3
+protein	classical_8	sequel2e	ALL	other	98	108	98	2.04	0.0	2.04	1.02	1.02	<20		<20		75	76.5
+protein	classical_8	ALL	AFR	all	1281	1339	1184	1.01	0.31	0.47	0.08	0.0	60	5.1	93	7.9	1031	87.1
+protein	classical_8	ALL	AFR	hp_only	1052	1094	982	1.05	0.0	0.1	0.0	0.0	25	2.5	74	7.5	883	89.9
+protein	classical_8	ALL	AFR	other	229	245	202	0.87	1.75	2.18	0.44	0.0	35	17.3	<20		148	73.3
+protein	classical_8	ALL	AMR	all	948	1003	864	0.63	0.21	0.32	0.0	0.32	33	3.8	65	7.5	766	88.7
+protein	classical_8	ALL	AMR	hp_only	795	829	721	0.63	0.13	0.13	0.0	0.13	<20		51	7.1	659	91.4
+protein	classical_8	ALL	AMR	other	153	174	143	0.65	0.65	1.31	0.0	1.31	22	15.4	<20		107	74.8
+protein	classical_8	ALL	EAS	all	545	561	488	0.92	0.18	0.73	0.0	0.18	24	4.9	36	7.4	428	87.7
+protein	classical_8	ALL	EAS	hp_only	454	466	409	0.66	0.22	0.0	0.0	0.0	<20		29	7.1	374	91.4
+protein	classical_8	ALL	EAS	other	91	95	79	2.2	0.0	4.4	0.0	1.1	<20		<20		54	68.4
+protein	classical_8	ALL	EUR	all	1064	1123	968	0.85	0.09	0.19	0.0	0.19	34	3.5	62	6.4	872	90.1
+protein	classical_8	ALL	EUR	hp_only	890	941	808	0.9	0.11	0.0	0.0	0.11	<20		44	5.4	748	92.6
+protein	classical_8	ALL	EUR	other	174	182	160	0.57	0.0	1.15	0.0	0.57	<20		<20		124	77.5
+protein	classical_8	ALL	MID	all	163	171	148	1.84	0.0	1.23	0.0	0.0	<20		<20		129	87.2
+protein	classical_8	ALL	MID	hp_only	134	140	121	2.24	0.0	0.0	0.0	0.0	<20		<20		110	90.9
+protein	classical_8	ALL	MID	other	29	31	27	0.0	0.0	6.9	0.0	0.0	<20		0	0.0	<20	
+protein	classical_8	ALL	SAS	all	405	416	360	0.99	0.25	0.49	0.25	0.0	<20		21	5.8	320	88.9
+protein	classical_8	ALL	SAS	hp_only	338	346	296	1.18	0.3	0.3	0.0	0.0	<20		<20		276	93.2
+protein	classical_8	ALL	SAS	other	67	70	64	0.0	0.0	1.49	1.49	0.0	<20		<20		44	68.8
+protein	classical_8	ALL	ALL	all	4230	4621	4020	0.76	0.17	0.43	0.05	0.14	181	4.5	285	7.1	3554	88.4
+protein	classical_8	ALL	ALL	hp_only	3489	3822	3343	0.75	0.09	0.09	0.0	0.06	66	2.0	221	6.6	3056	91.4
+protein	classical_8	ALL	ALL	other	741	799	677	0.81	0.54	2.02	0.27	0.54	115	17.0	64	9.5	498	73.6
+protein	ALL	revio	AFR	all	1163	1215	1073	0.95	0.34	0.43	0.09	0.0	55	5.1	78	7.3	940	87.6
+protein	ALL	revio	AFR	hp_only	962	1000	899	1.04	0.0	0.1	0.0	0.0	23	2.6	63	7.0	813	90.4
+protein	ALL	revio	AFR	other	201	215	174	0.5	1.99	1.99	0.5	0.0	32	18.4	<20		127	73.0
+protein	ALL	revio	AMR	all	700	737	633	0.57	0.29	0.43	0.0	0.29	28	4.4	37	5.8	568	89.7
+protein	ALL	revio	AMR	hp_only	581	603	525	0.52	0.17	0.17	0.0	0.17	<20		30	5.7	485	92.4
+protein	ALL	revio	AMR	other	119	134	108	0.84	0.84	1.68	0.0	0.84	<20		<20		83	76.9
+protein	ALL	revio	EAS	all	464	476	414	1.08	0.22	0.86	0.0	0.22	21	5.1	30	7.2	363	87.7
+protein	ALL	revio	EAS	hp_only	379	388	341	0.79	0.26	0.0	0.0	0.0	<20		24	7.0	313	91.8
+protein	ALL	revio	EAS	other	85	88	73	2.35	0.0	4.71	0.0	1.18	<20		<20		50	68.5
+protein	ALL	revio	EUR	all	937	991	854	0.85	0.11	0.11	0.0	0.21	34	4.0	45	5.3	775	90.7
+protein	ALL	revio	EUR	hp_only	781	828	711	1.02	0.13	0.0	0.0	0.13	<20		28	3.9	667	93.8
+protein	ALL	revio	EUR	other	156	163	143	0.0	0.0	0.64	0.0	0.64	<20		<20		108	75.5
+protein	ALL	revio	MID	all	147	155	133	2.04	0.0	1.36	0.0	0.0	<20		<20		117	88.0
+protein	ALL	revio	MID	hp_only	123	129	111	2.44	0.0	0.0	0.0	0.0	<20		<20		102	91.9
+protein	ALL	revio	MID	other	24	26	22	0.0	0.0	8.33	0.0	0.0	<20		0	0.0	<20	
+protein	ALL	revio	SAS	all	359	369	318	1.11	0.28	0.56	0.0	0.0	<20		<20		281	88.4
+protein	ALL	revio	SAS	hp_only	299	306	261	1.34	0.33	0.33	0.0	0.0	<20		<20		243	93.1
+protein	ALL	revio	SAS	other	60	63	57	0.0	0.0	1.67	0.0	0.0	<20		<20		38	66.7
+protein	ALL	revio	ALL	all	3629	3951	3433	0.8	0.19	0.44	0.03	0.14	167	4.9	214	6.2	3052	88.9
+protein	ALL	revio	ALL	hp_only	2985	3260	2854	0.84	0.1	0.1	0.0	0.07	61	2.1	164	5.7	2629	92.1
+protein	ALL	revio	ALL	other	644	691	579	0.62	0.62	2.02	0.16	0.47	106	18.3	50	8.6	423	73.1
+protein	ALL	sequel2e	AFR	all	121	124	111	1.65	0.0	0.83	0.0	0.0	<20		<20		91	82.0
+protein	ALL	sequel2e	AFR	hp_only	93	94	83	1.08	0.0	0.0	0.0	0.0	<20		<20		70	84.3
+protein	ALL	sequel2e	AFR	other	28	30	28	3.57	0.0	3.57	0.0	0.0	<20		<20		21	75.0
+protein	ALL	sequel2e	AMR	all	254	266	231	0.79	0.0	0.0	0.0	0.39	<20		28	12.1	198	85.7
+protein	ALL	sequel2e	AMR	hp_only	220	226	196	0.91	0.0	0.0	0.0	0.0	<20		21	10.7	174	88.8
+protein	ALL	sequel2e	AMR	other	34	40	35	0.0	0.0	0.0	0.0	2.94	<20		<20		24	68.6
+protein	ALL	sequel2e	EAS	all	82	85	74	0.0	0.0	0.0	0.0	0.0	<20		<20		65	87.8
+protein	ALL	sequel2e	EAS	hp_only	76	78	68	0.0	0.0	0.0	0.0	0.0	<20		<20		61	89.7
+protein	ALL	sequel2e	EAS	other	6	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	ALL	sequel2e	EUR	all	129	132	114	0.78	0.0	0.78	0.0	0.0	0	0.0	<20		97	85.1
+protein	ALL	sequel2e	EUR	hp_only	111	113	97	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		81	83.5
+protein	ALL	sequel2e	EUR	other	18	<20	<20	5.56	0.0	5.56	0.0	0.0	0		<20		<20	
+protein	ALL	sequel2e	MID	all	16	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+protein	ALL	sequel2e	MID	hp_only	11	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+protein	ALL	sequel2e	MID	other	5	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+protein	ALL	sequel2e	SAS	all	46	47	42	0.0	0.0	0.0	2.17	0.0	0	0.0	<20		39	92.9
+protein	ALL	sequel2e	SAS	hp_only	39	40	35	0.0	0.0	0.0	0.0	0.0	0	0.0	<20		33	94.3
+protein	ALL	sequel2e	SAS	other	7	<20	<20	0.0	0.0	0.0	14.29	0.0	0		<20		<20	
+protein	ALL	sequel2e	ALL	all	640	670	587	0.62	0.0	0.31	0.16	0.16	<20		71	12.1	502	85.5
+protein	ALL	sequel2e	ALL	hp_only	542	562	489	0.37	0.0	0.0	0.0	0.0	<20		57	11.7	427	87.3
+protein	ALL	sequel2e	ALL	other	98	108	98	2.04	0.0	2.04	1.02	1.02	<20		<20		75	76.5
+protein	ALL	ALL	AFR	all	1281	1339	1184	1.01	0.31	0.47	0.08	0.0	60	5.1	93	7.9	1031	87.1
+protein	ALL	ALL	AFR	hp_only	1052	1094	982	1.05	0.0	0.1	0.0	0.0	25	2.5	74	7.5	883	89.9
+protein	ALL	ALL	AFR	other	229	245	202	0.87	1.75	2.18	0.44	0.0	35	17.3	<20		148	73.3
+protein	ALL	ALL	AMR	all	948	1003	864	0.63	0.21	0.32	0.0	0.32	33	3.8	65	7.5	766	88.7
+protein	ALL	ALL	AMR	hp_only	795	829	721	0.63	0.13	0.13	0.0	0.13	<20		51	7.1	659	91.4
+protein	ALL	ALL	AMR	other	153	174	143	0.65	0.65	1.31	0.0	1.31	22	15.4	<20		107	74.8
+protein	ALL	ALL	EAS	all	545	561	488	0.92	0.18	0.73	0.0	0.18	24	4.9	36	7.4	428	87.7
+protein	ALL	ALL	EAS	hp_only	454	466	409	0.66	0.22	0.0	0.0	0.0	<20		29	7.1	374	91.4
+protein	ALL	ALL	EAS	other	91	95	79	2.2	0.0	4.4	0.0	1.1	<20		<20		54	68.4
+protein	ALL	ALL	EUR	all	1064	1123	968	0.85	0.09	0.19	0.0	0.19	34	3.5	62	6.4	872	90.1
+protein	ALL	ALL	EUR	hp_only	890	941	808	0.9	0.11	0.0	0.0	0.11	<20		44	5.4	748	92.6
+protein	ALL	ALL	EUR	other	174	182	160	0.57	0.0	1.15	0.0	0.57	<20		<20		124	77.5
+protein	ALL	ALL	MID	all	163	171	148	1.84	0.0	1.23	0.0	0.0	<20		<20		129	87.2
+protein	ALL	ALL	MID	hp_only	134	140	121	2.24	0.0	0.0	0.0	0.0	<20		<20		110	90.9
+protein	ALL	ALL	MID	other	29	31	27	0.0	0.0	6.9	0.0	0.0	<20		0	0.0	<20	
+protein	ALL	ALL	SAS	all	405	416	360	0.99	0.25	0.49	0.25	0.0	<20		21	5.8	320	88.9
+protein	ALL	ALL	SAS	hp_only	338	346	296	1.18	0.3	0.3	0.0	0.0	<20		<20		276	93.2
+protein	ALL	ALL	SAS	other	67	70	64	0.0	0.0	1.49	1.49	0.0	<20		<20		44	68.8
+protein	ALL	ALL	ALL	all	4230	4621	4020	0.76	0.17	0.43	0.05	0.14	181	4.5	285	7.1	3554	88.4
+protein	ALL	ALL	ALL	hp_only	3489	3822	3343	0.75	0.09	0.09	0.0	0.06	66	2.0	221	6.6	3056	91.4
+protein	ALL	ALL	ALL	other	741	799	677	0.81	0.54	2.02	0.27	0.54	115	17.0	64	9.5	498	73.6
+synonymous	A	revio	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	A	revio	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	A	revio	EAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	A	revio	EAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	A	revio	EUR	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	revio	EUR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	revio	SAS	all	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	revio	SAS	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	revio	ALL	all	7	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	revio	ALL	other	7	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	sequel2e	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+synonymous	A	sequel2e	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+synonymous	A	sequel2e	ALL	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+synonymous	A	sequel2e	ALL	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		0	
+synonymous	A	ALL	AMR	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+synonymous	A	ALL	AMR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	0		<20		<20	
+synonymous	A	ALL	EAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	A	ALL	EAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	A	ALL	EUR	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	ALL	EUR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	ALL	SAS	all	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	ALL	SAS	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	A	ALL	ALL	all	8	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+synonymous	A	ALL	ALL	other	8	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		<20	
+synonymous	B	revio	AFR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	revio	AFR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	revio	AMR	all	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	B	revio	AMR	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	B	revio	EUR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	B	revio	EUR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	B	revio	SAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	revio	SAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	revio	ALL	all	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	B	revio	ALL	other	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	B	ALL	AFR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	ALL	AFR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	ALL	AMR	all	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	B	ALL	AMR	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	B	ALL	EUR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	B	ALL	EUR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	B	ALL	SAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	ALL	SAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	B	ALL	ALL	all	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	B	ALL	ALL	other	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	C	revio	AFR	all	1	<20	0	0.0	0.0	0.0	0.0	0.0	0		0		0	
+synonymous	C	revio	AFR	other	1	<20	0	0.0	0.0	0.0	0.0	0.0	0		0		0	
+synonymous	C	revio	EUR	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	revio	EUR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	revio	SAS	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	C	revio	SAS	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	C	revio	ALL	all	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	C	revio	ALL	other	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	C	sequel2e	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	sequel2e	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	sequel2e	ALL	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	sequel2e	ALL	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	AFR	all	1	<20	0	0.0	0.0	0.0	0.0	0.0	0		0		0	
+synonymous	C	ALL	AFR	other	1	<20	0	0.0	0.0	0.0	0.0	0.0	0		0		0	
+synonymous	C	ALL	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	EUR	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	EUR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	SAS	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	SAS	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	ALL	all	5	<20	<20	0.0	0.0	20.0	0.0	0.0	<20		0		0	
+synonymous	C	ALL	ALL	other	5	<20	<20	0.0	0.0	20.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	revio	AFR	all	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	DPA1	revio	AFR	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	DPA1	revio	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	revio	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	revio	EAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	revio	EAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	revio	EUR	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	revio	EUR	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	revio	MID	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	revio	MID	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	revio	SAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPA1	revio	SAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPA1	revio	ALL	all	9	<20	<20	0.0	0.0	22.22	0.0	0.0	<20		0		<20	
+synonymous	DPA1	revio	ALL	other	9	<20	<20	0.0	0.0	22.22	0.0	0.0	<20		0		<20	
+synonymous	DPA1	ALL	AFR	all	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	DPA1	ALL	AFR	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		0		<20	
+synonymous	DPA1	ALL	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	ALL	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	ALL	EAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	ALL	EAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DPA1	ALL	EUR	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	ALL	EUR	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	ALL	MID	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	ALL	MID	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPA1	ALL	SAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPA1	ALL	SAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPA1	ALL	ALL	all	9	<20	<20	0.0	0.0	22.22	0.0	0.0	<20		0		<20	
+synonymous	DPA1	ALL	ALL	other	9	<20	<20	0.0	0.0	22.22	0.0	0.0	<20		0		<20	
+synonymous	DPB1	revio	AFR	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	AFR	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	EAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPB1	revio	EAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPB1	revio	MID	all	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	MID	other	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	SAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	SAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	revio	ALL	all	8	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+synonymous	DPB1	revio	ALL	other	8	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+synonymous	DPB1	ALL	AFR	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	AFR	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	EAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPB1	ALL	EAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		<20	
+synonymous	DPB1	ALL	MID	all	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	MID	other	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	SAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	SAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DPB1	ALL	ALL	all	8	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+synonymous	DPB1	ALL	ALL	other	8	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		<20	
+synonymous	DQA1	revio	MID	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	revio	MID	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	revio	SAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	revio	SAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	revio	ALL	all	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	revio	ALL	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	ALL	MID	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	ALL	MID	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	ALL	SAS	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	ALL	SAS	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	ALL	ALL	all	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQA1	ALL	ALL	other	3	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	revio	AFR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	revio	AFR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	revio	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	revio	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	revio	EAS	all	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	revio	EAS	other	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	revio	EUR	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	revio	EUR	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	revio	SAS	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	revio	SAS	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	revio	ALL	all	6	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	revio	ALL	other	6	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	sequel2e	SAS	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	sequel2e	SAS	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	sequel2e	ALL	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	sequel2e	ALL	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	ALL	AFR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	ALL	AFR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	ALL	AMR	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	ALL	AMR	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	0		0		<20	
+synonymous	DQB1	ALL	EAS	all	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	ALL	EAS	other	2	<20	<20	0.0	0.0	50.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	ALL	EUR	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	ALL	EUR	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		0	
+synonymous	DQB1	ALL	SAS	all	2	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	ALL	SAS	other	2	<20	<20	0.0	0.0	100.0	0.0	0.0	<20		0		<20	
+synonymous	DQB1	ALL	ALL	all	7	<20	<20	0.0	0.0	57.14	0.0	0.0	<20		0		<20	
+synonymous	DQB1	ALL	ALL	other	7	<20	<20	0.0	0.0	57.14	0.0	0.0	<20		0		<20	
+synonymous	DRB1	revio	SAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DRB1	revio	SAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DRB1	revio	ALL	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DRB1	revio	ALL	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DRB1	ALL	SAS	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DRB1	ALL	SAS	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DRB1	ALL	ALL	all	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	DRB1	ALL	ALL	other	1	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		0		0	
+synonymous	classical_8	revio	AFR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	AFR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	AMR	all	7	<20	<20	0.0	0.0	14.29	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	AMR	other	7	<20	<20	0.0	0.0	14.29	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	EAS	all	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	EAS	other	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	EUR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	EUR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	MID	all	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	classical_8	revio	MID	other	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	classical_8	revio	SAS	all	13	<20	<20	0.0	0.0	15.38	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	SAS	other	13	<20	<20	0.0	0.0	15.38	0.0	0.0	<20		0		<20	
+synonymous	classical_8	revio	ALL	all	44	47	43	0.0	0.0	20.45	0.0	0.0	28	65.1	0	0.0	<20	
+synonymous	classical_8	revio	ALL	other	44	47	43	0.0	0.0	20.45	0.0	0.0	28	65.1	0	0.0	<20	
+synonymous	classical_8	sequel2e	AMR	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		0	
+synonymous	classical_8	sequel2e	AMR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		0	
+synonymous	classical_8	sequel2e	SAS	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	classical_8	sequel2e	SAS	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	classical_8	sequel2e	ALL	all	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		<20		<20	
+synonymous	classical_8	sequel2e	ALL	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		<20		<20	
+synonymous	classical_8	ALL	AFR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	AFR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	AMR	all	9	<20	<20	0.0	0.0	11.11	0.0	0.0	<20		<20		<20	
+synonymous	classical_8	ALL	AMR	other	9	<20	<20	0.0	0.0	11.11	0.0	0.0	<20		<20		<20	
+synonymous	classical_8	ALL	EAS	all	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	EAS	other	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	EUR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	EUR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	MID	all	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	classical_8	ALL	MID	other	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	classical_8	ALL	SAS	all	14	<20	<20	0.0	0.0	21.43	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	SAS	other	14	<20	<20	0.0	0.0	21.43	0.0	0.0	<20		0		<20	
+synonymous	classical_8	ALL	ALL	all	47	50	46	0.0	0.0	21.28	0.0	0.0	29	63.0	<20		<20	
+synonymous	classical_8	ALL	ALL	other	47	50	46	0.0	0.0	21.28	0.0	0.0	29	63.0	<20		<20	
+synonymous	ALL	revio	AFR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	AFR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	AMR	all	7	<20	<20	0.0	0.0	14.29	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	AMR	other	7	<20	<20	0.0	0.0	14.29	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	EAS	all	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	EAS	other	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	EUR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	EUR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	MID	all	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	ALL	revio	MID	other	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	ALL	revio	SAS	all	13	<20	<20	0.0	0.0	15.38	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	SAS	other	13	<20	<20	0.0	0.0	15.38	0.0	0.0	<20		0		<20	
+synonymous	ALL	revio	ALL	all	44	47	43	0.0	0.0	20.45	0.0	0.0	28	65.1	0	0.0	<20	
+synonymous	ALL	revio	ALL	other	44	47	43	0.0	0.0	20.45	0.0	0.0	28	65.1	0	0.0	<20	
+synonymous	ALL	sequel2e	AMR	all	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		0	
+synonymous	ALL	sequel2e	AMR	other	2	<20	<20	0.0	0.0	0.0	0.0	0.0	<20		<20		0	
+synonymous	ALL	sequel2e	SAS	all	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	ALL	sequel2e	SAS	other	1	<20	<20	0.0	0.0	100.0	0.0	0.0	0		0		<20	
+synonymous	ALL	sequel2e	ALL	all	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		<20		<20	
+synonymous	ALL	sequel2e	ALL	other	3	<20	<20	0.0	0.0	33.33	0.0	0.0	<20		<20		<20	
+synonymous	ALL	ALL	AFR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	AFR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	AMR	all	9	<20	<20	0.0	0.0	11.11	0.0	0.0	<20		<20		<20	
+synonymous	ALL	ALL	AMR	other	9	<20	<20	0.0	0.0	11.11	0.0	0.0	<20		<20		<20	
+synonymous	ALL	ALL	EAS	all	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	EAS	other	6	<20	<20	0.0	0.0	16.67	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	EUR	all	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	EUR	other	7	<20	<20	0.0	0.0	28.57	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	MID	all	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	ALL	ALL	MID	other	4	<20	<20	0.0	0.0	25.0	0.0	0.0	<20		0		0	
+synonymous	ALL	ALL	SAS	all	14	<20	<20	0.0	0.0	21.43	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	SAS	other	14	<20	<20	0.0	0.0	21.43	0.0	0.0	<20		0		<20	
+synonymous	ALL	ALL	ALL	all	47	50	46	0.0	0.0	21.28	0.0	0.0	29	63.0	<20		<20	
+synonymous	ALL	ALL	ALL	other	47	50	46	0.0	0.0	21.28	0.0	0.0	29	63.0	<20		<20	
