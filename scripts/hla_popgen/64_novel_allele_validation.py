@@ -1457,6 +1457,29 @@ def key_read_class(verdicts):
     return "ambiguous"
 
 
+def pooled_key_read_class(tg, min_support=3, min_frac=0.7, max_frac_contra=0.15):
+    """Key-level verdict from this-haplotype read votes pooled across the key's tested carriers.
+    At ~20x HiFi only ~3 reads per haplotype span the window, so most single calls stay ambiguous;
+    a recurrent key gets one more chance from its carriers together. Only 3t-mode calls are pooled
+    (reads assigned to the called haplotype, where a real allele should sit near 100%); 2t pools
+    mix both haplotypes and cannot separate a het allele from homopolymer noise.
+    -> (n_called, n_nearest, frac, class)."""
+    t = tg[(tg["lr_mode"] == "3t") & tg["lr_verdict"].isin(VERDICTS)] if len(tg) else tg
+    if not len(t):
+        return 0, 0, float("nan"), "untested"
+    nc = int(pd.to_numeric(t["n_reads_support_called"], errors="coerce").fillna(0).sum())
+    nn = int(pd.to_numeric(t["n_reads_support_nearest"], errors="coerce").fillna(0).sum())
+    tot = nc + nn
+    frac = nc / tot if tot else float("nan")
+    if tot < min_support:
+        return nc, nn, frac, "ambiguous"
+    if nc >= min_support and frac >= min_frac:
+        return nc, nn, frac, "supported"
+    if nn >= min_support and frac <= max_frac_contra:
+        return nc, nn, frac, "contradicted"
+    return nc, nn, frac, "ambiguous"
+
+
 def key_table(nov_unrel, per):
     """One row per key: carriers among unrelated, platforms, ancestries, warning, hp proxy, IPD class
     and key-level read class from its tested calls. Depth-4 keys come from tested calls only."""
@@ -1482,6 +1505,7 @@ def _key_row(key, g, tg):
     hp_proxy = bool(g["hp_only_proxy"].iloc[0]) if len(g) else False
     if depth == 4 and len(tg):
         hp_proxy = str(tg["hp_only_seq"].iloc[0]) == "True"
+    p_nc, p_nn, p_frac, p_cls = pooled_key_read_class(tg)
     return dict(key=key, gene=(g["gene"].iloc[0] if len(g) else tg["gene"].iloc[0]),
                 novelty_depth=depth, novelty_class=DEPTH_CLASS[depth],
                 carriers=g["person_id"].nunique(), platforms=g["platform"].nunique(),
@@ -1491,7 +1515,9 @@ def _key_row(key, g, tg):
                 ipd_match=",".join(sorted({m for s in tg["ipd_match"] for m in str(s).split(",") if m}))[:200],
                 read_class=key_read_class(list(tg["lr_verdict"])),
                 n_supported=int((tg["lr_verdict"] == "supported").sum()),
-                n_contradicted=int((tg["lr_verdict"] == "contradicted").sum()))
+                n_contradicted=int((tg["lr_verdict"] == "contradicted").sum()),
+                pooled_read_class=p_cls, pooled_n_called=p_nc, pooled_n_nearest=p_nn,
+                pooled_frac_called=p_frac)
 
 
 FUNNEL_STEPS = ["distinct", "ge2_unrelated_carriers", "not_homopolymer_only", "no_template_warning",
@@ -1518,6 +1544,8 @@ def funnel(keys, mode):
                     row["n_" + c] = _mk(int((f["ipd_class"] == c).sum()), mode)
                 for c in ("supported", "contradicted", "mixed", "ambiguous", "untested"):
                     row["n_read_" + c] = _mk(int((f["read_class"] == c).sum()), mode)
+                for c in ("supported", "contradicted", "ambiguous", "untested"):
+                    row["n_pooled_" + c] = _mk(int((f["pooled_read_class"] == c).sum()), mode)
                 rows.append(row)
     return pd.DataFrame(rows)
 
