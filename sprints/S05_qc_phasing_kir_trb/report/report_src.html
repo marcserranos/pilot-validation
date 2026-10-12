@@ -163,7 +163,7 @@ svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
 <li><b>Demote classical protein-novel counts</b> to a resource or supplement. Name only the read-supported core (Part 5). Recommended: yes.</li>
 <li><b>KIR haplotype claims only on complete haplotypes</b> (75% of haplotypes, Part 8). Recommended: yes.</li>
 <li><b>Physical-haplotype evidence rule</b>: allowed for DQ, DR–DQ, DP and B~C; A~B and A~C only with statistical phasing or trios; DQ–DP flagged. Recommended: yes. Cole's units (62) already follow it.</li>
-<li><b>Resize the VM for the 991 Sequel II people (63).</b> About 3 days on a bigger app vs about 27 days as is. This waits on the 2-person smoke test.</li>
+<li><b>Resize the VM for the 991 Sequel II people (63).</b> About 3 days on a bigger app vs about 27 days as is. The 2-person smoke test found a filter bug, now fixed; a second smoke test should pass before you decide.</li>
 <li><b>Small allele counts.</b> Distinct-allele counts below 20 (for example "7 keys") are shown exactly here, because they count alleles, not people. Decide whether they are masked in figures you publish.</li>
 </ol>
 </div>
@@ -331,7 +331,7 @@ svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
 <dt>How to read</dt><dd>A useful filter would put the blue bars far to the right of the grey one. Here they sit next to it: thin people have these problems at roughly the cohort-wide rate.</dd>
 <dt>Meaning</dt><dd>Every outcome is classed "depth does not explain". The exclusion list therefore excludes 0 people, and 61 and 62 were run with it (identical to unfiltered). Fragmented KIR haplotypes (4,478 of 11,847 people with one), missing framework genes (3,078) and HLA absences (3,484) are assembly or biology, not thin coverage. This is a useful negative result for the methods section.</dd>
 <dt>Limits</dt><dd>It is an association test: a structural haplotype can lower mapping depth and break the assembly at the same time. Only whole windows were used, so a one-gene deletion with normal window depth is not seen, by design.</dd>
-</dl><div class="src">Script 59 · VM run 2026-10-12. Its PUBLIC tables are being re-derived with the cross-row masking fix and pulled after the check.</div></figcaption></figure>
+</dl><div class="src">Script 59 · VM run 2026-10-12 · <code>reports/hla_popgen/59_depth_outcome_join/vm_2026-10-12/</code></div></figcaption></figure>
 
 <h3>The TRB locus: what depth can and cannot say</h3>
 <figure class="plate" id="f-trbprofile"><div class="img"><img data-src="reports/hla_popgen/58_regional_depth/fig_trb_locus_profile.png" alt="TRB locus depth profile"></div>
@@ -458,7 +458,7 @@ svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
 <tr><td>split across contigs</td><td class="r">3.0%</td><td class="r">1.9%</td><td class="r">1.5%</td><td class="r">2.0%</td><td class="r">1.8%</td><td class="r">2.1%</td></tr>
 <tr><td>incomplete (a gene missing)</td><td class="r">5.7%</td><td class="r">5.4%</td><td class="r">4.1%</td><td class="r">5.7%</td><td class="r">3.5%</td><td class="r">5.1%</td></tr>
 </table></div>
-<p>The most common AFR unit is DQA1*01:02~DQB1*06:02 (18.4% of resolved AFR haplotypes). The PUBLIC frequency tables are being re-derived with the cross-field masking fix before they are merged.</p>
+<p>The most common AFR unit is DQA1*01:02~DQB1*06:02 (18.4% of resolved AFR haplotypes). Tables: <code>reports/hla_popgen/62_cole_haplotype_units/vm_2026-10-12/</code>.</p>
 </section>
 
 <!-- =============================================================== PART 7 -->
@@ -547,8 +547,17 @@ svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
 <dt>Shows</dt><dd>Blue: % of unrelated people with 0 copies of the insertion, meaning no TRBV4-3 (65 reads mode, 11,075 of 11,856 called). Orange: Aleix's "never used" rate from RNA repertoires, where available.</dd>
 <dt>How to read</dt><dd>If the deletion explains non-use, the two should rank ancestries the same way, and never-use should be no higher than absence. Repertoire depth adds chance zeros on top.</dd>
 <dt>Meaning</dt><dd>People with no copy: EUR 19.5%, AMR 30.1%, MID 32.2%, EAS 37.1%, AFR 38.5%, SAS 55.1%. The insertion allele frequency falls from 0.58 (EUR) to 0.29 (SAS). The ranking matches never-use (SAS highest, EUR lowest), and TRBV3-2 gives near-identical genotypes, as one insertion should. <b>The TRBV4-3 usage gap is, to first order, a germline deletion whose frequency differs by ancestry.</b> Script 60 tests this per person once the usage table is reachable.</dd>
-<dt>Limits</dt><dd>Every ancestry has fewer heterozygotes than Hardy–Weinberg expects (e.g. AFR 1,052 observed vs ~1,350 expected; ALL p ≈ 1e-74). Read sampling alone explains little: at 14 reads, a true 50:50 heterozygote falls outside 0.2–0.8 only ~1% of the time. More likely causes are heterozygote allele fractions skewed away from 0.5, because insertion and reference reads are captured differently, plus structure within the broad ancestry labels. Until the allele-fraction histogram and the assembly comparison (65b, a stratified 2,000) are checked, read the absence rates as approximate. The ranking is robust.</dd>
-</dl><div class="src">Script 65 reads mode, unrelated aggregate (VM 2026-10-12). PUBLIC tables are being re-derived with the cross-row masking fix before merge.</div></figcaption></figure>
+<dt>Limits</dt><dd>The 0-copy calls are clean, so these absence rates hold. The split between 1 and 2 copies is not: every ancestry shows fewer heterozygotes than Hardy–Weinberg expects (e.g. AFR 1,052 observed vs ~1,350 expected), and <a class="fref" href="#f-65af"></a> shows why.</dd>
+</dl><div class="src">Script 65 reads mode, unrelated aggregate (VM 2026-10-12) · <code>reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated/genotype_by_stratum.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-65af"><div class="img svg"><!--SVG:65_af--></div>
+<figcaption><span class="fnum" data-for="f-65af"></span><span class="ttl">Why heterozygotes are undercounted: the allele fraction is biased</span>
+<dl>
+<dt>Shows</dt><dd>For every unrelated person with a TRBV4-3 call, the fraction of their breakpoint reads that carry the insertion, in 0.05 bins. Grey bars are called 0 copies, blue 1 copy, orange 2 copies. Red dashed lines are the 0.2 and 0.8 cuts.</dd>
+<dt>How to read</dt><dd>With unbiased reads, people with one copy should pile up around 0.5, and people with two copies at 1.0. Look at where the middle hump peaks and how far its right tail runs.</dd>
+<dt>Meaning</dt><dd>The 0-copy pile is clean: almost nobody sits between 0.05 and 0.25. The 1-copy hump peaks at about 0.6–0.65, not 0.5, so reads with the insertion are over-sampled relative to reads that span the empty site. Its right tail runs past the 0.8 cut: 629 people sit between 0.80 and 0.95 and are called 2 copies, although the true 2-copy pile is at 0.95–1.00 (2,237 people). Moving the upper cut to 0.9 would move about 543 people from 2 copies to 1, which closes most of the heterozygote deficit. <b>The deficit is a calling-threshold artefact, not missing data, and it does not touch the 0-copy rates.</b></dd>
+<dt>Limits</dt><dd>The final rule (a higher cut or a likelihood model that allows the bias) is chosen after 65b compares these calls with genome assemblies in a stratified 2,000 people, now running. Until then, use the 0-copy rates and the insertion ranking, and treat the 1 vs 2 copy split as provisional.</dd>
+</dl><div class="src">Script 65 reads mode · <code>reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated/allele_fraction_histogram.tsv</code> (TRBV4-3, ALL)</div></figcaption></figure>
 
 <div class="box"><h3>Script 60 is blocked <span class="tag block">needs Aleix</span></h3>
 <p>The per-person join (copies vs never used, PPV of 0 copies for non-use, dosage, residual non-use among carriers) is written and tested. It needs Aleix's W1 usage table, and that table is not on Marc's app: only per-person TRUST4 files are there. Aleix needs to copy the usage table (or <code>vj_usage.pkl</code>) to the bucket.</p></div>
@@ -569,7 +578,7 @@ svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
 <tr><td>Current app (4 vCPU)</td><td>~27 days (≈40 min/person)</td><td>~$240 at $0.37/h</td></tr>
 <tr><td>Resized app (~80 vCPU, ~10 workers)</td><td>~2.5–3 days</td><td>needs your authorisation</td></tr>
 </table></div>
-<p><span class="tag pend">running</span> The 2-person smoke test (HLA and KIR) started 16:59 UTC on 12 October. Its measured time per person replaces the estimate above, and the resize decision waits on it. Before pooling, a forced Tier-3 run on ~20 Revio people should be compared with their production calls.</p>
+<p><span class="tag block">smoke failed, fixed</span> The 2-person smoke test (HLA and KIR) ran on 12 October in 0.34 h, and all 4 haplotype runs stopped at the 25 MB guard. That guard did its job. Stage 1 aligns the whole assembly to a ~6 Mb slice of the reference, and long repeat chains at low identity were accepted as hits: in one HLA haplotype, 17,011 of 17,053 blocks of ≥ 10 kb were below 0.8 identity and pulled in about 10,000 contigs (1.5 GB). The real MHC contigs stand apart at 0.95–0.98 identity (42 contigs, 6.1 MB at ≥ 0.8). Stage 1 now also requires a block identity of ≥ 0.8 (<code>--self-align-stage1-min-ident</code>). The next step is a second smoke test with the fix, then the resize decision. Before pooling, a forced Tier-3 run on ~20 Revio people should be compared with their production calls.</p>
 </section>
 
 <!-- =============================================================== PART 11 -->
@@ -596,7 +605,7 @@ svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
 <ul>
 <li>65: check the allele-fraction histogram, run assembly mode on the stratified 2,000 and run the 65b concordance. Consider a likelihood genotype instead of fixed cuts.</li>
 <li>60: blocked on Aleix's usage table.</li>
-<li>63: smoke test, then the resize decision, then the full run, then re-running 01 → 50/61/62 with the merged tables.</li>
+<li>63: second smoke test with the stage-1 identity filter, then the resize decision, then the full run, then re-running 01 → 50/61/62 with the merged tables.</li>
 <li>64: short-read support for homopolymer keys (independent chemistry), and the depth-4 genomic re-match (<code>hla_gen.fasta</code> not reachable at the raw URL).</li>
 <li>53: redesign the protein-identical ASE arm (site-level counting), then scale up (bigger VM).</li>
 <li>Not committed: the VM inspection scripts behind the DQ ≥ 100 kb and contracted-KIR findings (<code>inspect_dq2.py</code>, <code>inspect_kir.py</code>), and 53's exact sampling command.</li>
@@ -621,9 +630,9 @@ svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
 <tr><td>60</td><td>TRBV copies vs never used</td><td>65 copies; chance-zero filter (1−p)^N &lt; 0.01</td><td><span class="tag block">blocked</span></td></tr>
 <tr><td>61</td><td>KIR by ancestry on complete haplotypes</td><td>11,882 unrelated; protein-field alleles; names only with ≥ 20 haplotypes</td><td><span class="tag done">done</span></td></tr>
 <tr><td>62</td><td>Phased class II units for fine-mapping</td><td>Trio evidence rule; 100 kb spacing flag; 59 coverage flag</td><td><span class="tag done">done</span> (INTERNAL on VM)</td></tr>
-<tr><td>63</td><td>Call the 991 Sequel II people</td><td>Two-stage self-align; MAPQ ≥ 20; 25 MB guard</td><td><span class="tag pend">smoke running</span></td></tr>
+<tr><td>63</td><td>Call the 991 Sequel II people</td><td>Two-stage self-align; stage-1 identity ≥ 0.8; MAPQ ≥ 20; 25 MB guard</td><td><span class="tag block">smoke failed, filter fixed</span></td></tr>
 <tr><td>64</td><td>Novel alleles vs IPD 3.65.0 and HiFi reads</td><td>≤ 5 carriers/key; supported ≥ 3 reads and ≥ 0.7; contradicted ≤ 0.15</td><td><span class="tag done">done</span></td></tr>
-<tr><td>65</td><td>TRB insertion genotype</td><td>Breakpoint ± 1 kb; AF cuts 0.2/0.8; ≥ 6 reads</td><td><span class="tag done">reads done</span>; assembly subset pending</td></tr>
+<tr><td>65</td><td>TRB insertion genotype</td><td>Breakpoint ± 1 kb; AF cuts 0.2/0.8; ≥ 6 reads</td><td><span class="tag done">reads done</span>; assembly check on 2,000 running</td></tr>
 <tr><td>58b</td><td>Figures for 58 and 64</td><td>Committed PUBLIC tables only</td><td><span class="tag done">done</span></td></tr>
 </table></div>
 </section>

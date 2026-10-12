@@ -137,6 +137,7 @@ class World:
                  self_align_ref_dir=os.path.join(self.root, "ref"), self_align_flank=1_000_000,
                  self_align_confirm_ref=self.mmi, hg38_ref=os.path.join(self.root, "nohg38.fa"),
                  self_align_min_block=10_000, self_align_min_mapq=20, self_align_min_ident=0.5,
+                 self_align_stage1_min_ident=0.8,
                  self_align_cluster_gap=250_000, self_align_max_mb=25.0,
                  self_align_max_candidate_mb=600.0, minimap2="minimap2", refdir="refdir", threads=2)
         a.update(kw)
@@ -201,6 +202,16 @@ class TestTier3Pieces(unittest.TestCase):
         open(p, "w").write(self.w.stage1_paf())
         c = rip.candidate_contigs_from_paf(p, 10_000)
         self.assertEqual(set(c), {"ctgMHC", "ctgSD"})   # ctgREP: short primary, long secondary only
+
+    def test_stage1_drops_low_identity_repeat_chains(self):
+        # 63 smoke: long primary blocks at col10/col11 < 0.8 pulled in the whole assembly.
+        p = os.path.join(self.tmp.name, "s1_junk.paf")
+        open(p, "w").write(self.w.stage1_paf() + "".join(
+            paf(f"ctgJUNK{i}", 500_000, 0, 40_000, SLICE_NAME, 6_000_000, 100_000 * i,
+                100_000 * i + 40_000, 0, nmatch=12_000) for i in range(5)))
+        self.assertEqual(len(rip.candidate_contigs_from_paf(p, 10_000)), 7)
+        c = rip.candidate_contigs_from_paf(p, 10_000, min_ident=0.8)
+        self.assertEqual(set(c), {"ctgMHC", "ctgSD"})
 
     def test_ensure_ref_slice_uses_region_chrom_and_checks_cache(self):
         hg = os.path.join(self.tmp.name, "hg38.fa")

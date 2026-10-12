@@ -180,10 +180,56 @@ def chart_trb_map():
     return "".join(out)
 
 
+def chart_65_af(rel):
+    """65 reads mode, unrelated, ALL: people per 0.05 bin of the TRBV4-3 insertion allele fraction,
+    with the 0.2/0.8 genotype cuts and the 0.5 a balanced heterozygote should sit at."""
+    d = pd.read_csv(find(rel), sep="\t", dtype=str)
+    d = d[(d.feature == "TRBV4-3") & (d.stratum_type == "ancestry") & (d.stratum == "ALL")]
+    d = d.assign(lo=d.af_lo.astype(float)).sort_values("lo")
+    vals = [(r.lo, r.n_people) for r in d.itertuples()]
+    w, h, l, b, t = 720, 300, 56, 44, 16
+    pw, ph = w - l - 14, h - b - t
+    ymax = 4000
+    sx = lambda x: l + pw * x  # noqa: E731
+    sy = lambda y: t + ph * (1 - y / ymax)  # noqa: E731
+    out = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" aria-label="TRBV4-3 insertion allele '
+           f'fraction histogram, unrelated people">']
+    for y in range(0, ymax + 1, 1000):
+        out.append(f'<line x1="{l}" y1="{sy(y):.1f}" x2="{w - 14}" y2="{sy(y):.1f}" class="grid"/>')
+        out.append(f'<text x="{l - 6}" y="{sy(y) + 4:.1f}" class="tick" text-anchor="end">{y:,}</text>')
+    for x in (0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0):
+        out.append(f'<text x="{sx(x):.1f}" y="{h - b + 16}" class="tick" text-anchor="middle">{x:g}</text>')
+    out.append(f'<text x="{l + pw / 2:.1f}" y="{h - 6}" class="lab" text-anchor="middle">'
+               f'fraction of breakpoint reads carrying the insertion</text>')
+    bw = pw * 0.05
+    for lo, n in vals:
+        x = sx(lo) + 1
+        if n.isdigit():
+            v = int(n)
+            cls = "bar-c" if lo < 0.2 else ("bar-b" if lo >= 0.8 else "bar-a")
+            out.append(f'<rect x="{x:.1f}" y="{sy(v):.1f}" width="{bw - 2:.1f}" height="{sy(0) - sy(v):.1f}" class="{cls}"/>')
+            out.append(f'<text x="{x + bw / 2 - 1:.1f}" y="{sy(v) - 4:.1f}" class="tiny" text-anchor="middle">{v:,}</text>')
+        else:
+            out.append(f'<text x="{x + bw / 2 - 1:.1f}" y="{sy(0) - 4:.1f}" class="tiny" text-anchor="middle">{esc(n)}</text>')
+    for x, lab in ((0.2, "cut 0.2"), (0.8, "cut 0.8")):
+        out.append(f'<line x1="{sx(x):.1f}" y1="{t}" x2="{sx(x):.1f}" y2="{sy(0):.1f}" class="refline"/>')
+        out.append(f'<text x="{sx(x) + 4:.1f}" y="{t + 10}" class="reflabel">{lab}</text>')
+    out.append(f'<line x1="{sx(0.5):.1f}" y1="{t + 40}" x2="{sx(0.5):.1f}" y2="{sy(0):.1f}" class="arr"/>')
+    out.append(f'<text x="{sx(0.5) - 4:.1f}" y="{t + 36}" class="tiny" text-anchor="end">balanced het = 0.5</text>')
+    out.append(f'<text x="{sx(0.1):.1f}" y="{sy(3647) + 40:.1f}" class="tiny strong" text-anchor="middle">0 copies</text>')
+    out.append(f'<text x="{sx(0.62):.1f}" y="{sy(811) - 22:.1f}" class="tiny strong" text-anchor="middle">1 copy (mode ≈ 0.6)</text>')
+    out.append(f'<text x="{sx(0.93):.1f}" y="{sy(2237) - 20:.1f}" class="tiny strong" text-anchor="middle">2 copies</text>')
+    out.append(f'<line x1="{l}" y1="{sy(0):.1f}" x2="{w - 14}" y2="{sy(0):.1f}" class="axis"/>')
+    out.append("</svg>")
+    return "".join(out)
+
+
 CHARTS = {
     "65_zero_copy": chart_65_zero_copy,
     "59_cutoff": chart_59,
     "trb_map": chart_trb_map,
+    "65_af": lambda: chart_65_af(
+        "reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated/allele_fraction_histogram.tsv"),
     "61_heat": lambda: chart_61_heatmap(
         "reports/hla_popgen/61_kir_by_ancestry_panel/vm_2026-10-12/gene_freq_by_ancestry.tsv"),
 }
