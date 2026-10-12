@@ -128,6 +128,10 @@ SELF_ALIGN_FLANK_DEFAULT = 1_000_000
 SELF_ALIGN_MIN_BLOCK_DEFAULT = 10_000
 SELF_ALIGN_MIN_MAPQ_DEFAULT = 20
 SELF_ALIGN_MIN_IDENT_DEFAULT = 0.5   # PAF col10/col11 without -c: a seed-coverage proxy, not identity
+# Stage 1 aligns the whole assembly to a ~6 Mb slice, so repeats chain into long low-col10/col11
+# blocks. 63 smoke (2026-10-12, one HLA hap): 17,011 of 17,053 primary blocks >= 10 kb sat below
+# 0.8 and pulled in ~10,000 contigs (1.5 GB); real MHC contigs sat at 0.95-0.98 (42 contigs >= 0.8).
+SELF_ALIGN_STAGE1_MIN_IDENT_DEFAULT = 0.8
 SELF_ALIGN_CLUSTER_GAP_DEFAULT = 250_000
 SELF_ALIGN_MAX_MB_DEFAULT = 25.0     # normal trimmed input: ~4 MB/hap (HLA), ~1 MB/hap (KIR)
 SELF_ALIGN_MAX_CANDIDATE_MB_DEFAULT = 600.0
@@ -278,10 +282,11 @@ def regions_from_paf(paf_path, chrom, region_start, region_end, pad, min_block=0
     return regions, qlens, seen_tnames
 
 
-def candidate_contigs_from_paf(paf_path, min_block, primary_only=True):
+def candidate_contigs_from_paf(paf_path, min_block, primary_only=True, min_ident=0.0):
     """Tier 3 stage 1: {contig: qlen} for every query contig with >=1 block of length >= min_block
-    (primary only by default) against ANY target in the PAF. Used with a small reference slice
-    (target region +/- flank), so the target names are slice names and coordinates are not needed."""
+    and col10/col11 >= min_ident (primary only by default) against ANY target in the PAF. Used with
+    a small reference slice (target region +/- flank), so the target names are slice names and
+    coordinates are not needed."""
     opener = gzip.open if paf_path.endswith(".gz") else open
     out = {}
     with opener(paf_path, "rt") as f:
@@ -291,7 +296,8 @@ def candidate_contigs_from_paf(paf_path, min_block, primary_only=True):
                 continue
             if primary_only and not _paf_is_primary(fields):
                 continue
-            if int(fields[10]) < min_block:
+            blen = int(fields[10])
+            if blen < min_block or int(fields[9]) < min_ident * blen:
                 continue
             out[fields[0]] = int(fields[1])
     return out
@@ -501,13 +507,15 @@ def self_align_targets(fa_path, hap, person_dir, args, threads, row):
         print(f"  {hap}: SKIP -- stage-1 self-align failed after {row['self_align_seconds']}s: {err}",
               file=sys.stderr)
         return None
-    cands = candidate_contigs_from_paf(paf1, args.self_align_min_block, primary_only=True)
+    cands = candidate_contigs_from_paf(paf1, args.self_align_min_block, primary_only=True,
+                                       min_ident=args.self_align_stage1_min_ident)
     cand_bp = sum(cands.values())
     row["self_align_candidates"] = len(cands)
     row["self_align_candidate_mb"] = round(cand_bp / 1e6, 2)
     print(f"  {hap}: stage 1 ({row['self_align_seconds']}s vs {os.path.basename(ref1)}): "
           f"{len(cands)} candidate contig(s), {cand_bp/1e6:.1f} MB, with a primary block >= "
-          f"{args.self_align_min_block:,} bp", file=sys.stderr)
+          f"{args.self_align_min_block:,} bp at col10/col11 >= {args.self_align_stage1_min_ident:g}",
+          file=sys.stderr)
     if not cands:
         print(f"  {hap}: SKIP -- no contig has a primary block >= {args.self_align_min_block:,} bp "
               f"against the {chrom} region slice.", file=sys.stderr)
@@ -928,6 +936,10 @@ def main():
                     help="Minimum MAPQ for a stage-2 (whole-genome) block.")
     ap.add_argument("--self-align-min-ident", type=float, default=SELF_ALIGN_MIN_IDENT_DEFAULT,
                     help="Minimum col10/col11 for a stage-2 block (approximate without -c).")
+    ap.add_argument("--self-align-stage1-min-ident", type=float,
+                    default=SELF_ALIGN_STAGE1_MIN_IDENT_DEFAULT,
+                    help="Minimum col10/col11 for a stage-1 (region-slice) block; drops the long "
+                         "low-identity repeat chains that pull in the whole assembly.")
     ap.add_argument("--self-align-cluster-gap", type=int, default=SELF_ALIGN_CLUSTER_GAP_DEFAULT,
                     help="Stage-2 blocks on one contig closer than this (query bp) form one "
                          "cluster; only the largest cluster per contig is trimmed.")
