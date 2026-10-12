@@ -130,6 +130,7 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 60_trb_germline_usage.py    → TRBV copy number (58 proxy or 65) vs never-used in Aleix's repertoire usage; contingency, diagnostics, dosage
 61_kir_by_ancestry_panel.py → Figure 1 KIR panel: gene carrier freq, cA/cB, genes/haplotype, top alleles by ancestry on complete haplotypes (local draft / VM / figure modes)
 62_cole_haplotype_units.py  → per-haplotype DQA1~DQB1 and DRB1~DQ units with physical-evidence level, DQ group/anomaly, coverage flag (INTERNAL for the collaborator bucket)
+63_sequel2_recall.py        → HLA + KIR calling for the 991 Sequel II people via a fixed Tier-3 self-align (run_immuannot_person.py); new output dirs only, then merge
 65_trb_assembly_genotype.py → TRB ~21 kb insertion (TRBV4-3/3-2/6-3/7-8) presence per haplotype from phased assemblies; frequency, HWE, co-presence
 ```
 

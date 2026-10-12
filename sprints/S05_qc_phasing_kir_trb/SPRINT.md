@@ -32,7 +32,7 @@ The 10-06 work already answers several original asks. Its results are in `report
 | H | — | Pull the 5 missing `44_public` tables and the 53 ASE table | yes | in progress |
 | I | — | Reading: Sharon 2016, TRBV deletion prior art, AoU long-read flagship scoop check | no | **done** (`READING.md`) |
 | J | `52_mhc_haplotype_atlas.py` | Incompatibility map across MHC gene pairs | — | **done 10-06** (absent-haplotype atlas) |
-| K | `63_*` | Fix the Tier-3 trim for the 991 Sequel II people (mostly AFR) and call HLA + KIR for them | yes, heavy | pending |
+| K | `63_*` | Fix the Tier-3 trim for the 991 Sequel II people (mostly AFR) and call HLA + KIR for them | yes, heavy | diagnosed + patched (`SEQUEL2_DIAGNOSIS.md`); VM checks + smoke pending; full run ~27 days on 4 vCPU, ~3 days on a resized app |
 | L | `64_*` | Novel alleles: re-match against a current IPD-IMGT/HLA release and add read-level support (decides whether the protein-novel headline is demoted) | yes | pending |
 | M | `53` scale-up | ASE on all people with long reads and RNA | yes, needs a bigger app (Marc authorises the resize) | pending |
 
