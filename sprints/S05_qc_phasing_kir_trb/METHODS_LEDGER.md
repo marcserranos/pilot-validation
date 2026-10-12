@@ -649,3 +649,156 @@ chromosome?
 - The 991 `sequel2` people (mostly AFR) have no HLA calls.
 - The pair rule and the coverage cutoff are proposals, not ratified decisions.
 - Platform changes novelty rates (50c) and should be a covariate in any use of the units.
+
+## 63 — HLA and KIR calls for the `sequel2` people (Tier-3 trim fix)
+
+**Question.** Can the 991 people on the `sequel2` platform be HLA- and KIR-typed from their phased
+assemblies, with the same caller and settings as the rest of the cohort, even though they have no
+assembly-to-GRCh38 alignment files? If so, what do their calls add to the cohort tables?
+
+**Why it matters.** `sequel2` is AoU's original long-read pilot cohort, and it is mostly AFR. None
+of these people have HLA calls (50's waterfall: 0 of 991 HLA-called), and none have KIR calls (43,
+61). So AFR is under-sampled in every HLA and KIR result to date, and any ancestry-purity rule
+(DECISIONS.md, S05 open item) will cut AFR further. Adding them would make the AFR estimates more
+precise and would let the platform effect be checked on a third platform.
+
+**Diagnosis (full account in `SEQUEL2_DIAGNOSIS.md`).**
+- Every `sequel2` person falls in trim tier `self_align_needed`. Their manifest rows have the hap
+  FASTAs, but not `assembly_hap{1,2}_aln2_hg38_{paf,bam}`, which Tiers 1 and 2 need.
+- The HLA production run and the KIR run (43) both excluded this tier
+  (`--skip-trim-tier self_align_needed`). The Tier-3 self-align path had failed its only real test
+  (EXPERIMENTS.md 2026-08-05, n = 2): 0 genes, for two coupled reasons.
+  - `samtools faidx` cannot index the source FASTA, which appears to be plain gzip rather than BGZF.
+  - Self-aligning a whole assembly to chr6 alone gave contigs from other chromosomes no true locus.
+    With no filtering and a min/max span, the "trimmed" input was 1.3–1.9 GB per haplotype instead
+    of about 4 MB.
+- For KIR there is a third reason. The self-align reference was hardcoded to chr6, so a chr19
+  region could never match.
+
+**Inputs.**
+- Cohort: `~/pipeline_outputs/immuannot_cohort_full.tsv`, read only. People are selected by
+  `trim_tier == self_align_needed`, and the script logs their platform mix.
+- Per person: `assembly_hap1_fa` and `assembly_hap2_fa` from `v9/wgs/long_read/manifest.tsv`, read
+  through the controlled-data automount (`~/workspace/vwb-aou-datasets-controlled-v9`).
+- Reference: `~/ref/Homo_sapiens_assembly38.fasta` with its `.fai`. Three things are derived from it
+  into `~/s05/internal/63/ref/`:
+  - two region slices;
+  - a primary-only copy (chr1–22, X, Y, M);
+  - that copy's minimap2 `asm5` index.
+- Caller: Immuannot (`~/tools/Immuannot`), with refdata IPD-IMGT/HLA 3.55.0 (ENVIRONMENT.md quirk
+  #38). This is the same caller and refdata as the production run.
+
+**Method.** For each person, each locus and each haplotype, `run_immuannot_person.py` runs with
+`--enable-self-align-fallback`:
+1. **Stage 1 (candidate contigs).** minimap2 `-x asm5` aligns the whole haplotype assembly to a
+   slice of GRCh38: the target window ±1 Mb. That is chr6:28.5–34.5 Mb for HLA and
+   chr19:53.6–55.92 Mb for KIR. A contig is a candidate if it has at least one *primary* alignment
+   block of ≥10 kb. If the candidates add up to more than 600 MB, the haplotype is refused, because
+   that pattern is the whole-assembly pull-in seen in 2026-08.
+2. **Stage 2 (confirmation against the whole genome).** Only the candidate contigs are extracted.
+   They are read straight from the gzip file, in one pass, with no index, so plain gzip works. They
+   are then aligned with minimap2 `-x asm5` to the whole *primary* GRCh38. In that alignment every
+   contig competes against all chromosomes, so MAPQ means something again. ALT, HLA and decoy
+   contigs are left out so that a true MHC or KIR contig is not split between chr6 and its ALT
+   copies. Only blocks that meet all of these are used:
+   - primary;
+   - ≥10 kb long;
+   - MAPQ ≥20;
+   - PAF matches/block length ≥0.5;
+   - overlapping the target window (HLA chr6:29.5–33.5 Mb; KIR chr19:54.60–54.92 Mb, the exact
+     windows of the production and 43 runs).
+3. **Trim.** On each contig, the kept blocks are grouped when they are ≤250 kb apart along the
+   contig. The group with the most aligned bases is padded by 100 kb (the production `--pad`) and
+   extracted.
+   - If the trimmed input would be larger than 25 MB, the haplotype is refused rather than typed.
+   - Expected sizes are about 4 MB for HLA and about 1 MB for KIR.
+4. **Typing.** `immuannot.sh` runs on the trimmed FASTA, with the same settings as production. A
+   person counts as done when both haplotype GTFs contain at least one call (the production
+   orchestrator's rule).
+5. **Merge.** Per-person fragments are combined into
+   `~/s05/internal/63/<locus>/immuannot_calls.sequel2*.tsv`. The existing canonical tables are read
+   but never written. The existing table plus the new rows is written to
+   `~/s05/internal/63/merged/immuannot_calls{,.kir}.with_sequel2.tsv`.
+
+**Parameters and why.**
+- **Flank ±1 Mb (stage 1).** It covers the window plus the 100 kb pad with margin. The flank only
+  affects which contigs are proposed; stage 2 decides.
+- **Block ≥10 kb.** Interspersed repeats (L1 is ~6 kb at full length) do not reach it, while a true
+  MHC or KIR contig has blocks of tens to hundreds of kb.
+- **MAPQ ≥20.** This is the conventional "uniquely placed" floor, also used by 58. It is only
+  meaningful because stage 2 aligns to the whole genome.
+- **Matches/block ≥0.5.** Without base-level alignment (`-c`), PAF column 10 is a seed-coverage
+  count, not an identity. 0.5 removes diverged paralog hits and keeps near-identical true hits.
+  This threshold is loose on purpose; MAPQ and length do most of the filtering.
+- **Cluster gap 250 kb.** It is larger than any KIR gene-content insertion relative to GRCh38's
+  haplotype, so a B-haplotype contig stays one piece. A stray block 1 Mb or more away along the
+  contig is dropped.
+- **Size guard 25 MB.** About six times the normal HLA input and 25 times the normal KIR input. It
+  is far below the 1.3 GB failure mode.
+
+**Run.** Code and tests:
+- `scripts/run_immuannot_person.py` ("Tier 3 v2"; Tiers 1 and 2 unchanged) and
+  `scripts/hla_popgen/63_sequel2_recall.py`.
+- `tests/test_63_sequel2_recall.py`: 16/16 pass on synthetic data. The synthetic data includes:
+  - a plain-gzip haplotype with no PAF or BAM;
+  - a chr1 contig carrying a 12 kb MHC segmental duplication (a stage-1 candidate, rejected in
+    stage 2);
+  - a repeat contig;
+  - a stray block that would have stretched the MHC contig to 1.9 Mb.
+
+  The tests also check that the default `regions_from_paf()` output is unchanged, and that a chr19
+  region with a chr6 reference is refused.
+
+VM commands are in `vm_parts/63.sh`:
+1. `--prepare-refs`
+2. `--smoke` (2 people, both loci)
+3. the full run
+
+Pending.
+
+**Runtime estimate (4 vCPU, 31 GB; to be replaced by the smoke run's `trim_summary.tsv`).** The
+estimate is built from these past measurements:
+- The 2026-08-05 chr6 self-align took 157–215 s per haplotype at 4 threads. This is an upper bound
+  for stage 1, because the slice reference is about 28 times smaller.
+- The production HLA run handled ~249 people/h at 24×4 threads, which is ≈5.8 min of typing per
+  person at 4 threads.
+- The 43 KIR run handled ~390 people/h at 20×4, which is ≈3.1 min per person.
+
+| Step | Estimate per person (both loci) |
+|---|---|
+| Stage 1 (2 loci × 2 haplotypes) | ≈12 min |
+| Candidate extraction (gzip stream) | ≈4–8 min |
+| Stage 2 (index load ≈0.5–1 min, plus alignment of tens to hundreds of Mb) | ≈8–16 min |
+| Typing | ≈9 min |
+| **Total** | **≈30–50 min, central ≈40** |
+
+For 991 people at one worker × 4 threads, that is **≈500–800 h, central ≈650 h (~27 days, ~$240
+at $0.37/h)**.
+
+The work is CPU-bound, so more workers on 4 vCPUs do not help. Each concurrent stage 2 holds a
+~5–8 GB index, so on 31 GB RAM `--workers` should stay ≤2. A bigger app would be faster: about
+10 workers × 4 threads on 80 vCPU, limited by RAM, would take about 2.5–3 days. Resizing needs
+Marc's authorisation.
+
+**Results / interpretation.** Pending the VM run. To report when it is done:
+- **Coverage:** people done per locus, haplotypes per trim method, and the median trimmed size
+  (`run_summary.tsv`, `trim_summary.tsv`, `failure_reasons.tsv`).
+- **Check against other platforms:**
+  - genes per haplotype compared with `sequel2e`/`revio` of the same ancestry;
+  - novelty rate by field compared with 24.
+- **Merged tables:** the merged tables feed 01 (rich tables) and then 50, 61 and 62. That needs a
+  re-run of 01 with `--outroot ~/s05/internal/63/hla/pipeline_outputs`, which is a separate step.
+
+**What it does not show.**
+- It does not show that the Tier-3 trims select exactly the contigs Tier 1 would have chosen. No
+  `sequel2` person has a PAF to compare with. A concordance check is possible: run Tier 3 on ~20
+  `revio` people (forced, into a separate outroot) and compare their calls with the production
+  calls. This is suggested before the results are pooled with the other platforms.
+
+**Caveats.**
+- The plain-gzip explanation is still a strong hypothesis. `htsfile` has not confirmed it yet
+  (`SEQUEL2_DIAGNOSIS.md` §5 U3).
+- The `sequel2` assemblies come from an older pipeline (the v7 pilot), so their contiguity and
+  base quality may differ. Platform must stay a covariate.
+- The approximate matches/block ratio is a proxy, not an identity.
+- The `<20` masking applies to every public count (the small-cell open item in DECISIONS.md).

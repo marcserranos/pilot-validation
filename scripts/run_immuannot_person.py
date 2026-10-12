@@ -34,6 +34,11 @@ for the sequel2 motivation and Marc's ~700-750x-blowup concern that shaped this 
      same regions_from_paf() as tier 1) instead of feeding Immuannot the whole ~3.1Gb/hap untrimmed
      assembly. UNTESTED AT SCALE as of 2026-08-04 -- smoke-test on real sequel2 people before
      trusting it for a production run.
+     2026-08-05: FAILED on 2 real sequel2 people (EXPERIMENTS.md). 2026-10-11: rewritten as a
+     two-stage self-align (region-slice prefilter, then whole-primary-GRCh38 confirmation via
+     --self-align-confirm-ref) with a streaming extractor that reads plain gzip -- see the
+     "Tier 3 v2" comment block below and sprints/S05_qc_phasing_kir_trb/SEQUEL2_DIAGNOSIS.md.
+     Still opt-in, still to be smoke-tested on real sequel2 people (63_sequel2_recall.py --smoke).
 Tiers 1+2 confirmed present alongside the raw assembly FASTA for revio/sequel2e per the census.
 
 Per person: resolves assembly_hap1_fa/assembly_hap2_fa AND assembly_hap1_aln2_hg38_bam/
@@ -69,6 +74,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 
 import pandas as pd
@@ -97,6 +103,35 @@ DEFAULT_PAD = 100_000
 HG38_REF_DEFAULT = os.path.expanduser("~/ref/Homo_sapiens_assembly38.fasta")
 CHR6_REF_CACHE_DEFAULT = os.path.expanduser("~/ref/chr6.fasta")
 MINIMAP2_ASM_PRESET = "asm5"  # same-species assembly-vs-reference alignment, <5% divergence
+
+# Tier 3 v2 (2026-10-11, S05 WS-K, scripts/hla_popgen/63_sequel2_recall.py; diagnosis in
+# sprints/S05_qc_phasing_kir_trb/SEQUEL2_DIAGNOSIS.md). The 2026-08-05 test (EXPERIMENTS.md) failed
+# for four reasons, each addressed here:
+#   A. trim_assembly() runs `samtools faidx` on the source .fa.gz; sequel2's are (very likely) plain
+#      gzip, which faidx cannot index -> every hap SKIPped. Tier 3 now extracts with a streaming
+#      reader (stream_extract_fasta) that reads plain gzip, BGZF or plain FASTA, and never indexes.
+#   B. self-align against chr6 ONLY gives contigs from other chromosomes no true locus, so repeat hits
+#      pile onto chr6 and MAPQ cannot be trusted -> ~1.3-1.9 GB "trimmed" output. Tier 3 is now two
+#      stages: (1) a cheap prefilter against a small slice (target region +/- flank) keeps contigs
+#      with a long PRIMARY block; (2) only those contigs are re-aligned to the WHOLE primary GRCh38
+#      (--self-align-confirm-ref), where MAPQ is meaningful again, and the trim comes from stage 2
+#      blocks that are primary, long, MAPQ>=20 and on the target region. A size guard refuses any
+#      trimmed input above --self-align-max-mb instead of feeding it to immuannot.sh.
+#   C. regions_from_paf() spanned min(qstart)..max(qend) of every overlapping block, so one stray
+#      block ballooned a contig to full length. It now takes optional filters and per-contig block
+#      clustering (defaults unchanged, so Tier 1 behaves exactly as in production).
+#   D. ensure_chr6_ref() hardcoded "chr6" (the KIR sequel2 bug: a chr19 --region was self-aligned to
+#      chr6) and shared one <cache>.tmp across concurrent workers. The reference slice is now derived
+#      from --region, the cache header is verified against the region's chromosome, and the temp
+#      file is unique per process.
+SELF_ALIGN_FLANK_DEFAULT = 1_000_000
+SELF_ALIGN_MIN_BLOCK_DEFAULT = 10_000
+SELF_ALIGN_MIN_MAPQ_DEFAULT = 20
+SELF_ALIGN_MIN_IDENT_DEFAULT = 0.5   # PAF col10/col11 without -c: a seed-coverage proxy, not identity
+SELF_ALIGN_CLUSTER_GAP_DEFAULT = 250_000
+SELF_ALIGN_MAX_MB_DEFAULT = 25.0     # normal trimmed input: ~4 MB/hap (HLA), ~1 MB/hap (KIR)
+SELF_ALIGN_MAX_CANDIDATE_MB_DEFAULT = 600.0
+SELF_ALIGN_REF_DIR_DEFAULT = os.path.expanduser("~/ref")
 
 
 def die(msg):
@@ -157,7 +192,29 @@ def parse_region(region_str):
     return chrom, int(start_str), int(end_str)
 
 
-def regions_from_paf(paf_path, chrom, region_start, region_end, pad):
+def _paf_is_primary(fields):
+    """tp:A:P = primary. A line without a tp tag is treated as primary (cannot tell)."""
+    for tag in fields[12:]:
+        if tag.startswith("tp:A:"):
+            return tag == "tp:A:P"
+    return True
+
+
+def _cluster_blocks(blocks, max_gap):
+    """blocks: [(qstart, qend)]. Merges blocks whose query gap is <= max_gap; returns
+    [(start, end, aligned_bp)] clusters."""
+    clusters = []
+    for s, e in sorted(blocks):
+        if clusters and s - clusters[-1][1] <= max_gap:
+            cs, ce, bp = clusters[-1]
+            clusters[-1] = (cs, max(ce, e), bp + (e - s))
+        else:
+            clusters.append((s, e, e - s))
+    return clusters
+
+
+def regions_from_paf(paf_path, chrom, region_start, region_end, pad, min_block=0, min_mapq=0,
+                     min_ident=0.0, primary_only=False, cluster_gap=None):
     """True sub-range trim (2026-07-21, Marc: explored the padding-reduction margin properly
     rather than dismissing it -- see EXPERIMENTS.md's SpecImmune-LR pad100k sweep for the
     precedent this reuses). A .paf line's own qstart/qend/tstart/tend are the REAL aligned
@@ -173,10 +230,20 @@ def regions_from_paf(paf_path, chrom, region_start, region_end, pad):
       seen_tnames: set of every target name actually seen (for diagnosing a naming mismatch,
                    e.g. "chr6" vs "6", rather than silently returning empty and looking like "no
                    overlap" when it's really "wrong name assumed").
+
+    Optional filters (2026-10-11, Tier 3 v2; all off by default, so the Tier 1 call is unchanged):
+      primary_only  keep only tp:A:P blocks;
+      min_block     PAF col11 (alignment block length) >= this;
+      min_mapq      PAF col12 >= this (only meaningful against a whole-genome reference);
+      min_ident     PAF col10/col11 >= this;
+      cluster_gap   instead of min(qstart)..max(qend) over all blocks, merge blocks whose query gap
+                    is <= cluster_gap and keep only the cluster with the most aligned bases.
     """
     opener = gzip.open if paf_path.endswith(".gz") else open
     accept_chrom = {chrom, chrom[3:] if chrom.startswith("chr") else f"chr{chrom}"}
+    filtering = primary_only or min_block > 0 or min_mapq > 0 or min_ident > 0
     regions, qlens, seen_tnames = {}, {}, set()
+    blocks = {}
     with opener(paf_path, "rt") as f:
         for line in f:
             fields = line.rstrip("\n").split("\t")
@@ -189,48 +256,306 @@ def regions_from_paf(paf_path, chrom, region_start, region_end, pad):
                 continue
             if tend <= region_start or tstart >= region_end:
                 continue
+            if filtering:
+                nmatch, blen, mapq = int(fields[9]), int(fields[10]), int(fields[11])
+                if primary_only and not _paf_is_primary(fields):
+                    continue
+                if blen < min_block or mapq < min_mapq or nmatch / max(blen, 1) < min_ident:
+                    continue
             qlens[qname] = qlen
+            if cluster_gap is not None:
+                blocks.setdefault(qname, []).append((qstart, qend))
+                continue
             new_start, new_end = max(0, qstart - pad), min(qlen, qend + pad)
             if qname in regions:
                 s, e = regions[qname]
                 regions[qname] = (min(s, new_start), max(e, new_end))
             else:
                 regions[qname] = (new_start, new_end)
+    for qname, bl in blocks.items():
+        s, e, _bp = max(_cluster_blocks(bl, cluster_gap), key=lambda c: (c[2], -c[0]))
+        regions[qname] = (max(0, s - pad), min(qlens[qname], e + pad))
     return regions, qlens, seen_tnames
+
+
+def candidate_contigs_from_paf(paf_path, min_block, primary_only=True):
+    """Tier 3 stage 1: {contig: qlen} for every query contig with >=1 block of length >= min_block
+    (primary only by default) against ANY target in the PAF. Used with a small reference slice
+    (target region +/- flank), so the target names are slice names and coordinates are not needed."""
+    opener = gzip.open if paf_path.endswith(".gz") else open
+    out = {}
+    with opener(paf_path, "rt") as f:
+        for line in f:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 12:
+                continue
+            if primary_only and not _paf_is_primary(fields):
+                continue
+            if int(fields[10]) < min_block:
+                continue
+            out[fields[0]] = int(fields[1])
+    return out
+
+
+def is_bgzf(path):
+    """True if `path` starts with a BGZF block header (gzip + FEXTRA subfield 'BC'). samtools faidx
+    can index BGZF but not plain gzip ("Cannot index files compressed with gzip, please use bgzip",
+    EXPERIMENTS.md 2026-08-05)."""
+    try:
+        with open(path, "rb") as f:
+            h = f.read(18)
+    except OSError:
+        return False
+    return (len(h) >= 18 and h[0:2] == b"\x1f\x8b" and h[2] == 8 and bool(h[3] & 4)
+            and h[12:14] == b"BC")
+
+
+_TARGET_RE = re.compile(r"^(.+):(\d+)-(\d+)$")
+
+
+def _parse_target(t):
+    """'ctg' -> ('ctg', None, None); 'ctg:S-E' (1-based, inclusive, samtools style) -> (ctg, S, E)."""
+    m = _TARGET_RE.match(t)
+    if m:
+        return m.group(1), int(m.group(2)), int(m.group(3))
+    return t, None, None
+
+
+def stream_extract_fasta(fa_path, targets, out_fa_path, width=60):
+    """Writes each target ('ctg' or 'ctg:S-E') to out_fa_path in the given order, with the same
+    header and 60-column wrapping `samtools faidx` produces, by reading the source FASTA once
+    (plain gzip, BGZF or uncompressed). Never writes an index, so it works on the read-only mount
+    and on plain-gzip sequel2 assemblies. Stops reading once every wanted contig has been seen.
+    Returns (ok, message)."""
+    wanted = {}
+    for i, t in enumerate(targets):
+        name, s, e = _parse_target(t)
+        wanted.setdefault(name, []).append((i, s, e))
+    found = {}
+    opener = gzip.open if fa_path.endswith(".gz") else open
+
+    def take(name, chunks):
+        seq = "".join(chunks)
+        for i, s, e in wanted[name]:
+            if s is None:
+                found[i] = (name, seq)
+            else:
+                found[i] = (f"{name}:{s}-{e}", seq[s - 1:min(e, len(seq))])
+
+    try:
+        with opener(fa_path, "rt") as f:
+            name, chunks = None, []
+            for line in f:
+                if line.startswith(">"):
+                    if name in wanted:
+                        take(name, chunks)
+                        if len(found) == len(targets):
+                            name = None
+                            break
+                    name, chunks = line[1:].split()[0], []
+                elif name in wanted:
+                    chunks.append(line.strip())
+            if name in wanted:
+                take(name, chunks)
+    except (OSError, EOFError, ValueError) as e:
+        return False, f"read error on {fa_path}: {e!r}"
+    missing = [targets[i] for i in range(len(targets)) if i not in found]
+    if missing:
+        return False, f"{len(missing)} target(s) not found in {fa_path}: {missing[:5]}"
+    with open(out_fa_path, "w") as out:
+        for i in range(len(targets)):
+            header, seq = found[i]
+            out.write(f">{header}\n")
+            for j in range(0, len(seq), width):
+                out.write(seq[j:j + width] + "\n")
+    return os.path.getsize(out_fa_path) > 0, ""
+
+
+def fasta_seq_names(path):
+    """Sequence names of a FASTA, from its .fai if present, else by scanning headers."""
+    fai = path + ".fai"
+    if os.path.exists(fai):
+        with open(fai) as f:
+            return [line.split("\t")[0] for line in f if line.strip()]
+    if path.endswith(".mmi"):
+        return []
+    opener = gzip.open if path.endswith(".gz") else open
+    with opener(path, "rt") as f:
+        return [line[1:].split()[0] for line in f if line.startswith(">")]
+
+
+def _chrom_of(seq_name):
+    """'chr6' -> 'chr6'; 'chr6:28500001-34500000' (a samtools faidx slice header) -> 'chr6'."""
+    return _parse_target(seq_name)[0]
+
+
+def ensure_ref_slice(hg38_ref, cache_path, region_or_chrom):
+    """Extracts `region_or_chrom` (e.g. 'chr19' or 'chr6:28500001-34500000') from the full
+    reference once and caches it. Idempotent. Unlike the old ensure_chr6_ref(): the extracted name
+    comes from the caller (not hardcoded), an existing cache is only reused if its first header is
+    the expected name, and the temp file is unique per process and thread (no shared <cache>.tmp
+    race between concurrent workers). Returns the cache path, or None."""
+    want = region_or_chrom
+    if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+        with open(cache_path) as f:
+            first = f.readline()
+        got = first[1:].split()[0] if first.startswith(">") else ""
+        if got != want:
+            print(f"    WARNING: reference cache {cache_path} holds '{got}', not '{want}' -- refusing "
+                  f"to use it for this region (pass a matching cache path).", file=sys.stderr)
+            return None
+        return cache_path
+    if not os.path.exists(hg38_ref):
+        return None
+    os.makedirs(os.path.dirname(cache_path) or ".", exist_ok=True)
+    tmp_path = f"{cache_path}.tmp.{os.getpid()}.{threading.get_ident()}"
+    with open(tmp_path, "w") as out:
+        proc = subprocess.run(["samtools", "faidx", hg38_ref, want], stdout=out,
+                              stderr=subprocess.PIPE, text=True)
+    if proc.returncode != 0 or os.path.getsize(tmp_path) == 0:
+        print(f"    WARNING: could not extract {want} from {hg38_ref}: {proc.stderr}", file=sys.stderr)
+        os.remove(tmp_path)
+        return None
+    os.replace(tmp_path, cache_path)  # atomic; a concurrent identical build just replaces it
+    return cache_path
 
 
 def ensure_chr6_ref(hg38_ref, cache_path):
     """Extracts chr6 alone from the full hg38 reference, once, and caches it -- so self-align
     only ever indexes ~170Mb (one chromosome), not the full ~3.1Gb genome, keeping Tier 3's cost
     close to a normal alignment step rather than a whole-genome-vs-whole-genome pass. Idempotent:
-    a second call with an existing, non-empty cache is a no-op."""
-    if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
-        return cache_path
-    if not os.path.exists(hg38_ref):
-        return None
-    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-    tmp_path = cache_path + ".tmp"
-    with open(tmp_path, "w") as out:
-        proc = subprocess.run(["samtools", "faidx", hg38_ref, "chr6"], stdout=out,
-                               stderr=subprocess.PIPE, text=True)
-    if proc.returncode != 0 or os.path.getsize(tmp_path) == 0:
-        print(f"    WARNING: could not extract chr6 from {hg38_ref}: {proc.stderr}", file=sys.stderr)
-        os.remove(tmp_path)
-        return None
-    os.replace(tmp_path, cache_path)
-    return cache_path
+    a second call with an existing, non-empty cache is a no-op. Kept for callers of the old name;
+    now a thin wrapper over ensure_ref_slice() (unique temp file, header check)."""
+    return ensure_ref_slice(hg38_ref, cache_path, "chr6")
 
 
-def self_align_paf(fa_path, chr6_ref, out_paf_path, threads):
-    """Runs minimap2 in PAF-output mode (no -a) directly against the cached chr6-only reference --
-    output is already the exact tab-separated PAF format regions_from_paf() parses, so Tier 3 reuses
-    that function unmodified once this file exists. Returns (ok, stderr)."""
+def self_align_paf(fa_path, chr6_ref, out_paf_path, threads, minimap2="minimap2"):
+    """Runs minimap2 in PAF-output mode (no -a) of fa_path (query) against a reference (a slice,
+    a whole-genome FASTA or a prebuilt .mmi). Output is the PAF format regions_from_paf() parses.
+    Returns (ok, stderr)."""
     with open(out_paf_path, "w") as out:
         proc = subprocess.run(
-            ["minimap2", "-x", MINIMAP2_ASM_PRESET, "-t", str(threads), chr6_ref, fa_path],
+            [minimap2, "-x", MINIMAP2_ASM_PRESET, "-t", str(threads), chr6_ref, fa_path],
             stdout=out, stderr=subprocess.PIPE, text=True)
     ok = proc.returncode == 0 and os.path.getsize(out_paf_path) > 0
     return ok, proc.stderr
+
+
+def self_align_stage1_ref(args, chrom, rstart, rend):
+    """Stage-1 reference for Tier 3: --self-align-ref if given; else an explicitly passed legacy
+    --chr6-ref-cache; else a cached slice of the target region +/- --self-align-flank, derived
+    from --region (so a chr19 KIR run gets a chr19 slice). Returns (path or None, reason)."""
+    if args.self_align_ref:
+        ref = args.self_align_ref if os.path.exists(args.self_align_ref) else None
+        return ref, f"--self-align-ref {args.self_align_ref} not found"
+    if args.chr6_ref_cache:  # legacy flag, only when passed explicitly
+        ref = args.chr6_ref_cache if os.path.exists(args.chr6_ref_cache) else None
+        return ref, f"--chr6-ref-cache {args.chr6_ref_cache} not found"
+    s = max(1, rstart - args.self_align_flank + 1)
+    e = rend + args.self_align_flank
+    region = f"{chrom}:{s}-{e}"
+    cache = os.path.join(args.self_align_ref_dir, f"selfalign_{chrom}_{s}_{e}.fa")
+    ref = ensure_ref_slice(args.hg38_ref, cache, region)
+    return ref, f"could not prepare {region} from {args.hg38_ref} into {cache}"
+
+
+def _remove_quietly(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def self_align_targets(fa_path, hap, person_dir, args, threads, row):
+    """Tier 3 v2 (see the module constants comment). Returns (targets, trim_method, trim_source)
+    or None after printing a SKIP reason. trim_source is the local candidate-contig FASTA the trim
+    must read from (stream_extract_fasta), never the mount."""
+    chrom, rstart, rend = parse_region(args.region)
+    accept = {chrom, chrom[3:] if chrom.startswith("chr") else f"chr{chrom}"}
+    if not args.self_align_confirm_ref:
+        print(f"  {hap}: SKIP -- Tier 3 needs --self-align-confirm-ref (whole primary GRCh38, FASTA "
+              f"or .mmi): a single-chromosome self-align was shown to pull in the whole assembly "
+              f"(EXPERIMENTS.md 2026-08-05).", file=sys.stderr)
+        return None
+    if not os.path.exists(args.self_align_confirm_ref):
+        print(f"  {hap}: SKIP -- --self-align-confirm-ref {args.self_align_confirm_ref} not found.",
+              file=sys.stderr)
+        return None
+    ref1, why = self_align_stage1_ref(args, chrom, rstart, rend)
+    if ref1 is None:
+        print(f"  {hap}: SKIP -- {why}.", file=sys.stderr)
+        return None
+    names = fasta_seq_names(ref1)
+    if not any(_chrom_of(n) in accept for n in names):
+        print(f"  {hap}: SKIP -- stage-1 self-align reference {ref1} holds {names[:5]}, not "
+              f"{chrom} (the region's chromosome). This is the sequel2 KIR bug: a chr19 region "
+              f"self-aligned to a chr6 reference.", file=sys.stderr)
+        return None
+
+    # Stage 1: cheap prefilter against the region slice.
+    t0 = time.perf_counter()
+    paf1 = os.path.join(person_dir, f"{hap}.self_align.paf")
+    ok, err = self_align_paf(fa_path, ref1, paf1, threads, args.minimap2)
+    row["self_align_seconds"] = round(time.perf_counter() - t0, 2)
+    if not ok:
+        print(f"  {hap}: SKIP -- stage-1 self-align failed after {row['self_align_seconds']}s: {err}",
+              file=sys.stderr)
+        return None
+    cands = candidate_contigs_from_paf(paf1, args.self_align_min_block, primary_only=True)
+    cand_bp = sum(cands.values())
+    row["self_align_candidates"] = len(cands)
+    row["self_align_candidate_mb"] = round(cand_bp / 1e6, 2)
+    print(f"  {hap}: stage 1 ({row['self_align_seconds']}s vs {os.path.basename(ref1)}): "
+          f"{len(cands)} candidate contig(s), {cand_bp/1e6:.1f} MB, with a primary block >= "
+          f"{args.self_align_min_block:,} bp", file=sys.stderr)
+    if not cands:
+        print(f"  {hap}: SKIP -- no contig has a primary block >= {args.self_align_min_block:,} bp "
+              f"against the {chrom} region slice.", file=sys.stderr)
+        return None
+    if cand_bp > args.self_align_max_candidate_mb * 1e6:
+        print(f"  {hap}: SKIP -- candidates total {cand_bp/1e6:.0f} MB > --self-align-max-candidate-mb "
+              f"{args.self_align_max_candidate_mb:g}; looks like whole-assembly pull-in, not the "
+              f"region.", file=sys.stderr)
+        return None
+
+    # Stage 2: candidates only, against the whole primary genome (MAPQ meaningful again).
+    t1 = time.perf_counter()
+    cand_fa = os.path.join(person_dir, f"{hap}.self_align_candidates.fa")
+    ok, err = stream_extract_fasta(fa_path, sorted(cands), cand_fa)
+    if not ok:
+        print(f"  {hap}: SKIP -- could not extract candidate contigs: {err}", file=sys.stderr)
+        return None
+    paf2 = os.path.join(person_dir, f"{hap}.self_align_confirm.paf")
+    ok, err = self_align_paf(cand_fa, args.self_align_confirm_ref, paf2, threads, args.minimap2)
+    row["confirm_seconds"] = round(time.perf_counter() - t1, 2)
+    if not ok:
+        print(f"  {hap}: SKIP -- stage-2 whole-genome alignment failed: {err}", file=sys.stderr)
+        _remove_quietly(cand_fa)
+        return None
+    regions, qlens, seen = regions_from_paf(
+        paf2, chrom, rstart, rend, args.pad, min_block=args.self_align_min_block,
+        min_mapq=args.self_align_min_mapq, min_ident=args.self_align_min_ident, primary_only=True,
+        cluster_gap=args.self_align_cluster_gap)
+    if not regions:
+        print(f"  {hap}: SKIP -- no candidate contig has a primary, MAPQ>={args.self_align_min_mapq}, "
+              f">= {args.self_align_min_block:,} bp block on {args.region} against the whole genome "
+              f"(targets seen: {sorted(seen)[:10]}).", file=sys.stderr)
+        _remove_quietly(cand_fa)
+        return None
+    padded_bp = sum(e - s for s, e in regions.values())
+    row["n_contigs"] = len(regions)
+    row["whole_contig_mb"] = round(sum(qlens[c] for c in regions) / 1e6, 2)
+    row["padded_mb"] = round(padded_bp / 1e6, 2)
+    if padded_bp > args.self_align_max_mb * 1e6:
+        print(f"  {hap}: SKIP -- confirmed sub-range totals {padded_bp/1e6:.1f} MB > "
+              f"--self-align-max-mb {args.self_align_max_mb:g} (expected a few MB); not feeding it "
+              f"to immuannot.sh.", file=sys.stderr)
+        _remove_quietly(cand_fa)
+        return None
+    print(f"  {hap}: stage 2 ({row['confirm_seconds']}s, whole genome): {len(regions)} contig(s) "
+          f"confirmed on {args.region}, padded sub-range {padded_bp/1e6:.2f} MB", file=sys.stderr)
+    targets = [f"{c}:{s + 1}-{e}" for c, (s, e) in regions.items()]
+    return targets, "self_align_confirmed", cand_fa
 
 
 def trim_assembly(fa_path, targets, out_fa_path):
@@ -337,7 +662,7 @@ def process_haplotype(pid, hap, fa_rel, paf_rel, aln_rel, person_dir, immuannot_
     # the SpecImmune-LR sweep). Falls back to whole-contig via the .bam if this person's .paf
     # is missing or has nothing recognizable overlapping the region, so nobody gets skipped
     # just because the (optional) .paf isn't there. ---
-    targets, trim_method = None, None
+    targets, trim_method, trim_source = None, None, None
     if paf_rel:
         paf_path = os.path.join(args.mount, paf_rel)
         chrom, rstart, rend = parse_region(args.region)
@@ -378,37 +703,10 @@ def process_haplotype(pid, hap, fa_rel, paf_rel, aln_rel, person_dir, immuannot_
                   f"passed (this is the untested sequel2 fallback path -- see run_immuannot_person.py "
                   f"module docstring / production_orchestrator/BRIEF.md).", file=sys.stderr)
             return row, {}
-        chr6_ref = ensure_chr6_ref(args.hg38_ref, args.chr6_ref_cache)
-        if chr6_ref is None:
-            print(f"  {hap}: SKIP -- could not prepare chr6-only reference from {args.hg38_ref} "
-                  f"for self-align.", file=sys.stderr)
+        t3 = self_align_targets(fa_path, hap, person_dir, args, threads, row)
+        if t3 is None:
             return row, {}
-        self_align_t0 = time.perf_counter()
-        synth_paf = os.path.join(person_dir, f"{hap}.self_align.paf")
-        ok, err = self_align_paf(fa_path, chr6_ref, synth_paf, threads)
-        self_align_seconds = time.perf_counter() - self_align_t0
-        row["self_align_seconds"] = round(self_align_seconds, 2)
-        if not ok:
-            print(f"  {hap}: SKIP -- self-align minimap2 failed after {self_align_seconds:.1f}s: {err}",
-                  file=sys.stderr)
-            return row, {}
-        chrom, rstart, rend = parse_region(args.region)
-        regions, qlens, seen_tnames = regions_from_paf(synth_paf, chrom, rstart, rend, args.pad)
-        if regions:
-            targets = [f"{c}:{s + 1}-{e}" for c, (s, e) in regions.items()]
-            trim_method = "self_align_region"
-            whole_bp = sum(qlens[c] for c in regions)
-            padded_bp = sum(e - s for s, e in regions.values())
-            row["n_contigs"] = len(regions)
-            row["whole_contig_mb"] = round(whole_bp / 1e6, 2)
-            row["padded_mb"] = round(padded_bp / 1e6, 2)
-            print(f"  {hap}: self-align (minimap2 -x {MINIMAP2_ASM_PRESET} vs chr6, {self_align_seconds:.1f}s) "
-                  f"found {len(regions)} contig(s) overlapping {args.region} -- padded sub-range "
-                  f"{padded_bp/1e6:.2f} MB", file=sys.stderr)
-        else:
-            print(f"  {hap}: SKIP -- self-align produced a .paf but 0 contigs overlap {args.region} "
-                  f"(target names seen: {sorted(seen_tnames)[:10]}).", file=sys.stderr)
-            return row, {}
+        targets, trim_method, trim_source = t3
 
     if targets is None:
         aln_path = os.path.join(args.mount, aln_rel)
@@ -435,7 +733,12 @@ def process_haplotype(pid, hap, fa_rel, paf_rel, aln_rel, person_dir, immuannot_
 
     # --- Stage 2: trim (samtools faidx -- files-to-ready-for-immuannot step Marc flagged) ---
     trimmed_fa = os.path.join(person_dir, f"{hap}.trimmed.fa")
-    ok, err = trim_assembly(fa_path, targets, trimmed_fa)
+    if trim_source is not None:
+        # Tier 3: read the local candidate-contig FASTA, never index the (plain-gzip) source.
+        ok, err = stream_extract_fasta(trim_source, targets, trimmed_fa)
+        _remove_quietly(trim_source)  # whole candidate contigs; the trimmed FASTA is what is kept
+    else:
+        ok, err = trim_assembly(fa_path, targets, trimmed_fa)
     trim_t2 = time.perf_counter()
     trim_seconds = trim_t2 - lookup_t1
     row["trim_seconds"] = round(trim_seconds, 2)
@@ -593,8 +896,9 @@ def main():
                     help="Per-person minutes to compare against when printing the verdict "
                          "(informational only -- does not abort a run).")
     ap.add_argument("--enable-self-align-fallback", action="store_true",
-                    help="Attempt Tier 3 (self-align via minimap2 against a chr6-only reference "
-                         "slice) for any haplotype missing BOTH .paf and aln-to-hg38 .bam -- the "
+                    help="Attempt Tier 3 (two-stage self-align: region slice, then whole primary "
+                         "GRCh38 via --self-align-confirm-ref) for any haplotype missing BOTH .paf "
+                         "and aln-to-hg38 .bam -- the "
                          "sequel2 gap (991 people, ~95%% AFR, per reports/lr_data_census/README.md). "
                          "UNTESTED AT SCALE as of 2026-08-04 -- explicit smoke-test-first flag, not "
                          "the default. Without it, those haplotypes are SKIPped with a clear reason "
@@ -602,10 +906,37 @@ def main():
     ap.add_argument("--hg38-ref", default=HG38_REF_DEFAULT,
                     help=f"Full hg38 reference FASTA, used once to carve out the chr6-only slice "
                          f"for Tier 3 self-align (default {HG38_REF_DEFAULT}, per ENVIRONMENT.md).")
-    ap.add_argument("--chr6-ref-cache", default=CHR6_REF_CACHE_DEFAULT,
-                    help=f"Where the chr6-only reference slice is cached after first extraction "
-                         f"(default {CHR6_REF_CACHE_DEFAULT}) -- built once, reused by every "
-                         f"subsequent Tier 3 haplotype/person, not re-extracted per call.")
+    ap.add_argument("--chr6-ref-cache", default=None,
+                    help="LEGACY (pre-2026-10-11). If passed, used as the Tier 3 stage-1 reference "
+                         "as is (its sequence names must include --region's chromosome, else the "
+                         "haplotype is SKIPped). Default: unset -> a slice of --region +/- "
+                         "--self-align-flank is cached under --self-align-ref-dir.")
+    ap.add_argument("--self-align-ref", default=None,
+                    help="Tier 3 stage-1 reference FASTA (e.g. the region slice prepared by "
+                         "63_sequel2_recall.py --prepare-refs). Overrides the auto-built slice.")
+    ap.add_argument("--self-align-ref-dir", default=SELF_ALIGN_REF_DIR_DEFAULT,
+                    help="Where the auto-built stage-1 region slice is cached.")
+    ap.add_argument("--self-align-flank", type=int, default=SELF_ALIGN_FLANK_DEFAULT,
+                    help="bp added on each side of --region for the stage-1 slice.")
+    ap.add_argument("--self-align-confirm-ref", default=None,
+                    help="REQUIRED for Tier 3: whole primary GRCh38 (chr1-22,X,Y,M; no ALT/HLA/decoy "
+                         "contigs) as FASTA or prebuilt minimap2 -x asm5 .mmi. Stage-1 candidate "
+                         "contigs are re-aligned to it so MAPQ is meaningful.")
+    ap.add_argument("--self-align-min-block", type=int, default=SELF_ALIGN_MIN_BLOCK_DEFAULT,
+                    help="Minimum PAF alignment block length (col11) in both Tier 3 stages.")
+    ap.add_argument("--self-align-min-mapq", type=int, default=SELF_ALIGN_MIN_MAPQ_DEFAULT,
+                    help="Minimum MAPQ for a stage-2 (whole-genome) block.")
+    ap.add_argument("--self-align-min-ident", type=float, default=SELF_ALIGN_MIN_IDENT_DEFAULT,
+                    help="Minimum col10/col11 for a stage-2 block (approximate without -c).")
+    ap.add_argument("--self-align-cluster-gap", type=int, default=SELF_ALIGN_CLUSTER_GAP_DEFAULT,
+                    help="Stage-2 blocks on one contig closer than this (query bp) form one "
+                         "cluster; only the largest cluster per contig is trimmed.")
+    ap.add_argument("--self-align-max-mb", type=float, default=SELF_ALIGN_MAX_MB_DEFAULT,
+                    help="Refuse a Tier 3 trimmed input larger than this (MB per haplotype).")
+    ap.add_argument("--self-align-max-candidate-mb", type=float,
+                    default=SELF_ALIGN_MAX_CANDIDATE_MB_DEFAULT,
+                    help="Refuse stage 2 if stage-1 candidate contigs total more than this (MB).")
+    ap.add_argument("--minimap2", default="minimap2", help="minimap2 binary for Tier 3.")
     ap.add_argument("--force", action="store_true",
                     help="Re-process a person even if already present in immuannot_calls.tsv "
                          "(default: skip -- makes a 60-person run safe to kill and re-launch "
