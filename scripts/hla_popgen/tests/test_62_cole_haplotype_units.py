@@ -238,6 +238,20 @@ class TestEndToEnd(unittest.TestCase):
         self.assertTrue((u["coverage_flag"] == "not_measured").all())
         self.assertTrue((u["unrelated"] == "not_assessed").all())
 
+    def test_missing_table_uses_cached_pair_list(self):
+        from unittest import mock
+        internal = os.path.join(self.tmp, "internal_fb")
+        with mock.patch.object(hu.C, "FALLBACK_RELATEDNESS", self.rel), \
+                mock.patch.object(hu.C.load_relatedness_pairs, "__defaults__", (self.rel,)):
+            hu.main(["--table1", self.t1, "--cohort-membership", self.coh, "--relatedness-table",
+                     os.path.join(self.tmp, "missing_rel.tsv"), "--internal-dir", internal,
+                     "--out-dir", os.path.join(self.tmp, "pub3")])
+        read = lambda d: pd.read_csv(os.path.join(d, "haplotype_units.tsv.gz"), sep="\t", comment="#",
+                                     dtype=str).drop_duplicates("person_id").set_index("person_id")["unrelated"]
+        fb, ref = read(internal), read(self.internal)
+        self.assertTrue(fb.isin(["True", "False"]).all())
+        self.assertTrue((fb == ref.loc[fb.index]).all())   # same result as passing the table directly
+
 
 class TestCoverageFrom59(unittest.TestCase):
     def test_exclude_people_file_sets_flag(self):

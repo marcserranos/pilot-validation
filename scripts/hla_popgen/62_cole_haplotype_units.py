@@ -607,11 +607,12 @@ def write_manifest(internal_dir, files):
 def people_table(cohort, t1_people, relatedness_path):
     info = {}
     coh = cohort.set_index("person_id") if len(cohort) else cohort
-    if relatedness_path and os.path.exists(relatedness_path):
+    have_pairs = any(x and os.path.exists(x) for x in (relatedness_path, C.FALLBACK_RELATEDNESS))
+    if have_pairs:  # load_relatedness_pairs falls back to the cached LR pair list itself
         unrelated = C.greedy_unrelated(t1_people, C.load_relatedness_pairs(relatedness_path))
         unrel = {p: str(p in unrelated) for p in t1_people}
     else:
-        log("WARNING: relatedness table missing; unrelated = not_assessed")
+        log("WARNING: relatedness table and cached pair list missing; unrelated = not_assessed")
         unrel = {p: "not_assessed" for p in t1_people}
     for p in t1_people:
         r = coh.loc[p] if p in coh.index else None
