@@ -89,6 +89,28 @@ def make_inputs(tmp, n=400, seed=3):
 
 
 class TestRules(unittest.TestCase):
+    def test_qc_summary_cross_field_suppression(self):
+        """AMR-like stratum: G1 + G2 shown, predicted_incompatible 1-19, not_called equal to the
+        unit's incomplete count (shown in evidence_level). Without cross-field suppression the
+        incompatible count is of_haps - G1 - G2 - incomplete."""
+        rows = []
+        spec = [("physical", "G1", 600), ("physical", "G2", 300), ("physical", "predicted_incompatible", 7),
+                ("incomplete", "not_called", 40), ("split_contigs", "G1", 25)]
+        for ev, dq, k in spec:
+            for u, _ in hu.UNITS:
+                rows += [dict(unit=u, evidence_level=ev, dq_g1g2=dq, dq_structure="canonical",
+                              coverage_flag="pass", platform="revio", unrelated="True",
+                              ancestry_pred="AMR")] * k
+        q = hu.public_qc_summary(pd.DataFrame(rows))
+        q = q[(q["unit"] == "DQA1~DQB1") & (q["ancestry"] == "AMR")]
+        cell = {(r.field, r.value): r.n_haps for r in q.itertuples()}
+        self.assertEqual(cell[("dq_g1g2", "predicted_incompatible")], "<20")
+        hidden = [v for (f, v), d in cell.items() if f == "dq_g1g2" and not str(d).isdigit()]
+        self.assertGreaterEqual(len(hidden), 2)
+        # not_called and incomplete are the same haplotypes: both shown or both hidden
+        self.assertEqual(str(cell[("dq_g1g2", "not_called")]).isdigit(),
+                         str(cell[("evidence_level", "incomplete")]).isdigit())
+
     def test_evidence_levels(self):
         g = ("DRB1", "DQA1", "DQB1")
         self.assertEqual(hu.evidence_for_unit(g, {"DRB1": "c", "DQA1": "c", "DQB1": "c"}, RULES)[0],

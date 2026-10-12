@@ -1236,6 +1236,23 @@ def strata(df, platform=True):
     return [(k, v, g) for k, v, g in out if len(g)]
 
 
+def _suppress_strata(df, mode, keys, cols, rate_links, row_sums=(), bins_col=None):
+    """PUBLIC complementary suppression (57b/58/61/62 convention, '<20*'): the ancestries sum to the
+    ALL row and the platforms sum to it too (per group of `keys`); `row_sums` are within-row
+    [total, part, ...] column lists; with `bins_col`, the bins of one stratum sum to its total."""
+    if mode != _disc.PUBLIC or df.empty:
+        return _disc.drop_raw(df)
+    anc = df[df["stratum_type"] == "ancestry"]
+    plat = df[(df["stratum_type"] == "platform") | ((df["stratum_type"] == "ancestry") & (df["stratum"] == "ALL"))]
+    eqs = _disc.partition_equations(anc, keys, "stratum", "ALL", cols, members=list(ANCESTRY_ORDER))
+    eqs += _disc.partition_equations(plat, keys, "stratum", "ALL", cols)
+    if bins_col is not None:
+        eqs += _disc.partition_equations(df, [k for k in keys if k != bins_col] + ["stratum_type", "stratum"],
+                                         bins_col, None, cols)
+    eqs += _disc.row_equations(df, [list(r) for r in row_sums])
+    return _disc.drop_raw(_disc.suppress_equations(df, eqs, rate_links))
+
+
 def genotype_table(gene, people, mode):
     d = gene.merge(people[["person_id", "ancestry", "platform"]], on="person_id", how="left")
     rows = []
@@ -1255,8 +1272,15 @@ def genotype_table(gene, people, mode):
             row["insertion_allele_freq"] = "" if blank else round((c1 + 2 * c2) / (2 * m), 4)
             row["pct_0copies"] = "" if blank else round(100 * c0 / m, 2)
             row["hwe_p"] = "" if blank else float(f"{hwe_exact_p(c0, c1, c2):.3g}")
+            row.update(_raw_n_people_measured=n, _raw_n_called=m, _raw_n_0copies=c0, _raw_n_1copy=c1,
+                       _raw_n_2copies=c2)
             rows.append(row)
-    return pd.DataFrame(rows)
+    est = ["insertion_allele_freq", "pct_0copies", "hwe_p"]
+    cols = ["n_people_measured", "n_called", "n_0copies", "n_1copy", "n_2copies"]
+    return _suppress_strata(pd.DataFrame(rows), mode, ["feature"], cols,
+                            {"n_people_measured": ["pct_called"], "n_called": ["pct_called"] + est,
+                             "n_0copies": est, "n_1copy": est, "n_2copies": est},
+                            row_sums=[("n_called", "n_0copies", "n_1copy", "n_2copies")])
 
 
 INCOMPLETE_REASONS = ["no_trb_contig", "anchor_missing", "low_reads", "no_hp_tag"]
@@ -1272,10 +1296,21 @@ def completeness_table(hap, people, mode):
         rate = _disc.mask_rate(k, n, mode, pct_decimals=1)
         row = dict(stratum_type=kind, stratum=val, n_haplotypes=_m(n, mode), n_complete=_m(k, mode),
                    pct_complete=rate["pct"], n_complete_single_contig=_m(int(g["single"].sum()), mode))
+        row.update(_raw_n_haplotypes=n, _raw_n_complete=k, _raw_n_complete_single_contig=int(g["single"].sum()))
         for r in INCOMPLETE_REASONS:
-            row[f"n_{r}"] = _m(int((g["incomplete_reason"] == r).sum()), mode)
+            v = int((g["incomplete_reason"] == r).sum())
+            row[f"n_{r}"] = _m(v, mode)
+            row[f"_raw_n_{r}"] = v
         rows.append(row)
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    df["_key"] = "all"
+    cols = ["n_haplotypes", "n_complete", "n_complete_single_contig"] + [f"n_{r}" for r in INCOMPLETE_REASONS]
+    out = _suppress_strata(df, mode, ["_key"], cols,
+                           {"n_haplotypes": ["pct_complete"], "n_complete": ["pct_complete"]},
+                           row_sums=[["n_haplotypes", "n_complete"] + [f"n_{r}" for r in INCOMPLETE_REASONS]])
+    return out.drop(columns=["_key"])
 
 
 def hap_presence(gene, hap, feats):
@@ -1323,12 +1358,29 @@ def copresence_table(gene, hap, people, feats, mode):
                 row["concordance"] = "" if blank else round((n11 + n00) / n, 4)
                 row["r2"] = "" if blank or den == 0 else round(D * D / den, 4)
                 row["d_prime"] = "" if blank or dmax == 0 else round(D / dmax, 4)
+                row.update(_raw_n_haplotypes=n, _raw_n_both=n11, _raw_n_a_only=n10, _raw_n_b_only=n01,
+                           _raw_n_neither=n00)
                 rows.append(row)
         pat = g[feats].astype(int).astype(str).apply(
             lambda r: ",".join(f"{f}{'+' if v == '1' else '-'}" for f, v in zip(feats, r)), axis=1)
         for p, k in pat.value_counts().sort_index().items():
-            pats.append(dict(stratum_type=kind, stratum=val, pattern=p, n_haplotypes=_m(k, mode)))
-    return pd.DataFrame(rows), pd.DataFrame(pats)
+            pats.append(dict(stratum_type=kind, stratum=val, pattern=p, n_haplotypes=_m(k, mode),
+                             _raw_n_haplotypes=int(k)))
+    cols = ["n_haplotypes", "n_both", "n_a_only", "n_b_only", "n_neither"]
+    est = ["concordance", "r2", "d_prime"]
+    rows = _suppress_strata(pd.DataFrame(rows), mode, ["feature_a", "feature_b"], cols,
+                            {c: est for c in cols}, row_sums=[cols])
+    pats = pd.DataFrame(pats)
+    if not pats.empty:
+        # every pattern of a stratum sums to its complete haplotypes, and ancestries sum to ALL
+        full = pats.pivot_table(index="pattern", columns="stratum", values="_raw_n_haplotypes",
+                                fill_value=0).stack().rename("_raw_n_haplotypes").reset_index()
+        full = full.merge(pats[["stratum", "stratum_type"]].drop_duplicates(), on="stratum")
+        full["n_haplotypes"] = [_m(int(v), mode) for v in full["_raw_n_haplotypes"]]
+        full = full[full["_raw_n_haplotypes"] > 0].reset_index(drop=True)
+        pats = _suppress_strata(full[["stratum_type", "stratum", "pattern", "n_haplotypes", "_raw_n_haplotypes"]],
+                                mode, ["pattern"], ["n_haplotypes"], {}, bins_col="pattern")
+    return rows, pats
 
 
 def af_histogram(gene, people, mode, width=0.05):
@@ -1344,8 +1396,13 @@ def af_histogram(gene, people, mode, width=0.05):
             counts, _ = np.histogram(g["af"].clip(0, 1), bins=edges)
             for k, lo in zip(counts, edges[:-1]):
                 rows.append(dict(feature=feat, stratum_type=kind, stratum=val, af_lo=float(lo),
-                                 af_hi=round(float(lo) + width, 4), n_people=_m(int(k), mode)))
-    return pd.DataFrame(rows, columns=["feature", "stratum_type", "stratum", "af_lo", "af_hi", "n_people"])
+                                 af_hi=round(float(lo) + width, 4), n_people=_m(int(k), mode),
+                                 _raw_n_people=int(k)))
+    df = pd.DataFrame(rows, columns=["feature", "stratum_type", "stratum", "af_lo", "af_hi", "n_people",
+                                     "_raw_n_people"])
+    # bins of a stratum sum to its called people (published in genotype_by_stratum); per bin, the
+    # ancestries and the platforms each sum to ALL
+    return _suppress_strata(df, mode, ["feature", "af_lo"], ["n_people"], {}, bins_col="af_lo")
 
 
 def compare_methods(reads, asm, people, mode):
@@ -1365,11 +1422,20 @@ def compare_methods(reads, asm, people, mode):
             rate = _disc.mask_rate(k, n, mode, pct_decimals=1)
             row = dict(feature=feat, stratum_type=kind, stratum=val, n_both_called=_m(n, mode),
                        n_concordant=_m(k, mode), pct_concordant=rate["pct"], lo=rate["lo"], hi=rate["hi"])
+            row.update(_raw_n_both_called=n, _raw_n_concordant=k)
             for i in (0, 1, 2):
                 for j in (0, 1, 2):
-                    row[f"n_reads{i}_asm{j}"] = _m(int(((g["copies_reads"] == i) & (g["copies_asm"] == j)).sum()), mode)
+                    v = int(((g["copies_reads"] == i) & (g["copies_asm"] == j)).sum())
+                    row[f"n_reads{i}_asm{j}"] = _m(v, mode)
+                    row[f"_raw_n_reads{i}_asm{j}"] = v
             rows.append(row)
-    return pd.DataFrame(rows)
+    cells = [f"n_reads{i}_asm{j}" for i in (0, 1, 2) for j in (0, 1, 2)]
+    cols = ["n_both_called", "n_concordant"] + cells
+    return _suppress_strata(pd.DataFrame(rows), mode, ["feature"], cols,
+                            {"n_both_called": ["pct_concordant", "lo", "hi"],
+                             "n_concordant": ["pct_concordant", "lo", "hi"]},
+                            row_sums=[["n_both_called"] + cells,
+                                      ["n_concordant", "n_reads0_asm0", "n_reads1_asm1", "n_reads2_asm2"]])
 
 
 def _unrelated_ids(people, relatedness):

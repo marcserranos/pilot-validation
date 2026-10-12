@@ -240,6 +240,57 @@ class Test59(unittest.TestCase):
             self.assertIn(anc, set(scan["ancestry"]))
         self.assertEqual(set(scan["scale"]), {"norm", "abs"})
 
+    def test_no_single_hidden_cell_in_any_sum(self):
+        """Masked counts cannot be recovered by subtraction: every set of cells tied by a sum (bins of
+        a stratum, ancestries vs ALL, platforms vs ALL, kept + removed = events) has 0 or >= 2 hidden
+        cells. Checked on a small cohort, where many cells are masked."""
+        out = os.path.join(self.tmp, "out_audit")
+        self.c.run(out, os.path.join(self.tmp, "internal_audit"), "--people-limit", "400")
+
+        def hidden(v):
+            return isinstance(v, str) and not v.isdigit()
+
+        def check(df, keys, cols, part_col=None, total=None, members=None):
+            n_sets = 0
+            for _k, g in df.groupby(keys):
+                rows = g if part_col is None else g[(g[part_col] == total) | g[part_col].isin(members)]
+                for c in cols:
+                    vals = [v for v in rows[c].tolist() if not (isinstance(v, float) and np.isnan(v))]
+                    if len(vals) < 2:
+                        continue
+                    n_sets += 1
+                    # one hidden cell is a leak unless every other cell is 0 (it then equals the
+                    # set's total, which is masked wherever it is published)
+                    if sum(hidden(v) for v in vals) == 1:
+                        self.assertTrue(all(v == "0" for v in vals if not hidden(v)), (c, _k))
+            return n_sets
+
+        def rd(name):
+            return pd.read_csv(os.path.join(out, name), sep="\t", dtype=str, keep_default_na=False)
+
+        b = rd("outcome_by_depth_bin.tsv")
+        b = b[b["outcome"] != "mhc_contigs_mean"]
+        base = ["outcome", "region", "scale", "mapq"]
+        anc = ["AFR", "AMR", "EUR", "SAS"]
+        masked_any = b[["n_people", "n_events"]].isin(["<20", "<20*"]).any().any()
+        self.assertTrue(masked_any)
+        self.assertGreater(check(b, base + ["stratum_type", "stratum"], ["n_people", "n_events"]), 0)
+        nb = b[b["stratum_type"] != "platform"]
+        self.assertGreater(check(nb, base + ["depth_bin"], ["n_people", "n_events"], "stratum", "ALL", anc), 0)
+        pb = b[b["stratum_type"] != "ancestry"]
+        check(pb, base + ["depth_bin"], ["n_people", "n_events"], "stratum", "ALL", ["revio", "sequel2e"])
+        self.assertTrue((b.loc[b["n_people"] == "<20*", "pct_events"] == "").all())
+
+        g = rd("hla_gene_absent_by_bin.tsv")
+        check(g, ["gene", "scale", "mapq"], ["n_people", "n_haps", "n_haps_absent"])
+
+        s = rd("cutoff_scan.tsv")
+        cols = ["n_people", "n_removed", "n_events", "n_events_removed", "n_events_kept"]
+        check(s, ["outcome", "region", "scale", "mapq", "cutoff"], cols, "ancestry", "ALL", anc)
+        for _i, r in s.iterrows():
+            self.assertNotEqual(sum(hidden(r[c]) for c in ("n_events", "n_events_kept", "n_events_removed")),
+                                1, r.to_dict())
+
     def test_logistic_or(self):
         lt = self.read("logistic_or.tsv")
         for outcome in ("kir_fw_missing", "dq_cross_group_physical", "hla_absent"):
@@ -310,7 +361,7 @@ class Test59(unittest.TestCase):
         b = pd.read_csv(os.path.join(out, "outcome_by_depth_bin.tsv"), sep="\t", dtype=str,
                         keep_default_na=False)
         for c in ("n_people", "n_events"):
-            ok = b[c].isin(["<20", "0", ""]) | b[c].str.isdigit()
+            ok = b[c].isin(["<20", "<20*", "0", ""]) | b[c].str.isdigit()
             self.assertTrue(ok.all())
             nums = pd.to_numeric(b[c], errors="coerce")
             self.assertFalse(((nums > 0) & (nums < 20)).any(), c)
