@@ -1,0 +1,41 @@
+outcome	region	scale	mapq	n_people	n_events	or_per_0p1_lower	or_lo	or_hi	p_value	covariates	engine	status
+kir_incomplete	window_KIR	norm	0	11847	4478	1.1591	1.1129	1.2071	1.07e-12	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_incomplete	window_KIR	norm	20	11847	4478	1.1766	1.1284	1.2268	2.41e-14	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_incomplete	window_KIR	abs	0	11847	4478	1.1787	1.1258	1.2342	2.35e-12	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_incomplete	window_KIR	abs	20	11847	4478	1.2007	1.1448	1.2593	5.3e-14	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_fw_missing	window_KIR	norm	0	11847	3078	1.4686	1.4016	1.5388	1.53e-58	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_fw_missing	window_KIR	norm	20	11847	3078	1.5549	1.4816	1.6318	7.66e-72	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_fw_missing	window_KIR	abs	0	11847	3078	1.5398	1.4607	1.6233	7.79e-58	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_fw_missing	window_KIR	abs	20	11847	3078	1.6483	1.5601	1.7414	5.25e-71	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	numpy_irls	ok
+kir_fw_missing_complete	window_KIR	norm	0	10530	577	2.34	2.1166	2.587	6.36e-62	platform[sequel2e];ancestry[AFR];ancestry[AMR];ancestry[EAS];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+kir_fw_missing_complete	window_KIR	norm	20	10530	577	2.8003	2.5215	3.1099	1.52e-82	platform[sequel2e];ancestry[AFR];ancestry[AMR];ancestry[EAS];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+kir_fw_missing_complete	window_KIR	abs	0	10530	577	2.622	2.3399	2.9382	7.27e-62	platform[sequel2e];ancestry[AFR];ancestry[AMR];ancestry[EAS];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+kir_fw_missing_complete	window_KIR	abs	20	10530	577	3.2409	2.8747	3.6538	2.59e-82	platform[sequel2e];ancestry[AFR];ancestry[AMR];ancestry[EAS];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+hla_absent	window_MHC	norm	0	11856	3484	1.0915	1.0151	1.1736	0.0181	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+hla_absent	window_MHC	norm	20	11856	3484	1.1002	1.0228	1.1835	0.0103	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+hla_absent	window_MHC	abs	0	11856	3484	1.1037	1.0124	1.2032	0.0251	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+hla_absent	window_MHC	abs	20	11856	3484	1.1152	1.0219	1.2169	0.0144	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+hla_hap_empty	window_MHC	norm	0	11856	<20							suppressed_lt20_events
+hla_hap_empty	window_MHC	norm	20	11856	<20							suppressed_lt20_events
+hla_hap_empty	window_MHC	abs	0	11856	<20							suppressed_lt20_events
+hla_hap_empty	window_MHC	abs	20	11856	<20							suppressed_lt20_events
+dq_split	window_MHC	norm	0	11818	480	0.9128	0.7733	1.0775	0.281	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_split	window_MHC	norm	20	11818	480	0.9296	0.787	1.0981	0.391	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_split	window_MHC	abs	0	11818	480	0.8972	0.7365	1.093	0.281	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_split	window_MHC	abs	20	11818	480	0.9161	0.7505	1.1183	0.389	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_anomalous	window_MHC	norm	0	11818	<20							too_few_events
+dq_anomalous	window_MHC	norm	20	11818	<20							too_few_events
+dq_anomalous	window_MHC	abs	0	11818	<20							too_few_events
+dq_anomalous	window_MHC	abs	20	11818	<20							too_few_events
+dq_cross_group_any	window_MHC	norm	0	11818	58	0.8104	0.5062	1.2973	0.381	platform[sequel2e];ancestry[AMR];ancestry[EUR];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_cross_group_any	window_MHC	norm	20	11818	58	0.8108	0.5053	1.3009	0.385	platform[sequel2e];ancestry[AMR];ancestry[EUR];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_cross_group_any	window_MHC	abs	0	11818	58	0.7705	0.4406	1.3474	0.361	platform[sequel2e];ancestry[AMR];ancestry[EUR];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_cross_group_any	window_MHC	abs	20	11818	58	0.7697	0.4373	1.3547	0.364	platform[sequel2e];ancestry[AMR];ancestry[EUR];ancestry[SAS];ancestry[other]	numpy_irls	ok
+dq_cross_group_physical	window_MHC	norm	0	11818	<20							too_few_events
+dq_cross_group_physical	window_MHC	norm	20	11818	<20							too_few_events
+dq_cross_group_physical	window_MHC	abs	0	11818	<20							too_few_events
+dq_cross_group_physical	window_MHC	abs	20	11818	<20							too_few_events
+mhc_fragmented	window_MHC	norm	0	11856	3638	1.1236	1.0454	1.2076	0.00153	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+mhc_fragmented	window_MHC	norm	20	11856	3638	1.1303	1.0513	1.2153	0.000925	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+mhc_fragmented	window_MHC	abs	0	11856	3638	1.1392	1.0456	1.2411	0.00289	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok
+mhc_fragmented	window_MHC	abs	20	11856	3638	1.1486	1.0532	1.2527	0.00174	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[other]	numpy_irls	ok

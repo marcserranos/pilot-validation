@@ -1,0 +1,5 @@
+outcome	region	scale	mapq	n_people	delta_per_0p1_lower	lo	hi	p_value	covariates	status
+mhc_contigs_mean	window_MHC	norm	0	11856	0.2026	0.1275	0.2776	1.23e-07	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	ok
+mhc_contigs_mean	window_MHC	norm	20	11856	0.2115	0.136	0.2869	3.96e-08	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	ok
+mhc_contigs_mean	window_MHC	abs	0	11856	0.2281	0.1386	0.3176	5.87e-07	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	ok
+mhc_contigs_mean	window_MHC	abs	20	11856	0.2408	0.1503	0.3313	1.86e-07	platform[sequel2e];ancestry[AMR];ancestry[EAS];ancestry[EUR];ancestry[MID];ancestry[SAS];ancestry[UNK]	ok
