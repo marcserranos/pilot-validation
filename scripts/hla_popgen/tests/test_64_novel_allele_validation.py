@@ -267,6 +267,21 @@ class TestPrimitives(unittest.TestCase):
         mixed = dict(n_spanning=20, this_called=4, this_nearest=6, pool_called=4, pool_nearest=6)
         self.assertEqual(nav.verdict(mixed, True, 3, 0.7, 0.3, 0.15)[4], "ambiguous")
 
+    def test_pooled_key_read_class(self):
+        import pandas as pd
+        def calls(rows):
+            return pd.DataFrame(rows, columns=["lr_mode", "lr_verdict", "n_reads_support_called",
+                                               "n_reads_support_nearest"])
+        # three carriers, each ambiguous alone (2 reads), together a clear supported key
+        real = calls([("3t", "ambiguous", 2, 0)] * 3)
+        self.assertEqual(nav.pooled_key_read_class(real)[3], "supported")
+        noise = calls([("3t", "ambiguous", 1, 2), ("3t", "ambiguous", 1, 1), ("3t", "ambiguous", 0, 2)])
+        self.assertEqual(nav.pooled_key_read_class(noise)[3], "ambiguous")
+        art = calls([("3t", "ambiguous", 0, 2)] * 3)
+        self.assertEqual(nav.pooled_key_read_class(art)[3], "contradicted")
+        # 2t calls are not pooled
+        self.assertEqual(nav.pooled_key_read_class(calls([("2t", "supported", 8, 9)]))[3], "untested")
+
     def test_headers_and_history(self):
         self.assertEqual(nav.parse_allele_header("HLA:HLA00001 A*01:01:01:01 1098 bp"),
                          ("A*01:01:01:01", "A", "HLA00001"))
