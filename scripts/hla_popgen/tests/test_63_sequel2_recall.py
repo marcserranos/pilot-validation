@@ -428,6 +428,17 @@ class TestDriver(unittest.TestCase):
             self.main()
         os.remove(os.path.join(self.internal, "63.lock"))
 
+    def test_resolve_tool_prefers_env_bin(self):
+        envbin = os.path.join(self.tmp.name, "envbin")
+        os.makedirs(envbin)
+        py = os.path.join(envbin, "python3")
+        self.assertEqual(sr.resolve_tool("minimap2", py), "minimap2")   # not there: left for PATH
+        mm2 = os.path.join(envbin, "minimap2")
+        open(mm2, "w").write("#!/bin/sh\n")
+        os.chmod(mm2, 0o755)
+        self.assertEqual(sr.resolve_tool("minimap2", py), mm2)
+        self.assertEqual(sr.resolve_tool("/opt/x/minimap2", py), "/opt/x/minimap2")  # explicit path kept
+
     def test_refs_required(self):
         os.remove(sr.ref_paths(self.internal)["mmi"])
         with self.assertRaises(SystemExit):
