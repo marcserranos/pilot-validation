@@ -250,7 +250,10 @@ class TestEndToEnd(unittest.TestCase):
         comp = pd.read_csv(os.path.join(self.out, "haplotype_completeness.tsv"), sep="\t", dtype=str)
         allr = comp[comp["stratum"] == "ALL"].iloc[0]
         self.assertEqual(allr["n_haplotypes"], "798")
-        self.assertEqual(allr["n_complete"], "797")
+        # 798 = complete + <20 incomplete: the complete count is masked too, or the <20 cell is a
+        # subtraction away
+        self.assertEqual(allr["n_complete"], "<20*")
+        self.assertEqual(allr["pct_complete"] if isinstance(allr["pct_complete"], str) else "", "")
         self.assertEqual(allr["n_complete_single_contig"], "796")
         self.assertEqual(allr["n_no_trb_contig"], "<20")
 
@@ -554,7 +557,7 @@ class TestReadsEndToEnd(unittest.TestCase):
         self.assertAlmostEqual(float(r["insertion_allele_freq"]), 0.525, delta=0.08)
         hist = pd.read_csv(os.path.join(self.out, "allele_fraction_histogram.tsv"), sep="\t", dtype=str)
         self.assertEqual(len(hist[(hist["feature"] == "TRBV4-3") & (hist["stratum"] == "ALL")]), 20)
-        self.assertTrue(hist["n_people"].isin(["0", "<20"] + [str(k) for k in range(20, 200)]).all())
+        self.assertTrue(hist["n_people"].isin(["0", "<20", "<20*"] + [str(k) for k in range(20, 200)]).all())
         cp = pd.read_csv(os.path.join(self.out, "copresence.tsv"), sep="\t")
         allr = cp[cp["stratum"] == "ALL"]
         self.assertEqual(len(allr), 1)   # TRBV4-3 x TRBV3-2 (TRBV7-8 is not a reads-mode feature)
@@ -568,6 +571,27 @@ class TestReadsEndToEnd(unittest.TestCase):
             txt = open(os.path.join(self.out, f)).read()
             for pid in ("3000000", "3000001", "3000159"):
                 self.assertNotIn(pid, txt, f)
+
+    def test_no_single_hidden_cell_in_any_sum(self):
+        """Masked counts are not a subtraction away: per AF bin, the ancestries (and the platforms)
+        sum to ALL; the bins of a stratum sum to its called people; the genotype counts sum to the
+        called people. Every such set has 0 or >= 2 hidden cells."""
+        def hidden(v):
+            return not str(v).isdigit()
+
+        hist = pd.read_csv(os.path.join(self.out, "allele_fraction_histogram.tsv"), sep="\t", dtype=str)
+        self.assertTrue(hist["n_people"].isin(["<20", "<20*"]).any())
+        anc = hist[hist["stratum_type"] == "ancestry"]
+        plat = hist[(hist["stratum_type"] == "platform") | (hist["stratum"] == "ALL")]
+        for part in (anc, plat):
+            for _k, g in part.groupby(["feature", "af_lo"]):
+                if len(g) > 1:
+                    self.assertNotEqual(sum(hidden(v) for v in g["n_people"]), 1, _k)
+        for _k, g in hist.groupby(["feature", "stratum_type", "stratum"]):
+            self.assertNotEqual(sum(hidden(v) for v in g["n_people"]), 1, _k)
+        tab = pd.read_csv(os.path.join(self.out, "genotype_by_stratum.tsv"), sep="\t", dtype=str)
+        for _i, r in tab.iterrows():
+            self.assertNotEqual(sum(hidden(r[c]) for c in ("n_called", "n_0copies", "n_1copy", "n_2copies")), 1)
 
     def test_aggregate_only_new_floor(self):
         out = os.path.join(self.tmp, "out_floor")

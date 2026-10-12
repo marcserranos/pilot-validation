@@ -274,3 +274,73 @@ def add_disclosure_arg(ap, default=PUBLIC):
                           "flag column on every cell PUBLIC would mask; writes ONLY under "
                           "~/s04/internal/<script>/, never into the repo or reports/.")
     return ap
+
+
+# ---------------------------------------------------------------------------
+# Complementary (secondary) suppression across cells tied by a sum.
+# ---------------------------------------------------------------------------
+SECONDARY = f"<{SUPPRESS_BELOW}*"
+
+
+def is_hidden(display, raw):
+    """A published count cell that does not show its value (masked or blanked) while its true
+    value is > 0."""
+    return int(raw) > 0 and not str(display).isdigit()
+
+
+def suppress_equations(df, equations, rate_links=None):
+    """PUBLIC complementary suppression. `equations` lists sets of cells tied by a sum that a reader
+    knows or can rebuild (bins of one stratum sum to its total; ancestries or platforms sum to the
+    ALL row; parts of a row sum to its total). Each set is a list of (row index, column), and the
+    true counts sit in `_raw_<column>`. When exactly one cell of a set is hidden, the smallest other
+    shown non-zero cell is masked too (SECONDARY, '<20*') and the rate columns that would give it
+    back (`rate_links[column]`) are blanked. Repeats until no set has exactly one hidden cell.
+    -> df (copy)."""
+    rate_links = rate_links or {}
+    df = df.copy()
+    changed = True
+    while changed:
+        changed = False
+        for cells in equations:
+            hid = [ic for ic in cells if is_hidden(df.at[ic[0], ic[1]], df.at[ic[0], "_raw_" + ic[1]])]
+            if len(hid) != 1:
+                continue
+            shown = [ic for ic in cells if ic not in hid and int(df.at[ic[0], "_raw_" + ic[1]]) > 0]
+            if not shown:
+                continue
+            i, c = min(shown, key=lambda ic: int(df.at[ic[0], "_raw_" + ic[1]]))
+            df.at[i, c] = SECONDARY
+            for k in rate_links.get(c, ()):
+                if k in df.columns:
+                    df.at[i, k] = ""
+            changed = True
+    return df
+
+
+def partition_equations(df, keys, part_col, total_value, cols, members=None):
+    """Sets of cells, one per group of `keys` and per column in `cols`, where the parts (rows whose
+    `part_col` is in `members`, else every non-total row) sum to the total row
+    (`part_col == total_value`). total_value=None: there is no total row; the parts sum to a total
+    published elsewhere."""
+    eqs = []
+    if df.empty:
+        return eqs
+    for _k, g in df.groupby(list(keys), sort=False):
+        tot = g.index[g[part_col] == total_value].tolist() if total_value is not None else []
+        parts = g[g[part_col] != total_value] if total_value is not None else g
+        if members is not None:
+            parts = parts[parts[part_col].isin(members)]
+        if len(parts) + len(tot) < 2:
+            continue
+        for c in cols:
+            eqs.append([(i, c) for i in tot + parts.index.tolist()])
+    return eqs
+
+
+def row_equations(df, groups):
+    """Within-row sums: `groups` is a list of column lists, each [total, part, part, ...]."""
+    return [[(i, c) for c in cols] for i in df.index for cols in groups]
+
+
+def drop_raw(df):
+    return df[[c for c in df.columns if not str(c).startswith("_raw_")]]

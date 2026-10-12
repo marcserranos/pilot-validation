@@ -502,7 +502,8 @@ def outcome_by_bin(pp, edges_by_scale, mode):
                     n = len(b)
                     row = dict(outcome=outcome, region=region, scale=scale, mapq=q,
                                stratum_type=stype, stratum=sval, depth_bin=lab,
-                               n_people=_cnt(n, mode))
+                               n_people=_cnt(n, mode), _raw_n_people=n,
+                               _raw_n_events=0 if cont else int(b[outcome].sum()))
                     if cont:
                         hide = n == 0 or (mode == _disc.PUBLIC and n < _disc.SUPPRESS_BELOW)
                         v = b[outcome].astype(float)
@@ -511,18 +512,45 @@ def outcome_by_bin(pp, edges_by_scale, mode):
                     else:
                         k = int(b[outcome].sum())
                         row.update(_rate_cells("events", k, n, mode))
-                        if mode == _disc.PUBLIC and _small(n - k) and not _small(k):
+                        if mode == _disc.PUBLIC and k > 0 and _small(n - k) and not _small(k):
                             # events + non-events = n: a 1-19 non-event count is a subtraction away
                             row.update(n_events="", pct_events="", pct_events_lo="", pct_events_hi="")
                     rows.append(row)
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    if mode != _disc.PUBLIC or df.empty:
+        return _disc.drop_raw(df)
+    cols = ["n_people", "n_events"]
+    base = ["outcome", "region", "scale", "mapq"]
+    eqs = _disc.partition_equations(df, base + ["stratum_type", "stratum"], "depth_bin", None, cols)
+    eqs += _disc.partition_equations(df[df["stratum_type"] != "platform"], base + ["depth_bin"], "stratum",
+                                "ALL", cols, members=list(ANCESTRY_ORDER))
+    eqs += _disc.partition_equations(df[df["stratum_type"] != "ancestry"], base + ["depth_bin"], "stratum",
+                                "ALL", cols, members=sorted(set(df.loc[df["stratum_type"] == "platform",
+                                                                       "stratum"])))
+    rates = ["pct_events", "pct_events_lo", "pct_events_hi"]
+    df = _disc.suppress_equations(df, eqs, {"n_people": rates + ["mean_value", "median_value"],
+                                      "n_events": rates})
+    return _disc.drop_raw(df)
 
 
 def gene_absent_by_bin(pp, genes, edges_by_scale, mode, mapq=0):
     rows = []
     for scale in SCALES:
         rows += _gene_absent_one(pp, genes, edges_by_scale[scale], mode, mapq, scale)
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    if mode != _disc.PUBLIC or df.empty:
+        return _disc.drop_raw(df)
+    # bins of one gene sum to the people (and haplotypes, absences) with that gene assessed
+    eqs = _disc.partition_equations(df, ["gene", "scale", "mapq"], "depth_bin", None,
+                               ["n_people", "n_haps", "n_haps_absent"])
+    rates = ["pct_haps_absent", "pct_lo", "pct_hi"]
+    df = _disc.suppress_equations(df, eqs, {"n_people": rates, "n_haps": rates, "n_haps_absent": rates})
+    # n_haps = 2 x n_people: hide them together
+    hide = ~df["n_people"].astype(str).str.isdigit() | ~df["n_haps"].astype(str).str.isdigit()
+    for c in ("n_people", "n_haps"):
+        df.loc[hide & df[c].astype(str).str.isdigit() & (df["_raw_" + c] > 0), c] = _disc.SECONDARY
+    df.loc[hide, rates] = ""
+    return _disc.drop_raw(df)
 
 
 def _gene_absent_one(pp, genes, edges, mode, mapq, scale):
@@ -539,8 +567,9 @@ def _gene_absent_one(pp, genes, edges, mode, mapq, scale):
             r = _disc.mask_rate(k, n_haps, mode, pct_decimals=2)
             row = dict(gene=gene, scale=scale, mapq=mapq, depth_bin=lab, n_people=_cnt(len(b), mode),
                        n_haps=r["d"], n_haps_absent=r["n"], pct_haps_absent=r["pct"],
-                       pct_lo=r["lo"], pct_hi=r["hi"])
-            if mode == _disc.PUBLIC and _small(n_haps - k) and not _small(k):
+                       pct_lo=r["lo"], pct_hi=r["hi"], _raw_n_people=len(b), _raw_n_haps=n_haps,
+                       _raw_n_haps_absent=k)
+            if mode == _disc.PUBLIC and k > 0 and _small(n_haps - k) and not _small(k):
                 row.update(n_haps_absent="", pct_haps_absent="", pct_lo="", pct_hi="")
             rows.append(row)
     return rows
@@ -622,8 +651,24 @@ def cutoff_scan(pp, cutoffs_by_scale, mode):
                     row["complementary_suppression"] = ""
                     if mode == _disc.PUBLIC:
                         _complementary_suppress(row, n, nr, e, er)
+                    row.update(_raw_n_people=n, _raw_n_removed=nr, _raw_n_events=e,
+                               _raw_n_events_removed=er, _raw_n_events_kept=e - er)
                     rows.append(row)
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    if mode != _disc.PUBLIC or df.empty:
+        return _disc.drop_raw(df)
+    cols = ["n_people", "n_removed", "n_events", "n_events_removed", "n_events_kept"]
+    # the ancestries sum to the ALL row; kept + removed events = events, within each row
+    eqs = _disc.partition_equations(df, ["outcome", "region", "scale", "mapq", "cutoff"], "ancestry", "ALL",
+                               cols, members=list(ANCESTRY_ORDER))
+    eqs += [[(i, "n_events"), (i, "n_events_kept"), (i, "n_events_removed")] for i in df.index]
+    ev = ["outcome_rate_kept_pct", "outcome_rate_kept_lo", "outcome_rate_kept_hi",
+          "outcome_rate_removed_pct", "outcome_rate_removed_lo", "outcome_rate_removed_hi",
+          "pct_of_events_removed", "J"]
+    ppl = ["pct_people_removed", "pct_people_removed_lo", "pct_people_removed_hi"]
+    df = _disc.suppress_equations(df, eqs, {"n_people": ppl + ev, "n_removed": ppl + ev, "n_events": ev,
+                                      "n_events_removed": ev, "n_events_kept": ev})
+    return _disc.drop_raw(df)
 
 
 def rule_text(min_events, max_people, min_anc_n, scale="norm"):

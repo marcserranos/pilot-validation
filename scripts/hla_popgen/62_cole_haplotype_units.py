@@ -481,7 +481,14 @@ def public_unit_freq(units, evidence=("physical",), exclude_low_coverage=True, u
 
 
 def public_qc_summary(units):
-    """Haplotype counts per (unit, field, value, ancestry), masked; plus % of the stratum."""
+    """Haplotype counts per (unit, field, value, ancestry), masked; plus % of the stratum.
+
+    Complementary suppression, two passes: (1) within each (unit, field, ancestry), the values sum to
+    the stratum (suppress_partition, as 61); (2) across rows, cells a reader can tie together are
+    checked with _disclosure.suppress_equations: per (unit, field, value) the ancestries sum to ALL;
+    dq_g1g2 `not_called` equals evidence `incomplete` in the DQA1~DQB1 unit; and fields that do not depend on the unit
+    (dq_g1g2, dq_structure, coverage_flag, platform, unrelated) repeat the same counts in both units."""
+    import _disclosure as _disc
     rows = []
     for unit, _ in UNITS:
         du = units[units["unit"] == unit]
@@ -497,8 +504,30 @@ def public_qc_summary(units):
                     if val in sup and not (0 < k < SUPPRESS):
                         r = dict(r, n="<20*", pct="")
                     rows.append({"unit": unit, "field": field, "value": val, "ancestry": anc,
-                                 "n_haps": r["n"], "of_haps": r["d"], "pct": r["pct"]})
-    return pd.DataFrame(rows)
+                                 "n_haps": r["n"], "of_haps": r["d"], "pct": r["pct"], "_raw_n_haps": k})
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    eqs = _disc.partition_equations(df, ["unit", "field", "ancestry"], "value", None, ["n_haps"])
+    eqs += _disc.partition_equations(df, ["unit", "field", "value"], "ancestry", "ALL", ["n_haps"],
+                                     members=list(C.ANCESTRY_ORDER))
+    idx = {(r.unit, r.field, r.value, r.ancestry): i for i, r in df.iterrows()}
+
+    def cell(*k):
+        return (idx[k], "n_haps") if k in idx else None
+    u1 = UNITS[0][0]
+    for anc in C.ANCESTRY_ORDER + ["ALL"]:
+        a, b = cell(u1, "dq_g1g2", "not_called", anc), cell(u1, "evidence_level", "incomplete", anc)
+        if a and b:
+            eqs.append([a, b])
+        for field in ("dq_g1g2", "dq_structure", "coverage_flag", "platform", "unrelated"):
+            vals = set(df.loc[df["field"] == field, "value"])
+            for v in vals:
+                same = [c for c in (cell(u, field, v, anc) for u, _ in UNITS) if c]
+                if len(same) > 1:
+                    eqs.append(same)
+    df = _disc.suppress_equations(df, eqs, {"n_haps": ["pct"]})
+    return _disc.drop_raw(df)
 
 
 # ---------------------------------------------------------------------------
