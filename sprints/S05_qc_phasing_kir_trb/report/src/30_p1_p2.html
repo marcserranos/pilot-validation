@@ -1,0 +1,127 @@
+<!-- =============================================================== PART 1 -->
+<section id="p1">
+<h2><span class="part">Part 1</span>The cohort, counted exactly</h2>
+<p><b>Question.</b> How many people are in each analysis, by ancestry and platform, under each exclusion rule the repo uses? Until now every script picked its own rules, so the numbers did not line up. Script 50a builds one waterfall of exclusions, so a single list can be agreed.</p>
+
+<details class="trailbox"><summary>From which file, by what process, counted how</summary>
+<dl class="trail">
+<dt>Data in</dt><dd><code>cohort_membership.tsv</code> (one row per long-read participant: platform, predicted ancestry, the six ancestry probabilities). Table 1 (<code>hla_calls_rich.tsv</code>) to see who has HLA calls. The relatedness pair list (kinship per related pair).</dd>
+<dt>Process</dt><dd><ol><li>Start from all 13,252 cohort rows.</li><li>Keep people with HLA calls.</li><li>Build the unrelated set: break pairs with kinship ≥ 0.0442 by removing the most-connected person (<a href="#bg-rel">background</a>).</li><li>Apply three purity thresholds, p ≥ 0.90, 0.95 and 0.98, where p is the probability of the assigned ancestry.</li><li>Count each step overall, by ancestry and by platform.</li></ol></dd>
+<dt>Trade-offs</dt><dd>The purity thresholds were not chosen here: they are the three already used in older scripts, shown side by side so one can be picked. Greedy removal keeps more people than an optimal solution would lose, and it is deterministic.</dd>
+<dt>Unit</dt><dd>People. Each bar shows people remaining after that step.</dd>
+<dt>Output</dt><dd><code>reports/hla_popgen/50_qc_foundation/waterfall.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-waterfall"><div class="img"><img data-src="reports/hla_popgen/50_qc_foundation/fig_waterfall.png" alt="Exclusion waterfall by ancestry"></div>
+<figcaption><span class="fnum" data-for="f-waterfall"></span><span class="ttl">Who is in the analysis at each step</span>
+<dl>
+<dt>Shows</dt><dd>One bar per exclusion step, split by ancestry: 13,252 cohort rows (including Sequel II) → 12,233 HLA called → 11,856 unrelated → 7,924 at p ≥ 0.90 → 7,119 at p ≥ 0.95 → 6,136 at p ≥ 0.98.</dd>
+<dt>How to read</dt><dd>Follow one colour down the bars. AFR (blue) loses most at the second step: mostly the 991 Sequel II people, who were never HLA-called (the step drops 1,019 rows in all; 28 more are not in the long-read call set). EUR (yellow) and MID (pink) lose most under the purity thresholds. SAS and EAS barely change.</dd>
+<dt>Meaning</dt><dd>Purity filters do not treat ancestries equally. p ≥ 0.95 keeps 93% of SAS and 86% of EAS but only 38% of EUR and MID: All of Us's EUR-labelled people have a mean p of 0.81, because many have mixed ancestry. A strict purity rule therefore changes which populations the paper is about. AFR stays under-sampled until the Sequel II people are called (Part 10).</dd>
+<dt>Limits</dt><dd>This is not yet the agreed exclusion list: it has no long-read sample-QC flag and no repertoire filter.</dd>
+</dl>
+<div class="src">Script 50a · <code>reports/hla_popgen/50_qc_foundation/waterfall.tsv</code></div></figcaption></figure>
+
+<div class="tw"><table>
+<tr><th>Ancestry</th><th class="r">Unrelated, HLA-called</th><th class="r">kept at p ≥ 0.90</th><th class="r">kept at p ≥ 0.95</th><th class="r">kept at p ≥ 0.98</th></tr>
+<tr><td>AFR</td><td class="r">3,020</td><td class="r">77%</td><td class="r">66%</td><td class="r">49%</td></tr>
+<tr><td>AMR</td><td class="r">2,656</td><td class="r">60%</td><td class="r">52%</td><td class="r">46%</td></tr>
+<tr><td>EAS</td><td class="r">1,460</td><td class="r">87%</td><td class="r">86%</td><td class="r">84%</td></tr>
+<tr><td>EUR</td><td class="r">2,974</td><td class="r">43%</td><td class="r">38%</td><td class="r">32%</td></tr>
+<tr><td>MID</td><td class="r">487</td><td class="r">62%</td><td class="r">38%</td><td class="r">21%</td></tr>
+<tr><td>SAS</td><td class="r">1,236</td><td class="r">93%</td><td class="r">93%</td><td class="r">93%</td></tr>
+<tr><td><b>All</b></td><td class="r"><b>11,856</b></td><td class="r">7,924</td><td class="r">7,119</td><td class="r">6,136</td></tr>
+</table></div>
+<p class="note">Per-ancestry purity steps are shown as rounded percentages, not counts. Some steps remove fewer than 20 people in one ancestry, and exact counts would reveal that number by subtraction.</p>
+<p><b>Two denominators you will meet.</b> HLA analyses use 11,856 unrelated people, built from the 12,233 HLA-called people. KIR analyses (61) use 11,882 unrelated people, built from the 12,261 KIR-called people. The KIR set is slightly larger because a few people have KIR calls without HLA calls, and greedy removal depends on who is in the starting set. A single fixed unrelated list for every analysis is a cleanup item for the next sprint.</p>
+<p>The All of Us relatedness file has disappeared from the v9 bucket. Unrelated sets now come from a cached copy of the same pairs, which script 11 saved. Scripts 59 and 61–65 use it through <code>_s05_common</code>.</p>
+<div class="sig"><b class="h">Significance</b>The 991 missing Sequel II people are 24% of all AFR participants in the long-read cohort. Every AFR frequency in this report rests on 3,020 instead of ~4,000 unrelated people. Their 95% intervals are about 15% wider than they would be with everyone, and if Sequel II AFR people differ from Revio AFR people (another site, another period), estimates may be biased too.</div>
+</section>
+
+<!-- =============================================================== PART 2 -->
+<section id="p2">
+<h2><span class="part">Part 2</span>Can we trust the phased haplotypes?</h2>
+<p><b>Question.</b> Every haplotype claim in the project assumes that genes sitting on one contig came from one parent: the DQ rule, the atlas, Cole's fine-mapping units, the KIR haplotypes. Is that true, and for which gene pairs? Three checks answer it, each stricter than the last:</p>
+<ol>
+<li>how often two genes share a contig at all (50b);</li>
+<li>whether a one-contig haplotype in one relative appears intact in the other (56b);</li>
+<li>the direct truth from trios: which parent each gene came from (57, 57b).</li>
+</ol>
+
+<details class="trailbox"><summary>Check 1: how often two genes share a contig (50b)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Table 1, copy-1 calls of 25 MHC genes, all 12,233 people (relatives included, which is fine for a structural question).</dd>
+<dt>Process</dt><dd>For each haplotype and each gene pair with both genes called, ask "same contig name?". Average over haplotypes, overall and per platform. Also count how many different contigs carry MHC genes on each haplotype.</dd>
+<dt>Trade-offs</dt><dd>This measures co-location, not correctness: a wrongly joined contig counts as "same contig". Checks 2 and 3 measure correctness.</dd>
+<dt>Unit</dt><dd>Haplotypes, ~24,000 per gene pair. The percentage is haplotypes with both genes on one contig / haplotypes with both genes called.</dd>
+<dt>Output</dt><dd><code>50_qc_foundation/same_contig_matrix.tsv</code>, <code>mhc_contigs_per_hap.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-samecontig"><div class="img"><img data-src="reports/hla_popgen/50_qc_foundation/fig_same_contig_matrix.png" alt="Same-contig matrix"></div>
+<figcaption><span class="fnum" data-for="f-samecontig"></span><span class="ttl">Where physical phasing exists at all</span>
+<dl>
+<dt>Shows</dt><dd>For each pair of MHC genes, ordered along chr6: the % of haplotypes where both genes sit on the same contig.</dd>
+<dt>How to read</dt><dd>Dark blocks are stretches the assembler usually keeps in one piece. There are two: class I B–C–MICA (86–95%) and class II DRA–DRB1–DQA1–DQB1 (81–98%), with DPA1~DPB1 at 100%. Class II DR/DQ to DP is lighter (62–72%). HLA-A to the other classical genes is pale (19–32%; it does stay with its close neighbours HLA-G, -F and -E), and class I to class II is 19–30%.</dd>
+<dt>Meaning</dt><dd>Physical haplotypes exist for class II and for B~C in nearly everyone, but rarely across HLA-A or across the whole MHC. Key pairs: DPA1~DPB1 100%, DQA1~DQB1 98%, DRB1~DQA1 96%, B~MICA 95%, DRB1~DQB1 94%, B~C 91%, A~B 31%, A~C 32%. A haplotype's MHC is spread over 4.3 contigs on average on Revio and 4.9 on Sequel IIe.</dd>
+<dt>Limits</dt><dd>Co-location only. A contig can be long and still wrong.</dd>
+</dl><div class="src">Script 50b · <code>50_qc_foundation/same_contig_matrix.tsv</code>, <code>mhc_contigs_per_hap.tsv</code></div></figcaption></figure>
+
+<details class="trailbox"><summary>Check 2: relatives (56b)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Table 1 plus the relatedness pairs. 569 first-degree pairs (kinship 0.177–0.354), both people HLA-called.</dd>
+<dt>Process</dt><dd><ol><li>Keep pairs that share an MHC haplotype: at most 1 of 8 classical genes without a shared allele. Siblings who inherited different haplotypes share nothing and would look like errors.</li><li>For each gene pair (DQA1~DQB1, DRB1~DQB1, DPA1~DPB1, B~C, A~B), take haplotypes where <i>both</i> relatives have the two genes on one contig.</li><li>Ask whether the one-contig combination seen in relative 1 is found intact in relative 2.</li></ol></dd>
+<dt>Trade-offs</dt><dd>All of Us gives no IBD0 information, so parents and siblings cannot be told apart. Keeping only haplotype-sharing pairs removes the IBD0 siblings, but it also drops pairs where two genes are mistyped. That pushes the measured error <i>down</i> a little; the first draft wrongly said it did not bias.</dd>
+<dt>Unit</dt><dd>Haplotype tests (one gene pair in one relative pair). n = 68 (A~B) to 435 (DPA1~DPB1).</dd>
+<dt>Output</dt><dd><code>56_phasing_typing_benchmark/refined_sweep.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-transmission"><div class="img"><img data-src="reports/hla_popgen/56_phasing_typing_benchmark/fig_haplotype_transmission.png" alt="Haplotype transmission between relatives"></div>
+<figcaption><span class="fnum" data-for="f-transmission"></span><span class="ttl">Relatives: is a one-contig haplotype passed on intact?</span>
+<dl>
+<dt>Shows</dt><dd>Left: per gene pair, the % of one-contig haplotypes in one relative that are not found intact in the other. Right: the same failure rate by platform pair.</dd>
+<dt>How to read</dt><dd>Hatched bars are placeholders for masked counts (&lt;20 failures out of 344–435), not estimates. B~C fails in 8.0% (n = 351). A~B fails in 54.4% (n = 68), so it is more often broken than intact.</dd>
+<dt>Meaning</dt><dd>Class II one-contig haplotypes are passed on intact, with 0 failures at confidence score ≥ 6 for DQ and DP. A~B one-contig haplotypes are often chimeric across the ~1.3 Mb A–B gap. Sequel IIe pairs fail about 2× more often (10.3% vs 5.1%).</dd>
+<dt>Limits</dt><dd>Recombination (1–4% per meiosis across the MHC) adds a small floor that is not an error. The A~B estimate rests on 68 tests.</dd>
+</dl><div class="src">Script 56b · <code>56_phasing_typing_benchmark/refined_sweep.tsv</code></div></figcaption></figure>
+
+<details class="trailbox"><summary>Check 3: trios, the direct truth (57, 57b)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>For 179 trios: the child's hap1/hap2 contigs (assembly FASTA), the child's Table 1 rows, and both parents' HiFi reads (BAM).</dd>
+<dt>Process</dt><dd><ol><li>Build k-mer databases (31-letter words, <code>yak count</code>) from each parent's reads over a padded window: the MHC, KIR and all of chr20 as a genome-wide control.</li><li>57, region level: run <code>yak trioeval</code> on the child's contig pieces to get switch and hamming error (<a href="#bg-rel">background</a>). This was done for 50 trios.</li><li>57b, gene level: for every child HLA gene, count paternal-only and maternal-only k-mers within ±10 kb. Assign the parent with ≥ 5 k-mers and ≥ 3× the other, otherwise "ambiguous".</li><li>For each one-contig gene pair, ask whether the two genes came from different parents.</li></ol></dd>
+<dt>Trade-offs</dt><dd>k-mer databases cover only the windows, so k-mers from paralogs elsewhere are missed (this inflates error slightly). 10–31% of genes get no parent (ambiguous) and drop out. The k-mer assignment itself can be wrong, and no test here measures how often; that is a gap the review flagged.</dd>
+<dt>Unit</dt><dd>Gene pairs on one contig in a child: n = 81–262 per pair.</dd>
+<dt>Output</dt><dd><code>57_yak_trioeval/trioeval_summary.tsv</code>, <code>pair_phase_truth.tsv</code>, <code>gene_origin_summary.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-trioeval"><div class="img"><img data-src="reports/hla_popgen/57_yak_trioeval/fig_trioeval_regions.png" alt="yak trioeval switch and hamming error"></div>
+<figcaption><span class="fnum" data-for="f-trioeval"></span><span class="ttl">Trios, region level: switch and hamming error</span>
+<dl>
+<dt>Shows</dt><dd>For 50 trios (25 with a Revio child, 25 with a Sequel IIe child), yak error in five regions on a log scale. Dot = median across trios, vertical line = interquartile range, tick = pooled over all k-mers. Left: switch error (short flips). Right: hamming error (long-range mixing).</dd>
+<dt>How to read</dt><dd>Lower is better. Compare regions within a panel.</dd>
+<dt>Meaning</dt><dd>Class II DR–DQ is the cleanest region tested: ~0.2% switch and ~0.2% hamming, against 1.6% / 26% for the chr20 control. The MHC's long-range mixing sits in class I (A..B hamming 7%, with some trios up to 16%). That agrees with the 54% A~B failure in relatives. Sequel IIe children have fewer, longer contig pieces: lower switch error everywhere, and higher hamming error over the longest spans (whole MHC, chr20) but not inside class II or A..B.</dd>
+<dt>Limits</dt><dd>Switch error depends on how dense the informative k-mers are, so it compares a region across platforms better than across regions. Platform here also means site, assembler version and coverage. The QV (39–60) is a proxy from window reads.</dd>
+</dl><div class="src">Script 57 · <code>57_yak_trioeval/trioeval_summary.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-pairtruth"><div class="img"><img data-src="reports/hla_popgen/57_yak_trioeval/fig_pair_phase_truth.png" alt="Pair phase truth from trios"></div>
+<figcaption><span class="fnum" data-for="f-pairtruth"></span><span class="ttl">Trios, gene level: how often a one-contig gene pair mixes two parents (candidate Figure 1 panel)</span>
+<dl>
+<dt>Shows</dt><dd>For each gene pair, blue bars give the % of the child's one-contig pairs whose genes come from different parents, with 95% CI and k/n. Hatched blue bars are masked counts drawn at their ceiling, 19/n. Grey bars are the indirect estimate from relatives (<a class="fref" href="#f-transmission"></a>).</dd>
+<dt>How to read</dt><dd>A correct contig carries one parent's DNA, so every bar is an error rate.</dd>
+<dt>Meaning</dt><dd>DQA1~DQB1, DRB1~DQA1, DRB1~DQB1, DPA1~DPB1 and B~C: fewer than 20 of 248–262 each, so below 7.7% at most. The first 50 trios had 0 of 69–76 for class II, which suggests the true rate is near 0. DQB1~DPB1 is 21.3% (37/174). A~C is 39.5% (32/81) and A~B is 40.9% (36/88). Trios and relatives are compatible for B~C and point the same way for A~B (41% vs 54%, overlapping intervals); they share people, so they are not independent. <b>This is the basis of the physical-haplotype rule.</b></dd>
+<dt>Limits</dt><dd>"&lt; 7.7%" is a ceiling forced by masking, not a confidence interval. The point estimate is known internally and is much lower, but it cannot be printed. Genes without an assigned parent drop out, and they may be the harder cases. The rate at which k-mers assign the wrong parent is not measured.</dd>
+</dl><div class="src">Script 57b · <code>57_yak_trioeval/pair_phase_truth.tsv</code>, <code>gene_origin_summary.tsv</code></div></figcaption></figure>
+
+<div class="box"><h3>The rule this supports <span class="tag prev">proposed</span></h3>
+<div class="tw"><table>
+<tr><th>Gene pair on one contig</th><th>Trio mismatch</th><th>Use as a physical haplotype?</th></tr>
+<tr><td>DQA1~DQB1, DRB1~DQA1, DRB1~DQB1, DPA1~DPB1, B~C</td><td>&lt; 7.7% (ceiling)</td><td>Yes</td></tr>
+<tr><td>DQB1~DPB1</td><td>21%</td><td>Flag</td></tr>
+<tr><td>A~B, A~C</td><td>~40%</td><td>No: statistical phasing or trios only</td></tr>
+</table></div></div>
+<div class="sig"><b class="h">Significance</b><p>This is the result the rest of the project stands on. Class II is the best-phased region in the genome sample. Any DQ or DR–DQ statement can therefore use one-contig haplotypes, and so can Cole's fine-mapping units.</p><p>Any class I haplotype claim that involves HLA-A, including the older A~B~C extended-haplotype and A–B LD tables, is wrong in about 4 of 10 haplotypes. Those results need statistical phasing before they are used.</p><p>The zero cross-group DQ count in Part 6 is itself evidence for good phasing. If phasing mixed parents at random even 5% of the time, artefactual cross-group pairs would appear by the hundreds.</p></div>
+<details class="critic"><summary>What the review changed here</summary><ul><li>"Fewer than 7.7%" is now described as a masking ceiling, not an estimate.</li><li>The wrong claim that the relative filter introduces no bias was removed: the filter lowers the measured error a little.</li><li>The uncalibrated error of k-mer parent assignment is now stated as a limit.</li><li>The switch-error comparison across regions is now qualified.</li></ul></details>
+</section>

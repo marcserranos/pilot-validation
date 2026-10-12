@@ -4,61 +4,27 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
-## As of 2026-10-12 — S05 in progress: all scripts written (58–65), VM runs partly started
+## As of 2026-10-13 morning — S05 closed (report delivered); VM jobs pending a restart
 
-**Board:** [`sprints/S05_qc_phasing_kir_trb/SPRINT.md`](../sprints/S05_qc_phasing_kir_trb/SPRINT.md). Log: `LOG.md`; report
-material: `METHODS_LEDGER.md` (one section per script, written as the work happens); reading: `READING.md`.
-`main` holds everything (PRs #4–#12). The 10-06 scripts 50–57c own those numbers; new S05 scripts are 58–65.
-Private meeting notes stay out of the repo (`sprints/_calls/` gitignored).
+**Report:** `sprints/S05_qc_phasing_kir_trb/S05_REPORT.html` (built from `report/src/*.html` by `report/build_report.py`),
+published as the S05 Artifact. It has a background course, data trails per analysis, the review dispositions, and a costed
+long-job plan (`#plans`). Board/log: `sprints/S05_qc_phasing_kir_trb/{SPRINT,LOG,METHODS_LEDGER}.md`.
 
-**VM state (big_run, n2-highmem-4, 4 vCPU / 31 GB).**
-- Checkouts: `~/repos/pilot-validation-main` (main; 58 runs from it, don't touch until it ends), `~/repos/pv-65` (worktree for
-  65), `~/repos/pilot-validation` (old branch; its `.pixi/envs/spechla` is the Python 3.8 env used for everything).
-- Extra envs: `~/envs/yak`, `~/envs/mappy38` (use via `PYTHONPATH=~/envs/mappy38/lib/python3.8/site-packages`).
-- Refs: `~/ref/gencode.v46.basic.annotation.gtf.gz`; `~/ref/trb/` (chr7_KI270803v1_alt, UCSC chr7 slice); 65 probes in `~/s05/results/65`.
-- **58 full run started 2026-10-11 21:22 UTC** (12,233 people, 8 workers, ~0.22 people/s, ETA ~12:00 UTC 10-12). Progress:
-  `tail -2 ~/s05/logs/58.log`. A keep-alive loop exits with it.
-- Deletable: `~/s05/{results,internal}/65_smoke` (stopped attempt).
+**Sprint rule (Marc, 2026-10-12): no job longer than one day.** Longer jobs are planned and costed in the report, not run.
 
-**Open, needs Marc:**
-1. Four S05 decisions in `DECISIONS.md` (ancestry purity rule; demote classical protein-novel counts; KIR claims on complete
-   haplotypes only; physical-haplotype evidence rule from trios).
-2. Sequel II re-call (63): ~27 days on this app, ~3 days on a resized one — needs his go-ahead to resize after the smoke test.
-3. `VM_CLEANUP_PLAN_v2.md` (S04) still pending.
+**VM (big_run, n2-highmem-4).** It went "Bad Gateway" (high memory) ~21:50 UTC 10-12 while 65b (assembly mode, stratified
+2,000, 4 workers, started 17:21 UTC) ran. Marc OK'd a restart and resuming 65b from its checkpoint with 2 workers. Cap 65b at
+24 h total. Remount the bucket after any restart (ENVIRONMENT quirk #14).
 
-**Literal next commands (VM, in this order; each script's `sprints/S05_qc_phasing_kir_trb/vm_parts/NN.sh` has the exact lines):**
-1. When 58 ends: pull its PUBLIC tables (`~/s05/results/58/*.tsv`, ids check) to `reports/hla_popgen/58_regional_depth/`.
-2. `git pull` in `~/repos/pilot-validation-main`; run 59 (cutoff + `exclude_people.tsv`), then 61 and 62 with the exclusion list,
-   then 60 with 58's proxy.
-3. 65 (`vm_parts/65.sh`): reads-mode smoke on 20 → set `--min-reads` (12 if coverage allows) → stratified 2,000 in assembly
-   mode + reads mode on all → `--compare`; then rerun 60 with 65's table.
-4. 64 (`vm_parts/64.sh`): IPD format checks, re-match-only run, then read support.
-5. 63 (`vm_parts/63.sh`): read-only checks U1–U7, 2-person smoke; then ask Marc about the resize.
+**Open, needs Marc** (all in `DECISIONS.md` open questions): ancestry-purity rule; demote protein-novel counts; KIR
+complete-only; physical-haplotype rule; no coverage filter; TRB mixture genotyper; Sequel II re-call (resize + cost);
+disclosure residue in git history and allele-count masking. Script 60 waits on Aleix copying his TRBV usage table to the bucket.
 
-## As of 2026-10-06 — earlier S05 work (scripts 50–57c; committed 2026-10-11 on `s05-oct06-work`) (weekly update; 3 axes: QC/understanding, small experiments, strategy)
-
-Access restored (AoU deactivation of 09-28/29 resolved). Branch still `s04-kir-recurrence-style-share` (uncommitted S05 work
-on top of an uncommitted call-note scrub from 10-05 — commit both deliberately). Private report for Marc:
-`reports/walkthrough_S05/index.html` (gitignored). Scripts 50–55 added; results in `reports/hla_popgen/5x_*/README.md`;
-run log in EXPERIMENTS.md 2026-10-06.
-
-**Headlines:** DQ G1/G2 claim survives an ascertainment test (exceptions = structurally anomalous contigs only); classical-HLA
-protein-novel counts do not survive recurrence + homopolymer filters (demote pending read-level validation); KIR framework
-deficit = fragmentation + contracted haplotypes; DRB5 presence/absence validated by RNA dosage; AMR > AFR richness explained by
-admixture pooling; ASE with personal references is technically viable (53 pilot).
-Evening: 56/56b relatives benchmark (confidence score works; A~B physical haplotypes unreliable) and 57/57b yak trio
-benchmark (50 trios: class II switch/hamming ~0.2%, 0 parent mismatches for DQ/DR/DP same-contig pairs; class I contigs mix
-parents; Mendelian 2-field typing mismatch 3.2%). yak lives in `~/envs/yak` (VM); network is open (bioconda/pypi/github).
-
-**Literal next commands:**
-1. Marc: decide exclusion list / purity rule, KIR complete-haplotype rule, novel-protein demotion (DECISIONS.md open items, S05).
-2. VM: 53 results → pull `~/s05/results/53/ase_by_gene_class.tsv` (PUBLIC) if not yet pulled; INTERNAL per-person table stays at
-   `~/s05/internal/53/`. Then scale ASE to all LR∩RNA on a resized app (16–32 vCPU; resize needs Marc's authorisation).
-3. VM: fix Tier-3 self-align trim (991 sequel2, mostly AFR) and rerun HLA+KIR for them.
-4. Novel alleles: the VM can download directly (network open) → fetch a current IPD-IMGT/HLA release and re-match; add HiFi
-   read / short-read support per novel allele.
-5. 57/57b done and integrated (report 57, S05 HTML section `#qb-trio`). Optional next steps:
-   - genome-wide (not window) yak on a resized app;
-   - trio-based switch rates per gene interval;
-   - use the 179 trios as a truth set to tune the confidence score.
-6. Marc: commit S05 + the 10-05 scrub; push/merge the branch (agent commits are classifier-blocked).
+**Literal next steps (VM, each under a day):**
+1. 63 second smoke (2 people, stage-1 identity filter) → record time/person and peak memory → 20-person Revio forced-Tier-3
+   comparison → bring numbers to Marc for the resize decision.
+2. 65: re-aggregate reads mode with `--genotyper mixture` (aggregate only); when 65b ends, run the concordance by ancestry.
+3. Re-derive PUBLIC tables with the cross-table masking (`--aggregate-only` for 58/59/62/65) and check they match the
+   locally re-masked committed tables.
+4. 64: rerun reads (≈1.5 h) for the fixed homopolymer readout; locate the indel for the 345 CDS disagreements; short-read check.
+5. Commit the VM inspection scripts (DQ ≥ 100 kb, contracted KIR).

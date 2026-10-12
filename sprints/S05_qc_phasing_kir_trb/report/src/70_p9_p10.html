@@ -1,0 +1,95 @@
+<!-- =============================================================== PART 9 -->
+<section id="p9">
+<h2><span class="part">Part 9</span>The TRB germline insertion and TRBV4-3</h2>
+<p><b>Question.</b> Aleix found that 27.3% of people never use TRBV4-3 in their T-cell repertoire, from SAS 43.5% down to EUR 16.7%. A known germline polymorphism, an optional ~21.7 kb insertion, carries TRBV4-3 together with TRBV3-2 and a second copy of TRBV6-2/6-3 (<a href="#bg-trb">background</a>). A person without the insertion on either chromosome cannot use TRBV4-3. How common is that, by ancestry? Does it account for the usage gap?</p>
+<p>The deletion itself is in the literature. What would be new is ancestry-stratified long-read genotyping in ~11,000 diverse people, and, once script 60 runs, a per-person link to the same people's repertoires.</p>
+
+<figure class="plate" id="f-trbmap"><div class="img svg"><!--SVG:trb_map--></div>
+<figcaption><span class="fnum" data-for="f-trbmap"></span><span class="ttl">The reference has the gene on an ALT contig only, and in two separate segments</span>
+<dl>
+<dt>Shows</dt><dd>IMGT TRBV probes mapped to GRCh38's primary chr7 and to its ALT contig KI270803v1.</dd>
+<dt>How to read</dt><dd>Primary GRCh38 is the haplotype <i>without</i> the insertion, so TRBV4-3 and TRBV3-2 have no locus on the reference the BAMs were aligned to.</dd>
+<dt>Meaning</dt><dd>The ALT differs from primary by two ALT-only segments. Insertion A (21,666 bp, between TRBV4-2 and TRBV6-2) holds TRBV3-2, TRBV4-3 and the second TRBV6-2/6-3. Segment B (~40 kb, downstream of TRBV7-3) holds TRBV7-8. The first build of 65 spanned both and estimated 41.8 kb. After the fix, 65 genotypes insertion A only, with its breakpoint at chr7:142,346,200–142,352,104.</dd>
+<dt>Limits</dt><dd>Schematic, not to scale. TRBV6-2 and 6-3 share their V-region sequence and cannot be told apart. The ~5.9 kb width of the breakpoint interval (not a single base) reflects sequence shared by both alleles around the insertion edges.</dd>
+</dl><div class="src">Script 65 · <code>65_trb_assembly_genotype/trb_probe_mapping_grch38_primary_vs_alt.tsv</code></div></figcaption></figure>
+
+<details class="trailbox" open><summary>How each person was genotyped (65, reads mode), and the bias this created</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Each person's HiFi reads over the TRB V cluster, read in place from the BAM (12,233 people), and the IMGT TRBV4-3 / TRBV3-2 probe sequences.</dd>
+<dt>Process</dt><dd><ol><li>A <b>reference read</b> runs across the empty insertion site without a break: it covers the whole ~5.9 kb breakpoint interval plus ≥ 1 kb anchored on each side, ~7.9 kb in total. Only a chromosome <i>without</i> the insertion can produce one.</li><li>An <b>insertion read</b> carries a TRBV4-3 (or TRBV3-2) probe hit at ≥ 97% identity. Only a chromosome <i>with</i> the insertion can produce one.</li><li>Allele fraction (AF) = insertion reads ÷ (insertion + reference reads).</li><li>Genotype by fixed cuts: 0 copies below 0.2, 1 copy from 0.2 to 0.8, 2 copies above 0.8. At least 6 informative reads are required (median 14).</li></ol></dd>
+<dt>Trade-offs</dt><dd>The two read types are not equally easy to get. A read of length L can contain the ~0.3 kb probe from about L + 0.3 kb of start positions, but can span the 7.9 kb reference requirement from only about L − 7.9 kb. For typical HiFi reads (L ≈ 18 kb) that is 18.3 vs 10.1, a 1.8:1 ratio, so a true heterozygote is expected at AF ≈ 1.8 ÷ 2.8 ≈ <b>0.64, not 0.5</b>. The bias also changes with each person's read lengths, so no single fixed cut is right for everyone.</dd>
+<dt>Unit</dt><dd>A person (genotype); allele frequency counts chromosomes.</dd>
+<dt>Output</dt><dd><code>65_trb_assembly_genotype/reads_unrelated/</code> and <code>reads_all/</code>: <code>genotype_by_stratum.tsv</code>, <code>allele_fraction_histogram.tsv</code></dd>
+</dl>
+</details>
+
+<div class="dia"><svg class="d" viewBox="0 0 720 200" role="img" aria-label="Why insertion reads are easier to capture than reference reads">
+<text x="10" y="18" class="t-b">Chromosome without the insertion</text>
+<line x1="20" y1="44" x2="700" y2="44" class="ln"/>
+<rect x="300" y="36" width="120" height="16" class="warnbox"/><text x="360" y="64" text-anchor="middle" class="t-s">breakpoint interval ~5.9 kb</text>
+<rect x="260" y="36" width="40" height="16" class="box"/><rect x="420" y="36" width="40" height="16" class="box"/>
+<text x="360" y="80" text-anchor="middle" class="t-s">a read must cover all of 1 kb + 5.9 kb + 1 kb = ~7.9 kb</text>
+<line x1="200" y1="92" x2="520" y2="92" class="ln2"/><text x="530" y="96" class="t-ok">counts</text>
+<line x1="330" y1="104" x2="650" y2="104" class="baddash"/><text x="660" y="108" class="t-bad">doesn't</text>
+<text x="10" y="138" class="t-b">Chromosome with the insertion</text>
+<line x1="20" y1="164" x2="700" y2="164" class="ln"/>
+<rect x="200" y="156" width="300" height="16" class="ins" opacity=".35"/><rect x="345" y="156" width="10" height="16" class="ins"/>
+<text x="350" y="192" text-anchor="middle" class="t-s">any read that touches the ~0.3 kb TRBV4-3 probe counts</text>
+<line x1="180" y1="148" x2="352" y2="148" class="ln2"/><line x1="348" y1="182" x2="560" y2="182" class="ln2"/>
+</svg></div>
+
+<figure class="plate" id="f-65af"><div class="img svg"><!--SVG:65_af--></div>
+<figcaption><span class="fnum" data-for="f-65af"></span><span class="ttl">The measured allele fraction: heterozygotes sit at ~0.63, as the capture bias predicts</span>
+<dl>
+<dt>Shows</dt><dd>For every unrelated person with a TRBV4-3 call, the fraction of their breakpoint reads that carry the insertion, in 0.05 bins. Grey = called 0 copies, blue = 1 copy, orange = 2 copies. Red dashed lines are the 0.2 and 0.8 cuts.</dd>
+<dt>How to read</dt><dd>With unbiased capture, people with one copy would pile up at 0.5 and those with two at 1.0. Look at where the middle hump peaks and how far its right tail runs.</dd>
+<dt>Meaning</dt><dd>The 0-copy pile is clean: almost nobody sits between 0.05 and 0.25. The 1-copy hump peaks at about 0.6–0.65, as predicted. Its right tail runs past the 0.8 cut, so several hundred true heterozygotes between 0.80 and 0.95 are called 2 copies. That is the heterozygote deficit (for example AFR 1,052 observed vs ~1,350 expected under Hardy–Weinberg).</dd>
+<dt>Limits</dt><dd>Some bins are masked (fewer than 20 people) so that the genotype counts cannot be used to recover them.</dd>
+</dl><div class="src">Script 65 reads mode · <code>reads_unrelated/allele_fraction_histogram.tsv</code> (TRBV4-3, ALL)</div></figcaption></figure>
+
+<h3>The fix: a genotyper that learns where heterozygotes sit</h3>
+<p>Instead of fixed cuts, the new <code>--genotyper mixture</code> fits three groups (0, 1, 2 copies) to each feature and platform at once. Each group has its own expected AF, so the het mode is learned (about 0.63 here) instead of assumed to be 0.5. It is a binomial mixture fitted by EM; a person is called only if their most likely group has ≥ 90% posterior probability, and otherwise is "ambiguous". It is written and tested (27 tests pass), and needs a VM run of a few minutes in aggregate mode.</p>
+<p>A preview on the public histogram: the 0-copy rates barely move (AFR 38.5 → 38.3%, SAS 55.1 → 56.2%). The heterozygote deficit closes in EUR, AMR, EAS and MID (inbreeding-like coefficient F ≈ 0, EUR −0.02). It does <b>not</b> close in AFR (F ≈ 0.07) or SAS (F ≈ 0.10), which still have more 0-copy people than Hardy–Weinberg expects.</p>
+<p>Two explanations for AFR and SAS are open. The insertion alleles there may be divergent enough to miss the 97%-identity probes, so heterozygotes would be called 0. Or there is real structure within those labels (several sub-populations with different frequencies pooled together, which always produces excess homozygotes). The 65b assembly comparison, stratified by ancestry, can tell these apart.</p>
+
+<figure class="plate" id="f-65"><div class="img svg"><!--SVG:65_zero_copy--></div>
+<figcaption><span class="fnum" data-for="f-65"></span><span class="ttl">No germline TRBV4-3 vs never using it, by ancestry</span>
+<dl>
+<dt>Shows</dt><dd>Blue: % of unrelated people with 0 copies of the insertion, meaning no TRBV4-3 (65 reads mode, 11,075 of 11,856 called). Orange: Aleix's "never used" rate from the RNA repertoires (branch <code>aleix/hla-resolve-phase1</code>, run 887db29).</dd>
+<dt>How to read</dt><dd>If the deletion drives non-use, the two should rank ancestries the same way. And never-use should be <b>at least</b> as high as absence, since every 0-copy person must be a never-user, and chance zeros in shallow repertoires add more on top.</dd>
+<dt>Meaning</dt><dd>The ranking matches exactly in all six groups: EUR &lt; AMR &lt; MID &lt; EAS &lt; AFR &lt; SAS. But never-use is <b>lower</b> than absence everywhere, at 0.79–0.87 of it, so about 1 in 6 people called 0-copy seem to "use" TRBV4-3. Several things could cause this:<ul><li>Aleix's count excludes a near-zero shoulder of several hundred people with a trace of TRBV4-3 reads, likely misassigned reads from the similar TRBV4-1/4-2. His own notes call 27% a lower bound.</li><li>Some 0-copy calls may be wrong (see the AFR/SAS excess above).</li><li>The two cohorts are not the same people.</li></ul>Uncalled people do not explain it: even if all of them had a copy, absence would still be 30.8% overall (SAS 50.6%), above never-use. <b>Reading: consistent with the deletion driving non-use; the absolute rates are not yet reconcilable.</b></dd>
+<dt>Limits</dt><dd>This is an ecological comparison of group rates, not a per-person test. Script 60 (per-person join: positive predictive value of 0 copies for non-use, residual use among 0-copy people, dosage) is written and tested, but blocked on Aleix's usage table.</dd>
+</dl><div class="src">65 reads mode, unrelated aggregate (VM 2026-10-12) · <code>reads_unrelated/genotype_by_stratum.tsv</code>; never-used rates from Aleix's branch</div></figcaption></figure>
+
+<div class="tw"><table>
+<tr><th>Unrelated people</th><th class="r">EUR</th><th class="r">AMR</th><th class="r">MID</th><th class="r">EAS</th><th class="r">AFR</th><th class="r">SAS</th><th class="r">All</th></tr>
+<tr><td>% called</td><td class="r">95.7</td><td class="r">93.4</td><td class="r">95.7</td><td class="r">93.4</td><td class="r">91.4</td><td class="r">92.0</td><td class="r">93.4</td></tr>
+<tr><td>0 copies, % of called</td><td class="r">19.5</td><td class="r">30.1</td><td class="r">32.2</td><td class="r">37.1</td><td class="r">38.5</td><td class="r">55.1</td><td class="r">33.0</td></tr>
+<tr><td>0 copies, bounds if uncalled are all 1+ / all 0</td><td class="r">18.7–23.0</td><td class="r">28.1–34.7</td><td class="r">30.8–35.1</td><td class="r">34.7–41.3</td><td class="r">35.2–43.8</td><td class="r">50.6–58.7</td><td class="r">30.8–37.4</td></tr>
+<tr><td>insertion allele frequency</td><td class="r">0.58</td><td class="r">0.48</td><td class="r">0.47</td><td class="r">0.42</td><td class="r">0.42</td><td class="r">0.29</td><td class="r">0.46</td></tr>
+<tr><td>never used (repertoire)</td><td class="r">16.7</td><td class="r">25.4</td><td class="r">25.8</td><td class="r">30.1</td><td class="r">33.3</td><td class="r">43.5</td><td class="r">27.3</td></tr>
+</table></div>
+<p class="note">Why the bounds matter: 0-copy people have only the harder-to-capture reference reads, so they are more likely to fall under the 6-read floor and go uncalled. Call rates are lowest where the deletion is commonest (AFR, SAS, and Sequel IIe at 87.9%). The truth is probably in the upper half of each range.</p>
+
+<div class="sig"><b class="h">Significance</b><p>The axis is <i>% of people with zero germline copies</i>, set against <i>% of people with zero repertoire use</i>. The ranking agreement across six ancestries is strong evidence that the deletion matters. TRBV4-3 non-use in SAS, the highest of any group, is mostly explained by germline absence: 55% of SAS lack the gene entirely.</p><p>For any TCR study, TRBV4-3 usage differences between populations must be adjusted for germline copy number before being read as immunology. The per-person test (60) turns this from "consistent with" into a measured effect.</p></div>
+
+<div class="box"><h3>Script 60 is blocked <span class="tag block">needs Aleix</span></h3>
+<p>The per-person join is written and tested. It needs Aleix's W1 usage table, which is not on Marc's app: only per-person TRUST4 files are there. Aleix needs to copy the usage table (or <code>vj_usage.pkl</code>) to the bucket.</p></div>
+<details class="critic"><summary>What the review changed here</summary><ul><li>The expected inequality was stated backwards ("never-use should be no higher than absence"). It is now correct, and the gap is reported and explained.</li><li>"The usage gap is a germline deletion" became "consistent with".</li><li>"Linked to their own repertoires" became "once 60 runs".</li><li>All six never-used rates are now shown, with their source.</li><li>The het deficit is now traced to a capture asymmetry built into the read rules, not "over-sampling". A genotyper that allows for it was written, and the AFR/SAS residual is reported.</li><li>No-call bounds were added.</li></ul></details>
+</section>
+
+<!-- =============================================================== PART 10 -->
+<section id="p10">
+<h2><span class="part">Part 10</span>The 991 Sequel II people (mostly AFR)</h2>
+<p><b>Question.</b> Why do 991 people, about a quarter of AFR participants, have no HLA or KIR calls, and what would it take to call them?</p>
+<details class="trailbox"><summary>Diagnosis and fix (63)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>The long-read manifest and each person's assembly FASTA (<code>SEQUEL2_DIAGNOSIS.md</code>).</dd>
+<dt>Process</dt><dd>Production extracts the MHC and KIR contigs from each assembly using the assembly-to-GRCh38 alignment. The Sequel II people have no such alignment, so they fell into a "self-align" tier that production skipped. That path was also broken in three ways:<ul><li>their FASTAs are plain gzip, which <code>samtools faidx</code> cannot index;</li><li>a whole assembly aligned to chr6 alone pulled in 1.3–1.9 GB per haplotype instead of ~4 MB;</li><li>the reference was chr6-only, so KIR on chr19 could never match.</li></ul>
+Script 63 fixes it in two stages. Stage 1 finds candidate contigs against a ±1 Mb slice of the reference. Stage 2 confirms them against the whole primary genome at MAPQ ≥ 20, with ≥ 10 kb blocks and a 25 MB size guard. Calls are then made with the same caller and settings as production.</dd>
+<dt>Trade-offs</dt><dd>Self-alignment uses a different extraction route from production, so before pooling, ~20 Revio people should be run through it and compared with their production calls.</dd>
+<dt>Status</dt><dd>The first 2-person smoke test stopped at the 25 MB guard, which did its job. Long repeat chains at low identity had passed stage 1 (in one haplotype, 17,011 of 17,053 blocks were below 0.8 identity, pulling in ~10,000 contigs). The real MHC contigs sit at 0.95–0.98 identity (42 contigs, 6.1 MB). Stage 1 now also requires block identity ≥ 0.8 (merged, with a test). The second smoke test runs as soon as the VM is back.</dd>
+</dl>
+</details>
+<div class="sig"><b class="h">Significance</b><p>Every AFR frequency in this report rests on 3,020 unrelated people instead of ~4,000. If the Sequel II AFR people differ from the Revio AFR people (another site, another time), estimates may be biased too.</p><p>The re-call is the single job with the largest effect on the AFR results. It is also more than a day of compute, so it is planned, not run (see the next section).</p></div>
+</section>

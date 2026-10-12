@@ -895,3 +895,24 @@ recorded as having no notes in `sprints/_calls/README.md`.
   in `CLAUDE.md`; the files stay local and in the project's private file store. Quotes added on 10-11
   to S05 docs and the 50_regional_depth docstring were rewritten as neutral asks. Git history was left as is (Marc).
 
+
+## 2026-10-12 — S05 VM runs and external review (detail: `sprints/S05_qc_phasing_kir_trb/LOG.md`)
+
+- **58** regional depth, 12,233 people, 0 failures. Medians MHC 0.831, KIR 0.880, TRB 0.951 of genome depth; TRB
+  per-gene depth reflects somatic V(D)J deletion (inferred), so 58's TRB CN calls are not genotypes.
+- **59** depth vs outcomes, 11,856 unrelated. Associated (KIR framework missing OR 1.47/0.1, incomplete 1.16; HLA absent
+  1.09; MHC fragmented 1.12; DQ none). Cutoff rule infeasible for common outcomes; exclusion list 0 people. First report said
+  "explains none"; corrected after review (README rewritten).
+- **61** KIR by ancestry: 11,882 unrelated, 17,905 complete haplotypes (75.4%); B-content share EAS 32.0% → SAS 57.1%.
+- **62** Cole's class II units: 48,906 INTERNAL rows on the VM (not uploaded); DQA1~DQB1 physical 91–95% by ancestry.
+- **64** novel alleles vs IPD 3.65.0 + HiFi reads (1.5 h): 4,616 calls; 11% record-vs-exon CDS disagreement (345 frame-changing,
+  source undetermined); classical funnel 4,250 → 171 → 12 → 7; 4 read-supported at the 7-key step, 2 of them (DPB1) named
+  in IPD after 3.55.0. hp readout found confounded by unassigned reads; code fixed, rerun pending.
+- **65** TRB insertion, reads mode, 12,233 people (5 h): 0-copy TRBV4-3 EUR 19.5% → SAS 55.1%; ranking matches Aleix's
+  never-used rates in all six ancestries, but never-used is 0.79–0.87× absence (unreconciled). Het deficit = capture asymmetry
+  (het AF ≈ 0.63); mixture genotyper written (preview: deficit closes except AFR F≈0.07, SAS F≈0.10). 65b assembly
+  concordance on a stratified 2,000 started 17:21 UTC.
+- **63** Sequel II smoke (2 people): stopped at the 25 MB guard (low-identity repeat chains in stage 1); stage-1 identity
+  ≥ 0.8 added (PR #29). Second smoke pending (VM hung with "Bad Gateway" ~21:50 UTC; restart with 2 workers OK'd by Marc).
+- **External review** (methods, numbers, readability): corrections integrated into the S05 report and code; cross-table
+  small-count leaks re-masked in committed PUBLIC tables (see DECISIONS open item on git history).

@@ -97,3 +97,8 @@ frequency, plus person-level carrier frequency among people with both haplotypes
 `content_by_ancestry.tsv`, `genes_per_hap_by_ancestry.tsv`, `top_alleles_by_ancestry.tsv`
 (`protein` and `full_known` resolutions, top 5 per gene × ancestry), and
 `fig_kir_by_ancestry_panel.{png,pdf}`. All are PUBLIC aggregates.
+
+## Review note (2026-10-12)
+
+"cB" here is 51's B-content set, which includes telomeric B genes (KIR3DS1, 2DS1, 2DS5, 2DL5A). So the share is "haplotypes with any
+B-content gene", not the centromeric-B motif. The S05 report calls it the "B-content share". A strict cB/tB split is a follow-up.

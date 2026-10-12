@@ -1,0 +1,47 @@
+<header id="top">
+<h1>S05 Sprint Report</h1>
+<p class="lede">This report covers QC, phasing, KIR and TRB germline genetics in the All of Us long-read cohort. The sprint ran from 6 to 12 October 2026 (scripts 50–65) and answered the supervisor's asks from the 6 October meeting:</p>
+<ul class="lede">
+<li>exact counts;</li>
+<li>whether the phased haplotypes can be trusted;</li>
+<li>KIR by ancestry;</li>
+<li>regional coverage;</li>
+<li>the TRBV4-3 question.</li>
+</ul>
+<p class="lede">Every method is explained in the background course, and every result carries its data trail. An independent review checked the work, and its corrections are built in.</p>
+<div class="meta"><span>Repo: <code>marcserranos/pilot-validation</code>, main</span><span>Sprint folder: <code>sprints/S05_qc_phasing_kir_trb/</code></span><span>Built from committed PUBLIC tables only</span><span>Version: 13 October 2026</span></div>
+</header>
+
+<div class="kv">
+<div><b class="num">12,233</b><span>people with HLA calls (Revio + Sequel IIe)</span></div>
+<div><b class="num">11,856</b><span>of them unrelated (kinship &lt; 0.0442)</span></div>
+<div><b class="num">179</b><span>parent–parent–child trios</span></div>
+<div><b class="num">17,905</b><span>complete KIR haplotypes (11,882 unrelated KIR-called people)</span></div>
+<div><b class="num">11,075</b><span>unrelated people with a TRBV4-3 genotype</span></div>
+<div><b class="num">991</b><span>Sequel II people still without HLA/KIR calls</span></div>
+</div>
+
+<h3 style="margin-top:28px">The answers, with how sure each one is</h3>
+<div class="callouts">
+<div class="co ok"><h4>Class II and B~C haplotypes on one contig are reliable; anything with HLA-A is not</h4><p>In 179 trios, fewer than 20 of 248–262 one-contig DQ, DR–DQ, DP and B~C gene pairs mixed DNA from both parents. That puts the rate below ~7.7%; the true value is probably far lower, since the first 50 trios showed 0 of 69–76. Pairs that include HLA-A mixed parents ~40% of the time (<a class="fref" href="#f-pairtruth"></a>).<span class="how">How sure: high for the ranking. The 7.7% is a ceiling forced by masking, not a measured rate, and k-mer parent assignment has its own unmeasured error.</span></p></div>
+<div class="co warn"><h4>2-field typing disagrees in ~4% of relative checks, so roughly 2% of calls are wrong</h4><p>Relative pairs and parent–child checks both fail in ~4% of genes (4.09% vs 4.15%). Each check compares two calls, so the per-call error is about half of that. Full resolution (4 fields) fails ~3× more often. A confidence score ≥ 4 cuts the error by 37–50% and keeps 91% of relative pair-genes (<a class="fref" href="#f-mendel"></a>).<span class="how">How sure: moderate. It is a lower bound, because errors that keep alleles shared are invisible. The two estimates share people, so they are not fully independent.</span></p></div>
+<div class="co bad"><h4>The "many novel HLA proteins" headline does not survive</h4><p>4,250 classical protein-novel sequences shrink to 0 that are recurrent, clean and common. Of the recurrent ones, 4 have read support at non-homopolymer sites, and 2 of those (both DPB1) have since been named in IPD-IMGT/HLA. That leaves 2 still-unnamed candidates with clean read support, or 7 if homopolymer-class support is accepted. In 345 calls, the caller's two coding-sequence outputs disagree by a frame-changing indel, source undetermined (<a class="fref" href="#f-funnel64"></a>).<span class="how">How sure: high that the headline fails. The read evidence comes from the same HiFi reads that built the assembly, so it is support, not independent proof. The 2 DPB1 alleles named later are a good sign that the pipeline finds real alleles.</span></p></div>
+<div class="co ok"><h4>No cross-group DQ haplotype exists on intact chromosomes</h4><p>Cross-group DQA1~DQB1 pairs appear almost only across contig breaks, and the few on one contig are structurally abnormal. The haplotype atlas finds the DQ and DR51/52/53 rules without being told them (<a class="fref" href="#f-absent"></a>).<span class="how">How sure: high for "no evidence of cross-group haplotypes". This shows absence, not the folding biology behind it.</span></p></div>
+<div class="co warn"><h4>Coverage is not a usable filter, but it is not irrelevant</h4><p>The MHC and KIR run 12–17% below genome depth in nearly everyone. Lower depth goes with more fragmented KIR (34% → 55%), partly because haplotypes with fewer genes give lower depth. No cutoff removes a useful share of bad calls, so no filter is applied (<a class="fref" href="#f-59"></a>).<span class="how">Corrected after review: the first draft said depth "explains none". That conclusion was guaranteed by the rule's arithmetic.</span></p></div>
+<div class="co warn"><h4>TRBV4-3 absence is common and ancestry-structured, but the repertoire numbers don't add up yet</h4><p>No germline copy: EUR 19.5%, AMR 30.1%, MID 32.2%, EAS 37.1%, AFR 38.5%, SAS 55.1%. The ranking matches who never uses the gene, in the same order in all six groups. But fewer people never use it (27%) than lack it (33%), which cannot happen if both measures were exact. The repertoire count is a known lower bound, and some 0-copy calls may be wrong (<a class="fref" href="#f-65"></a>).<span class="how">How sure: high for the ranking, moderate for the exact AFR and SAS rates. "Consistent with the deletion driving non-use" is as far as the data go; proving it needs the per-person test (script 60), which waits on Aleix.</span></p></div>
+</div>
+
+<div class="box decide" id="decide">
+<h3>Decisions only Marc can make</h3>
+<p>Each item is a proposal with a recommendation; items 1–4 are also open entries in <code>context/DECISIONS.md</code>. The sprint's code supports every option. The consequence of saying no is given too.</p>
+<ol>
+<li><b>Ancestry-purity rule.</b> Recommended: run the primary analyses on predicted ancestry, with p ≥ 0.95 as a sensitivity analysis. <i>If you require p ≥ 0.95 everywhere instead:</i> EUR and MID drop to 38% of their people, while SAS keeps 93% (<a class="fref" href="#f-waterfall"></a>).</li>
+<li><b>Demote classical protein-novel counts</b> to a resource table, and name only the read-supported candidates (2 unnamed plus 2 since named in IPD-IMGT/HLA). Recommended: yes. <i>If no:</i> a reviewer can show that most of the counts are homopolymer artefacts.</li>
+<li><b>KIR haplotype claims only on complete haplotypes</b> (75%), with gene presence also reported from any contig as a check. Recommended: yes. <i>If no:</i> broken contigs pass for absent genes.</li>
+<li><b>Physical-haplotype rule.</b> DQ, DR–DQ, DP and B~C may be used from one contig. A~B and A~C need statistical phasing or trios. DQ–DP is flagged. Recommended: yes. Cole's units (62) already follow it.</li>
+<li><b>No coverage filter.</b> Accept that depth is a structure marker, not a usable QC cut. Recommended: yes.</li>
+<li><b>TRB genotyper.</b> Switch from fixed cuts to the new mixture model, which allows for the read-capture bias, once 65b checks it against assemblies. Recommended: yes.</li>
+<li><b>Long jobs</b> (Sequel II re-call, full ASE, genome-wide trio phasing). They are planned and costed in <a href="#plans">Long jobs</a>, for you to discuss. None was run.</li>
+<li><b>Small allele counts.</b> Counts of distinct allele sequences below 20 (for example "4 candidates") count alleles, not people, so they are shown exactly. Decide whether to mask them in published figures.</li>
+</ol>
+</div>

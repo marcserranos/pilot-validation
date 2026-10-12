@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the S05 sprint report: report_src.html -> ../S05_REPORT.html (one self-contained file).
+"""Build the S05 sprint report: src/*.html (joined in name order) -> ../S05_REPORT.html (one self-contained file).
 
 What the builder does:
   - <img data-src="reports/...png"> becomes an inline data: URI (PNG figures from the repo; wide
@@ -25,7 +25,7 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-SRC = os.path.join(HERE, "report_src.html")
+SRC_DIR = os.path.join(HERE, "src")   # report source, one file per section, joined in name order
 OUT = os.path.join(os.path.dirname(HERE), "S05_REPORT.html")
 ANC = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 ROOTS = [REPO]
@@ -89,31 +89,66 @@ def svg_hbars(rows, xmax, unit="%", width=640, row_h=26, label_w=150, ticks=None
 
 
 def chart_65_zero_copy():
-    """65 reads mode, unrelated people: % with no TRBV4-3 copy, next to Aleix's 'never used' rates.
+    """65 reads mode, unrelated people: % with no TRBV4-3 copy, next to Aleix's 'never used' rates
+    (aleix/hla-resolve-phase1 @ a9d404b, aleix/RNA-seq/context/EXPERIMENTS.md, run 887db29).
     Aggregates from the VM summary (logged in LOG.md 10-12); the PUBLIC tables follow."""
     zero = {"AFR": 38.5, "AMR": 30.1, "EAS": 37.1, "EUR": 19.5, "MID": 32.2, "SAS": 55.1}
     freq = {"AFR": 0.424, "AMR": 0.477, "EAS": 0.421, "EUR": 0.584, "MID": 0.466, "SAS": 0.287}
-    never = {"SAS": 43.5, "EUR": 16.7}
+    never = {"SAS": 43.5, "AFR": 33.3, "EAS": 30.1, "MID": 25.8, "AMR": 25.4, "EUR": 16.7}
     order = sorted(ANC, key=lambda a: zero[a])
     rows = []
     for a in order:
-        rows.append((f"{a}  germline", zero[a], "bar-a", f"{zero[a]:.1f}%  (insertion freq {freq[a]:.2f})"))
-        if a in never:
-            rows.append((f"{a}  never used", never[a], "bar-b", f"{never[a]:.1f}%  (repertoire)"))
-    rows.append(("ALL  germline", 33.0, "bar-a", "33.0%  (11,075 people called)"))
-    rows.append(("ALL  never used", 27.0, "bar-b", "~27%  (repertoire)"))
-    return svg_hbars(rows, 60, ticks=[0, 20, 40, 60], width=680, label_w=160,
+        rows.append((f"{a}  no copy", zero[a], "bar-a", f"{zero[a]:.1f}%  (insertion freq {freq[a]:.2f})"))
+        rows.append((f"{a}  never used", never[a], "bar-b", f"{never[a]:.1f}%"))
+    rows.append(("ALL  no copy", 33.0, "bar-a", "33.0%  (11,075 people called)"))
+    rows.append(("ALL  never used", 27.3, "bar-b", "27.3%  (repertoire cohort)"))
+    return svg_hbars(rows, 72, ticks=[0, 20, 40, 60], width=700, label_w=150,
                      title="People with no TRBV4-3 copy vs people who never use TRBV4-3, by ancestry")
 
 
-def chart_59():
-    rows = [("KIR incomplete", 6.7, "bar-a", "6.7% of events removed"),
-            ("KIR framework missing", 9.4, "bar-a", "9.4%"),
-            ("HLA gene absent", 3.9, "bar-a", "3.9%"),
-            ("people removed", 4.7, "bar-c", "3.5–4.7% of people")]
-    return svg_hbars(rows, 60, ticks=[0, 10, 20, 30, 40, 50, 60], ref=(50, "rule needs ≥ 50% of events"),
-                     width=680, label_w=170,
-                     title="Best admissible depth cutoff removes few of the distrusted calls")
+def chart_59(rel):
+    """59: outcome rate by normalised window depth (MAPQ 0, unrelated, ALL), with Wilson CIs.
+    Bins with < 20 people are masked in the table and not drawn."""
+    d = pd.read_csv(find(rel), sep="\t", dtype=str, keep_default_na=False)
+    d = d[(d.scale == "norm") & (d.mapq == "0") & (d.stratum == "ALL")]
+    panels = [("KIR window", [("kir_incomplete", "KIR haplotype incomplete", "s1"),
+                              ("kir_fw_missing", "KIR framework gene missing", "s2")]),
+              ("MHC window", [("hla_absent", "an HLA gene absent", "s1"),
+                              ("mhc_fragmented", "MHC on ≥ 7 contigs", "s2")])]
+    bins = ["0.7-0.8", "0.8-0.9", "0.9-1", "1-1.1", ">=1.1"]
+    blab = ["0.7–0.8", "0.8–0.9", "0.9–1.0", "1.0–1.1", "≥ 1.1"]
+    pw, ph, l, t, gap = 300, 190, 44, 34, 40
+    w, h = 2 * (l + pw) + gap, t + ph + 70
+    out = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" aria-label="Outcome rate by normalised depth">']
+    for k, (ptitle, series) in enumerate(panels):
+        x0 = k * (l + pw + gap) + l
+        sy = lambda v: t + ph * (1 - v / 70)  # noqa: E731
+        sx = lambda i: x0 + pw * (i + 0.5) / len(bins)  # noqa: E731
+        out.append(f'<text x="{x0}" y="16" class="lab strong">{ptitle}</text>')
+        for v in (0, 20, 40, 60):
+            out.append(f'<line x1="{x0}" y1="{sy(v):.1f}" x2="{x0 + pw}" y2="{sy(v):.1f}" class="grid"/>')
+            out.append(f'<text x="{x0 - 6}" y="{sy(v) + 4:.1f}" class="tick" text-anchor="end">{v}%</text>')
+        for i, bl in enumerate(blab):
+            out.append(f'<text x="{sx(i):.1f}" y="{t + ph + 16}" class="tick" text-anchor="middle">{bl}</text>')
+        out.append(f'<text x="{x0 + pw / 2}" y="{t + ph + 34}" class="tiny" text-anchor="middle">depth ÷ cohort median (1.0 = typical)</text>')
+        for j, (oc, lab, cls) in enumerate(series):
+            r = d[d.outcome == oc].set_index("depth_bin")
+            pts = []
+            for i, b in enumerate(bins):
+                if b not in r.index or not r.at[b, "pct_events"]:
+                    continue
+                v, lo, hi = (float(r.at[b, c]) for c in ("pct_events", "pct_events_lo", "pct_events_hi"))
+                pts.append((sx(i), sy(v)))
+                out.append(f'<line x1="{sx(i):.1f}" y1="{sy(lo):.1f}" x2="{sx(i):.1f}" y2="{sy(hi):.1f}" class="ci {cls}"/>')
+            out.append('<polyline points="' + " ".join(f"{x:.1f},{y:.1f}" for x, y in pts) + f'" class="ser {cls}"/>')
+            for x, y in pts:
+                out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" class="pt {cls}"/>')
+            ly = t + ph + 50 + 0 * j
+            lx = x0 + j * 160
+            out.append(f'<circle cx="{lx + 4}" cy="{ly - 4}" r="4" class="pt {cls}"/>')
+            out.append(f'<text x="{lx + 12}" y="{ly}" class="tiny">{lab}</text>')
+    out.append("</svg>")
+    return "".join(out)
 
 
 def heat_class(v):
@@ -226,7 +261,8 @@ def chart_65_af(rel):
 
 CHARTS = {
     "65_zero_copy": chart_65_zero_copy,
-    "59_cutoff": chart_59,
+    "59_rate": lambda: chart_59(
+        "reports/hla_popgen/59_depth_outcome_join/vm_2026-10-12/outcome_by_depth_bin.tsv"),
     "trb_map": chart_trb_map,
     "65_af": lambda: chart_65_af(
         "reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated/allele_fraction_histogram.tsv"),
@@ -236,7 +272,8 @@ CHARTS = {
 
 
 def build():
-    src = open(SRC).read()
+    src = "\n".join(open(os.path.join(SRC_DIR, f)).read()
+                    for f in sorted(os.listdir(SRC_DIR)) if f.endswith(".html"))
     src = re.sub(r'<img data-src="([^"]+)"', lambda m: f'<img src="{img_uri(m.group(1))}"', src)
     src = re.sub(r"<!--SVG:(\w+)-->", lambda m: CHARTS[m.group(1)](), src)
     ids = re.findall(r'<figure class="plate[^"]*" id="([^"]+)"', src)

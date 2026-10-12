@@ -27,7 +27,9 @@
   homopolymer-indel-only; singletons unvalidated; Sequel IIe calls more novel than Revio within ancestry. Proposed: demote to
   resource/supplement until read-level (HiFi read or short-read) support and a current IPD-IMGT/HLA release (3.55.0 used) are checked.
 - **(S05) KIR haplotype-level claims only on complete haplotypes** (one contig, 3DL3 and 3DL2 present; 75% of haplotypes), and
-  allelic-pair co-occurrence only when same-contig (51). Proposed, not yet ratified.
+  allelic-pair co-occurrence only when same-contig (51). Proposed, not yet ratified. Note (review 2026-10-12): 51's
+  "cB" set includes telomeric B genes, so the share is "any B-content", not centromeric B; complete-only may under-count
+  B haplotypes if they fragment more (completeness 72–79% by ancestry).
 - **(S05) Physical-haplotype evidence rule from trio truth (57b, 179 trios).** Same-contig gene pairs whose genes come
   from different parents:
   - class II pairs and B~C: <7.7%
@@ -38,6 +40,22 @@
   - physical haplotype claims allowed for DQ, DR–DQ, DP and B~C;
   - A~B / A~C only with statistical phasing or trios;
   - DQ–DP flagged.
+- **(S05, 2026-10-12) No regional coverage filter.** 59: depth is associated with KIR fragmentation and missing framework
+  genes (OR 1.16–1.47 per 0.1 lower depth) and weakly with MHC outcomes, partly by reverse causation (contracted haplotypes
+  lower window depth; the complete-haplotype negative control has the strongest association). The pre-set cutoff rule
+  (≥ 50% events at ≤ 10% people) was infeasible for common outcomes (max 10/p %), so it could not decide. No admissible cut
+  removes more than 9% of events. Proposed: no filter; depth as a covariate in KIR models. Needs Marc.
+- **(S05, 2026-10-12) TRB insertion genotyper.** 65 reads mode has a capture asymmetry (reference reads must span ~7.9 kb,
+  insertion reads only a ~0.3 kb probe), so heterozygotes sit at AF ≈ 0.63 and the fixed 0.8 cut calls many of them 2-copy.
+  Proposed: `--genotyper mixture` (3-group binomial EM per feature × platform, posterior ≥ 0.9) once 65b confirms it against
+  assemblies; quote AFR/SAS 0-copy rates with no-call bounds until then. Needs Marc.
+- **(S05, 2026-10-12) Long jobs (> 1 day) are planned and costed, not run, this sprint** (Marc, 2026-10-12). Sequel II re-call
+  (63) options and costs are in the S05 report `#plans` (~$250–350 any machine; 3 one-day batches on n2-highmem-80 vs ~28 on
+  the current VM). Needs Marc + supervisors.
+- **(S05, 2026-10-12) Disclosure residue in git history.** Cross-table recoverable small counts were found by review and the
+  committed PUBLIC tables were re-masked (cross-table complementary suppression), but earlier versions remain in public git
+  history. Options: accept; rewrite history; make the repo private until publication. Also open: whether counts of distinct
+  allele sequences (not people) are masked in publications. Needs Marc.
 
   Also: typing claims at 2-field (4% error; score ≥4 → 2.6%); third/fourth-field claims need read support (12.6%
   trio discordance). Proposed, not yet ratified.

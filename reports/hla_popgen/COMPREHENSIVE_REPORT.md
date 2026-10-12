@@ -877,6 +877,29 @@ Pulled together in one place so nothing gets overstated when copied into slides:
 - **Mutation topology (§9):** the coloring is coarse (row-level `novelty_class`), not true per-codon
   synonymous/non-synonymous — don't caption it as dN/dS.
 
+## 16. Sprint S05 (October 2026): QC, phasing, KIR and the TRB insertion
+
+The full, figure-by-figure writeup is `sprints/S05_qc_phasing_kir_trb/S05_REPORT.html` (scripts 50–65). It has a background
+course, a data trail for every analysis, and the independent review's corrections. The headlines, with how far each one goes:
+
+- **Phasing.** In 179 trios, one-contig DQ, DR–DQ, DP and B~C pairs mix parents in fewer than 20 of ~250 cases (a masking
+  ceiling of 7.7%). Pairs with HLA-A mix ~40%. Rule: physical haplotypes for class II and B~C only (proposed). This supersedes
+  §11's A~B use.
+- **Typing.** About 4% of relative and trio comparisons disagree at 2 fields (a lower bound), so ~2% per call. Full resolution
+  is ~3× worse. The 0–7 confidence score at ≥ 4 cuts the error by 37–50%.
+- **Novel alleles.** The classical protein-novel headline does not survive: 2 unnamed recurrent candidates have clean read
+  support, and 2 more were named by IPD after the caller's release. 11% of novel calls have a record-vs-exon CDS
+  disagreement (source undetermined).
+- **DQ.** No cross-group DQA1~DQB1 haplotype was found on canonical one-contig haplotypes. The atlas rediscovers the DQ and
+  DR51/52/53 rules unprompted.
+- **Coverage.** Depth is associated with KIR fragmentation (partly reverse causation), but no cutoff is useful. No filter.
+- **KIR.** Panel on 17,905 complete haplotypes; B-content share from EAS 32% to SAS 57%.
+- **TRBV4-3.** No germline copy in EUR 19.5% → SAS 55.1%. This ranks ancestries exactly like repertoire non-use, but the
+  absolute rates are not yet reconcilable. The per-person test (60) is blocked on Aleix's table. The heterozygote deficit is a
+  read-capture asymmetry, and a mixture genotyper is written.
+- **Sequel II.** 991 people (a quarter of AFR) are still uncalled. The fix is in place; the re-call (> 1 day) is costed for a
+  decision.
+
 ---
 
 *End of comprehensive walkthrough. Underlying reports, raw tables, and all figures referenced above

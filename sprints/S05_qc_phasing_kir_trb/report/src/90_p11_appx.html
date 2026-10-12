@@ -1,0 +1,92 @@
+<!-- =============================================================== PART 11 -->
+<section id="p11">
+<h2><span class="part">Part 11</span>Disclosure and open items</h2>
+<h3>Small-count masking: what this sprint did</h3>
+<p>Masking each count of 1–19 on its own is not enough (<a href="#bg-disc">background</a>). If a table shows a total and all its parts but one, the hidden part is a subtraction away. Earlier in the sprint, <b>complementary suppression</b> was added inside each table (<code>_disclosure.py</code>, used by 58, 59, 62 and 65): when exactly one cell of a sum is hidden, the next smallest is hidden too, shown as <code>&lt;20*</code>.</p>
+<p>The review found that this was still not enough, because sums also run <b>across</b> tables. Two examples:</p>
+<ul>
+<li>65's genotype counts equal sums of its allele-fraction bins;</li>
+<li>58's copy-number counts equal sums of its depth bins.</li>
+</ul>
+<p>It also found such leaks in older tables (50 waterfall, DQ ascertainment, 51 allelic pairs, 53 ASE classes, 55 expression, 56 platform rows, 64 call outcomes). A cross-table masking step now re-masks the committed public tables, adding <code>&lt;20*</code> where a hidden cell could be recovered. 65 and 58 now apply the cross-table sums themselves on future runs. The report text uses rounded percentages or omits values wherever a count could be recovered.</p>
+<div class="box decide"><h3>Needs your decision <span class="tag pend">flagged</span></h3>
+<p>The earlier, less-masked versions of these tables are still in the repo's git history, which is public. They can only be removed by rewriting history, and that has been ruled out so far. Options:</p>
+<ol>
+<li>accept the residual risk (aggregate counts, no identifiers);</li>
+<li>rewrite history on main (disruptive for Aleix's and Marc's clones);</li>
+<li>make the repo private until publication.</li>
+</ol>
+<p>The rule for counts of distinct allele sequences (not people), which are shown exactly, is also still open.</p></div>
+
+<h3>Other open items</h3>
+<ul>
+<li><b>65:</b> mixture-genotyper re-aggregation, then the 65b concordance by ancestry (decides the AFR/SAS question).</li>
+<li><b>60:</b> blocked on Aleix's usage table.</li>
+<li><b>63:</b> second smoke test, then the 20-person Revio comparison, then the resize decision.</li>
+<li><b>64:</b>
+<ul>
+<li>homopolymer readout rerun;</li>
+<li>short-read support;</li>
+<li>indel position for the 345 CDS disagreements;</li>
+<li>reconcile 50d vs 64 at the homopolymer step (8 vs 12);</li>
+<li>depth-4 genomic re-match (<code>hla_gen.fasta</code> not reachable at the raw URL).</li>
+</ul></li>
+<li><b>61:</b> a strict centromeric/telomeric B split, and a bound on complete-only bias.</li>
+<li><b>Cohort:</b> one fixed unrelated list for every analysis.</li>
+<li><b>57b:</b> calibrate the k-mer origin error.</li>
+<li><b>56b:</b> an IBD-based relative filter.</li>
+<li><b>52:</b> check the missing 13th G1×G2 cell.</li>
+<li><b>53:</b> redesign the protein-identical ASE arm.</li>
+<li><b>Not committed:</b> the VM inspection scripts behind the DQ ≥ 100 kb and contracted-KIR findings, and 53's exact sampling command.</li>
+</ul>
+</section>
+
+<!-- =============================================================== APPENDIX -->
+<section id="appx">
+<h2><span class="part">Appendix</span>Methods and files by script</h2>
+<p>Full detail, with parameters and their reasons, is in <code>sprints/S05_qc_phasing_kir_trb/METHODS_LEDGER.md</code> (58–65) and each <code>reports/hla_popgen/NN_*/README.md</code> (50–57). Every run is logged in <code>LOG.md</code>.</p>
+<div class="tw"><table>
+<tr><th>Script</th><th>Question</th><th>Key inputs and parameters</th><th>Public output</th><th>Status</th></tr>
+<tr><td>50</td><td>Waterfall, same-contig matrix, platform effect on novelty, protein-novel funnel, DQ ascertainment</td><td>Table 1 (892,856 rows); unrelated at kinship 0.0442; purity 0.90/0.95/0.98; Mantel–Haenszel over 6 ancestries</td><td><code>50_qc_foundation/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>51</td><td>KIR completeness, framework genes, allelic pairs, content strings</td><td>Immuannot KIR GTFs, 24,513 haplotypes; complete = one contig with 3DL3 and 3DL2</td><td><code>51_kir_structure_qc/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>52</td><td>Absent-haplotype atlas, equal-N richness, AMR sources</td><td>One-contig pairs; strata n ≥ 200; Bonferroni on e<sup>−E</sup>; N = 2,281, 50 resamples</td><td><code>52_mhc_haplotype_atlas/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>53</td><td>HLA allele-specific expression on personal references</td><td>80 people; minimap2 sr; MAPQ ≥ 10; ≥ 30 reads; p &lt; 0.01 and &gt; 1.41-fold beyond bias</td><td><code>53_hla_ase_pilot/</code></td><td><span class="tag done">pilot</span></td></tr>
+<tr><td>55</td><td>Expression vs presence/absence</td><td>RNA-SeQC TPM; strict sets; Spearman</td><td><code>55_structure_expression/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>56 / 56b</td><td>Typing and phasing error from relatives; confidence score 0–7</td><td>569 first-degree pairs; ≤ 1 failing gene filter; Wilson CIs</td><td><code>56_phasing_typing_benchmark/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>57 / 57b</td><td>Trio truth: switch/hamming, parent of origin per gene, Mendelian typing</td><td>179 trios; yak k = 31; origin needs ≥ 5 k-mers and 3× the other parent within ±10 kb</td><td><code>57_yak_trioeval/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>58</td><td>Regional depth (MHC, KIR, TRB)</td><td>bedcov MAPQ 0/20; 5 control windows; GENCODE v46; 12,233 people</td><td><code>58_regional_depth/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>59</td><td>Is depth associated with bad calls? Is a cutoff useful?</td><td>Normalised depth; rate by bin; logistic OR per 0.1; cutoff rule (infeasible for common outcomes)</td><td><code>59_depth_outcome_join/vm_2026-10-12/</code></td><td><span class="tag done">done</span> (associated; no filter)</td></tr>
+<tr><td>60</td><td>TRBV copies vs never used, per person</td><td>65 copies; chance-zero filter (1−p)<sup>N</sup> &lt; 0.01</td><td>—</td><td><span class="tag block">blocked</span></td></tr>
+<tr><td>61</td><td>KIR by ancestry on complete haplotypes</td><td>11,882 unrelated; protein-field alleles; names only with ≥ 20 haplotypes</td><td><code>61_kir_by_ancestry_panel/vm_2026-10-12/</code></td><td><span class="tag done">done</span></td></tr>
+<tr><td>62</td><td>Phased class II units for fine-mapping</td><td>Trio evidence rule; 100 kb spacing flag; 59 coverage flag</td><td>summaries only; per-person table INTERNAL on the VM</td><td><span class="tag done">done</span></td></tr>
+<tr><td>63</td><td>Call the 991 Sequel II people</td><td>Two-stage self-align; stage-1 identity ≥ 0.8; MAPQ ≥ 20; 25 MB guard</td><td>—</td><td><span class="tag block">second smoke test pending</span></td></tr>
+<tr><td>64</td><td>Novel alleles vs IPD 3.65.0 and HiFi reads</td><td>≤ 5 carriers/key; supported ≥ 3 reads and ≥ 0.7; contradicted ≤ 0.15; hp readout now haplotype-assigned reads only</td><td><code>64_novel_allele_validation/tables/</code></td><td><span class="tag done">done</span>; hp rerun pending</td></tr>
+<tr><td>65</td><td>TRB insertion genotype</td><td>Breakpoint ± 1 kb; ≥ 6 reads; genotyper <code>cuts</code> (0.2/0.8) or <code>mixture</code> (3-group binomial EM, posterior ≥ 0.9)</td><td><code>65_trb_assembly_genotype/reads_*/</code></td><td><span class="tag done">reads done</span>; 65b running</td></tr>
+<tr><td>58b</td><td>Figures for 58 and 64</td><td>Committed PUBLIC tables only</td><td>the figures above</td><td><span class="tag done">done</span></td></tr>
+</table></div>
+</section>
+
+<div class="foot">Built by <code>sprints/S05_qc_phasing_kir_trb/report/build_report.py</code> from committed PUBLIC tables and figures (sources in <code>report/src/</code>). No participant identifiers. Counts of 1–19 people are masked, including by subtraction across tables. Numbers marked as VM aggregates come from the run log in <code>LOG.md</code>. Aleix's never-used rates come from his branch, read but not modified.</div>
+</main>
+</div>
+<script>
+(function(){
+  function setAll(open){
+    var ds=document.querySelectorAll('main details');
+    for(var i=0;i<ds.length;i++){ds[i].open=open;}
+  }
+  try{
+    var o=document.getElementById('openall'),c=document.getElementById('closeall');
+    if(o)o.addEventListener('click',function(){setAll(true);});
+    if(c)c.addEventListener('click',function(){setAll(false);});
+    document.addEventListener('click',function(e){
+      var a=e.target.closest&&e.target.closest('a[href^="#"]');
+      if(!a)return;
+      var t=document.getElementById(a.getAttribute('href').slice(1));
+      if(t&&t.tagName==='DETAILS')t.open=true;
+      var p=t&&t.closest?t.closest('details'):null;
+      while(p){p.open=true;p=p.parentElement?p.parentElement.closest('details'):null;}
+    });
+  }catch(err){}
+})();
+</script>
