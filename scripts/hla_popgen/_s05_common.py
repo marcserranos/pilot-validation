@@ -87,12 +87,27 @@ def load_cohort(path):
     return df
 
 
-def load_relatedness_pairs(path):
-    if not path or not os.path.exists(path):
-        log(f"WARNING: relatedness table missing at {path!r}; NO kinship filter applied.")
+# Fallback when the AoU table is absent (it vanished from the v9 bucket by 2026-10-12): script 11's
+# cached LR-relevant subset of the same table (pairs where both people, or one LR + one SR, are in the
+# cohort). Every pair between two long-read people is in it, which is all greedy_unrelated uses.
+FALLBACK_RELATEDNESS = os.path.expanduser("~/pipeline_outputs/relatedness_lr_overlap_pairs.tsv")
+
+
+def load_relatedness_pairs(path, fallback=FALLBACK_RELATEDNESS):
+    src = path if path and os.path.exists(path) else None
+    if src is None and fallback and os.path.exists(fallback):
+        log(f"WARNING: relatedness table missing at {path!r}; using cached LR pair list {fallback!r}.")
+        src = fallback
+    if src is None:
+        log(f"WARNING: relatedness table missing at {path!r} (and no cached pair list); "
+            "NO kinship filter applied.")
         return []
-    df = pd.read_csv(path, sep="\t", dtype={"i.s": str, "j.s": str})
-    return list(zip(df["i.s"], df["j.s"], pd.to_numeric(df["kin"], errors="coerce")))
+    df = pd.read_csv(src, sep="\t", dtype=str)
+    df = df.rename(columns={"i.s": "person_i", "j.s": "person_j"})
+    missing = {"person_i", "person_j", "kin"} - set(df.columns)
+    if missing:
+        raise ValueError(f"relatedness file {src!r} lacks columns {sorted(missing)}")
+    return list(zip(df["person_i"], df["person_j"], pd.to_numeric(df["kin"], errors="coerce")))
 
 
 def greedy_unrelated(person_ids, pairs, kin_min=KIN_MIN):
