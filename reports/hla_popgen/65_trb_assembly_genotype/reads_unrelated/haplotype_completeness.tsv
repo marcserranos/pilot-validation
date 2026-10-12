@@ -1,0 +1,10 @@
+stratum_type	stratum	n_haplotypes	n_complete	pct_complete	n_complete_single_contig	n_no_trb_contig	n_anchor_missing	n_low_reads	n_no_hp_tag
+ancestry	AFR	6040	0	0.0	0	0	0	0	6040
+ancestry	AMR	5312	0	0.0	0	0	0	0	5312
+ancestry	EAS	2920	0	0.0	0	0	0	0	2920
+ancestry	EUR	5948	0	0.0	0	0	0	0	5948
+ancestry	MID	974	0	0.0	0	0	0	0	974
+ancestry	SAS	2472	0	0.0	0	0	0	0	2472
+ancestry	ALL	23712	0	0.0	0	0	0	0	23712
+platform	revio	21440	0	0.0	0	0	0	0	21440
+platform	sequel2e	2272	0	0.0	0	0	0	0	2272
