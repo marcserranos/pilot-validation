@@ -445,6 +445,18 @@ class ReadsWorld:
         return out, internal
 
 
+class TestInsertionBlock(unittest.TestCase):
+    def test_separate_alt_segment_is_split_off(self):
+        # GRCh38 KI270803v1 layout: TRBV3-2 / TRBV4-3 / 6-3 copy together, TRBV7-8 ~180 kb downstream
+        loc = [dict(contig="alt", gene_class=g, start=s0, end=s0 + 290, called=True)
+               for g, s0 in [("TRBV3-2", 321_274), ("TRBV4-3", 324_727), ("TRBV7-8", 515_798)]]
+        block, away = tg.insertion_block(loc, "alt", ["TRBV4-3", "TRBV3-2", "TRBV7-8"])
+        self.assertEqual(sorted(a["gene_class"] for a in block), ["TRBV3-2", "TRBV4-3"])
+        self.assertEqual(away, {"TRBV7-8"})
+        block, away = tg.insertion_block(loc[:2], "alt", ["TRBV4-3", "TRBV3-2"])
+        self.assertEqual((len(block), away), (2, set()))
+
+
 class TestReadsPrimitives(unittest.TestCase):
     def test_spans_contiguously(self):
         self.assertTrue(tg.spans_contiguously(100, "5000M", 1000, 3000, 50))
@@ -519,7 +531,7 @@ class TestReadsEndToEnd(unittest.TestCase):
     def test_genotypes_and_haplotypes(self):
         g = read_int(os.path.join(self.internal, "per_person_gene.tsv"))
         truth = pd.Series({p: int(h[0]) + int(h[1]) for p, h in self.w.truth.items()})
-        for feat in ("TRBV4-3", "TRBV3-2", "TRBV7-8", tg.INS_ANY):
+        for feat in ("TRBV4-3", "TRBV3-2", tg.INS_ANY):
             v = g[(g["feature"] == feat) & (g["status"] == "ok")].set_index("person_id")
             self.assertGreater(len(v), 150, feat)
             acc = (v["copies"].astype(int) == truth.loc[v.index]).mean()
@@ -545,7 +557,7 @@ class TestReadsEndToEnd(unittest.TestCase):
         self.assertTrue(hist["n_people"].isin(["0", "<20"] + [str(k) for k in range(20, 200)]).all())
         cp = pd.read_csv(os.path.join(self.out, "copresence.tsv"), sep="\t")
         allr = cp[cp["stratum"] == "ALL"]
-        self.assertEqual(len(allr), 3)
+        self.assertEqual(len(allr), 1)   # TRBV4-3 x TRBV3-2 (TRBV7-8 is not a reads-mode feature)
         self.assertTrue((allr["concordance"].astype(float) > 0.9).all())
         run = dict(pd.read_csv(os.path.join(self.out, "run_summary.tsv"), sep="\t").values)
         self.assertEqual(run["mode"], "reads")
