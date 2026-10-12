@@ -1,0 +1,24 @@
+metric	value
+people_with_selected_calls	3419
+people_tested	3419
+novel_calls_unrelated	4671
+calls_selected	4616
+calls_with_evidence_rows	4616
+keys	4299
+keys_with_inconsistent_sequence	12
+cds_check_disagree	506
+depths	2,3
+genes	A,B,C,DRB1,DQA1,DQB1,DPA1,DPB1
+max_per_key	5
+min_support	3
+min_frac	0.7
+min_frac_2t	0.3
+max_frac_contradicted	0.15
+flank	25
+window_pad	2000
+hp_min_run	3
+sr	False
+no_reads	False
+limit	
+mappy	2.28
+wall_seconds_this_invocation	5450
