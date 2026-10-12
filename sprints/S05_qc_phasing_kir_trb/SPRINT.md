@@ -14,6 +14,12 @@ the reason it was chosen, what was run (script + commit + command), the numbers 
 what they mean, what they do not mean, and caveats. Nothing is "obvious enough to skip". The
 final report is assembled from the ledger, the per-script READMEs and `LOG.md`.
 
+**Sprint close (Marc, 2026-10-12, applies to every sprint):** when the tasks finish, one agent does a
+harmonizing pass over the whole sprint and delivers a single high-SNR but exhaustive HTML report,
+full of visuals, that explains every figure (what it shows, how to read it, what it means), the
+methods, findings and implications. It is published as an Artifact, and its source is committed here
+as `S05_REPORT.html`. Public-repo rules apply: no ids, and counts under 20 masked.
+
 ## Board (re-planned 2026-10-11 after the 10-06 work, scripts 50–57c, landed on `main`)
 
 The 10-06 work already answers several original asks. Its results are in `reports/hla_popgen/50_*`–`57_*` and
