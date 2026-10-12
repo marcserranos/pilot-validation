@@ -1427,7 +1427,10 @@ def build_probes(args):
     _disc.write_tsv(pd.DataFrame(rows), os.path.join(args.out_dir, "reference_check.tsv"), _disc.PUBLIC)
     log("reference_check.tsv written; insertion genes must be present on 'alt', absent on 'primary'")
     if alt_seqs and ref:
-        ins = [cls[g] for g in args.ins_genes if g in cls and "/" not in cls[g]]
+        # group every unmerged insertion gene (incl. TRBV7-8) so a separate ALT segment is reported;
+        # the lead (first --ins-genes class, TRBV4-3) picks the block the breakpoint is found for
+        ins = list(dict.fromkeys(cls[g] for g in list(args.ins_genes) + INSERTION_GENES
+                                 if g in cls and "/" not in cls[g]))
         bp = breakpoint_from_reference(alt_seqs, ref[0], ref[1], ref[2], res["alt"]["assigned"], ins,
                                        args.aligner_resolved, _opts(ad, preset="asm5"))
         if bp is None:
