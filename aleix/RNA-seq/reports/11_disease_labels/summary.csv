@@ -1,0 +1,8 @@
+metric,value
+people_analysis_main,6764.0
+people_with_icd_rows,5557.0
+frac_condition_rows_icd,0.9196022481625594
+diseases,33.0
+n_classify + associate,15.0
+n_associate,12.0
+n_describe,4.0

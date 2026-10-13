@@ -1,0 +1,34 @@
+key,disease,group,tier,cases,controls,excluded,case_prevalence_pct,cases_AFR,cases_AMR,cases_EAS,cases_EUR,cases_MID,cases_SAS
+htn,Hypertension,cardiometabolic,classify + associate,2166,3133,1465,40.88,387,423,221,827,83,225
+t2d,Type 2 diabetes,cardiometabolic,classify + associate,1059,4329,1376,19.65,191,240,105,308,60,155
+t1d,Type 1 diabetes,autoimmune,associate,104,4329,2331,2.35,20,29,<20,28,<20,<20
+hld,Hyperlipidaemia,cardiometabolic,classify + associate,2233,3059,1472,42.2,251,360,265,915,125,317
+obesity,Obesity,cardiometabolic,classify + associate,1186,4082,1496,22.51,207,309,80,409,83,98
+cad,Coronary artery disease,cardiometabolic,classify + associate,778,4574,1412,14.54,89,122,70,366,32,99
+hf,Heart failure,cardiometabolic,classify + associate,373,5062,1329,6.86,75,59,24,170,<20,30
+af,Atrial fibrillation,cardiometabolic,classify + associate,337,5149,1278,6.14,36,39,24,209,<20,<20
+ckd,Chronic kidney disease,renal,classify + associate,475,5000,1289,8.68,84,77,35,211,<20,49
+stroke,Ischaemic stroke,cardiometabolic,classify + associate,214,5170,1380,3.97,26,36,20,106,<20,21
+pad,Peripheral artery disease,cardiometabolic,classify + associate,201,4989,1574,3.87,33,31,<20,96,<20,<20
+asthma,Asthma,respiratory / allergic,classify + associate,782,4583,1399,14.58,133,191,87,270,33,68
+copd,COPD,respiratory / allergic,classify + associate,326,4917,1521,6.22,78,52,22,142,<20,<20
+ar,Allergic rhinitis,respiratory / allergic,classify + associate,892,4415,1457,16.81,107,154,142,317,47,125
+ad,Atopic dermatitis,respiratory / allergic,associate,143,5338,1283,2.61,<20,26,36,34,<20,28
+urticaria,Urticaria,respiratory / allergic,classify + associate,188,5279,1297,3.44,20,40,29,58,<20,32
+ra,Rheumatoid arthritis,autoimmune,associate,128,5365,1271,2.33,21,24,<20,50,<20,<20
+psoriasis,Psoriasis (incl. psoriatic arthritis),autoimmune,associate,144,5379,1241,2.61,<20,21,21,68,<20,25
+sle,Systemic lupus erythematosus,autoimmune,associate,59,5476,1229,1.07,<20,<20,<20,21,<20,<20
+sjogren,Sjogren syndrome,autoimmune,associate,58,5463,1243,1.05,<20,<20,<20,<20,<20,<20
+hypothyroid,Hypothyroidism / autoimmune thyroiditis,autoimmune,classify + associate,704,4729,1331,12.96,45,105,61,318,45,130
+thyrotox,Thyrotoxicosis / Graves,autoimmune,associate,127,5374,1263,2.31,<20,22,<20,44,<20,20
+crohn,Crohn disease,autoimmune,associate,57,5432,1275,1.04,<20,<20,<20,35,<20,<20
+uc,Ulcerative colitis,autoimmune,associate,60,5432,1272,1.09,<20,<20,<20,37,<20,<20
+celiac,Coeliac disease,autoimmune,suppressed (< 20 cases),<20,5527,1220,,0,<20,<20,<20,<20,<20
+ms,Multiple sclerosis,autoimmune,describe,43,5497,1224,0.78,<20,<20,<20,<20,<20,<20
+as,Ankylosing spondylitis,autoimmune,suppressed (< 20 cases),<20,5529,1217,,0,<20,<20,<20,0,<20
+vitiligo,Vitiligo,autoimmune,describe,31,5513,1220,0.56,<20,<20,<20,<20,<20,<20
+alopecia,Alopecia areata,autoimmune,describe,34,5511,1219,0.61,<20,<20,<20,<20,<20,<20
+hiv,HIV,chronic infection,associate,76,5466,1222,1.37,33,24,<20,<20,<20,<20
+hep,Chronic viral hepatitis B / C,chronic infection,associate,128,5334,1302,2.34,29,28,28,29,<20,<20
+lymphoid,Lymphoid / plasma-cell neoplasm,haematologic,associate,118,5408,1238,2.14,<20,20,<20,65,<20,<20
+parkinson,Parkinson disease,neurologic,describe,47,5496,1221,0.85,<20,<20,<20,30,0,<20
