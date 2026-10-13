@@ -1,0 +1,16 @@
+filter	threshold	n	k	retained_pct	pct	lo	hi
+score_min	7	40	0	0.6	0.00	0.00	8.76
+score_min	6	2338	27	36.2	1.15	0.79	1.68
+score_min	5	4517	67	70.0	1.48	1.17	1.88
+score_min	4	5884	119	91.2	2.02	1.69	2.41
+score_min	3	6188	183	95.9	2.96	2.56	3.41
+score_min	2	6389	242	99.0	3.79	3.35	4.28
+score_min	0	6455	264	100.0	4.09	3.63	4.60
+template_distance_max	0	3003	31	46.5	1.03	0.73	1.46
+template_distance_max	1	4465	61	69.2	1.37	1.07	1.75
+template_distance_max	2	5023	87	77.8	1.73	1.41	2.13
+template_distance_max	5	5547	138	85.9	2.49	2.11	2.93
+template_distance_max	10	5829	175	90.3	3.00	2.59	3.47
+template_distance_max	23	6145	224	95.2	3.65	3.20	4.14
+template_distance_max	118	6455	264	100.0	4.09	3.63	4.60
+template_distance_max	all	6455	264	100.0	4.09	3.63	4.60

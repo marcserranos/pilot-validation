@@ -53,6 +53,20 @@ The score is 0–7, and a claim can then use only calls at or above a threshold.
 <dt>Limits</dt><dd>"No shared allele" catches only errors that break sharing, so these are lower bounds. The pair filter biases them down a little (see the data trail).</dd>
 </dl><div class="src">Scripts 56b, 56c · <code>refined_sweep.tsv</code></div></figcaption></figure>
 
+<figure class="plate" id="f-scoredist"><div class="img"><img data-src="reports/hla_popgen/56d_score_vs_template_distance/fig_score_vs_distance.png" alt="Confidence score versus template distance as a filter"></div>
+<figcaption><span class="fnum" data-for="f-scoredist"></span><span class="ttl">Is the 7-point score better than template distance alone?</span>
+<dl>
+<dt>Shows</dt><dd>The same 6,455 relative pair-genes as <a class="fref" href="#f-sweep"></a>, filtered two ways: keep pairs where both people's calls score ≥ t (blue), or where both calls are within t edits of the closest known allele (orange; template distance is one of the score's seven points). The x-axis is the share of pair-genes kept, so the two filters are compared at the same cost in data. Score 7 (0.6% kept) is left off the plot.</dd>
+<dt>How to read</dt><dd>Lower at the same x is better. The right edge keeps everything (4.1% for both).</dd>
+<dt>Meaning</dt><dd><b>For light filtering the score wins; for strict filtering, distance alone is as good and keeps more data.</b>
+<ul>
+<li>At about 90% kept, score ≥ 4 leaves 2.0% (1.7–2.4) against 3.0% (2.6–3.5) for distance ≤ 10. The score's other points (contig, warnings, ties, homopolymer, platform) catch errors that are not far from a known allele.</li>
+<li>At about 70% kept the two are the same: score ≥ 5 gives 1.5% and distance ≤ 1 gives 1.4%.</li>
+<li>An exact match to a known allele (distance 0) keeps 46% at 1.0% (0.7–1.5), as clean as score ≥ 6, which keeps only 36% (1.2%).</li>
+</ul></dd>
+<dt>Limits</dt><dd>A distance filter removes novel and rarely catalogued alleles by construction, so it would cut more from ancestries whose alleles are less represented in IPD-IMGT/HLA; the score spreads its penalty over seven properties. Errors that keep two relatives sharing an allele are invisible here, as in <a class="fref" href="#f-sweep"></a>. Thresholds whose step from the neighbouring one is under 20 records or errors are left out, so subtraction cannot recover small counts.</dd>
+</dl><div class="src">Script 56d · <code>56d_score_vs_template_distance/score_vs_distance_sweep.tsv</code></div></figcaption></figure>
+
 <figure class="plate" id="f-pairshare"><div class="img"><img data-src="reports/hla_popgen/56_phasing_typing_benchmark/fig_pair_sharing.png" alt="Pair sharing distribution"></div>
 <figcaption><span class="fnum" data-for="f-pairshare"></span><span class="ttl">Why relatives were filtered: most first-degree pairs share an MHC haplotype</span>
 <dl>

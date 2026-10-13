@@ -6,6 +6,12 @@
 
 ## Open questions
 
+- **(S05, 2026-10-13) Cumulative sweeps leak small steps by subtraction.** In 56b's public `refined_sweep.tsv`, neighbouring
+  thresholds of the same item can differ by 1–19 records or errors (e.g. the ALL rows at score 0 → 1 and 1 → 2), and
+  per-gene rows likely do the same. These are relative pair-gene records, not people, but each
+  belongs to people. 56d now drops such rows (`drop_differencing`). Open: apply the same guard to 56b/56c and re-publish
+  (history already holds the old table; no rewrite). Marc to decide.
+
 ### Strategic
 - **AoU-native callset: trust & sequencing.** AoU already ships a full-cohort srWGS HLA callset (HLA-HD + Polysolver + OptiType) — this reframes the "massive calling is our contribution" pitch. Fork: **(a)** if AoU-native holds up vs. long-read → pivot toward validate-then-build-downstream on the existing calls (faster path to the aims); **(b)** if it shows ancestry-correlated discordance → the calling work becomes *more* necessary and the bias finding is itself novel (every existing AoU-derived HLA study would inherit that bias). **Lean: validate against long-read first** — an ancestry-distribution study on AoU's calls is circular if we don't yet know whether those calls are ancestry-biased in exactly the dimension being studied. Questions for supervisors: were they aware AoU ships this? any known ancestry benchmarks of that specific ensemble? validate-first vs. study-first preference? which outcome do they expect (shapes whether the pilot needs to be stratified/larger to detect ancestry bias vs. just overall concordance)? (raised 2026-07-09).
   - **n=3 evidence (2026-07-09, EXPERIMENTS.md):** AoU-native is broadly concordant for Class I / DQB1 / DPA1, **but is the lone outlier at DQA1 in 3/3 people** — and this one is cross-technology robust: a short-read caller (SpecHLA) *and* a long-read caller (SpecImmune) agree against it, so it isn't a short-read-shared-bias artifact. Exactly the locus-specific bias the "validate first" stance guards against — concrete early support for validating before building downstream on AoU's calls, at least locus-by-locus. Not yet ancestry-resolved.

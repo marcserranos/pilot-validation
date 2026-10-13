@@ -943,3 +943,8 @@ recorded as having no notes in `sprints/_calls/README.md`.
   MHC and A..B unrelated to parent depth. 57b origin calls flat across parent-depth thirds (16.0/16.1/16.9% ambiguous); lean
   to the deeper parent 52.9% (50.3–55.5). Mix table kept internal (recoverable against 57's trio_selection). Unmasked 57b
   pair table for internal QC: classifier blocked the VM session; command handed to Marc (writes ~/s05/internal/57b_unmasked/).
+- **56d** confidence score vs template distance alone (main 57254d1, ~1 min; 6,455 pair-genes, distance missing in none):
+  score ≥ 4 keeps 91% at 2.0% vs distance ≤ 10 keeps 90% at 3.0%; tie near 70% kept (1.5% vs 1.4%); distance 0 keeps
+  46% at 1.0% vs score ≥ 6 36% at 1.2%. Within-gene distance percentile dropped (ties at 0 empty the low thresholds).
+  Neighbouring-row differencing guard added (score 1 and distance 3 rows dropped); the same score 0→1 step is already in
+  56b's public refined_sweep.tsv (flagged in DECISIONS).
