@@ -49,9 +49,15 @@
   insertion reads only a ~0.3 kb probe), so heterozygotes sit at AF ≈ 0.63 and the fixed 0.8 cut calls many of them 2-copy.
   Proposed: `--genotyper mixture` (3-group binomial EM per feature × platform, posterior ≥ 0.9) once 65b confirms it against
   assemblies; quote AFR/SAS 0-copy rates with no-call bounds until then. Needs Marc.
+- **(S05, 2026-10-13) Publishing the TRB mixture tables.** The mixture PUBLIC tables pass 66 on their own, but they cover the
+  same people as the committed cuts tables, so cuts minus mixture gives small counts (people that changed call or became
+  ambiguous, by ancestry); mixture all minus unrelated gives related-people counts, as for cuts. Options: (A) commit the
+  unrelated mixture tables and list the residual; (B) commit only `af_mixture_fit` + `run_summary`, rounded rates in the report;
+  (C) replace the cuts tables with mixture so one genotyper is published. Proposed: B now, C once 65b settles the genotyper.
+  Same choice applies to the 65b concordance tables. Report and LOG use rounded mixture values meanwhile. Needs Marc.
 - **(S05, 2026-10-12) Long jobs (> 1 day) are planned and costed, not run, this sprint** (Marc, 2026-10-12). Sequel II re-call
-  (63) options and costs are in the S05 report `#plans` (~$250–350 any machine; 3 one-day batches on n2-highmem-80 vs ~28 on
-  the current VM). Needs Marc + supervisors.
+  (63) options and costs are in the S05 report `#plans`. After the 10-13 smoke test (~21 min/person): ~350 h, ~$130 on the
+  current VM (~15 one-day batches) to ~$130–260 on n2-highmem-80 (1–2 batches). Needs Marc + supervisors.
 - **(S05, 2026-10-12) Disclosure residue in git history.** Cross-table recoverable small counts were found by review and the
   committed PUBLIC tables were re-masked (cross-table complementary suppression), but earlier versions remain in public git
   history. Options: accept; rewrite history; make the repo private until publication. Known gaps after re-masking (`66_cross_table_suppression.py --check`): MID related count (8) from published denominators; 65 `reads_all` − `reads_unrelated` gives related-people counts (option: drop `reads_all` from the repo); 64 `summary_by_stratum.tsv` not re-masked. Also open: whether counts of distinct
