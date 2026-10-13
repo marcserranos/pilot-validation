@@ -1,0 +1,283 @@
+<!-- =============================================================== BACKGROUND COURSE -->
+<section id="howto">
+<h2><span class="part">Before reading</span>How to read this report</h2>
+<p>The report has three layers. Read the summary first. Then use the background course as a reference: open a module whenever a result relies on an idea you have not met. Every result section uses the same three blocks.</p>
+<div class="two">
+<div class="box"><h4 style="margin-top:0">Data trail (blue edge)</h4><p style="font-size:14px">This block traces each result from start to finish:</p><ul style="font-size:14px"><li>which file it started from, and what one row of that file is;</li><li>what was done to it, step by step;</li><li>which trade-offs were made and why;</li><li>which unit was counted (people, haplotypes, calls, allele sequences) and over which denominator.</li></ul><p style="font-size:14px">That last point is the "axis" a big dataset gets collapsed onto. If you know it, you know what a percentage means.</p></div>
+<div class="box"><h4 style="margin-top:0">Figure caption</h4><p style="font-size:14px"><b>Shows</b> describes what is drawn. <b>How to read</b> says where to look. <b>Meaning</b> gives the interpretation and the numbers. <b>Limits</b> says what the figure cannot tell you.</p></div>
+<div class="box"><h4 style="margin-top:0">Significance (dashed box)</h4><p style="font-size:14px">How big the effect is and how sure we are, measured against something you can picture. It also says what changes for the paper because of it.</p></div>
+<div class="box"><h4 style="margin-top:0">Review (red edge)</h4><p style="font-size:14px">An independent review checked the methods, the numbers and the wording. Where it found a problem, the red block says what was wrong and what changed.</p></div>
+</div>
+<p>Every number comes from a committed table in the public repo; the file is named under each figure. Counts of 1–19 people are never shown (see <a href="#bg-disc">masking</a>). Allele names and sequence counts are not people and are shown as is.</p>
+</section>
+
+<section id="bg">
+<h2><span class="part">Background course</span>Ten short modules</h2>
+<p>Each module explains one idea the results depend on, with a small picture. They are folded so the page stays compact. "Open all" in the contents column unfolds everything.</p>
+
+<!-- ---------------------------------------------------------- B1 DATA -->
+<details class="learn" id="bg-data"><summary>The data each person has, and how an HLA call is made</summary>
+<p>About 13,000 All of Us participants were sequenced with PacBio HiFi long reads. These are reads of ~15–20 kb that are about 99.9% accurate. For each person All of Us provides several files, and the project's earlier pipeline built one table on top of them.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 250" role="img" aria-label="Data flow from blood sample to Table 1">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect x="6" y="20" width="120" height="56" rx="6" class="box"/><text x="66" y="44" text-anchor="middle" class="t-b">Blood DNA</text><text x="66" y="62" text-anchor="middle" class="t-s">one person</text>
+<line x1="126" y1="48" x2="160" y2="48" class="arrow"/>
+<rect x="162" y="8" width="160" height="80" rx="6" class="accbox"/><text x="242" y="30" text-anchor="middle" class="t-b">HiFi reads</text><text x="242" y="48" text-anchor="middle" class="t-s">~20× coverage</text><text x="242" y="64" text-anchor="middle" class="t-s mono">BAM aligned to GRCh38</text><text x="242" y="79" text-anchor="middle" class="t-s">used by 58, 64, 65</text>
+<line x1="322" y1="48" x2="356" y2="48" class="arrow"/>
+<rect x="358" y="8" width="170" height="80" rx="6" class="accbox"/><text x="443" y="30" text-anchor="middle" class="t-b">Assembly (hifiasm)</text><text x="443" y="48" text-anchor="middle" class="t-s mono">hap1.fa, hap2.fa</text><text x="443" y="64" text-anchor="middle" class="t-s">each = many contigs</text><text x="443" y="79" text-anchor="middle" class="t-s mono">+ PAF: contigs → GRCh38</text>
+<line x1="528" y1="48" x2="562" y2="48" class="arrow"/>
+<rect x="564" y="8" width="150" height="80" rx="6" class="accbox"/><text x="639" y="30" text-anchor="middle" class="t-b">Immuannot</text><text x="639" y="48" text-anchor="middle" class="t-s">finds HLA / KIR genes</text><text x="639" y="64" text-anchor="middle" class="t-s">on each haplotype,</text><text x="639" y="79" text-anchor="middle" class="t-s">names the allele</text>
+<line x1="639" y1="88" x2="639" y2="124" class="arrow"/>
+<rect x="400" y="126" width="314" height="112" rx="6" class="okbox"/><text x="557" y="146" text-anchor="middle" class="t-b">"Table 1" = hla_calls_rich.tsv</text>
+<text x="412" y="166" class="t-s">one row = person × haplotype × gene × copy</text>
+<text x="412" y="183" class="t-s mono">allele name · contig · start/end</text>
+<text x="412" y="199" class="t-s mono">novelty_depth · cds_mut · template_distance</text>
+<text x="412" y="215" class="t-s mono">template_warning · n_tied</text>
+<text x="412" y="231" class="t-s">892,856 rows, 12,233 people</text>
+<rect x="6" y="126" width="370" height="112" rx="6" class="box"/><text x="18" y="146" class="t-b">Other per-person tables used</text>
+<text x="18" y="166" class="t-s">cohort_membership: platform, predicted ancestry + probabilities</text>
+<text x="18" y="183" class="t-s">relatedness pairs: kinship coefficient per related pair</text>
+<text x="18" y="199" class="t-s">KIR GTFs: the same Immuannot output for chr19 KIR genes</text>
+<text x="18" y="215" class="t-s">RNA-seq (short reads, blood): gene TPM, aligned reads</text>
+<text x="18" y="231" class="t-s">T-cell repertoire (Aleix): V-gene usage per person</text>
+</svg></div>
+<p><b>What a row of Table 1 says.</b> On haplotype 1 of person X, on contig <code>h1tg000012l</code> at positions S–E, there is HLA-DQB1 copy 1, and its sequence best matches <code>DQB1*06:02:01:01</code>. When nothing in the database matches exactly, the row records how it differs (<code>novelty_depth</code>, explained in <a href="#bg-mhc">MHC and HLA alleles</a>). It records the exact coding change (<code>cds_mut</code>), how far the sequence is from the closest known allele (<code>template_distance</code>), whether the caller was unsure (<code>template_warning</code>), and whether several known alleles tied (<code>n_tied</code>).</p>
+<p><b>Where the work runs.</b> Participant-level files never leave the All of Us Workbench, a cloud VM. Scripts run there and write two kinds of output. <i>INTERNAL</i> tables (one row per person) stay on the VM. <i>PUBLIC</i> tables are aggregates, with small counts masked; these are copied into this public repo, and every figure is drawn from them.</p>
+<p><b>Three sequencing platforms.</b> Revio (newest, 11,015 people with calls) and Sequel IIe (1,218) went through the production pipeline. The 991 Sequel II people have assemblies but no HLA or KIR calls; Part 10 explains why. The platform also stands for the sequencing site, the period and the assembler version, so a "platform effect" mixes all of these.</p>
+</details>
+
+<!-- ---------------------------------------------------------- B2 ASSEMBLY -->
+<details class="learn" id="bg-asm"><summary>Assembly, haplotypes, contigs and phasing</summary>
+<p>You carry two copies of chromosome 6, one from each parent. A <b>haplotype</b> is the sequence of one of those copies. The question "which alleles sit together on the same copy?" is called <b>phasing</b>. It matters because HLA genes act, and are inherited, as combinations along one chromosome.</p>
+<p>The assembler (hifiasm) overlaps reads into long continuous pieces called <b>contigs</b>. Where the two parental copies differ, it separates them, so it produces two sets of contigs, labelled hap1 and hap2. Where the copies are identical over a long stretch, the reads cannot tell the copies apart and the contig usually ends. The next contig is then labelled hap1 or hap2 <i>arbitrarily</i>: hap1 of the next piece may be the other parent's copy.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 210" role="img" aria-label="Contigs and arbitrary haplotype labels">
+<text x="6" y="22" class="t-b">Truth: the two parental chromosome copies</text>
+<rect x="110" y="34" width="560" height="14" rx="3" class="pat"/><text x="6" y="45" class="t-pat">father's copy</text>
+<rect x="110" y="56" width="560" height="14" rx="3" class="mat"/><text x="6" y="67" class="t-mat">mother's copy</text>
+<text x="160" y="90" class="t-s">gene A</text><line x1="175" y1="72" x2="175" y2="80" class="ln2"/>
+<text x="330" y="90" class="t-s">gene B</text><line x1="345" y1="72" x2="345" y2="80" class="ln2"/>
+<text x="560" y="90" class="t-s">gene C</text><line x1="575" y1="72" x2="575" y2="80" class="ln2"/>
+<text x="6" y="122" class="t-b">What the assembler outputs</text>
+<text x="6" y="146" class="t-s mono">hap1</text>
+<rect x="110" y="136" width="300" height="14" rx="3" class="pat"/><rect x="430" y="136" width="240" height="14" rx="3" class="mat"/>
+<text x="6" y="168" class="t-s mono">hap2</text>
+<rect x="110" y="158" width="300" height="14" rx="3" class="mat"/><rect x="430" y="158" width="240" height="14" rx="3" class="pat"/>
+<line x1="420" y1="128" x2="420" y2="180" class="baddash"/><text x="420" y="198" text-anchor="middle" class="t-bad">contig break: label flips</text>
+<text x="200" y="128" class="t-s">contig 1: A and B on one piece → truly phased</text>
+<text x="440" y="128" class="t-s">contig 2: C</text>
+</svg></div>
+<p>So two kinds of "same haplotype" exist. If two genes sit on <b>one contig</b>, they are physically phased: one stretch of DNA joins them. If they sit on different contigs that merely share the label "hap1", nothing ties them together. In the picture, hap1 pairs A and B correctly but joins them to the mother's C. That is why the report keeps asking "same contig?", and why Part 2 measures how often one contig really holds one parent's DNA.</p>
+<p>Two error types are measured later. A <b>switch error</b> is a short flip from one parent's sequence to the other inside a contig. A <b>hamming error</b> is the share of a contig that belongs to the "wrong" parent overall, which captures long-range mixing.</p>
+</details>
+
+<!-- ---------------------------------------------------------- B3 MHC + HLA -->
+<details class="learn" id="bg-mhc"><summary>The MHC, HLA genes, allele names and "novel" alleles</summary>
+<p>The <b>MHC</b> is a ~4 Mb region of chromosome 6 that holds the <b>HLA</b> genes. Their proteins show fragments of proteins (peptides) to T cells. <b>Class I</b> (HLA-A, -B, -C) is on nearly all cells and presents to CD8 T cells. <b>Class II</b> (DR, DQ, DP) is on immune cells and presents to CD4 T cells. They are the most variable genes in the human genome, and the strongest genetic risk factors for most autoimmune diseases.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 120" role="img" aria-label="Map of the MHC on chromosome 6">
+<line x1="20" y1="60" x2="700" y2="60" class="ln"/>
+<text x="20" y="20" class="t-b">chr6 ~29.5–33.5 Mb (not to scale)</text>
+<g><rect x="40" y="50" width="8" height="20" class="gene"/><text x="44" y="88" text-anchor="middle">A</text></g>
+<g><rect x="170" y="50" width="8" height="20" class="gene"/><text x="174" y="88" text-anchor="middle">C</text></g>
+<g><rect x="190" y="50" width="8" height="20" class="gene"/><text x="194" y="88" text-anchor="middle">B</text></g>
+<g><rect x="215" y="50" width="8" height="20" class="gene"/><text x="219" y="88" text-anchor="middle" class="t-s">MICA</text></g>
+<text x="120" y="112" text-anchor="middle" class="t-acc">class I</text><line x1="40" y1="100" x2="225" y2="100" class="dash"/>
+<text x="330" y="112" text-anchor="middle" class="t-m">class III (C4 …)</text>
+<g><rect x="440" y="50" width="8" height="20" class="gene"/><text x="444" y="88" text-anchor="middle" class="t-s">DRB1</text></g>
+<g><rect x="470" y="50" width="8" height="20" class="gene"/><text x="474" y="40" text-anchor="middle" class="t-s">DQA1</text></g>
+<g><rect x="490" y="50" width="8" height="20" class="gene"/><text x="494" y="88" text-anchor="middle" class="t-s">DQB1</text></g>
+<g><rect x="610" y="50" width="8" height="20" class="gene"/><text x="614" y="40" text-anchor="middle" class="t-s">DPA1</text></g>
+<g><rect x="625" y="50" width="8" height="20" class="gene"/><text x="629" y="88" text-anchor="middle" class="t-s">DPB1</text></g>
+<text x="540" y="112" text-anchor="middle" class="t-acc">class II</text><line x1="430" y1="100" x2="640" y2="100" class="dash"/>
+<text x="110" y="40" class="t-s">A to B ≈ 1.3 Mb</text>
+<text x="470" y="20" class="t-s">DQA1 to DQB1 ≈ 20 kb</text>
+</svg></div>
+<h4>Reading an allele name</h4>
+<div class="dia"><svg class="d" viewBox="0 0 720 120" role="img" aria-label="HLA allele name fields">
+<text x="40" y="44" class="t-b mono" style="font-size:26px">DQB1*06:02:01:01</text>
+<line x1="40" y1="56" x2="110" y2="56" class="ln"/><text x="75" y="76" text-anchor="middle" class="t-s">gene</text>
+<line x1="128" y1="56" x2="156" y2="56" class="ln"/><text x="142" y="76" text-anchor="middle" class="t-s">field 1</text><text x="142" y="92" text-anchor="middle" class="t-s t-m">lineage</text>
+<line x1="170" y1="56" x2="198" y2="56" class="ln"/><text x="184" y="76" text-anchor="middle" class="t-s">field 2</text><text x="184" y="92" text-anchor="middle" class="t-s t-m">protein</text>
+<line x1="212" y1="56" x2="240" y2="56" class="ln"/><text x="226" y="76" text-anchor="middle" class="t-s">field 3</text><text x="226" y="92" text-anchor="middle" class="t-s t-m">silent change</text>
+<line x1="254" y1="56" x2="282" y2="56" class="ln"/><text x="268" y="76" text-anchor="middle" class="t-s">field 4</text><text x="268" y="92" text-anchor="middle" class="t-s t-m">outside coding</text>
+<text x="330" y="34" class="t-s">"2-field" = DQB1*06:02: the protein. Most disease studies work here.</text>
+<text x="330" y="54" class="t-s">"Full resolution" = all 4 fields: the exact DNA.</text>
+<text x="330" y="74" class="t-s">Names come from the IPD-IMGT/HLA database, released every ~3 months.</text>
+<text x="330" y="94" class="t-s">The caller used release 3.55.0; script 64 re-checked against 3.65.0.</text>
+</svg></div>
+<p><b>"Novel" alleles and novelty depth.</b> When the sequence matches no named allele, Immuannot reports the closest one and the level at which they differ. Novelty depth 2 means a new protein (the amino acids differ). Depth 3 means the same protein with a silent DNA change. Depth 4 means a difference outside the coding sequence only. A <b>key</b> is one distinct novel sequence: gene plus exact coding change. Five people carrying the same new sequence are one key with five carriers. Keys count alleles, not people.</p>
+<p><b>DQ pairing groups (G1/G2).</b> The DQ molecule is built from two chains, α (from DQA1) and β (from DQB1). Biochemistry says only some α/β combinations fold into a working molecule. Group 1 (G1) is DQA1*02–06 with DQB1*02–04. Group 2 (G2) is DQA1*01 with DQB1*05–06. Cross-group pairs are thought not to work, and a haplotype that encodes one is expected to be rare or absent. Part 6 tests that.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 110" role="img" aria-label="DQ alpha and beta chain pairing groups">
+<rect x="30" y="18" width="70" height="26" rx="4" class="pat-s"/><text x="65" y="36" text-anchor="middle" class="t-s">α DQA1*05</text>
+<rect x="110" y="18" width="70" height="26" rx="4" class="pat-s"/><text x="145" y="36" text-anchor="middle" class="t-s">β DQB1*02</text>
+<text x="105" y="66" text-anchor="middle" class="t-ok">G1 + G1: works</text>
+<rect x="260" y="18" width="70" height="26" rx="4" class="mat-s"/><text x="295" y="36" text-anchor="middle" class="t-s">α DQA1*01</text>
+<rect x="340" y="18" width="70" height="26" rx="4" class="mat-s"/><text x="375" y="36" text-anchor="middle" class="t-s">β DQB1*06</text>
+<text x="335" y="66" text-anchor="middle" class="t-ok">G2 + G2: works</text>
+<rect x="490" y="18" width="70" height="26" rx="4" class="pat-s"/><text x="525" y="36" text-anchor="middle" class="t-s">α DQA1*05</text>
+<rect x="570" y="18" width="70" height="26" rx="4" class="mat-s"/><text x="605" y="36" text-anchor="middle" class="t-s">β DQB1*06</text>
+<text x="565" y="66" text-anchor="middle" class="t-bad">G1 + G2: does not fold</text>
+<text x="30" y="96" class="t-s t-m">Question in Part 6: does any chromosome carry a cross-group DQA1~DQB1 pair? If the rule is strict, none should.</text>
+</svg></div>
+<p><b>DR paralogs.</b> Next to DRB1, a chromosome carries none or one of DRB3, DRB4 or DRB5, depending on the DRB1 lineage. These are the DR51 (DRB5), DR52 (DRB3) and DR53 (DRB4) haplotype groups. It is a known rule, so a method that finds it on its own is working (Part 6).</p>
+</details>
+
+<!-- ---------------------------------------------------------- B4 KIR -->
+<details class="learn" id="bg-kir"><summary>KIR genes and KIR haplotypes</summary>
+<p><b>KIR</b> genes (on chr19) encode receptors on natural killer cells that read HLA class I molecules. Unlike HLA, KIR haplotypes differ in <i>which genes they carry at all</i>, not only in alleles: a chromosome carries roughly 7 to 15 KIR genes. Four <b>framework genes</b> are present on nearly every haplotype and mark its structure: KIR3DL3 at the start (centromeric end), 3DP1 and 2DL4 in the middle, and 3DL2 at the end (telomeric end).</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 150" role="img" aria-label="KIR haplotype structure">
+<text x="6" y="20" class="t-b">KIR cluster, one chromosome (~150–250 kb)</text>
+<line x1="20" y1="60" x2="700" y2="60" class="ln"/>
+<rect x="30" y="48" width="44" height="24" rx="3" class="accbox"/><text x="52" y="64" text-anchor="middle" class="t-s">3DL3</text>
+<rect x="90" y="48" width="44" height="24" rx="3" class="nz"/><text x="112" y="64" text-anchor="middle" class="t-s">2DL3</text>
+<rect x="140" y="48" width="44" height="24" rx="3" class="nz"/><text x="162" y="64" text-anchor="middle" class="t-s">2DP1</text>
+<rect x="190" y="48" width="44" height="24" rx="3" class="nz"/><text x="212" y="64" text-anchor="middle" class="t-s">2DL1</text>
+<rect x="260" y="48" width="44" height="24" rx="3" class="accbox"/><text x="282" y="64" text-anchor="middle" class="t-s">3DP1</text>
+<rect x="310" y="48" width="44" height="24" rx="3" class="accbox"/><text x="332" y="64" text-anchor="middle" class="t-s">2DL4</text>
+<rect x="380" y="48" width="44" height="24" rx="3" class="nz"/><text x="402" y="64" text-anchor="middle" class="t-s">3DL1</text>
+<rect x="430" y="48" width="44" height="24" rx="3" class="nz"/><text x="452" y="64" text-anchor="middle" class="t-s">2DS4</text>
+<rect x="640" y="48" width="44" height="24" rx="3" class="accbox"/><text x="662" y="64" text-anchor="middle" class="t-s">3DL2</text>
+<text x="160" y="96" text-anchor="middle" class="t-s">centromeric half (variable)</text>
+<text x="530" y="96" text-anchor="middle" class="t-s">telomeric half (variable)</text>
+<text x="30" y="122" class="t-s">Blue = framework genes. This example is the common "cA01~tA01" A haplotype.</text>
+<text x="30" y="140" class="t-s">B haplotypes add activating genes (2DS1/2/3/5, 3DS1, 2DL2, 2DL5). "cB share" = % of haplotypes with any of these.</text>
+</svg></div>
+<p><b>Why KIR is hard to assemble.</b> KIR genes are near-copies of each other (~90–98% identical), so contigs often stop inside the cluster. A <b>complete</b> haplotype in this report has all its KIR genes on one contig, with both end genes (3DL3 and 3DL2) present. Only on complete haplotypes can we say a gene is truly absent; elsewhere, "missing" may mean the contig ended early.</p>
+<p><b>Allelic pairs.</b> 2DL2 and 2DL3 are two forms of the same position, as are 3DL1 and 3DS1. A haplotype normally carries one or the other. Seeing both on one haplotype is either a rare real duplication or an assembly artefact, and Part 8 tells them apart.</p>
+</details>
+
+<!-- ---------------------------------------------------------- B5 TRB -->
+<details class="learn" id="bg-trb"><summary>The TRB locus, V(D)J recombination and the T-cell repertoire</summary>
+<p>Each T cell carries a T-cell receptor built from a β chain and an α chain. The β chain gene <b>TRB</b> (chr7, ~0.6 Mb) is stored in pieces: about 65 <b>V</b> segments (TRBV…), 2 D, 13 J and 2 C. As each T cell matures, it cuts its own DNA and joins one V to one D and one J. This is <b>V(D)J recombination</b>, and it permanently deletes the DNA between the joined pieces <i>in that cell</i>. A person's <b>repertoire</b> is the mix of receptors across their T cells, and RNA sequencing can measure how often each V segment is used.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 190" role="img" aria-label="V(D)J recombination and the TRBV4-3 insertion">
+<text x="6" y="18" class="t-b">Germline (every cell)</text>
+<line x1="20" y1="44" x2="700" y2="44" class="ln"/>
+<g><rect x="40" y="34" width="14" height="20" class="gene"/><rect x="70" y="34" width="14" height="20" class="gene"/><rect x="100" y="34" width="14" height="20" class="gene"/></g>
+<rect x="132" y="30" width="96" height="28" rx="3" class="ins" opacity=".35"/><rect x="150" y="34" width="14" height="20" class="ins"/><rect x="190" y="34" width="14" height="20" class="ins"/>
+<text x="180" y="74" text-anchor="middle" class="t-s">optional 21.6 kb insertion:</text><text x="180" y="88" text-anchor="middle" class="t-s">TRBV3-2, TRBV4-3, extra 6-2/6-3</text>
+<g><rect x="250" y="34" width="14" height="20" class="gene"/><rect x="280" y="34" width="14" height="20" class="gene"/><rect x="310" y="34" width="14" height="20" class="gene"/><text x="290" y="28" text-anchor="middle" class="t-s">… more V …</text></g>
+<rect x="470" y="34" width="10" height="20" class="acc"/><text x="475" y="74" text-anchor="middle" class="t-s">D</text>
+<rect x="500" y="34" width="8" height="20" class="acc"/><rect x="512" y="34" width="8" height="20" class="acc"/><text x="512" y="74" text-anchor="middle" class="t-s">J</text>
+<rect x="560" y="34" width="20" height="20" class="okf"/><text x="570" y="74" text-anchor="middle" class="t-s">C</text>
+<text x="660" y="74" text-anchor="middle" class="t-s">TRBV30</text><rect x="652" y="34" width="14" height="20" class="gene"/>
+<text x="6" y="122" class="t-b">One mature T cell</text>
+<line x1="20" y1="146" x2="700" y2="146" class="ln"/>
+<g><rect x="40" y="136" width="14" height="20" class="gene"/><rect x="70" y="136" width="14" height="20" class="gene"/></g>
+<rect x="100" y="136" width="14" height="20" class="gene"/><rect x="118" y="136" width="10" height="20" class="acc"/><rect x="132" y="136" width="8" height="20" class="acc"/>
+<rect x="190" y="136" width="20" height="20" class="okf"/>
+<text x="120" y="176" text-anchor="middle" class="t-s">V joined to D–J: everything in between is cut out in this cell</text>
+<rect x="652" y="136" width="14" height="20" class="gene"/>
+</svg></div>
+<p>Two facts follow, and both appear in the results. First, a gene that is <b>missing from the germline</b> cannot be used. About 27% of people never use TRBV4-3 (Aleix's repertoire work), and TRBV4-3 sits on a known optional insertion; Part 9 measures who carries it. Second, blood DNA is partly T-cell DNA. Because recombination deletes the segments between the joined V and J, the read depth over the D–J region and the nearby V genes is <i>somatically</i> reduced. That is not a germline genotype (Part 4).</p>
+<p><b>Reference genome detail.</b> The standard reference, GRCh38, describes the chromosome <i>without</i> the insertion. The insertion exists only on an "alternative" contig (ALT, named KI270803v1). The HiFi reads were aligned to GRCh38 without ALTs, so reads from TRBV4-3 have no matching place in the reference, and that complicates genotyping.</p>
+</details>
+
+<!-- ---------------------------------------------------------- B6 READS -->
+<details class="learn" id="bg-reads"><summary>Reads, depth, mapping quality, alignment identity and allele fraction</summary>
+<p>Aligning reads to the reference stacks them over the positions they came from. The number of reads covering a base is the <b>depth</b>. Here it is about 20 on average.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 170" role="img" aria-label="Reads, depth and relative depth">
+<line x1="20" y1="140" x2="700" y2="140" class="ln"/>
+<text x="20" y="160" class="t-s">reference position →</text>
+<g>
+<line x1="40" y1="30" x2="230" y2="30" class="read"/><line x1="90" y1="42" x2="300" y2="42" class="read"/><line x1="150" y1="54" x2="340" y2="54" class="read"/><line x1="60" y1="66" x2="260" y2="66" class="read"/><line x1="200" y1="78" x2="380" y2="78" class="read"/><line x1="120" y1="90" x2="310" y2="90" class="read"/>
+<line x1="430" y1="54" x2="610" y2="54" class="read"/><line x1="470" y1="66" x2="660" y2="66" class="read"/><line x1="410" y1="78" x2="560" y2="78" class="read"/>
+</g>
+<text x="210" y="118" text-anchor="middle" class="t-s">control window: ~6 reads deep</text>
+<text x="540" y="118" text-anchor="middle" class="t-s">region of interest: ~3 deep</text>
+<text x="540" y="132" text-anchor="middle" class="t-acc">relative depth = 3 / 6 = 0.5</text>
+</svg></div>
+<ul>
+<li><b>Relative depth</b> divides a region's depth by the same person's depth over neutral control windows. That cancels how much DNA that person was sequenced with. 1.0 means "covered like the rest of the genome". A one-copy deletion should give 0.5 and a duplication 1.5.</li>
+<li><b>Mapping quality (MAPQ)</b> is the aligner's confidence that a read is placed correctly. It is 0 when a read fits equally well in two places (paralogs) and up to 60 when the placement is unique. Counting depth at MAPQ ≥ 0 keeps ambiguous reads; MAPQ ≥ 20 drops them.</li>
+<li><b>Alignment identity</b> is the share of matching bases in an alignment block. Contig-to-reference alignments come in a table format called <b>PAF</b>, one line per block, which lists the matching bases and the block length. True copies of a region align at ~95–99.9%. Repeats that merely resemble it align much lower (Part 10).</li>
+<li><b>Allele fraction</b>: at a site where two versions exist, it is the share of reads that carry one version. A heterozygote should show ~0.5 and a homozygote 0 or 1. Each read is a draw, so with 14 reads a true 0.5 still scatters roughly between 0.3 and 0.7.</li>
+</ul>
+<h4>Homopolymers: the main HiFi error</h4>
+<p>A <b>homopolymer</b> is a run of one repeated base, like AAAAAAA. HiFi reads and assemblers sometimes miscount its length by one. A 1-base insertion or deletion inside a gene's coding sequence shifts the reading frame and produces a "new protein" that does not exist. Part 5 shows this artefact explains most recurrent "novel" classical HLA proteins.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 112" role="img" aria-label="Homopolymer length errors in reads">
+<text x="6" y="22" class="t-s mono">known allele   …GCT AAAAAAA CGT…   (7 A)</text>
+<text x="6" y="46" class="t-s mono">read 1         …GCT AAAAAAA CGT…   7 → known</text>
+<text x="6" y="64" class="t-s mono">read 2         …GCT AAAAAAAA CGT…  8 → as the assembly called</text>
+<text x="6" y="82" class="t-s mono">read 3         …GCT AAAAAAA CGT…   7 → known</text>
+<text x="6" y="104" class="t-s">If most reads say 7 but the assembly wrote 8, the "novel frame-shift allele" is an assembly error.</text>
+</svg></div>
+</details>
+
+<!-- ---------------------------------------------------------- B7 RELATIVES -->
+<details class="learn" id="bg-rel"><summary>Relatives, kinship, the unrelated set, trios and k-mers</summary>
+<p><b>Kinship coefficient.</b> This is the probability that an allele picked at random from person 1 and one from person 2 at the same position are copies of the same ancestral allele. It is 0.5 for identical twins or duplicate samples, 0.25 for parent–child and full siblings, 0.125 for second degree and 0.0625 for third degree. All of Us provides it for every pair above ~0.044.</p>
+<p><b>Unrelated set.</b> Frequencies must not count one family several times. Pairs with kinship ≥ 0.0442 (the usual third-degree cut, 2<sup>−4.5</sup>) are broken by repeatedly removing the person with the most relatives. Among HLA-called people this leaves 11,856.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 120" role="img" aria-label="Greedy removal for the unrelated set">
+<circle cx="80" cy="60" r="14" class="nz"/><circle cx="160" cy="30" r="14" class="badbox"/><circle cx="160" cy="90" r="14" class="nz"/><circle cx="240" cy="60" r="14" class="nz"/>
+<line x1="94" y1="56" x2="146" y2="36" class="ln2"/><line x1="160" y1="44" x2="160" y2="76" class="ln2"/><line x1="174" y1="36" x2="226" y2="56" class="ln2"/>
+<text x="160" y="34" text-anchor="middle" class="t-s t-bad">×</text>
+<text x="300" y="40" class="t-s">Lines = related pairs (kinship ≥ 0.0442).</text>
+<text x="300" y="58" class="t-s">The person with most links (red) is removed first;</text>
+<text x="300" y="76" class="t-s">repeat until no links remain. Three people stay.</text>
+</svg></div>
+<p><b>Trios.</b> When a sequenced person has two first-degree relatives who are not related to each other, those two must be the parents. This finds 179 parent–parent–child trios.</p>
+<p><b>k-mers and parent of origin (yak).</b> A k-mer is a short word of DNA, here 31 letters. The tool <i>yak</i> lists all k-mers in each parent's reads. A k-mer in the child's contig that occurs only in the father's reads marks that stretch as paternal; one only in the mother's marks it maternal. Colouring a child's contig this way shows directly whether it is one parent's DNA, and so whether phasing is right.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 140" role="img" aria-label="Trio k-mer colouring of a child contig">
+<text x="6" y="20" class="t-b">Child contig, coloured by parent-specific k-mers</text>
+<g>
+<rect x="20" y="36" width="10" height="16" class="pat"/><rect x="36" y="36" width="10" height="16" class="pat"/><rect x="52" y="36" width="10" height="16" class="pat"/><rect x="68" y="36" width="10" height="16" class="mat"/><rect x="84" y="36" width="10" height="16" class="pat"/><rect x="100" y="36" width="10" height="16" class="pat"/><rect x="116" y="36" width="10" height="16" class="pat"/><rect x="132" y="36" width="10" height="16" class="pat"/>
+<rect x="160" y="36" width="10" height="16" class="pat"/><rect x="176" y="36" width="10" height="16" class="pat"/><rect x="192" y="36" width="10" height="16" class="pat"/>
+<rect x="230" y="36" width="10" height="16" class="mat"/><rect x="246" y="36" width="10" height="16" class="mat"/><rect x="262" y="36" width="10" height="16" class="mat"/><rect x="278" y="36" width="10" height="16" class="mat"/><rect x="294" y="36" width="10" height="16" class="mat"/>
+</g>
+<text x="73" y="72" text-anchor="middle" class="t-s t-bad">1 switch (a flip and back)</text>
+<text x="262" y="72" text-anchor="middle" class="t-s t-bad">long-range mix:</text>
+<text x="262" y="86" text-anchor="middle" class="t-s t-bad">5 of 16 k-mers from the minority parent</text>
+<text x="380" y="44" class="t-s">switch error = adjacent k-mers from different parents</text>
+<text x="380" y="62" class="t-s">hamming error = k-mers from the contig's minority parent</text>
+<text x="380" y="80" class="t-s">here: hamming = 6/16 = 38% (the 1 flip + 5)</text>
+<text x="6" y="120" class="t-s">Per gene: count paternal vs maternal k-mers within ±10 kb. A gene is assigned if one parent has ≥ 5 k-mers and ≥ 3× the other; otherwise "ambiguous".</text>
+</svg></div>
+<p><b>Mendelian check.</b> A child's allele must be present in the parent who transmitted it. If the transmitting parent (known from the k-mers) does not carry the child's called allele, then the child's call or the parent's call is wrong.</p>
+</details>
+
+<!-- ---------------------------------------------------------- B8 POPGEN -->
+<details class="learn" id="bg-popgen"><summary>Population genetics: frequencies, Hardy–Weinberg, LD and ancestry labels</summary>
+<p><b>Allele frequency</b> is the share of chromosomes (haplotypes) carrying an allele. With two chromosomes per person, 11,856 unrelated people give 23,712 haplotypes.</p>
+<p><b>Hardy–Weinberg equilibrium (HWE).</b> If an insertion has frequency p and people pair their chromosomes at random, the expected genotype shares are p² (two copies), 2p(1−p) (one copy) and (1−p)² (none). Real populations follow this closely for most variants. A big shortage of heterozygotes usually means the <i>genotyping</i> is wrong, or that a group mixes sub-populations with different frequencies (the Wahlund effect).</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 150" role="img" aria-label="Hardy-Weinberg expected genotype shares">
+<text x="6" y="18" class="t-b">Example: insertion frequency p = 0.42 (AFR)</text>
+<rect x="40" y="60" width="80" height="60" class="nz"/><text x="80" y="54" text-anchor="middle" class="t-s">0 copies</text><text x="80" y="140" text-anchor="middle" class="t-s">(1−p)² = 33.6%</text>
+<rect x="160" y="34" width="80" height="86" class="pat-s"/><text x="200" y="28" text-anchor="middle" class="t-s">1 copy</text><text x="200" y="140" text-anchor="middle" class="t-s">2p(1−p) = 48.7%</text>
+<rect x="280" y="88" width="80" height="32" class="mat-s"/><text x="320" y="82" text-anchor="middle" class="t-s">2 copies</text><text x="320" y="140" text-anchor="middle" class="t-s">p² = 17.6%</text>
+<text x="400" y="56" class="t-s">If the call cut-offs push true 1-copy people</text>
+<text x="400" y="74" class="t-s">into "2 copies", the middle bar shrinks and the</text>
+<text x="400" y="92" class="t-s">right bar grows: an apparent heterozygote deficit</text>
+<text x="400" y="110" class="t-s">(this is what happened in Part 9).</text>
+</svg></div>
+<p><b>Linkage disequilibrium (LD).</b> Alleles of nearby genes are inherited together across generations, so some combinations are far more common, and others far rarer, than chance predicts. In the MHC, LD spans megabases. The <b>expected count under independence</b> is E = n × p<sub>A</sub> × p<sub>B</sub>: how often a combination would appear if the two genes were shuffled. Comparing it with the observed count shows LD. An observed 0 where E is 1,500 is a striking absence.</p>
+<p><b>Predicted ancestry.</b> All of Us assigns each person to one of six continental groups (AFR, AMR, EAS, EUR, MID, SAS) from genome-wide genetic similarity to reference panels. Each person also gets a probability for each group. "Purity p" is the highest of these. Admixed people, common in AMR, MID and EUR as labelled here, have lower p. These are genetic-similarity labels, not self-identity.</p>
+</details>
+
+<!-- ---------------------------------------------------------- B9 STATS -->
+<details class="learn" id="bg-stats"><summary>Statistics toolbox: every test used, in plain words</summary>
+<div class="tw"><table>
+<tr><th>Tool</th><th>What it answers</th><th>How to read it here</th></tr>
+<tr><td>Proportion with a <b>Wilson 95% CI</b></td><td>"What share has X, and how precisely do we know it?"</td><td>The interval is where the true share plausibly lies. Wilson behaves well even when the share is near 0% or 100%, or n is small. Example: 36 of 88 = 40.9% (31.2–51.4).</td></tr>
+<tr><td><b>Upper bound from a masked count</b></td><td>"At most how big can a masked rate be?"</td><td>If fewer than 20 of 261 fail, the rate is below 19/261 = 7.3%. The report quotes the &lt; 7.7% bound from 19/248, the smallest n among those pairs.</td></tr>
+<tr><td><b>Odds ratio (OR)</b></td><td>"How much more likely is X in group 1 than in group 2?"</td><td>OR = 1 means no difference. OR 0.5 means the odds are halved. Odds are p/(1−p); for small p they are close to the probability itself.</td></tr>
+<tr><td><b>Mantel–Haenszel OR</b></td><td>An OR computed within each stratum (here, each ancestry) and then combined</td><td>It removes the part of a difference that only reflects different ancestry mixes between groups.</td></tr>
+<tr><td><b>Spearman ρ</b></td><td>"Does Y go up when X goes up?"</td><td>It ranges from −1 to 1 and uses ranks, so outliers matter little. 0.72 is strong; 0.1–0.3 is weak.</td></tr>
+<tr><td><b>Binomial test</b></td><td>"Could this split of reads (or people) arise by chance from a fair 50:50?"</td><td>A small p-value means chance alone is unlikely.</td></tr>
+<tr><td><b>Bonferroni correction</b></td><td>Many tests at once give false hits by chance</td><td>Divide 0.05 by the number of tests. Part 6 calls a cell absent only if seeing 0 by chance is less likely than 0.05/m.</td></tr>
+<tr><td><b>Resampling at equal N</b></td><td>"Does group A have more alleles than B at the same sample size?"</td><td>Larger samples always find more alleles, so each group is subsampled to the same N 50 times and the mean is compared.</td></tr>
+<tr><td><b>Logistic regression OR per unit</b></td><td>"Does lower depth raise the odds of a bad call?"</td><td>Used in 59. An OR near 1 means depth does not predict the outcome.</td></tr>
+<tr><td><b>HWE χ² test</b></td><td>"Do genotype counts match p², 2pq, q²?"</td><td>With thousands of people, tiny departures are "significant", so the size of the shortfall matters more than the p-value.</td></tr>
+</table></div>
+</details>
+
+<!-- ---------------------------------------------------------- B10 DISCLOSURE -->
+<details class="learn" id="bg-disc"><summary>Small-count masking and complementary suppression</summary>
+<p>All of Us forbids publishing any count of 1–19 participants, because small groups can identify people. Such counts are written <code>&lt;20</code>, and rates computed from them are blanked. Masking one cell is not enough when a table also shows its total and the other parts: the masked cell is a subtraction away. <b>Complementary suppression</b> then masks a second cell, written <code>&lt;20*</code>, so the subtraction no longer works.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 120" role="img" aria-label="Complementary suppression example">
+<text x="6" y="20" class="t-b">Unsafe</text>
+<text x="6" y="44" class="t-s mono">0 copies   &lt;20</text><text x="6" y="62" class="t-s mono">1 copy     288</text><text x="6" y="80" class="t-s mono">2 copies  4,698</text><text x="6" y="98" class="t-s mono">total     4,994   → hidden = 4,994 − 288 − 4,698 = 8</text>
+<text x="420" y="20" class="t-b">Safe</text>
+<text x="420" y="44" class="t-s mono">0 copies   &lt;20</text><text x="420" y="62" class="t-s mono">1 copy     &lt;20*</text><text x="420" y="80" class="t-s mono">2 copies  4,698</text><text x="420" y="98" class="t-s mono">total     4,994   → two unknowns, no solution</text>
+</svg></div>
+<p>This sprint made the rule generic (<code>_disclosure.py</code>), applied it to every new public table and tested it. A few older tables still have the old problem; they are listed in <a href="#p11">Part 11</a>.</p>
+</details>
+</section>

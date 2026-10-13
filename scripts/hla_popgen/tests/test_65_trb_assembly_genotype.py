@@ -211,7 +211,9 @@ class TestEndToEnd(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()
         cls.w = World(cls.tmp, n=400)
-        cls.out, cls.internal = cls.w.run("kmer")
+        # estimate checks read rates that 66's cross-table pass blanks on these tiny synthetic strata
+        # (1-19 people not called everywhere); TestReadsEndToEnd.test_cross_table_pass covers the pass
+        cls.out, cls.internal = cls.w.run("kmer", extra=("--no-cross-table",))
 
     def test_recovers_planted_genotypes(self):
         g = read_int(os.path.join(self.internal, "per_person_gene.tsv"))
@@ -246,7 +248,8 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual(f["reason"].iloc[0], "assembly_missing")
         run = dict(pd.read_csv(os.path.join(self.out, "run_summary.tsv"), sep="\t").values)
         self.assertEqual(run["people_genotyped"], "399")
-        self.assertEqual(run["people_called_any_feature"], "398")
+        # 399 genotyped - 398 called = 1 person: the called count is masked complementarily (S05 10-12)
+        self.assertEqual(run["people_called_any_feature"], "<20*")
         comp = pd.read_csv(os.path.join(self.out, "haplotype_completeness.tsv"), sep="\t", dtype=str)
         allr = comp[comp["stratum"] == "ALL"].iloc[0]
         self.assertEqual(allr["n_haplotypes"], "798")
@@ -281,7 +284,7 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_resume_adds_nothing(self):
         n0 = len(read_int(os.path.join(self.internal, "per_haplotype.tsv")))
-        self.w.run("kmer")
+        self.w.run("kmer", extra=("--no-cross-table",))   # rewrites the shared self.out
         self.assertEqual(n0, len(read_int(os.path.join(self.internal, "per_haplotype.tsv"))))
 
 
@@ -529,7 +532,7 @@ class TestReadsEndToEnd(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()
         cls.w = ReadsWorld(cls.tmp, n=160)
-        cls.out, cls.internal = cls.w.run("mappy")
+        cls.out, cls.internal = cls.w.run("mappy", extra=("--no-cross-table",))   # see TestEndToEnd
 
     def test_genotypes_and_haplotypes(self):
         g = read_int(os.path.join(self.internal, "per_person_gene.tsv"))
@@ -593,6 +596,38 @@ class TestReadsEndToEnd(unittest.TestCase):
         for _i, r in tab.iterrows():
             self.assertNotEqual(sum(hidden(r[c]) for c in ("n_called", "n_0copies", "n_1copy", "n_2copies")), 1)
 
+    def test_cross_table_histogram_vs_genotypes(self):
+        """In-script pass (no 66): the AF bins in [0, 0.2), [0.2, 0.8), [0.8, 1] sum to n_0copies /
+        n_1copy / n_2copies of the same feature x stratum, and all bins to n_called; none of these sets
+        may hold exactly one hidden cell (S05 fact-check 2026-10-12)."""
+        hist = pd.read_csv(os.path.join(self.out, "allele_fraction_histogram.tsv"), sep="\t", dtype=str)
+        tab = pd.read_csv(os.path.join(self.out, "genotype_by_stratum.tsv"), sep="\t", dtype=str)
+        tab = tab.set_index(["feature", "stratum_type", "stratum"])
+        n = 0
+        for k, h in hist.groupby(["feature", "stratum_type", "stratum"]):
+            lo = h["af_lo"].astype(float)
+            for col, sel in (("n_called", lo >= 0), ("n_0copies", lo < 0.2), ("n_1copy", (lo >= 0.2) & (lo < 0.8)),
+                             ("n_2copies", lo >= 0.8)):
+                cells = [tab.at[k, col]] + list(h.loc[sel, "n_people"])
+                self.assertNotEqual(sum(not str(x).isdigit() for x in cells), 1, (k, col))
+                n += 1
+        self.assertGreater(n, 8)
+
+    def test_cross_table_pass(self):
+        """Default PUBLIC run: 66 masks what the in-script pass cannot see (people not called, people
+        with no listed ancestry) and its checker then finds no count of 1-19 recoverable."""
+        out = os.path.join(self.tmp, "out_cross")
+        self.w.run("mappy", extra=("--aggregate-only", "--out-dir", out))
+        s66 = importlib.util.spec_from_file_location("cts66_65", os.path.join(SRC, "66_cross_table_suppression.py"))
+        cts = importlib.util.module_from_spec(s66)
+        s66.loader.exec_module(cts)
+        P = cts.build(dir65=out)
+        leaks, inconsistent = P.analyse()
+        self.assertEqual(inconsistent, [])
+        self.assertEqual(leaks, [])
+        run = dict(pd.read_csv(os.path.join(out, "run_summary.tsv"), sep="\t").values)
+        self.assertEqual(run["genotyper"], "cuts")
+
     def test_aggregate_only_new_floor(self):
         out = os.path.join(self.tmp, "out_floor")
         self.w.run("mappy", extra=("--aggregate-only", "--min-reads", "1000", "--out-dir", out))
@@ -601,7 +636,7 @@ class TestReadsEndToEnd(unittest.TestCase):
 
     def test_mode_guard_and_resume(self):
         n0 = len(read_int(os.path.join(self.internal, "per_haplotype.tsv")))
-        self.w.run("mappy")
+        self.w.run("mappy", extra=("--no-cross-table",))  # rewrites the shared self.out
         self.assertEqual(n0, len(read_int(os.path.join(self.internal, "per_haplotype.tsv"))))
         with self.assertRaises(SystemExit):
             tg.main(["--mode", "assembly", "--probes", self.w.probe_fa, "--cohort", self.w.cohort,
@@ -696,3 +731,43 @@ class TestStratifiedAndCompare(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAfMixture(unittest.TestCase):
+    def test_recovers_shifted_het_fraction_and_calls(self):
+        import numpy as np
+        rng = np.random.default_rng(65)
+        truth = rng.choice(3, size=3000, p=[0.33, 0.48, 0.19])
+        n = rng.integers(6, 25, size=truth.size)
+        f_true = np.array([0.01, 0.64, 0.99])[truth]
+        k = rng.binomial(n, f_true)
+        f, w, post = tg.fit_af_mixture(k, n)
+        self.assertAlmostEqual(f[1], 0.64, delta=0.02)
+        self.assertAlmostEqual(w[2], 0.19, delta=0.03)
+        call = post.argmax(axis=1)
+        sure = post.max(axis=1) >= 0.9
+        self.assertGreater((call[sure] == truth[sure]).mean(), 0.97)
+        # fixed 0.2/0.8 cuts on the same data overcall 2 copies, the S05 heterozygote deficit
+        af = k / n
+        cut2 = (af >= 0.8).mean()
+        self.assertGreater(cut2, 0.19 + 0.03)
+
+    def test_mixture_reads_calls_per_platform(self):
+        import numpy as np
+        rng = np.random.default_rng(1)
+        rows, people = [], []
+        for i in range(600):
+            pl = "revio" if i % 3 else "sequel2e"
+            g = rng.choice(3, p=[0.3, 0.5, 0.2])
+            n = int(rng.integers(8, 20))
+            k = int(rng.binomial(n, [0.01, 0.62 if pl == "revio" else 0.7, 0.99][g]))
+            rows.append(dict(person_id=f"p{i}", feature="TRBV4-3", n_ins=k, n_ref=n - k))
+            people.append(dict(person_id=f"p{i}", ancestry="EUR", platform=pl))
+        rows.append(dict(person_id="low", feature="TRBV4-3", n_ins=1, n_ref=1))
+        people.append(dict(person_id="low", ancestry="EUR", platform="revio"))
+        calls, fit = tg.mixture_reads_calls(pd.DataFrame(rows), pd.DataFrame(people), min_reads=6)
+        self.assertEqual(set(fit["platform"]), {"revio", "sequel2e"})
+        self.assertEqual(calls.set_index("person_id").loc["low", "status"], "low_reads")
+        self.assertTrue(set(calls["status"]) <= {"ok", "ambiguous", "low_reads"})
+        rev = fit.set_index("platform").loc["revio", "f_1copy"]
+        self.assertAlmostEqual(rev, 0.62, delta=0.04)

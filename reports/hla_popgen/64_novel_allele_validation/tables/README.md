@@ -14,5 +14,6 @@ Disclosure:
 - Participant counts (`n_calls`, `n_calls_tested`) are masked `<20` by the script.
 - Key counts (`n_keys` and the per-step key columns of `funnel_with_evidence.tsv`) count distinct alleles, not people, and are left unmasked. This follows the looser rule for non-participant counts (DECISIONS 2026-09-28 / 2026-10-11): `<20` is applied at publication.
 - `now_known_alleles.tsv` (named alleles) is NOT included here, pending Marc's decision on publishing it.
+- 2026-10-13: `failures_summary.tsv` re-masked by `scripts/hla_popgen/66_cross_table_suppression.py` (the reasons summed back to the totals). `summary_by_stratum.tsv` still has recoverable cells (verdicts sum to tested calls, hp_only + other = all, platforms/ancestries/genes sum to ALL); not yet re-masked. Earlier versions remain in git history.
 
 Re-match-only run (no reads), for comparison: `~/s05/results/64_ipd_unrel` on the VM; same funnel counts minus the read columns.

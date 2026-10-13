@@ -1,0 +1,167 @@
+<!-- =============================================================== PART 5 -->
+<section id="p5">
+<h2><span class="part">Part 5</span>Novel HLA alleles: what survives</h2>
+<p><b>Question.</b> The earlier figures counted thousands of "novel" HLA alleles, meaning sequences not in the allele database. Before any of them becomes a headline, three questions need answers:</p>
+<ol>
+<li>Do they recur in unrelated people? A one-off is more likely an error.</li>
+<li>Do they avoid the known HiFi error class, a 1-base insertion or deletion in a run of one repeated base (a homopolymer, <a href="#bg-reads">background</a>)?</li>
+<li>Do the person's own reads carry them?</li>
+</ol>
+<p>Script 50d asked the first two. Script 64 re-matched every key against IPD-IMGT/HLA 3.65.0 (July 2026, 10 releases newer than the 3.55.0 the caller used) and tested up to 5 carriers per key against the HiFi reads.</p>
+
+<details class="trailbox"><summary>From which file, by what process (50d and 64)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Table 1 rows flagged protein-novel (the protein differs from every known one) or synonymous-novel (same protein, new DNA). The <code>cds_mut</code> string records how the called coding sequence differs from Immuannot's nearest known allele. For 64 there are also the person's assembly (<code>&lt;hap&gt;.trimmed.fa</code>), Immuannot's GTF and its <code>cds.fa.gz</code> record, the IPD 3.65.0 FASTA and allele history, and the HiFi BAM.</dd>
+<dt>Process</dt><dd><ol><li><b>Key</b> = (gene, <code>cds_mut</code>): one distinct novel sequence. The funnel counts keys, not people.</li><li><b>Filters</b> in order: ≥ 2 unrelated carriers; not homopolymer-indel-only; no template warning; seen on ≥ 2 platforms; in ≥ 2 ancestries (64 only); ≥ 20 clean carriers.</li><li><b>64 re-match:</b> rebuild the CDS from the GTF exon rows on the contig and compare it with the <code>cds.fa.gz</code> record. If they disagree, the call is skipped and counted (the "CDS disagree" class). Then look for an exact match in 3.65.0: "now known" means the allele was named after 3.55.0.</li><li><b>64 read test:</b> build two versions of the person's local haplotype, the called one (Wc) and the same one with the novel differences reverted to the nearest known allele (Tn). Align each spanning HiFi read to both. A read "supports" if it fits Wc better and "contradicts" if it fits Tn better. A call is supported with ≥ 3 reads assigned to that haplotype and ≥ 70% support, and contradicted at ≤ 15%. A key's reads are also pooled across its tested carriers.</li></ol></dd>
+<dt>Trade-offs</dt><dd>At most 5 carriers per key keeps the run small (4,616 calls) but means a key's verdict rests on few people. The reads are the same HiFi reads the assembly was built from, so read support is consistency, not independent proof. Short reads (a different chemistry) would be the independent test; they were not run.</dd>
+<dt>Unit</dt><dd>Keys (distinct sequences) in the funnels; calls (one gene in one person) in the outcome figure; reads in the homopolymer figure.</dd>
+<dt>Output</dt><dd><code>50_qc_foundation/protein_novel_waterfall.tsv</code>; <code>64_novel_allele_validation/tables/</code> (<code>funnel_with_evidence.tsv</code>, <code>failures_summary.tsv</code>, <code>hp_runlength_by_gene.tsv</code>)</dd>
+</dl>
+</details>
+
+<div class="dia"><svg class="d" viewBox="0 0 720 160" role="img" aria-label="Read test: called haplotype versus reverted haplotype">
+<text x="10" y="18" class="t-b">Wc: the haplotype as called</text>
+<line x1="10" y1="36" x2="460" y2="36" class="ln"/><rect x="215" y="28" width="16" height="16" class="badbox"/><text x="223" y="40" text-anchor="middle" class="t-s mono">T</text>
+<text x="10" y="70" class="t-b">Tn: the same haplotype with the novel base reverted</text>
+<line x1="10" y1="88" x2="460" y2="88" class="ln"/><rect x="215" y="80" width="16" height="16" class="okbox"/><text x="223" y="92" text-anchor="middle" class="t-s mono">C</text>
+<text x="490" y="30" class="t-s">each spanning HiFi read is aligned to both:</text>
+<text x="490" y="50" class="t-s">fits Wc better → <tspan class="t-ok">supports the novel allele</tspan></text>
+<text x="490" y="70" class="t-s">fits Tn better → <tspan class="t-bad">assembly error</tspan></text>
+<text x="490" y="90" class="t-s">equal → undecided</text>
+<text x="10" y="124" class="t-s">Only reads assigned to this haplotype count (they must fit it better than the person's other haplotype).</text>
+<text x="10" y="142" class="t-s">At typical depth only ~3 reads per haplotype span the window, so many calls stay undecided.</text>
+</svg></div>
+
+<figure class="plate" id="f-funnel50"><div class="img"><img data-src="reports/hla_popgen/50_qc_foundation/fig_protein_novel_funnel.png" alt="Protein-novel funnel 50d"></div>
+<figcaption><span class="fnum" data-for="f-funnel50"></span><span class="ttl">Recurrence and artefact filters (6 October)</span>
+<dl>
+<dt>Shows</dt><dd>Distinct protein-novel keys left after each filter, on a log scale. Blue = 8 classical genes, orange = TAP1, TAP2, MICA and MICB.</dd>
+<dt>How to read</dt><dd>Watch where each colour collapses.</dd>
+<dt>Meaning</dt><dd>The classical keys go 4,421 → 174 (≥ 2 unrelated carriers) → <b>8</b> (not homopolymer-only) → 7 → 1 → 0. Recurrent classical "new proteins" are almost all 1-bp homopolymer indels. The non-classical genes keep a recurrent core: 364 → 137 → 127 → 55 → 23 with ≥ 20 clean carriers.</dd>
+<dt>Limits</dt><dd>Singletons, which are most keys, cannot be judged by recurrence. The last column is taken from the "no template warning" stage, so it is not strictly nested.</dd>
+</dl><div class="src">Script 50d · <code>protein_novel_waterfall.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-platOR"><div class="img"><img data-src="reports/hla_popgen/50_qc_foundation/fig_platform_novelty_or.png" alt="Platform novelty odds ratio"></div>
+<figcaption><span class="fnum" data-for="f-platOR"></span><span class="ttl">The older platform calls more "novel" alleles, within ancestry</span>
+<dl>
+<dt>Shows</dt><dd>Mantel–Haenszel odds ratio (Revio vs Sequel IIe, stratified by ancestry) of a call being novel, per classical gene. Blue = protein-novel, orange = non-coding novel.</dd>
+<dt>How to read</dt><dd>OR &lt; 1 means Revio calls fewer novel alleles than Sequel IIe in the same ancestry.</dd>
+<dt>Meaning</dt><dd>Protein-novel ORs are 0.50–0.71 and non-coding ORs 0.63–1.00. Novelty depends on the platform, so <b>platform must be a covariate in every novelty claim.</b></dd>
+<dt>Limits</dt><dd>No CIs were computed. Platform also stands for site, time and assembler version.</dd>
+</dl><div class="src">Script 50c · <code>novelty_platform_mh_or.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-calls64"><div class="img"><img data-src="reports/hla_popgen/64_novel_allele_validation/fig_call_outcomes.png" alt="Novel call outcomes"></div>
+<figcaption><span class="fnum" data-for="f-calls64"></span><span class="ttl">What happened to each tested novel call (64)</span>
+<dl>
+<dt>Shows</dt><dd>Top: the 4,616 tested calls (3,419 unrelated people; at most 5 carriers per key, spread across platforms and ancestries), by whether the CDS rebuilt from the assembly matches the caller's record. Bottom: the read test of the consistent calls.</dd>
+<dt>How to read</dt><dd>Orange = the caller's own CDS record differs from the assembly. Green = reads gave a clear verdict.</dd>
+<dt>Meaning</dt><dd><b>About 11% of calls</b> (506) have a record that disagrees with the assembled exons, almost all by an indel. In 345 of them, the CDS rebuilt from the exon coordinates is in frame while the stored record is out of frame. Both come from the same contig, so the 1-base difference comes from different exon boundaries or a different source sequence. Which one is right is <b>not yet determined</b>: it could be a record artefact, or a real frameshift that the exon coordinates step around. Since our "novel" sequences were taken from those records, up to ~345 novel calls are suspect either way. Among consistent calls, reads decide about 12%; about 58% are mixed, and about 30% have too few reads.</dd>
+<dt>Limits</dt><dd>Same HiFi reads as the assembly. Short-read support was not run.</dd>
+</dl><div class="src">Script 64 · <code>64_novel_allele_validation/tables/failures_summary.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-funnel64"><div class="img"><img data-src="reports/hla_popgen/64_novel_allele_validation/fig_funnel_read_evidence.png" alt="Funnel with read evidence"></div>
+<figcaption><span class="fnum" data-for="f-funnel64"></span><span class="ttl">The classical funnel again, now with what the reads say</span>
+<dl>
+<dt>Shows</dt><dd>(a) Distinct protein-novel keys after each filter, on a log scale, with how many are now named in IPD-IMGT/HLA 3.65.0. (b) For the keys at each step, the pooled long-read verdict.</dd>
+<dt>How to read</dt><dd>Green = reads carry the novel allele; red = reads carry the known allele (an assembly error); yellow = undecided.</dd>
+<dt>Meaning</dt><dd>4,250 → 171 → 12 → 7 → 1 → 1 → 0. At the "no template warning" step, 4 of 7 keys have read support, but 2 of those 4 (both DPB1) were named in IPD after 3.55.0, so they are real but no longer new. That leaves <b>2 still-unnamed recurrent classical candidates with clean read support</b> (one HLA-B, one DQB1). Up to 7 if homopolymer-class support is accepted (9 supported among the 171 recurrent keys, minus the 2 now named). Having 2 later-named alleles among the read-supported ones is reassuring: the pipeline finds real alleles. The 6 October demotion of the protein-novel counts stands.</dd>
+<dt>Limits</dt><dd>Key counts count distinct sequences, not people, and are shown exactly; masking them in a publication is your decision. 64's funnel (4,250 → 171 → <b>12</b>) differs from 50d's (4,421 → 174 → <b>8</b>). 64 uses only unrelated people and re-matched keys, which explains the first steps. The 12 vs 8 at the homopolymer step is not reconciled yet and is an open item.</dd>
+</dl><div class="src">Scripts 64, 58b · <code>funnel_with_evidence.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-hp"><div class="img"><img data-src="reports/hla_popgen/64_novel_allele_validation/fig_hp_runlength.png" alt="Homopolymer run length readout"></div>
+<figcaption><span class="fnum" data-for="f-hp"></span><span class="ttl">At homopolymer-indel novel calls, reads lean towards the known run length (confounded, rerun pending)</span>
+<dl>
+<dt>Shows</dt><dd>For each protein-novel call whose difference is a homopolymer indel: the run length read directly from each spanning HiFi read, classed as the called length (novel), the nearest known allele's length, or another length.</dd>
+<dt>How to read</dt><dd>This version pooled reads assigned to the called haplotype with reads that could not be assigned. The unassigned reads include the person's <i>other</i> haplotype, which usually carries the known length. So even a real heterozygous novel allele would show about 50% "known" here.</dd>
+<dt>Meaning</dt><dd>55–67% of reads carry the known length and 26–42% the called one. That is only modestly above the ~50% the confound alone produces, so this figure <b>does not show</b> that the assembler picked the minority length. The code now counts only reads assigned to the called haplotype; the corrected figure needs a VM rerun of 64 (a few hours, planned below).</dd>
+<dt>Limits</dt><dd>HiFi itself errs at long runs, so reads are not independent truth here. Short reads are the stronger test for this class.</dd>
+</dl><div class="src">Script 64 · <code>hp_runlength_by_gene.tsv</code></div></figcaption></figure>
+
+<div class="sig"><b class="h">Significance</b><p>The axis here is <i>distinct sequences surviving each test</i>. Starting from thousands of classical "new proteins", the evidence supports a handful: 2 unnamed with clean read support and 2 since confirmed by IPD. Everything else is either a homopolymer indel the reads cannot settle, a mismatch between the caller's two outputs, or undecided at this depth.</p><p>For the paper, protein-novel counts belong in a resource table, not a headline. The new QC finding is the 345 record-vs-exon disagreements. It applies to anyone using Immuannot's CDS output, and is worth a methods note once the source is pinned down.</p></div>
+<details class="critic"><summary>What the review changed here</summary><ul><li>"4–9 real recurrent alleles" became "2 unnamed with clean read support, 2 since named, up to 7 with homopolymer-class support".</li><li>The homopolymer read figure is now marked as confounded. The code was fixed (<code>hp_*</code> now counts only reads assigned to the haplotype), and a rerun is planned.</li><li>"The frameshift is in the record, not the genome" became "source undetermined".</li><li>The 50d vs 64 funnel difference is now stated, not hidden.</li><li>Exact call counts in the outcome figure were rounded so a masked count cannot be recovered by subtraction.</li></ul></details>
+</section>
+
+<!-- =============================================================== PART 6 -->
+<section id="p6">
+<h2><span class="part">Part 6</span>MHC haplotype biology</h2>
+<h3>The DQ G1/G2 pairing rule survives an ascertainment check</h3>
+<p>DQ molecules are built from one DQA1 and one DQB1 chain. Alleles fall into two groups (G1 and G2, <a href="#bg-mhc">background</a>), and a G1 alpha chain does not pair well with a G2 beta chain. Script 37 found 0 cross-group DQA1~DQB1 haplotypes among 17,255 physically phased ones. A sceptic could argue that cross-group haplotypes exist but break contigs more often, so they are under-counted. Script 50e tested this.</p>
+
+<details class="trailbox"><summary>From which file, by what process (50e)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Table 1 DQA1 and DQB1 calls, both haplotypes of every HLA-called person, with contig names and positions.</dd>
+<dt>Process</dt><dd>For each haplotype label (hap1 or hap2), take the DQA1 and DQB1 calls, classify each allele as G1 or G2, and record whether the two genes sit on the same contig. If they do not, the pairing of a DQA1 with a DQB1 under one label is only as good as the assembler's labelling across a break: effectively random. The split rate is compared between within-group and cross-group pairs, and the observed cross-group share among split haplotypes is compared with the share expected if labels were random.</dd>
+<dt>Trade-offs</dt><dd>Haplotypes, not people, so relatives add near-duplicates; that does not affect a structural question. The ≥ 100 kb spacing check was a VM inspection whose script is not committed.</dd>
+<dt>Unit</dt><dd>Haplotypes (~22,000 with both genes called).</dd>
+<dt>Output</dt><dd><code>50_qc_foundation/dq_ascertainment.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-dq"><div class="img"><img data-src="reports/hla_popgen/50_qc_foundation/fig_dq_ascertainment.png" alt="DQ ascertainment"></div>
+<figcaption><span class="fnum" data-for="f-dq"></span><span class="ttl">Cross-group DQ pairings occur almost only across contig breaks</span>
+<dl>
+<dt>Shows</dt><dd>% of haplotypes whose DQA1 and DQB1 sit on different contigs, by group combination: G1/G1 (13,287 haplotypes), G2/G2 (9,128), and the two cross-group combinations (a few dozen haplotypes each).</dd>
+<dt>How to read</dt><dd>If cross-group haplotypes were real but fragile, their break rate would be somewhat higher than within-group. If they were artefacts of the arbitrary label across a break, they would be split nearly always.</dd>
+<dt>Meaning</dt><dd>Within-group pairs break in 2.35% and 1.31% of haplotypes. Cross-group pairs are nearly always split. Among split haplotypes, cross-group pairing is far rarer than the 42.4% expected if labels were random. The few one-contig cross-group haplotypes (fewer than 20 of ~22,000) were all structurally abnormal contigs: DQA1–DQB1 spacing ≥ 100 kb (98% of haplotypes lie at 16.6–24.2 kb) plus a second DQB1. <b>No cross-group DQ haplotype was found among structurally canonical, physically phased haplotypes.</b></dd>
+<dt>Limits</dt><dd>This shows absence, not why: the folding biology is not tested. The abnormal-contig inspection is not reproducible from the repo until its script is committed.</dd>
+</dl><div class="src">Script 50e · <code>dq_ascertainment.tsv</code></div></figcaption></figure>
+
+<h3>An atlas of combinations that never occur</h3>
+<details class="trailbox"><summary>From which file, by what process (52)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Table 1, one-contig gene pairs only (both genes on the same contig of the same haplotype), at field 1 (allele lineage, e.g. DQA1*01).</dd>
+<dt>Process</dt><dd><ol><li>For each gene pair, count each lineage × lineage combination.</li><li>Expected count under independence: E = (rows total × column total) ÷ grand total.</li><li>If a combination is truly allowed, seeing 0 has probability e<sup>−E</sup>. Call it "absent" if e<sup>−E</sup> passes a Bonferroni-corrected threshold and it is absent pooled and in ≥ 2 ancestries, each with ≥ 200 haplotypes.</li></ol></dd>
+<dt>Trade-offs</dt><dd>Independence is a null nobody believes for MHC genes, which have strong LD. So "absent" means "rarer than chance allows", not "impossible". Biology is a judgement on top.</dd>
+<dt>Unit</dt><dd>Haplotypes.</dd>
+<dt>Output</dt><dd><code>52_mhc_haplotype_atlas/absent_cells_field1.tsv</code>, <code>absent_pair_summary_field1.tsv</code></dd>
+</dl>
+</details>
+<figure class="plate" id="f-absent"><div class="img"><img data-src="reports/hla_popgen/52_mhc_haplotype_atlas/fig_absent_cells.png" alt="Absent haplotype cells"></div>
+<figcaption><span class="fnum" data-for="f-absent"></span><span class="ttl">Allele-lineage pairs that should be common by chance but never occur on one contig</span>
+<dl>
+<dt>Shows</dt><dd>Two heatmaps of absent field-1 cells, coloured and labelled by the expected count E. Left: DQA1 × DQB1 lineages. Right: DRB1 lineage × which paralog (DRB3, DRB4, DRB5) is on the same contig.</dd>
+<dt>How to read</dt><dd>A dark cell with a big number is a pairing that should have appeared hundreds of times and never did.</dd>
+<dt>Meaning</dt><dd>The method rediscovers two known rules without being told. On the left is the DQ G1×G2 block, for example DQA1*01 × DQB1*02 with E = 1,549. On the right are the DR51/52/53 rules: DRB1*15 never with DRB4 (E = 672), DRB1*04 never with DRB3 (E = 1,183). That validates the atlas. Further absences (DPA1*01~DPB1*09, E = 141; DRB1*11~DQA1*02, E = 281; B*08~C*06) are most likely deep LD; a pairing constraint is not ruled out for DP.</dd>
+<dt>Limits</dt><dd>Absence is not incompatibility. A and C pairs are under-powered and, per Part 2, not trustworthy as physical haplotypes. Of the 13 possible G1×G2 field-1 cells, the table lists 12 (DQA1*01~DQB1*03 is missing, probably because it did not reach the significance threshold in two ancestries). Do not say "all" until that is checked.</dd>
+</dl><div class="src">Script 52 · <code>absent_cells_field1.tsv</code></div></figcaption></figure>
+
+<h3>Why AMR shows more HLA alleles than AFR</h3>
+<figure class="plate" id="f-rich"><div class="img"><img data-src="reports/hla_popgen/52_mhc_haplotype_atlas/fig_equal_n_richness.png" alt="Equal-N richness"></div>
+<figcaption><span class="fnum" data-for="f-rich"></span><span class="ttl">Allele richness at equal sample size</span>
+<dl>
+<dt>Shows</dt><dd>Mean number of 2-field alleles seen in 2,281 haplotypes (50 resamples) per gene and strict ancestry pool (p ≥ 0.95). The diamond is a synthetic mix: 45% EUR, 10% AFR, 45% EAS (EAS standing in for Indigenous-American ancestry).</dd>
+<dt>How to read</dt><dd>Richness grows with sample size, so every pool is cut to the same N first. Compare the orange AMR dot with the grey diamond.</dd>
+<dt>Meaning</dt><dd>The mix reaches 93–96% of AMR richness at A and B (58.2 vs 62.5; 103.4 vs 107.7) and exceeds it at C and DRB1, but not at DPB1 (46.0 vs 50.6). The AMR excess is <b>consistent with admixture pooling</b>: mixing source populations adds their private alleles. An older population is not needed to explain it.</dd>
+<dt>Limits</dt><dd>The mix weights are arbitrary, not fitted, and EAS is only a proxy source. EUR is the smallest pool and sets N, so its SD is 0.</dd>
+</dl><div class="src">Script 52 · <code>pooled_richness.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-amr"><div class="img"><img data-src="reports/hla_popgen/52_mhc_haplotype_atlas/fig_amr_sources.png" alt="AMR allele sources"></div>
+<figcaption><span class="fnum" data-for="f-amr"></span><span class="ttl">Where AMR alleles are also found</span>
+<dl>
+<dt>Shows</dt><dd>Each gene's AMR 2-field alleles, split by which reference pools (AFR, EUR, EAS) also carry them at equal N.</dd>
+<dt>How to read</dt><dd>The orange bottom segment is alleles found in none of the three pools.</dd>
+<dt>Meaning</dt><dd>The AMR-private share is A 38%, B 33%, C 23%, DQB1 21%, DRB1 19% and DPB1 18%. These are plausibly Indigenous-American alleles that EAS does not represent. The African contribution is largest at DP (~30%).</dd>
+<dt>Limits</dt><dd>EAS is only a proxy source.</dd>
+</dl><div class="src">Script 52 · <code>amr_source_decomposition.tsv</code></div></figcaption></figure>
+
+<h3>Phased class II units for Cole's fine-mapping (62)</h3>
+<details class="trailbox"><summary>What the file contains, and how each row is made</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Table 1 (DQA1, DQB1, DRB1 calls with contigs and positions), the unrelated list, 59's exclusion list (0 people), and the Part 2 trio rule.</dd>
+<dt>Process</dt><dd>One row per person × haplotype × unit (DQA1~DQB1 and DRB1~DQA1~DQB1). Each row has the full and 2-field alleles and an <b>evidence level</b>: <code>physical</code> (all genes on one contig; trio-validated pair types), <code>physical_flagged</code>, <code>split_contigs</code>, or <code>incomplete</code> (a gene missing). It also has the DQ G1/G2 class, structural flags (<code>anomalous_spacing</code> ≥ 100 kb, <code>anomalous_multicopy</code>), a coverage flag (all pass) and an unrelated flag.</dd>
+<dt>Trade-offs</dt><dd>The physical level inherits the uncalibrated k-mer origin error from Part 2. Relatives are kept (flagged), because fine-mapping models them, so the percentages below include related haplotypes.</dd>
+<dt>Unit</dt><dd>Haplotype units (48,906 rows in total).</dd>
+<dt>Output</dt><dd>The per-person table stays INTERNAL on the VM and nothing has been uploaded. Marc runs the upload to the in-perimeter bucket himself after checking the manifest. Data dictionary: <code>reports/hla_popgen/62_cole_haplotype_units/README.md</code>.</dd>
+</dl>
+</details>
+<div class="tw"><table>
+<tr><th>DQA1~DQB1 units</th><th class="r">AFR</th><th class="r">EUR</th><th class="r">All</th></tr>
+<tr><td>physical (one contig)</td><td class="r">91.4%</td><td class="r">92.4%</td><td class="r">92.8%</td></tr>
+<tr><td>split across contigs</td><td class="r">3.0%</td><td class="r">2.0%</td><td class="r">2.1%</td></tr>
+<tr><td>incomplete (a gene missing)</td><td class="r">5.7%</td><td class="r">5.7%</td><td class="r">5.1%</td></tr>
+</table></div>
+<p class="note">The other ancestries are 92.7–94.8% physical. Their split and incomplete shares are withheld, because together with the published G1/G2 counts they would reveal a count under 20.</p>
+<p>The most common AFR unit is DQA1*01:02~DQB1*06:02 (18.4% of resolved AFR haplotypes). Tables: <code>reports/hla_popgen/62_cole_haplotype_units/vm_2026-10-12/</code>.</p>
+<div class="sig"><b class="h">Significance</b><p>Cole can fine-map on physical DQ and DR–DQ haplotypes for about 93% of haplotypes, with a flag for the rest, instead of statistically phased guesses.</p><p>The absence of cross-group DQ haplotypes is the kind of hard zero that makes a strong figure. Next to an LD null model, it would show whether the constraint is stronger than LD alone predicts, which was idea #2 of the research-ideas note.</p></div>
+<details class="critic"><summary>What the review changed here</summary><ul><li>The exact cross-group counts were removed: two numbers in the old text gave back a masked count. The underlying table is fixed too.</li><li>The Cole table no longer shows AMR, EAS and SAS split/incomplete values, which came from a superseded pull.</li><li>"No cross-group haplotype exists" became "none was found".</li><li>"Admixture explains" became "consistent with admixture".</li></ul></details>
+</section>

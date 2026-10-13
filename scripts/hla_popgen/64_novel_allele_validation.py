@@ -889,7 +889,7 @@ def read_support(reads, wc, clusters, wo, preset, p):
     """Votes of each read; returns the aggregate dict (see module docstring step 5-7)."""
     res = dict(n_fetched=len(reads), n_aligned=0, n_spanning=0, n_this=0, n_other=0, n_unknown=0,
                this_called=0, this_nearest=0, pool_called=0, pool_nearest=0,
-               hp_called=0, hp_nearest=0, hp_other=0)
+               hp_called=0, hp_nearest=0, hp_other=0, hpall_called=0, hpall_nearest=0, hpall_other=0)
     if not reads:
         return res
     ac = _aligner(wc, preset)
@@ -948,8 +948,14 @@ def read_support(reads, wc, clusters, wo, preset, p):
             res["pool_" + vote] += 1
             if hap == "this":
                 res["this_" + vote] += 1
+        # Homopolymer run-length votes: hp_* counts only reads assigned to the called haplotype; reads of
+        # unknown haplotype (hpall_*) may come from the other chromosome, which often carries the known
+        # length, so pooling them makes a real heterozygous novel allele look like an assembly error
+        # (S05 review, 2026-10-12).
         for v in hp_votes:
-            res["hp_" + v] += 1
+            res["hpall_" + v] += 1
+            if hap == "this":
+                res["hp_" + v] += 1
     return res
 
 

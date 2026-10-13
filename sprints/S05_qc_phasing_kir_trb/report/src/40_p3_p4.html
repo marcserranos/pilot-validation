@@ -1,0 +1,157 @@
+<!-- =============================================================== PART 3 -->
+<section id="p3">
+<h2><span class="part">Part 3</span>Can we trust the allele calls?</h2>
+<p><b>Question.</b> When the caller says a person carries HLA-DQB1*06:02, how often is that wrong? There is no truth set for 12,000 people, so error is measured from <i>inheritance</i>, which does not depend on the caller.</p>
+<ul>
+<li>Two relatives who share a haplotype must carry the same allele at every gene on it.</li>
+<li>A child's allele must be present in the parent who passed it on.</li>
+</ul>
+<p>Either way, a failure means at least one of the two calls is wrong.</p>
+
+<div class="dia"><svg class="d" viewBox="0 0 720 150" role="img" aria-label="How inheritance reveals a typing error">
+<text x="10" y="18" class="t-b">Parent</text>
+<rect x="10" y="28" width="150" height="18" class="pat-s" rx="3"/><text x="85" y="41" text-anchor="middle" class="t-s mono">DQB1*06:02</text>
+<rect x="10" y="52" width="150" height="18" class="box" rx="3"/><text x="85" y="65" text-anchor="middle" class="t-s mono">DQB1*03:01</text>
+<text x="200" y="52" class="t-s">passes one haplotype →</text>
+<text x="360" y="18" class="t-b">Child, called correctly</text>
+<rect x="360" y="28" width="150" height="18" class="pat-s" rx="3"/><text x="435" y="41" text-anchor="middle" class="t-s mono">DQB1*06:02</text>
+<text x="530" y="41" class="t-ok">✓ present in parent</text>
+<text x="360" y="96" class="t-b">Child, miscalled</text>
+<rect x="360" y="106" width="150" height="18" class="badbox" rx="3"/><text x="435" y="119" text-anchor="middle" class="t-s mono">DQB1*06:09</text>
+<text x="530" y="119" class="t-bad">✗ in neither parent allele</text>
+<text x="10" y="140" class="t-s">An error that turns one shared allele into another shared allele (e.g. 03:01 → 06:02) is invisible. So these rates are lower bounds.</text>
+</svg></div>
+
+<details class="trailbox"><summary>The confidence score (56): what each point means</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Table 1 (<code>hla_calls_rich.tsv</code>: one row per person × haplotype × gene, with the contig name, the distance to the closest known allele, warning flags and the platform).</dd>
+<dt>Process</dt><dd>Each call gets one point for each of seven properties that a priori make a call more trustworthy:
+<ol><li>it shares a contig with its phasing partner gene;</li><li>its haplotype's MHC sits on ≤ 2 contigs;</li><li>its distance to the nearest known allele is ≤ the cohort's 75th percentile;</li><li>its difference from that allele is not only a homopolymer indel;</li><li>the caller raised no template warning;</li><li>there was no tie between candidate alleles;</li><li>it came from Revio.</li></ol>
+The score is 0–7, and a claim can then use only calls at or above a threshold.</dd>
+<dt>Trade-offs</dt><dd>The seven points are equally weighted, chosen before seeing error rates, not fitted. A fitted score (for example a logistic model on trio errors) would separate better but would need held-out trios to be honest.</dd>
+<dt>Unit</dt><dd>A call (one gene on one haplotype in one person).</dd>
+<dt>Output</dt><dd>A score column used by 56b and 57b. The per-call scores stay on the VM.</dd>
+</dl>
+</details>
+
+<details class="trailbox"><summary>Relatives check (56b) and trio check (57b): data and processing</summary>
+<dl class="trail">
+<dt>Data in</dt><dd><b>56b:</b> the 569 first-degree pairs from Part 2, both HLA-called. <b>57b:</b> the 179 trios, with each child gene's parent of origin from k-mers (Part 2, check 3).</dd>
+<dt>Process</dt><dd><b>56b:</b> per gene, ask "do the two relatives share at least one 2-field allele?". Pairs failing at ≥ 2 classical genes are dropped as probable non-sharers (siblings with no haplotype in common), and the rate of genes with no shared allele is reported. <b>57b:</b> per child gene with a known parent of origin, ask "is the child's allele among that parent's two alleles?", at 2 fields and at full resolution.</dd>
+<dt>Trade-offs</dt><dd><b>56b:</b> dropping pairs with ≥ 2 failing genes removes true non-sharers, but also pairs with two real typing errors. That pushes the measured error down. With ~4% error per gene over 8 genes, roughly a quarter of errors sit in such pairs, so the true pair rate could be ~5%, not 4.09%. <b>57b:</b> only HiFi parents are used, and genes without an assigned parent (10–31%) drop out.</dd>
+<dt>Unit</dt><dd>A pair-gene (56b, n = 6,455 at score 0) or a child gene (57b, n = 3,611). Each compares <i>two</i> calls, so the error per single call is about half of what is shown.</dd>
+<dt>Output</dt><dd><code>56_phasing_typing_benchmark/refined_sweep.tsv</code>, <code>pair_sharing_distribution.tsv</code>; <code>57_yak_trioeval/mendel_typing.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-sweep"><div class="img"><img data-src="reports/hla_popgen/56_phasing_typing_benchmark/fig_sweep_typing.png" alt="Typing error by confidence score"></div>
+<figcaption><span class="fnum" data-for="f-sweep"></span><span class="ttl">Relatives: typing error falls as the confidence score rises</span>
+<dl>
+<dt>Shows</dt><dd>Left: % of relative-pair genes with no shared allele (a typing error in at least one relative), keeping only calls with score ≥ the threshold. Right: % of pair-genes retained at each threshold.</dd>
+<dt>How to read</dt><dd>The line falls steadily, so the score tracks real errors. The bars show the price in data. The knee is at score ≥ 4.</dd>
+<dt>Meaning</dt><dd>4.09% at score 0 (n = 6,455) falls to 2.02% at ≥ 4 (91% retained) and 1.15% at ≥ 6 (36% retained). <b>Score ≥ 4 is the candidate default.</b> Per gene at score 0, MICA (12.3%) and DRB3 (13.3%) are the weakest. At ≥ 6, the masked per-gene counts are all small.</dd>
+<dt>Limits</dt><dd>"No shared allele" catches only errors that break sharing, so these are lower bounds. The pair filter biases them down a little (see the data trail).</dd>
+</dl><div class="src">Scripts 56b, 56c · <code>refined_sweep.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-pairshare"><div class="img"><img data-src="reports/hla_popgen/56_phasing_typing_benchmark/fig_pair_sharing.png" alt="Pair sharing distribution"></div>
+<figcaption><span class="fnum" data-for="f-pairshare"></span><span class="ttl">Why relatives were filtered: most first-degree pairs share an MHC haplotype</span>
+<dl>
+<dt>Shows</dt><dd>First-degree pairs by the number of classical genes (of 8) with no shared allele: 0 → 377 pairs, 1 → 121, 2 → 36, and 3 or more → fewer than 20 each.</dd>
+<dt>How to read</dt><dd>A pair sharing a haplotype fails at 0 genes, or at 1 if there is a typing error. Siblings who share no MHC haplotype would fail at 5 or more.</dd>
+<dt>Meaning</dt><dd>Almost all pairs share a haplotype. The first pass, without the filter, gave 7.6%, inflated by the non-sharing siblings. Keeping pairs with ≤ 1 failing gene removes them, at the cost of also dropping the 36 two-gene pairs, many of which are probably two real errors.</dd>
+<dt>Limits</dt><dd>All of Us gives no IBD (shared-segment) information, so siblings and parents cannot be told apart directly. Using srWGS or array IBD over the MHC would replace this filter with a direct test.</dd>
+</dl><div class="src">Script 56b · <code>pair_sharing_distribution.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-mendel"><div class="img"><img data-src="reports/hla_popgen/57_yak_trioeval/fig_mendel_typing.png" alt="Mendelian typing error"></div>
+<figcaption><span class="fnum" data-for="f-mendel"></span><span class="ttl">Trios: the child's allele is missing from the transmitting parent</span>
+<dl>
+<dt>Shows</dt><dd>(a) % of child calls whose allele the transmitting parent does not carry, by minimum confidence score. Blue = all 15 genes, green = classical 8. Solid lines = 2-field, dashed lines = full resolution (the PNG legend draws all four lines solid). (b) Full-resolution mismatch per gene at score ≥ 0.</dd>
+<dt>How to read</dt><dd>The gap between the solid and dashed lines is discordance in the 3rd and 4th fields only (synonymous and non-coding differences).</dd>
+<dt>Meaning</dt><dd>The 2-field rate is 4.15% (n = 3,611; 3.55–4.85), close to the relatives' 4.09%. It falls to 2.61% at score ≥ 4 and 2.34% at ≥ 6. Full resolution is 12.6%, about 3× higher, and the score helps it only a little. Per gene, HLA-A is the most reliable (7.2%) and DQA1 and MICA the least (19.4%). <b>So third- and fourth-field claims need read support.</b></dd>
+<dt>Limits</dt><dd>A mismatch mixes child and parent errors. The trio parent–child pairs are very likely also among the 569 relative pairs, so the two checks share people and are not independent confirmations. Score thresholds are nested, so differences between thresholds count calls, not people.</dd>
+</dl><div class="src">Script 57b · <code>mendel_typing.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-platq"><div class="img"><img data-src="reports/hla_popgen/56_phasing_typing_benchmark/fig_platform_quality.png" alt="Platform quality"></div>
+<figcaption><span class="fnum" data-for="f-platq"></span><span class="ttl">Platform: Sequel IIe phases worse; its typing difference is confounded</span>
+<dl>
+<dt>Shows</dt><dd>Relative pairs on the same platform. Left: typing non-sharing, Revio–Revio 4.76% (n = 4,688) vs Sequel IIe–Sequel IIe 2.07% (n = 1,350). Right: haplotypes not transmitted intact, 5.10% vs 10.34%.</dd>
+<dt>How to read</dt><dd>The phasing difference (2×) fits the trio result. The typing difference goes the "wrong" way, so it is read as confounding by ancestry and site, not as better Sequel typing.</dd>
+<dt>Meaning</dt><dd>Platform must be a stratum or covariate in any haplotype claim.</dd>
+<dt>Limits</dt><dd>Platform is confounded with collection site, time, assembler version and coverage. Every platform contrast in this report is descriptive.</dd>
+</dl><div class="src">Script 56b · <code>refined_sweep.tsv</code> (platform rows)</div></figcaption></figure>
+
+<div class="sig"><b class="h">Significance</b><p>The measurement is collapsed onto one axis: the % of comparisons where two calls that should agree do not. About 4% of pair comparisons fail at 2 fields, so a single call is wrong roughly 2–2.5% of the time, and more for MICA and DRB3. That is low enough for population frequencies (an error spreads thinly over many alleles) but not negligible for rare-allele claims. A rare allele seen in 10 people could be partly made of errors from a common neighbour.</p><p>Full resolution is about 3× worse. Any claim at the third or fourth field (synonymous or intronic novelty, expression by exact allele) should carry read support or use the score.</p></div>
+<details class="critic"><summary>What the review changed here</summary><ul><li>"Two independent methods agree" became "two related checks on overlapping people agree".</li><li>The per-call error is now stated as about half the pair rate.</li><li>The relative filter is now described as biasing the error down, with an estimate of how much.</li><li>"Halves the error" became "cuts it by 37–50%", because trios fall less than relatives.</li></ul></details>
+</section>
+
+<!-- =============================================================== PART 4 -->
+<section id="p4">
+<h2><span class="part">Part 4</span>Coverage over the immune regions</h2>
+<p><b>Question.</b> The supervisor asked for a regional coverage filter: flag people whose MHC (or KIR) depth is far below their genome depth, on the theory that thin regions give bad calls. Script 58 measured depth for everyone. Script 59 then asked whether thin coverage explains the calls we distrust, and whether a cutoff would remove a useful share of them.</p>
+
+<details class="trailbox"><summary>From which file, by what process (58)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Each person's HiFi BAM aligned to GRCh38 without ALT contigs, read in place from the bucket (12,233 people). A BED file of 137 regions: the MHC window chr6:29.5–33.5 Mb, the KIR window on chr19, every HLA, KIR and TRB gene (GENCODE v46), and 5 control windows elsewhere in the genome.</dd>
+<dt>Process</dt><dd><ol><li><code>samtools bedcov</code> sums read bases per region, at MAPQ ≥ 0 (all reads) and ≥ 20 (confidently placed reads).</li><li>Mean depth = bases ÷ region length.</li><li>Relative depth = region depth ÷ the median of the person's 5 control windows. So 1.0 means "as covered as the rest of this person's genome".</li><li>Summaries by ancestry and platform; TRB per-gene histograms and copy-number calls (cuts 0.25 and 0.75).</li></ol></dd>
+<dt>Trade-offs</dt><dd>Dividing by the person's own control depth removes differences in sequencing amount between people, so thin means "thin for this person". MAPQ 0 counts reads that could map in several places; MAPQ 20 drops them. Both are shown. KIR genes that GRCh38 carries only on ALT contigs cannot be measured on these BAMs.</dd>
+<dt>Unit</dt><dd>A person × region value. Every figure collapses it to the distribution across people.</dd>
+<dt>Output</dt><dd><code>58_regional_depth/depth_summary_by_region.tsv</code>, <code>trb_rel_depth_histogram.tsv</code>, <code>trb_cn_by_ancestry.tsv</code>. Per-person depths stay on the VM.</dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-depth"><div class="img"><img data-src="reports/hla_popgen/58_regional_depth/fig_window_depth.png" alt="Window depth by ancestry and platform"></div>
+<figcaption><span class="fnum" data-for="f-depth"></span><span class="ttl">The MHC and KIR run below genome depth in the typical person</span>
+<dl>
+<dt>Shows</dt><dd>Relative depth over the MHC window, the KIR region and the TRB locus, by ancestry and platform. Box = IQR, thick line = median, whisker = 5th–95th percentile.</dd>
+<dt>How to read</dt><dd>The dashed line at 1.0 is "covered like the rest of the genome". Compare the box positions, not their absolute height.</dd>
+<dt>Meaning</dt><dd>Medians are MHC 0.831 (p5–p95 0.758–0.921), KIR 0.880 (0.751–1.026) and TRB 0.951 (0.851–1.054). They are almost identical across ancestries. Sequel IIe covers the MHC and KIR about 7 points (~9%) better than Revio. True low outliers are rare: 35 people are under 0.7 at the MHC and 135 at KIR. <b>A filter would have to use cuts relative to the cohort, not 1.0.</b> On a fixed scale, a region that is always thinner would make everyone look thin.</dd>
+<dt>Limits</dt><dd>Most activating KIR genes are on ALT contigs only and cannot be measured on the noalt BAMs.</dd>
+</dl><div class="src">Scripts 58, 58b · <code>58_regional_depth/depth_summary_by_region.tsv</code></div></figcaption></figure>
+
+<h3>Is thin coverage behind the bad calls? Partly, but no filter helps</h3>
+<details class="trailbox"><summary>From which file, by what process (59)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>58's per-person depths (VM), joined to per-person outcome flags derived from Table 1 and the KIR annotation, for the 11,856 unrelated people.</dd>
+<dt>Process</dt><dd><ol><li>Normalise each window's relative depth to the cohort median for the same region and platform, so 1.0 = typical for that region.</li><li>Flag eight outcomes per person: KIR haplotype incomplete; KIR framework gene missing; an HLA gene absent; an empty haplotype; DQ genes split across contigs; anomalous DQ spacing; a cross-group DQ pair; MHC on ≥ 7 contigs. A negative control is added: framework gene missing on a <i>complete</i> KIR haplotype, which should be biology, not assembly.</li><li>Outcome rate per 0.1 depth bin, with Wilson CIs.</li><li>Logistic regression per outcome: odds ratio per 0.1 lower depth, adjusted for platform and ancestry.</li><li>A cutoff scan under a rule fixed in advance: remove ≥ 50% of an outcome's events while removing ≤ 10% of people, overall and in every ancestry with ≥ 100 people.</li></ol></dd>
+<dt>Trade-offs</dt><dd>The rule was meant to accept a filter only if it was clearly worth it. The review showed it could never pass for a common outcome: removing 10% of people can remove at most 10/p% of events, where p is the outcome's prevalence. For KIR incomplete (p ≈ 38%) that ceiling is 26%. The "no filter" conclusion therefore came from arithmetic, not from the data. The logistic odds ratios and the rate-by-bin curves are the real test.</dd>
+<dt>Unit</dt><dd>A person. Rates are % of people in a depth bin with the outcome.</dd>
+<dt>Output</dt><dd><code>59_depth_outcome_join/vm_2026-10-12/</code>: <code>outcome_by_depth_bin.tsv</code>, <code>logistic_or.tsv</code>, <code>cutoff_scan.tsv</code>, <code>proposed_cutoff.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-59"><div class="img svg"><!--SVG:59_rate--></div>
+<figcaption><span class="fnum" data-for="f-59"></span><span class="ttl">Thinner people have more fragmented KIR haplotypes, and slightly more MHC problems</span>
+<dl>
+<dt>Shows</dt><dd>% of unrelated people with each outcome, by normalised window depth (MAPQ ≥ 0), with 95% Wilson intervals. Bins with fewer than 20 people (below 0.7) are masked and not drawn.</dd>
+<dt>How to read</dt><dd>A flat line means depth does not matter. A line rising to the left means thin people have the problem more often. Then look at how many people sit in the left bins: 150 in 0.7–0.8 against 4,000+ in each central bin.</dd>
+<dt>Meaning</dt><dd>KIR outcomes rise clearly as depth falls. Incomplete haplotypes go from ~34% at typical depth to ~55% at 0.7–0.8, and missing framework genes from ~20% to ~57%. Odds ratios per 0.1 lower depth: framework missing 1.47 (p ≈ 10⁻⁵⁸), incomplete 1.16 (p ≈ 10⁻¹²). The MHC outcomes rise only slightly (HLA absent 1.09, p = 0.02; fragmented 1.12, p = 0.002), and DQ outcomes not at all.<br>
+Part of this is <b>reverse causation</b>. A haplotype with fewer KIR genes (a contracted haplotype) has less DNA to map, so its window depth is lower, and it is also more often flagged. The negative control, framework missing on complete haplotypes, which is biology, has the <i>strongest</i> association (OR 2.3). That is the signature of structure lowering depth, not depth causing errors.<br>
+<b>Why there is still no filter:</b> the thin tail is small. The best cut allowed (0.85 KIR, 0.90 MHC) removes 3.5–4.7% of people and only 4–9% of KIR events and 3.9% of HLA-absent events. Removing them would mostly remove real contracted haplotypes, a biased loss.</dd>
+<dt>Limits</dt><dd>Association, not cause, in both directions. Only whole windows were used, so a one-gene deletion with normal window depth is not seen, by design.</dd>
+</dl><div class="src">Script 59 · VM run 2026-10-12 · <code>outcome_by_depth_bin.tsv</code>, <code>logistic_or.tsv</code></div></figcaption></figure>
+
+<div class="sig"><b class="h">Significance</b><p>Coverage is a <i>structure marker</i>, not a QC knob. The useful consequences:</p><ul><li>No coverage filter is applied, and 61 and 62 were run with an exclusion list of 0 people.</li><li>Depth can be used as a covariate in KIR models.</li><li>A methods paragraph can say exactly this: low depth goes with KIR fragmentation, partly because contracted haplotypes lower depth, and no cutoff removes a useful share of problem calls without removing real biology.</li></ul></div>
+
+<h3>The TRB locus: what depth can and cannot say</h3>
+<figure class="plate" id="f-trbprofile"><div class="img"><img data-src="reports/hla_popgen/58_regional_depth/fig_trb_locus_profile.png" alt="TRB locus depth profile"></div>
+<figcaption><span class="fnum" data-for="f-trbprofile"></span><span class="ttl">Median relative depth of every TRB gene along chr7</span>
+<dl>
+<dt>Shows</dt><dd>One dot per TRB gene at its position: median relative depth across 12,233 people, with the line showing the IQR.</dd>
+<dt>How to read</dt><dd>Typical V genes (blue) sit near 0.9. Departures from that line carry the information.</dd>
+<dt>Meaning</dt><dd>
+<b>Green:</b> TRBV4-2 and TRBV6-2 run at 1.30 (p95 2.12). Reads from the insertion's extra copies (TRBV4-3, the second TRBV6-2/6-3) have nowhere else to map on the noalt reference, so they land on these paralogs. This is an indirect insertion signal.<br>
+<b>Orange:</b> depth falls steadily from the TRBJ2 genes (~0.83) to TRBD1/TRBJ1-1 (0.70), while TRBV30, just past TRBC2, stays at 0.98. That gradient is the expected footprint of somatic V(D)J recombination in the blood's T cells (<a href="#bg-trb">background</a>). This explanation is inferred, not tested. A direct test would be HiFi reads that jump from a V gene straight to a J gene.<br>
+<b>Purple:</b> TRBV5-7, 6-5, 6-8, 7-4, 7-5 and 7-7 run 1.1–1.5×. This is not explained yet; one candidate is reads from the ALT-only segment B (<a class="fref" href="#f-trbmap"></a>).</dd>
+<dt>Limits</dt><dd>The genes are short (≤ 1.7 kb) at typical HiFi depth, so per-person gene depth is noisy.</dd>
+</dl><div class="src">Scripts 58, 58b · <code>depth_summary_by_region.tsv</code>, <code>regions.bed</code></div></figcaption></figure>
+
+<figure class="plate" id="f-trbhist"><div class="img"><img data-src="reports/hla_popgen/58_regional_depth/fig_trb_histograms.png" alt="TRB depth histograms"></div>
+<figcaption><span class="fnum" data-for="f-trbhist"></span><span class="ttl">Why 58's per-gene TRB copy-number calls are not genotypes</span>
+<dl>
+<dt>Shows</dt><dd>People per 0.05 bin of relative depth for three genes, with 58's copy-number cuts (0.25 / 0.75) as red dotted lines.</dd>
+<dt>How to read</dt><dd>A germline deletion would give separate peaks near 0, 0.5 and 1.0. Look for a peak at 0.5.</dd>
+<dt>Meaning</dt><dd>No gene has one. TRBV3-1 is one broad peak near 1. TRBJ1-1 is one broad peak shifted to ~0.7, so the 0.75 cut calls 59% of the cohort "1 copy". Those calls fail Hardy–Weinberg (p ≈ 0) because they reflect the T-cell signal, not alleles. TRBV4-2 piles up in the open last bin (≥ 1.45, 37% of people), which hides any 1.5× vs 2× split. <b>TRB germline genotypes come from 65, not 58.</b></dd>
+<dt>Limits</dt><dd>The last bin is open-ended, a choice made before the run.</dd>
+</dl><div class="src">Scripts 58, 58b · <code>trb_rel_depth_histogram.tsv</code>, <code>trb_cn_by_ancestry.tsv</code></div></figcaption></figure>
+<details class="critic"><summary>What the review changed here</summary><ul><li>The first draft said depth "explains none" of the bad calls and that thin people have them "at roughly the cohort-wide rate". Both were wrong: the decision rule could not pass for common outcomes, and the logistic models show clear associations. The section was rewritten around the rate curves and odds ratios, with the reverse-causation reading.</li><li>"7–8% better" became "about 7 points (~9%)".</li><li>"About half the cohort" became "59%".</li></ul></details>
+</section>

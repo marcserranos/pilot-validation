@@ -1,0 +1,217 @@
+<title>S05 Sprint Report</title>
+<meta name="description" content="Sprint S05 (2026-10-06 to 2026-10-12): QC, phasing, KIR and TRB germline in the All of Us long-read cohort. Every method, data trail and figure explained.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f6f5f1; --paper:#ffffff; --fg:#1d1c1a; --fg2:#4f4c46; --muted:#7d796f; --rule:#dedad0;
+  --accent:#1f5f8b; --accent-soft:#e3edf5; --warn:#9a5a00; --warn-soft:#fbf0dc; --ok:#1d7a52; --ok-soft:#e1f2e9;
+  --bad:#a23b2a; --bad-soft:#f8e4df; --code:#efede6; --learn:#f1f5ee; --learn-edge:#5f8a4e;
+  --c-a:#2a78d6; --c-b:#eb6834; --c-c:#8a8478; --c-ins:#1baf7a; --c-insB:#4a3aa7;
+  --pat:#2a78d6; --mat:#eb6834; --pat-soft:#d6e6f8; --mat-soft:#fbe1d3; --neutral-soft:#e9e6de;
+  --h0:#f1efe8; --h1:#dbe7f3; --h2:#b9d1ea; --h3:#8fb5dc; --h4:#5d93c8; --h5:#3271b0; --h6:#1d4f86;
+  --h-dark-text:#ffffff; --h-light-text:#1d1c1a;
+  --plate:#ffffff;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#15171a; --paper:#1c1f23; --fg:#e8e6e1; --fg2:#bdb9b0; --muted:#8e8a81; --rule:#33373d;
+  --accent:#7db4e0; --accent-soft:#1d2d3b; --warn:#e3a94f; --warn-soft:#33281a; --ok:#6cc79c; --ok-soft:#17302a;
+  --bad:#ec8a78; --bad-soft:#3a201c; --code:#24282d; --learn:#1a231b; --learn-edge:#8dbb78;
+  --c-a:#5d9ee8; --c-b:#f08a5d; --c-c:#9b968b; --c-ins:#3cc890; --c-insB:#8f82e0;
+  --pat:#5d9ee8; --mat:#f08a5d; --pat-soft:#1f3349; --mat-soft:#3d2619; --neutral-soft:#2a2d31;
+  --h0:#23272c; --h1:#1e3247; --h2:#24456a; --h3:#2c5d8f; --h4:#3a77b3; --h5:#5d97d0; --h6:#8cbbe8;
+  --h-dark-text:#0f1114; --h-light-text:#e8e6e1;
+  --plate:#fbfaf7; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#15171a; --paper:#1c1f23; --fg:#e8e6e1; --fg2:#bdb9b0; --muted:#8e8a81; --rule:#33373d;
+  --accent:#7db4e0; --accent-soft:#1d2d3b; --warn:#e3a94f; --warn-soft:#33281a; --ok:#6cc79c; --ok-soft:#17302a;
+  --bad:#ec8a78; --bad-soft:#3a201c; --code:#24282d; --learn:#1a231b; --learn-edge:#8dbb78;
+  --c-a:#5d9ee8; --c-b:#f08a5d; --c-c:#9b968b; --c-ins:#3cc890; --c-insB:#8f82e0;
+  --pat:#5d9ee8; --mat:#f08a5d; --pat-soft:#1f3349; --mat-soft:#3d2619; --neutral-soft:#2a2d31;
+  --h0:#23272c; --h1:#1e3247; --h2:#24456a; --h3:#2c5d8f; --h4:#3a77b3; --h5:#5d97d0; --h6:#8cbbe8;
+  --h-dark-text:#0f1114; --h-light-text:#e8e6e1;
+  --plate:#fbfaf7; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15.5px/1.62 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:20px;padding-block:28px 80px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:44px}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);padding-inline:16px}.toc{display:none}}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);align-self:start;max-height:calc(100vh - 40px);overflow:auto;font-size:13px;border-right:1px solid var(--rule);padding-right:16px}
+.toc b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.toc b:first-child{margin-top:0}
+.toc a{display:block;color:var(--fg2);text-decoration:none;padding:2px 0;line-height:1.35}
+.toc a:hover{color:var(--accent)}
+.toc .controls{display:flex;gap:6px;margin:10px 0 0;flex-wrap:wrap}
+.toc button,.btn{font:500 12px "IBM Plex Sans",sans-serif;color:var(--fg2);background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:4px 8px;cursor:pointer}
+.toc button:hover,.btn:hover{border-color:var(--accent);color:var(--accent)}
+main{min-width:0}
+h1,h2,h3{font-family:Newsreader,Georgia,"Times New Roman",serif;font-weight:600;text-wrap:balance;line-height:1.2;color:var(--fg)}
+h1{font-size:2.5rem;margin:0 0 6px}
+h2{font-size:1.75rem;margin:64px 0 10px;padding-top:14px;border-top:2px solid var(--fg)}
+h3{font-size:1.25rem;margin:36px 0 8px}
+h4{font-size:1rem;margin:20px 0 6px}
+h2 .part{display:block;font:500 12px/1.4 "IBM Plex Sans",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+p,li{max-width:74ch}
+.lede{font-size:1.1rem;color:var(--fg2);max-width:72ch}
+.meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0 0}
+a{color:var(--accent)}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:.86em}
+code{background:var(--code);padding:1px 5px;border-radius:3px;overflow-wrap:anywhere;word-break:break-word}
+.num{font-variant-numeric:tabular-nums}
+.callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px;margin:22px 0}
+.co{background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--accent);padding:14px 16px;border-radius:4px;min-width:0}
+.co h4{margin:0 0 4px;font-size:14px;font-family:"IBM Plex Sans",sans-serif}
+.co p{margin:0;font-size:14px;color:var(--fg2)}
+.co .how{display:block;margin-top:6px;font-size:12px;color:var(--muted)}
+.co.ok{border-left-color:var(--ok)}.co.bad{border-left-color:var(--bad)}.co.warn{border-left-color:var(--warn)}
+.box{background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:16px 20px;margin:18px 0}
+.box.decide{border-color:var(--warn);background:var(--warn-soft)}
+.box.fix{border-color:var(--bad);background:var(--bad-soft)}
+.box h3{margin-top:0}
+.tag{display:inline-block;font:600 11px/1 "IBM Plex Sans",sans-serif;letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:3px;vertical-align:2px}
+.tag.done{background:var(--ok-soft);color:var(--ok)}.tag.pend{background:var(--warn-soft);color:var(--warn)}.tag.block{background:var(--bad-soft);color:var(--bad)}.tag.prev{background:var(--accent-soft);color:var(--accent)}
+.tw{overflow-x:auto;margin:14px 0;border:1px solid var(--rule);border-radius:4px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--fg2);background:var(--code);white-space:nowrap}
+td.r,th.r{text-align:right}
+tr:last-child td{border-bottom:0}
+figure.plate{margin:26px 0;background:var(--paper);border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+figure.plate .img{background:var(--plate);padding:12px;overflow-x:auto;border-bottom:1px solid var(--rule)}
+figure.plate .img img{display:block;max-width:100%;height:auto;margin:0 auto}
+figure.plate .img.svg{background:var(--paper)}
+figcaption{padding:14px 18px 16px}
+figcaption .ttl{font-weight:600}
+.fnum{font:600 12px/1 "IBM Plex Mono",monospace;color:var(--accent);margin-right:8px;letter-spacing:.02em}
+figcaption dl{display:grid;grid-template-columns:118px minmax(0,1fr);gap:6px 14px;margin:10px 0 0;font-size:14px}
+@media (max-width:560px){figcaption dl,.trail{grid-template-columns:minmax(0,1fr)!important}figcaption dt,.trail dt{margin-top:6px}}
+figcaption dt{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+figcaption dd{margin:0;color:var(--fg2)}
+figcaption .src{font-size:12px;color:var(--muted);margin-top:10px}
+details{margin:12px 0;background:var(--paper);border:1px solid var(--rule);border-radius:5px;padding:0 16px}
+summary{cursor:pointer;padding:11px 0;font-weight:500;list-style-position:outside}
+summary::marker{color:var(--muted)}
+details[open] summary{border-bottom:1px solid var(--rule);margin-bottom:10px}
+details > *:last-child{margin-bottom:14px}
+details.learn{background:var(--learn);border-color:var(--rule);border-left:4px solid var(--learn-edge)}
+details.learn > summary::before{content:"Background";font:600 10.5px/1 "IBM Plex Sans",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--learn-edge);margin-right:10px;vertical-align:1px}
+details.trailbox{border-left:4px solid var(--accent)}
+details.trailbox > summary::before{content:"Data trail";font:600 10.5px/1 "IBM Plex Sans",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-right:10px;vertical-align:1px}
+details.critic{border-left:4px solid var(--bad)}
+details.critic > summary::before{content:"Review";font:600 10.5px/1 "IBM Plex Sans",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--bad);margin-right:10px;vertical-align:1px}
+.trail{display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px 16px;margin:6px 0 14px;font-size:14px}
+.trail dt{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.trail dd{margin:0;color:var(--fg2)}
+.trail dd ol,.trail dd ul{margin:0;padding-left:18px}
+.sig{border:1px dashed var(--rule);border-radius:5px;padding:12px 16px;margin:16px 0;background:var(--paper)}
+.sig b.h{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.fref{white-space:nowrap}
+svg.chart{width:100%;height:auto;max-width:760px;display:block;margin:0 auto;font-family:"IBM Plex Sans",sans-serif}
+svg.chart .lab{fill:var(--fg2);font-size:12px}
+svg.chart .val{fill:var(--fg);font-size:11.5px}
+svg.chart .tick{fill:var(--muted);font-size:11px}
+svg.chart .tiny{fill:var(--fg2);font-size:10.5px}
+svg.chart .strong{font-weight:600;fill:var(--fg)}
+svg.chart .grid{stroke:var(--rule);stroke-width:1}
+svg.chart .axis{stroke:var(--fg2);stroke-width:2}
+svg.chart .refline{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 3}
+svg.chart .reflabel{fill:var(--bad);font-size:11px}
+svg.chart .bar-a{fill:var(--c-a)} svg.chart .bar-b{fill:var(--c-b)} svg.chart .bar-c{fill:var(--c-c)}
+svg.chart .ser{fill:none;stroke-width:2} svg.chart .ser.s1{stroke:var(--c-a)} svg.chart .ser.s2{stroke:var(--c-b)}
+svg.chart .ci{stroke-width:1.5} svg.chart .ci.s1{stroke:var(--c-a)} svg.chart .ci.s2{stroke:var(--c-b)}
+svg.chart .pt.s1{fill:var(--c-a)} svg.chart .pt.s2{fill:var(--c-b)}
+.note{font-size:.88rem;color:var(--muted);max-width:74ch}
+.foot{margin-top:48px;padding-top:16px;border-top:1px solid var(--rule);font-size:.85rem;color:var(--muted)}
+svg.chart .gene{fill:var(--fg2)}
+svg.chart .insA{fill:var(--c-ins);opacity:.28;stroke:var(--c-ins)}
+svg.chart .insB{fill:var(--c-insB);opacity:.25;stroke:var(--c-insB)}
+svg.chart .arr{stroke:var(--muted);stroke-dasharray:3 3;fill:none}
+svg.heat{max-width:420px}
+svg.heat .h0{fill:var(--h0)}svg.heat .h1{fill:var(--h1)}svg.heat .h2{fill:var(--h2)}svg.heat .h3{fill:var(--h3)}svg.heat .h4{fill:var(--h4)}svg.heat .h5{fill:var(--h5)}svg.heat .h6{fill:var(--h6)}
+svg.heat .cell{font-size:11px}
+svg.heat .h0t,svg.heat .h1t,svg.heat .h2t,svg.heat .h3t{fill:var(--h-light-text)}
+svg.heat .h4t,svg.heat .h5t,svg.heat .h6t{fill:var(--h-dark-text)}
+/* teaching diagrams */
+.dia{margin:10px 0 14px;overflow-x:auto}
+svg.d{width:100%;height:auto;max-width:720px;display:block;font-family:"IBM Plex Sans",sans-serif}
+svg.d text{fill:var(--fg2);font-size:12px}
+svg.d .t-s{font-size:10.5px}
+svg.d .t-b{font-weight:600;fill:var(--fg)}
+svg.d .t-m{fill:var(--muted)}
+svg.d .t-pat{fill:var(--pat);font-weight:600}
+svg.d .t-mat{fill:var(--mat);font-weight:600}
+svg.d .t-bad{fill:var(--bad);font-weight:600}
+svg.d .t-ok{fill:var(--ok);font-weight:600}
+svg.d .t-acc{fill:var(--accent);font-weight:600}
+svg.d .mono{font-family:"IBM Plex Mono",monospace}
+svg.d .ln{stroke:var(--fg2);stroke-width:1.5;fill:none}
+svg.d .ln2{stroke:var(--muted);stroke-width:1;fill:none}
+svg.d .dash{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3;fill:none}
+svg.d .baddash{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 3;fill:none}
+svg.d .pat{fill:var(--pat)} svg.d .mat{fill:var(--mat)}
+svg.d .pat-s{fill:var(--pat-soft);stroke:var(--pat)} svg.d .mat-s{fill:var(--mat-soft);stroke:var(--mat)}
+svg.d .nz{fill:var(--neutral-soft);stroke:var(--muted)}
+svg.d .box{fill:var(--paper);stroke:var(--rule)}
+svg.d .accbox{fill:var(--accent-soft);stroke:var(--accent)}
+svg.d .okbox{fill:var(--ok-soft);stroke:var(--ok)}
+svg.d .badbox{fill:var(--bad-soft);stroke:var(--bad)}
+svg.d .warnbox{fill:var(--warn-soft);stroke:var(--warn)}
+svg.d .gene{fill:var(--fg2)}
+svg.d .ins{fill:var(--c-ins)}
+svg.d .acc{fill:var(--accent)}
+svg.d .bad{fill:var(--bad)}
+svg.d .okf{fill:var(--ok)}
+svg.d .read{stroke:var(--fg2);stroke-width:3;stroke-linecap:round}
+svg.d .read-ins{stroke:var(--c-ins);stroke-width:3;stroke-linecap:round}
+svg.d .read-pat{stroke:var(--pat);stroke-width:3;stroke-linecap:round}
+svg.d .read-mat{stroke:var(--mat);stroke-width:3;stroke-linecap:round}
+svg.d .arrow{stroke:var(--fg2);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+svg.d marker path{fill:var(--fg2)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px;margin:16px 0}
+.kv div{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:10px 12px;min-width:0}
+.kv b{display:block;font:500 1.35rem/1.2 "IBM Plex Mono",monospace}
+.kv span{font-size:12px;color:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+.two > *{min-width:0}
+.foot{margin-top:70px;font-size:13px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+.ex{font-size:13.5px;color:var(--fg2);background:var(--code);border-radius:4px;padding:8px 12px;margin:8px 0}
+.ex pre{margin:0;font:12px/1.5 "IBM Plex Mono",monospace;white-space:pre;overflow-x:auto}
+</style>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+<b>Start here</b>
+<a href="#top">Summary and answers</a>
+<a href="#decide">Decisions for Marc</a>
+<a href="#howto">How to read this report</a>
+<b>Background course</b>
+<a href="#bg-data">The data each person has</a>
+<a href="#bg-asm">Assembly, haplotypes, phasing</a>
+<a href="#bg-mhc">MHC and HLA alleles</a>
+<a href="#bg-kir">KIR</a>
+<a href="#bg-trb">TRB and the T-cell repertoire</a>
+<a href="#bg-reads">Reads, depth, alignment</a>
+<a href="#bg-rel">Relatives, trios, k-mers</a>
+<a href="#bg-popgen">Population genetics</a>
+<a href="#bg-stats">Statistics toolbox</a>
+<a href="#bg-disc">Small-count masking</a>
+<b>Results</b>
+<a href="#p1">1 · Cohort and counts</a>
+<a href="#p2">2 · Can we trust the haplotypes?</a>
+<a href="#p3">3 · Can we trust the allele calls?</a>
+<a href="#p4">4 · Coverage</a>
+<a href="#p5">5 · Novel HLA alleles</a>
+<a href="#p6">6 · MHC haplotype biology</a>
+<a href="#p7">7 · Expression checks</a>
+<a href="#p8">8 · KIR</a>
+<a href="#p9">9 · TRB insertion and TRBV4-3</a>
+<a href="#p10">10 · The 991 Sequel II people</a>
+<b>Wrap-up</b>
+<a href="#review">Independent review</a>
+<a href="#plans">Long jobs: plans and costs</a>
+<a href="#p11">Disclosure and open items</a>
+<a href="#appx">Appendix: methods and files</a>
+<div class="controls"><button type="button" id="openall">Open all</button><button type="button" id="closeall">Close all</button></div>
+</nav>
+
+<main>

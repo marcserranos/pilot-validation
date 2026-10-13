@@ -1,0 +1,67 @@
+<!-- =============================================================== REVIEW -->
+<section id="review">
+<h2><span class="part">Wrap-up</span>Independent review: what it found and what changed</h2>
+<p>Three reviewers checked this sprint's work, each with no stake in it.</p>
+<ul>
+<li>A <b>methods</b> reviewer read the scripts against the claims (19 findings).</li>
+<li>A <b>numbers</b> reviewer traced every number in the report to a committed table (41 findings).</li>
+<li>A <b>readability</b> reviewer read it as you would.</li>
+</ul>
+<p>Most numbers traced correctly. The serious findings were three conclusions stated more strongly than the data allow, one inverted piece of logic, and several ways small counts could be recovered by subtraction. Each is listed below with what was done.</p>
+<div class="tw"><table>
+<tr><th>Finding</th><th>Severity</th><th>What was done</th></tr>
+<tr><td>59: "depth explains none of the bad calls". The decision rule could never pass for a common outcome, and the regressions show clear associations.</td><td>Wrong conclusion</td><td>Rewritten (Part 4) around rate curves and odds ratios, with the reverse-causation reading. The 59 README was updated. Still no filter, now for the right reason.</td></tr>
+<tr><td>TRBV4-3: the expected inequality was backwards, and "the usage gap is a germline deletion" was too strong.</td><td>Wrong logic</td><td>Fixed (Part 9). All six never-used rates are shown, the gap is reported with its likely causes, and the claim is now "consistent with".</td></tr>
+<tr><td>65: the heterozygote AF bias is built into the read rules (reference reads need ~7.9 kb, insertion reads ~0.3 kb).</td><td>Method</td><td>Explained, with a prediction (0.64) that matches the data. A mixture genotyper was written and tested. The AFR/SAS residual and no-call bounds are reported.</td></tr>
+<tr><td>64: the homopolymer read readout pooled unassigned reads, which include the other haplotype.</td><td>Confounded figure</td><td>Code fixed (counts only reads assigned to the haplotype), with tests. The figure is marked confounded until the &lt; 2 h VM rerun.</td></tr>
+<tr><td>64: "4–9 real novel alleles"; 2 of the 4 clean ones are already named in IPD 3.65.0.</td><td>Overclaim</td><td>Now: 2 unnamed with clean read support, 2 since named, up to 7 with homopolymer-class support.</td></tr>
+<tr><td>64: "the frameshift is in the record, not the genome" is unproven.</td><td>Overclaim</td><td>Now "source undetermined". Planned check: where the indel sits relative to exon edges, and the reads at that spot.</td></tr>
+<tr><td>56b/57b: "two independent methods agree"; the relative filter "does not bias".</td><td>Overclaim</td><td>Now: two related checks on overlapping people. The filter biases the error down (by up to ~1 point), and the per-call error is ~half the pair rate.</td></tr>
+<tr><td>57b: "&lt; 7.7%" read as an estimate.</td><td>Wording</td><td>Now described as a ceiling forced by masking. The k-mer origin error is uncalibrated; a calibration is planned.</td></tr>
+<tr><td>61: "cB share" includes telomeric genes; complete-only may under-count B haplotypes; "0.4–1.6 lower than 43" was misattributed.</td><td>Label / overclaim</td><td>Renamed "B-content share", the possible bias stated, and the comparison corrected (Part 8).</td></tr>
+<tr><td>Small counts recoverable by subtraction: report tables (Part 1 waterfall, the DQ cross-group numbers, the Cole table, 64 call outcomes) and committed tables across files (65 genotypes vs AF histogram, 58 CN vs depth bins, plus older 50–56 tables).</td><td>Disclosure</td><td>Report text fixed (rounded percentages, values withheld). A cross-table masking step (script 66) re-masked the committed tables, and 58 and 65 now run it themselves. Four known gaps remain (Part 11). The old values remain in git history (see Part 11).</td></tr>
+<tr><td>Same-contig caption "DP 81–100%"; HLA-A "pale to anything"; Sequel IIe "higher hamming" everywhere; several small number slips.</td><td>Wrong numbers</td><td>Corrected in place.</td></tr>
+<tr><td>Two unrelated sets (11,856 HLA, 11,882 KIR).</td><td>Consistency</td><td>Explained. One fixed unrelated list for all analyses is a next-sprint item.</td></tr>
+<tr><td>Platform contrasts, the somatic TRB gradient, MHC switch-error comparisons.</td><td>Interpretation</td><td>Labelled descriptive or inferred-not-tested, with the direct test named.</td></tr>
+</table></div>
+<p class="note">The full review notes are kept with the sprint working files. Every disposition above is in the report text, the code or the committed tables.</p>
+</section>
+
+<!-- =============================================================== PLANS -->
+<section id="plans">
+<h2><span class="part">Wrap-up</span>Long jobs: plans and costs (nothing here was run)</h2>
+<p>This sprint ran no job longer than a day. Below is every job that would, or that is short but waits for the VM, with what it answers, how long it takes and what it costs. Costs use the current VM's rate ($0.37/h for 4 vCPU and 32 GB). Bigger machines are scaled from GCP list prices, so confirm them in the Workbench resize dialog. Each long job is resumable and can be cut into batches of a day or less, so none needs a multi-day unattended run.</p>
+
+<h3>1 · Re-call the 991 Sequel II people (63)</h3>
+<p><b>Answers:</b> HLA and KIR for the missing quarter of AFR participants. It is the largest remaining bias in every AFR number. <b>Measured so far:</b> an estimated ~40 min per person per 4-vCPU worker, to be confirmed (with peak memory) by the second smoke test, which takes under an hour.</p>
+<div class="tw"><table>
+<tr><th>Option</th><th class="r">Workers</th><th class="r">Compute time</th><th class="r">One-day batches</th><th class="r">Approx. cost</th></tr>
+<tr><td>Current VM (4 vCPU)</td><td class="r">1</td><td class="r">~660 h</td><td class="r">~28</td><td class="r">~$245</td></tr>
+<tr><td>n2-highmem-16 (16 vCPU, 128 GB)</td><td class="r">~3</td><td class="r">~220 h</td><td class="r">~9–10</td><td class="r">~$250</td></tr>
+<tr><td>n2-highmem-80 (80 vCPU, 640 GB)</td><td class="r">~10</td><td class="r">~66 h</td><td class="r">3</td><td class="r">~$350</td></tr>
+</table></div>
+<p>The cost is roughly the same whatever the machine (about $250–350); what changes is the calendar time, from 3 days to 4 weeks. Worker counts assume memory is the limit, as in the first estimate. After the calls, the merge and the reruns of 01 → 50/61/62/65 take a few hours. <b>Recommendation:</b> run the second smoke test and the 20-person Revio comparison first (under a day). If both pass, resize and run 3 one-day batches.</p>
+
+<h3>2 · Short jobs waiting only for the VM (each well under a day)</h3>
+<div class="tw"><table>
+<tr><th>Job</th><th>Answers</th><th class="r">Time</th><th class="r">Cost</th></tr>
+<tr><td>Re-aggregate 65 with the mixture genotyper</td><td>Final TRBV4-3 genotypes without the het deficit</td><td class="r">minutes</td><td class="r">&lt; $1</td></tr>
+<tr><td>Re-derive public tables with cross-table masking (58, 59, 62, 65, <code>--aggregate-only</code>)</td><td>VM-side confirmation of the local re-masking</td><td class="r">minutes</td><td class="r">&lt; $1</td></tr>
+<tr><td>Rerun 64 reads with the fixed homopolymer readout</td><td>Do haplotype-assigned reads favour the known run length?</td><td class="r">~1.5 h (measured)</td><td class="r">~$1</td></tr>
+<tr><td>64 short-read check of homopolymer keys (CRAM slices)</td><td>Independent chemistry for the class HiFi cannot settle</td><td class="r">~1–2 h (estimate)</td><td class="r">~$1</td></tr>
+<tr><td>64 indel position for the 345 CDS disagreements</td><td>Record artefact or real frameshift?</td><td class="r">&lt; 1 h</td><td class="r">&lt; $1</td></tr>
+<tr><td>65b assembly concordance on the stratified 2,000 (running since 12 Oct 17:21 UTC)</td><td>Which genotyper is right; are AFR/SAS 0-copies real?</td><td class="r">capped at 1 day</td><td class="r">~$9</td></tr>
+<tr><td>60 per-person TRBV4-3 join</td><td>Turns "consistent with" into a measured effect</td><td class="r">minutes</td><td class="r">blocked on Aleix's table</td></tr>
+<tr><td>Commit the VM inspection scripts (DQ ≥ 100 kb, contracted KIR)</td><td>Makes two findings reproducible</td><td class="r">minutes</td><td class="r">—</td></tr>
+</table></div>
+
+<h3>3 · Larger analyses to discuss</h3>
+<div class="tw"><table>
+<tr><th>Job</th><th>Answers</th><th>Size</th><th>Plan</th></tr>
+<tr><td>65 assembly mode on all 12,233</td><td>Assembly-based TRB genotypes for everyone (only if 65b shows reads mode is not enough)</td><td>Scales from the 65b rate (~6× the 2,000 run)</td><td>Decide after 65b. If needed, one-day batches.</td></tr>
+<tr><td>Cohort-scale HLA allele-specific expression (53)</td><td>Idea #3: what drives allele imbalance; the protein-identical arm needs site-level counting first</td><td>Pilot timing was not recorded</td><td>Benchmark 20 people (&lt; 1 h), then cost it. Redesign the protein-identical arm before scaling.</td></tr>
+<tr><td>Genome-wide trio phasing check (yak) for 179 trios</td><td>Phasing error outside the MHC, as a calibration for the k-mer origin method</td><td>Whole-genome k-mer counting for 358 parents; ~30–60 min each (estimate) = 180–360 h on the current VM</td><td>8–15 one-day batches, ~$70–135, or a few batches on a larger VM.</td></tr>
+<tr><td>IBD-based relative filter (56b redo)</td><td>Unbiased typing error from relatives</td><td>Needs IBD segments over the MHC from short-read data</td><td>Scope first: check whether All of Us provides IBD, or compute it on chr6 only.</td></tr>
+</table></div>
+<div class="sig"><b class="h">Bottom line for the call</b>One decision unlocks most of the remaining value: <b>the Sequel II re-call</b> (~$250–350, 3 one-day batches on a resized VM). Everything else is either under a day and can run as soon as the VM is back, or waits on Aleix (60).</div>
+</section>

@@ -996,3 +996,17 @@ full:
   data). Each one is checked by a step in `vm_parts/64.sh` before the full run.
 - Small-cell publication of `now_known_alleles.tsv` (named alleles with masked carrier counts) is
   flagged for a human decision; see the open disclosure item in `context/DECISIONS.md`.
+
+## Review corrections (2026-10-12, external review; integrated in the S05 report)
+
+- **59:** the cutoff rule (≥ 50% events at ≤ 10% people) cannot pass for an outcome with prevalence p > 20% (ceiling 10/p).
+  The result is read from `logistic_or.tsv` and `outcome_by_depth_bin.tsv`: associated, partly reverse causation; no filter.
+- **64:** `read_support` hp votes now use only reads assigned to the called haplotype (`hap == "this"`); before, unassigned
+  reads (which include the other haplotype) were pooled, which pushes "known length" towards 50% even for a real het allele.
+  `hp_runlength_by_gene.tsv` from the 10-12 run is confounded until the rerun. The 345 CDS disagreements: source undetermined.
+- **65:** reads-mode het AF bias comes from the read rules (reference reads must span ~7.9 kb; insertion reads need a ~0.3 kb probe
+  hit), so expected het AF ≈ (L+0.3)/((L+0.3)+(L−7.9)) ≈ 0.64 at L ≈ 18 kb. Added `--genotyper mixture` (3-component binomial EM per
+  feature × platform, free f and w, call at posterior ≥ 0.9, writes `af_mixture_fit.tsv`).
+- **56b/57b:** the relative filter biases the error down; the two checks share people; the per-call error is about half the
+  pair rate; "< 7.7%" is a masking ceiling.
+- **Disclosure:** sums across tables (65 genotype vs AF bins; 58 CN vs depth bins; older 50–56 tables) were re-masked.

@@ -857,6 +857,59 @@ def rederive_reads_calls(gene, min_reads, cuts):
     return g
 
 
+def fit_af_mixture(k, n, init=(0.02, 0.6, 0.98), iters=200, tol=1e-8):
+    """EM for a 3-component binomial mixture on per-person insertion read counts k out of n informative
+    reads. Components are 0, 1 and 2 copies with free allele fractions f and free weights w (no HWE).
+    The 1-copy fraction is free because the two read classes are captured unequally: a reference read
+    must span the breakpoint interval plus both flanks contiguously (~7.9 kb), an insertion read only
+    needs a probe hit, so heterozygotes sit near 0.6-0.7 rather than 0.5 (S05 review, 2026-10-12).
+    Returns (f, w, posterior[len(k) x 3])."""
+    k, n = np.asarray(k, float), np.asarray(n, float)
+    f, w = np.array(init, float), np.full(3, 1 / 3)
+    ll_old = -np.inf
+    for _ in range(iters):
+        fc = np.clip(f, 1e-4, 1 - 1e-4)
+        logl = k[:, None] * np.log(fc) + (n - k)[:, None] * np.log(1 - fc) + np.log(w)
+        m = logl.max(axis=1, keepdims=True)
+        post = np.exp(logl - m)
+        tot = post.sum(axis=1, keepdims=True)
+        post /= tot
+        ll = float((np.log(tot) + m).sum())
+        w = post.mean(axis=0)
+        f = (post * k[:, None]).sum(axis=0) / np.maximum((post * n[:, None]).sum(axis=0), 1e-9)
+        f = np.sort(f)   # keep 0 < 1 < 2 copies ordered
+        if abs(ll - ll_old) < tol * max(1.0, abs(ll)):
+            break
+        ll_old = ll
+    return f, w, post
+
+
+def mixture_reads_calls(gene, people, min_reads, min_post=0.9):
+    """Reads mode, `--genotyper mixture`: like rederive_reads_calls, but copies come from a binomial
+    mixture fitted per feature x platform (read-length distributions differ by platform). A person with
+    max posterior < min_post gets status 'ambiguous' and no call. Returns (calls, fit table)."""
+    g = gene.copy()
+    plat = people.set_index("person_id")["platform"]
+    g["_plat"] = g["person_id"].map(plat).fillna("unknown")
+    ni, nr = pd.to_numeric(g["n_ins"], errors="coerce"), pd.to_numeric(g["n_ref"], errors="coerce")
+    tot = ni + nr
+    ok = (tot >= min_reads).fillna(False).to_numpy()
+    g["status"] = np.where(ok, "ok", "low_reads")
+    g["copies"] = ""
+    fits = []
+    for (feat, pl), idx in g[ok].groupby(["feature", "_plat"]).groups.items():
+        kk, nn = ni.loc[idx].to_numpy(), tot.loc[idx].to_numpy()
+        f, w, post = fit_af_mixture(kk, nn)
+        best, pmax = post.argmax(axis=1), post.max(axis=1)
+        g.loc[idx, "copies"] = [str(b) if pm >= min_post else "" for b, pm in zip(best, pmax)]
+        g.loc[idx, "status"] = ["ok" if pm >= min_post else "ambiguous" for pm in pmax]
+        fits.append(dict(feature=feat, platform=pl, n_people=len(idx), f_0copy=round(f[0], 4),
+                         f_1copy=round(f[1], 4), f_2copy=round(f[2], 4), w_0copy=round(w[0], 4),
+                         w_1copy=round(w[1], 4), w_2copy=round(w[2], 4),
+                         pct_ambiguous=round(100 * float((pmax < min_post).mean()), 2)))
+    return g.drop(columns="_plat"), pd.DataFrame(fits)
+
+
 def genotype_person_reads(person, probes, cls, args_d, timeout=None):
     """Reads mode. -> (gene_rows, hap_rows, None) or (None, None, reason)."""
     t0 = time.time()
@@ -1242,6 +1295,14 @@ def _suppress_strata(df, mode, keys, cols, rate_links, row_sums=(), bins_col=Non
     [total, part, ...] column lists; with `bins_col`, the bins of one stratum sum to its total."""
     if mode != _disc.PUBLIC or df.empty:
         return _disc.drop_raw(df)
+    eqs = _strata_eqs(df, keys, cols, row_sums, bins_col)
+    return _disc.drop_raw(_disc.suppress_equations(df, eqs, rate_links))
+
+
+def _strata_eqs(df, keys, cols, row_sums=(), bins_col=None):
+    """The equation sets of _suppress_strata (see there)."""
+    if df.empty:
+        return []
     anc = df[df["stratum_type"] == "ancestry"]
     plat = df[(df["stratum_type"] == "platform") | ((df["stratum_type"] == "ancestry") & (df["stratum"] == "ALL"))]
     eqs = _disc.partition_equations(anc, keys, "stratum", "ALL", cols, members=list(ANCESTRY_ORDER))
@@ -1250,10 +1311,57 @@ def _suppress_strata(df, mode, keys, cols, rate_links, row_sums=(), bins_col=Non
         eqs += _disc.partition_equations(df, [k for k in keys if k != bins_col] + ["stratum_type", "stratum"],
                                          bins_col, None, cols)
     eqs += _disc.row_equations(df, [list(r) for r in row_sums])
-    return _disc.drop_raw(_disc.suppress_equations(df, eqs, rate_links))
+    return eqs
 
 
-def genotype_table(gene, people, mode):
+GENO_EST = ["insertion_allele_freq", "pct_0copies", "hwe_p"]
+GENO_COLS = ["n_people_measured", "n_called", "n_0copies", "n_1copy", "n_2copies"]
+GENO_RATE_LINKS = {"n_people_measured": ["pct_called"], "n_called": ["pct_called"] + GENO_EST,
+                   "n_0copies": GENO_EST, "n_1copy": GENO_EST, "n_2copies": GENO_EST}
+GENO_ROW_SUMS = [("n_called", "n_0copies", "n_1copy", "n_2copies")]
+
+
+def suppress_genotype_histogram(geno, hist, mode, cuts=None):
+    """PUBLIC complementary suppression of genotype_by_stratum and allele_fraction_histogram TOGETHER
+    (raw frames from genotype_table / af_histogram with suppress=False). Besides each table's own sets:
+    with the fixed-cut genotyper (`cuts` = af_cuts), the bins of a feature x stratum sum to its n_called,
+    and the bins in [0, c0), [c0, c1), [c1, 1] sum to its n_0copies / n_1copy / n_2copies (copies = 0 if
+    af < c0, 1 if af < c1, else 2; both cuts are bin edges). Without these cross-table sets one masked
+    bin came back by subtraction (S05 fact-check 2026-10-12, 21 cells in reads_unrelated).
+    With the mixture genotyper (cuts=None) calls do not follow bin ranges and the histogram also
+    holds 'ambiguous' people, so only the per-table sets apply. -> (geno, hist) without _raw_ columns."""
+    if hist is None or hist.empty or mode != _disc.PUBLIC:
+        g = _suppress_strata(geno, mode, ["feature"], GENO_COLS, GENO_RATE_LINKS, row_sums=GENO_ROW_SUMS)
+        h = None if hist is None else _suppress_strata(hist, mode, ["feature", "af_lo"], ["n_people"], {},
+                                                       bins_col="af_lo")
+        return g, h
+    geno = geno.reset_index(drop=True)
+    hist = hist.reset_index(drop=True)
+    hist.index = hist.index + len(geno)
+    eqs = _strata_eqs(geno, ["feature"], GENO_COLS, GENO_ROW_SUMS)
+    eqs += _strata_eqs(hist, ["feature", "af_lo"], ["n_people"], bins_col="af_lo")
+    if cuts is not None:
+        row_of = {k: i for i, k in zip(geno.index, zip(geno["feature"], geno["stratum_type"], geno["stratum"]))}
+        lo_c, hi_c = cuts
+        for k, h in hist.groupby(["feature", "stratum_type", "stratum"]):
+            if k not in row_of:
+                continue
+            g = row_of[k]
+            b = h["af_lo"].astype(float)
+            eqs.append([(g, "n_called")] + [(i, "n_people") for i in h.index])
+            for col, sel in (("n_0copies", b < lo_c - 1e-9), ("n_1copy", (b >= lo_c - 1e-9) & (b < hi_c - 1e-9)),
+                             ("n_2copies", b >= hi_c - 1e-9)):
+                eqs.append([(g, col)] + [(i, "n_people") for i in h.index[sel.to_numpy()]])
+    both = pd.concat([geno, hist])
+    for c in GENO_COLS + ["pct_called"] + GENO_EST + ["n_people"]:
+        if c in both.columns:
+            both[c] = both[c].astype(object)
+    both = _disc.suppress_equations(both, eqs, GENO_RATE_LINKS)
+    return (_disc.drop_raw(both.loc[geno.index, list(geno.columns)]),
+            _disc.drop_raw(both.loc[hist.index, list(hist.columns)]).reset_index(drop=True))
+
+
+def genotype_table(gene, people, mode, suppress=True):
     d = gene.merge(people[["person_id", "ancestry", "platform"]], on="person_id", how="left")
     rows = []
     for feat in d["feature"].unique():
@@ -1275,12 +1383,10 @@ def genotype_table(gene, people, mode):
             row.update(_raw_n_people_measured=n, _raw_n_called=m, _raw_n_0copies=c0, _raw_n_1copy=c1,
                        _raw_n_2copies=c2)
             rows.append(row)
-    est = ["insertion_allele_freq", "pct_0copies", "hwe_p"]
-    cols = ["n_people_measured", "n_called", "n_0copies", "n_1copy", "n_2copies"]
-    return _suppress_strata(pd.DataFrame(rows), mode, ["feature"], cols,
-                            {"n_people_measured": ["pct_called"], "n_called": ["pct_called"] + est,
-                             "n_0copies": est, "n_1copy": est, "n_2copies": est},
-                            row_sums=[("n_called", "n_0copies", "n_1copy", "n_2copies")])
+    df = pd.DataFrame(rows)
+    if not suppress:
+        return df
+    return _suppress_strata(df, mode, ["feature"], GENO_COLS, GENO_RATE_LINKS, row_sums=GENO_ROW_SUMS)
 
 
 INCOMPLETE_REASONS = ["no_trb_contig", "anchor_missing", "low_reads", "no_hp_tag"]
@@ -1383,9 +1489,10 @@ def copresence_table(gene, hap, people, feats, mode):
     return rows, pats
 
 
-def af_histogram(gene, people, mode, width=0.05):
+def af_histogram(gene, people, mode, width=0.05, suppress=True):
     """Reads mode: per feature x stratum, people per allele-fraction bin (status ok only)."""
-    d = gene[gene["status"] == "ok"].merge(people[["person_id", "ancestry", "platform"]], on="person_id", how="left")
+    d = gene[gene["status"].isin(["ok", "ambiguous"])].merge(people[["person_id", "ancestry", "platform"]],
+                                                             on="person_id", how="left")
     d["af"] = pd.to_numeric(d["allele_fraction"], errors="coerce")
     d = d[d["af"].notna()]
     edges = np.round(np.arange(0, 1 + width / 2, width), 4)
@@ -1400,8 +1507,10 @@ def af_histogram(gene, people, mode, width=0.05):
                                  _raw_n_people=int(k)))
     df = pd.DataFrame(rows, columns=["feature", "stratum_type", "stratum", "af_lo", "af_hi", "n_people",
                                      "_raw_n_people"])
+    if not suppress:
+        return df
     # bins of a stratum sum to its called people (published in genotype_by_stratum); per bin, the
-    # ancestries and the platforms each sum to ALL
+    # ancestries and the platforms each sum to ALL. Cross-table sets: suppress_genotype_histogram.
     return _suppress_strata(df, mode, ["feature", "af_lo"], ["n_people"], {}, bins_col="af_lo")
 
 
@@ -1561,6 +1670,12 @@ def main(argv=None):
     ap.add_argument("--min-reads", type=int, default=6)
     ap.add_argument("--min-hap-reads", type=int, default=3)
     ap.add_argument("--af-cuts", default="0.2,0.8")
+    ap.add_argument("--no-cross-table", action="store_true",
+                    help="skip the 66 cross-table pass over the PUBLIC dir (tests on tiny synthetic strata, "
+                         "where it blanks the rates they check). Never pull a PUBLIC dir made with this.")
+    ap.add_argument("--genotyper", default="cuts", choices=["cuts", "mixture"],
+                    help="reads mode: fixed --af-cuts, or a per-platform binomial mixture with a free 1-copy "
+                         "allele fraction (the two read classes are captured unequally)")
     ap.add_argument("--select", default="auto", choices=["auto", "paf", "anchor", "all"])
     ap.add_argument("--window", default=DEFAULT_WINDOW)
     ap.add_argument("--pad", type=int, default=50_000)
@@ -1715,18 +1830,31 @@ def main(argv=None):
     if args.unrelated:
         ids &= _unrelated_ids(people, args.relatedness)
     gene, hap = gene[gene["person_id"].isin(ids)], hap[hap["person_id"].isin(ids)]
+    mix_fit = None
     if args.mode == "reads" and len(gene):
-        gene = rederive_reads_calls(gene, args.min_reads, ad["af_cuts"])
+        if args.genotyper == "mixture":
+            gene, mix_fit = mixture_reads_calls(gene, people, args.min_reads)
+        else:
+            gene = rederive_reads_calls(gene, args.min_reads, ad["af_cuts"])
     os.makedirs(args.out_dir, exist_ok=True)
     _disc.write_tsv(cls_tab, os.path.join(args.out_dir, "probe_classes.tsv"), mode)
-    _disc.write_tsv(genotype_table(gene, people, mode), os.path.join(args.out_dir, "genotype_by_stratum.tsv"), mode)
+    geno_t, hist_t = suppress_genotype_histogram(
+        genotype_table(gene, people, mode, suppress=False),
+        af_histogram(gene, people, mode, suppress=False) if args.mode == "reads" else None, mode,
+        cuts=ad.get("af_cuts") if args.mode == "reads" and args.genotyper == "cuts" else None)
+    _disc.write_tsv(geno_t, os.path.join(args.out_dir, "genotype_by_stratum.tsv"), mode)
     _disc.write_tsv(completeness_table(hap, people, mode),
                     os.path.join(args.out_dir, "haplotype_completeness.tsv"), mode)
     cp, pats = copresence_table(gene, hap, people, cop, mode)
     _disc.write_tsv(cp, os.path.join(args.out_dir, "copresence.tsv"), mode)
     _disc.write_tsv(pats, os.path.join(args.out_dir, "haplotype_patterns.tsv"), mode)
     if args.mode == "reads":
-        _disc.write_tsv(af_histogram(gene, people, mode), os.path.join(args.out_dir, "allele_fraction_histogram.tsv"), mode)
+        _disc.write_tsv(hist_t, os.path.join(args.out_dir, "allele_fraction_histogram.tsv"), mode)
+    if mix_fit is not None and len(mix_fit):
+        mix_fit = mix_fit.copy()
+        mix_fit["n_people"] = [f"<{_disc.SUPPRESS_BELOW}" if 0 < v < _disc.SUPPRESS_BELOW else v
+                               for v in mix_fit["n_people"]]
+        mix_fit.to_csv(os.path.join(args.out_dir, "af_mixture_fit.tsv"), sep="\t", index=False)
     fr = fails[fails["person_id"].isin(people["person_id"])]["reason"].value_counts()
     _disc.write_tsv(pd.DataFrame([dict(reason=k, n_people=_m(v, mode)) for k, v in sorted(fr.items())],
                                  columns=["reason", "n_people"]),
@@ -1736,7 +1864,10 @@ def main(argv=None):
     run = [dict(metric="mode", value=args.mode),
            dict(metric="people_in_cohort", value=_m(len(people), mode)),
            dict(metric="people_genotyped", value=_m(measured, mode)),
-           dict(metric="people_called_any_feature", value=_m(called, mode)),
+           # genotyped minus called is a count of people: complementary mask when it is 1-19
+           dict(metric="people_called_any_feature",
+                value=_disc.SECONDARY if _small(mode, measured - called) and called >= _disc.SUPPRESS_BELOW
+                else _m(called, mode)),
            dict(metric="people_failed", value=_m(int(fr.sum()), mode)),
            dict(metric="unrelated_only", value=args.unrelated),
            dict(metric="aligner", value=args.aligner_resolved), dict(metric="preset", value=args.preset),
@@ -1750,7 +1881,8 @@ def main(argv=None):
         run += [dict(metric="breakpoint", value=f"{ad['breakpoint'][0]}:{ad['breakpoint'][1]}-{ad['breakpoint'][2]}"),
                 dict(metric="reads_region", value=args.reads_region), dict(metric="flank", value=args.flank),
                 dict(metric="max_indel", value=args.max_indel), dict(metric="min_reads", value=args.min_reads),
-                dict(metric="af_cuts", value=args.af_cuts), dict(metric="bam_column", value=args.bam_column),
+                dict(metric="af_cuts", value=args.af_cuts), dict(metric="genotyper", value=args.genotyper),
+                dict(metric="bam_column", value=args.bam_column),
                 dict(metric="insertion_classes", value=",".join(ins_classes)),
                 dict(metric="informative_reads_median", value=float(tot.median()) if len(tot) else "")]
     else:
@@ -1758,6 +1890,8 @@ def main(argv=None):
                 dict(metric="anchors", value=",".join(args.anchors))]
     run.append(dict(metric="wall_seconds_this_invocation", value=int(time.time() - t0)))
     _disc.write_tsv(pd.DataFrame(run), os.path.join(args.out_dir, "run_summary.tsv"), mode)
+    if mode == _disc.PUBLIC and not args.no_cross_table:
+        _load_58().cross_table_pass(dir65=args.out_dir)
     log(f"done: {measured} people genotyped ({called} called); tables in {args.out_dir}")
     return 0
 

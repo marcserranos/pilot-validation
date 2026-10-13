@@ -172,6 +172,26 @@ class Test50(unittest.TestCase):
             for c in ("n_rel_lt_0.5", "n_rel_lt_0.6", "n_rel_lt_0.7"):
                 if g[c].notna().all():
                     self.assertNotEqual(sum(m(x) for x in g[c]), 1)
+        # across tables: the bins below / between / above the copy-number cuts sum to ALL n_0copies /
+        # n_1copy / n_2copies, so no such set may hold exactly one hidden cell (S05 fact-check 10-12)
+        cn_all = tab_s[tab_s["ancestry"] == "ALL"].set_index("gene")
+        n_checked = 0
+        for g, h in hist.groupby("gene"):
+            if g not in cn_all.index:
+                continue
+            lo = h["bin_lo"].astype(float)
+            for col, sel in (("n_0copies", lo < 0.25), ("n_1copy", (lo >= 0.25) & (lo < 0.75)), ("n_2copies", lo >= 0.75)):
+                cells = [cn_all.at[g, col]] + list(h.loc[sel, "n_people"])
+                self.assertNotEqual(sum(not str(x).isdigit() for x in cells), 1, (g, col))
+                n_checked += 1
+        self.assertGreater(n_checked, 0)
+        # and 66's full model (ancestry residuals, depth_summary n_rel_lt_* vs bins) finds nothing
+        s66 = importlib.util.spec_from_file_location("cts66_58", os.path.join(SRC, "66_cross_table_suppression.py"))
+        cts = importlib.util.module_from_spec(s66)
+        s66.loader.exec_module(cts)
+        leaks, inconsistent = cts.build(dir58=out).analyse()
+        self.assertEqual(inconsistent, [])
+        self.assertEqual(leaks, [])
         # PUBLIC outputs never carry person ids
         for f in os.listdir(out):
             txt = open(os.path.join(out, f)).read()

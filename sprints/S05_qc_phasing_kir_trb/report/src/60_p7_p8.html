@@ -1,0 +1,88 @@
+<!-- =============================================================== PART 7 -->
+<section id="p7">
+<h2><span class="part">Part 7</span>Expression checks</h2>
+<p><b>Question.</b> Blood RNA is a second, independent measurement. If the DNA says a person has two copies of a gene, the RNA should usually show more of it than in someone with one copy, and none in someone with zero. Two checks were run: presence/absence against expression (55), and a pilot of allele-specific expression on personal references (53).</p>
+
+<details class="trailbox"><summary>From which file, by what process (55 and 53)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd><b>55:</b> All of Us v9 RNA-SeQC gene TPM (whole blood, reads aligned to the standard reference), joined to DNA copy counts from Table 1 and the KIR annotation. <b>53:</b> 80 unrelated people's RNA FASTQs, plus their own two HLA-A/B/C mRNA sequences from the assembly.</dd>
+<dt>Process</dt><dd><b>55:</b> count the haplotypes carrying the gene (0, 1, 2), then compare TPM across those groups (Spearman ρ). Only "strict" people are used, whose call is trustworthy: DRB5 in people whose DRB1–DQA1 sits on one contig on both haplotypes, and KIR in people with two complete haplotypes. <b>53:</b> build a per-person reference from their two alleles of each gene, with every other MHC gene as a decoy. Align RNA reads (minimap2 short-read mode, MAPQ ≥ 10), count reads per allele, and test imbalance with a binomial test. Mapping bias is measured by aligning simulated reads from a perfectly balanced 1:1 mix.</dd>
+<dt>Trade-offs</dt><dd>Standard TPM is computed on a reference that lacks many KIR paralogs, so it validates only genes whose paralogs are present. 53 used read 1 only and kept PCR duplicates, a pilot shortcut. Its exact sampling command was not recorded.</dd>
+<dt>Unit</dt><dd>A person (55); a person × gene (53).</dd>
+<dt>Output</dt><dd><code>55_structure_expression/structure_expression.tsv</code>; <code>53_hla_ase_pilot/ase_by_gene_class.tsv</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-structexpr"><div class="img"><img data-src="reports/hla_popgen/55_structure_expression/fig_structure_expression.png" alt="Structure vs expression"></div>
+<figcaption><span class="fnum" data-for="f-structexpr"></span><span class="ttl">Does blood RNA confirm presence/absence calls?</span>
+<dl>
+<dt>Shows</dt><dd>Six panels of TPM by the number of haplotypes carrying the gene (0, 1, 2). Dot = median, line = IQR, with Spearman ρ.</dd>
+<dt>How to read</dt><dd>A rising staircase means the DNA calls agree with expression.</dd>
+<dt>Meaning</dt><dd>HLA-DRB5 is a clean staircase: 4.6 → 51.2 → 110 TPM, ρ = 0.72, n = 6,750, with no carrier below 1 TPM. That is orthogonal confirmation of the DRB5 presence calls, and it is <i>consistent with</i> the atlas's DR51 rule. KIR genes rise only weakly (2DL3 ρ = 0.30). KIR3DL1 and 2DS4 fall with dosage (ρ −0.14, −0.25). The likely reason, untested, is that people lacking them carry paralogs missing from the reference (3DS1, 2DS1/2DS5), whose reads land on the 3DL1/2DS4 loci. That would be a reference artefact, not a calling error.</dd>
+<dt>Limits</dt><dd>Reference-based quantification validates only genes whose paralogs are in the reference. KIR expression needs personal-haplotype quantification (as in 53). Not restricted to unrelated people.</dd>
+</dl><div class="src">Script 55 · <code>structure_expression.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-ase"><div class="img"><img data-src="reports/hla_popgen/53_hla_ase_pilot/fig_ase.png" alt="ASE pilot"></div>
+<figcaption><span class="fnum" data-for="f-ase"></span><span class="ttl">Allele-specific expression on personal two-haplotype references (pilot)</span>
+<dl>
+<dt>Shows</dt><dd>For 80 unrelated people, the median |log2(allele 1 ÷ allele 2)| for protein-different heterozygotes (blue), and the same from simulated balanced reads (grey, the mapping bias).</dd>
+<dt>How to read</dt><dd>Blue far above grey means real imbalance, not alignment bias. 0 means a perfect 1:1 ratio, and 1 means a 2:1 ratio.</dd>
+<dt>Meaning</dt><dd>Observed values are 0.33–0.37 (a typical ~1.27-fold allelic ratio), against a bias of 0.01–0.02. About a third of people show significant imbalance above 1.41-fold at HLA-A (31.7%) and HLA-B (32.3%). The assay works for protein-different pairs. The protein-identical arm, which was the actual question, fails as designed: those mRNAs differ at too few sites, and it needs site-level allele counting.</dd>
+<dt>Limits</dt><dd>n = 80; read 1 only; PCR duplicates kept. The allele labels are arbitrary, so the direction of the imbalance is unknown. Scaling up is a long job (planned below).</dd>
+</dl><div class="src">Script 53 · <code>ase_by_gene_class.tsv</code></div></figcaption></figure>
+<div class="sig"><b class="h">Significance</b><p>DRB5 shows that the DNA presence calls are right where the reference lets RNA check them.</p><p>The ASE pilot shows that personal references can measure allele imbalance in HLA with negligible mapping bias. That is the foundation for idea #3 (drivers of HLA allele-specific expression), but only after a cohort-scale run, which is a long job.</p></div>
+</section>
+
+<!-- =============================================================== PART 8 -->
+<section id="p8">
+<h2><span class="part">Part 8</span>KIR: structure first, then the ancestry panel</h2>
+<p><b>Question.</b> KIR haplotypes vary in gene content (<a href="#bg-kir">background</a>), so "gene absent" can mean real biology or a contig that stopped early. Script 51 checked which it is. Script 61 then made the ancestry panel on haplotypes that cannot be broken.</p>
+
+<details class="trailbox"><summary>From which file, by what process (51 and 61)</summary>
+<dl class="trail">
+<dt>Data in</dt><dd>Immuannot's KIR annotation (GTF) per haplotype: gene names, copies, contigs and positions, plus allele calls. 51 used all 24,513 haplotypes; 61 used the 11,882 unrelated KIR-called people (23,755 haplotypes).</dd>
+<dt>Process</dt><dd><ol><li><b>Complete haplotype</b> = all KIR calls on one contig, with both end genes 3DL3 and 3DL2 present. Such a haplotype cannot hide a gene in a gap.</li><li>Class every haplotype: complete, multi-contig, or one contig with an open end.</li><li>Framework-gene presence per class (51).</li><li>Per ancestry, on complete haplotypes only (61): gene frequency, a "B-content" share, top alleles (protein field), and genes per haplotype.</li></ol></dd>
+<dt>Trade-offs</dt><dd>The complete-only rule removes fragmentation bias, but it can add another: if longer or more repetitive haplotypes (often B-content) break more often, complete haplotypes under-represent them. Completeness is close across ancestries (72–79%), so between-ancestry comparisons are fairly safe, but absolute B-content may be slightly low. For simple carrier frequencies, gene presence on <i>any</i> contig is robust to this and serves as a check.</dd>
+<dt>Unit</dt><dd>Haplotypes. 11,882 unrelated is not the 11,856 of the HLA analyses: the greedy unrelated set is built from a different starting cohort (KIR-called vs HLA-called people).</dd>
+<dt>Output</dt><dd><code>51_kir_structure_qc/</code>; <code>61_kir_by_ancestry_panel/vm_2026-10-12/</code></dd>
+</dl>
+</details>
+
+<figure class="plate" id="f-framework"><div class="img"><img data-src="reports/hla_popgen/51_kir_structure_qc/fig_framework_by_completeness.png" alt="Framework genes by completeness"></div>
+<figcaption><span class="fnum" data-for="f-framework"></span><span class="ttl">"Missing" framework genes are mostly fragmentation</span>
+<dl>
+<dt>Shows</dt><dd>% of haplotypes carrying each framework gene (3DL3, 2DL4, 3DP1, 3DL2), by haplotype class: all (24,513), complete (18,497, 75%), multi-contig (4,189) and one contig with an open end (1,704).</dd>
+<dt>How to read</dt><dd>Framework genes should be on essentially every haplotype. Compare the classes.</dd>
+<dt>Meaning</dt><dd>Complete haplotypes reach 100 / 96.8 / 96.8 / 100. Open-ended contigs carry 3DL2 in only 31.6% and 3DL3 in 62.1%, because the contig stops before the end of the cluster. The residual misses on complete haplotypes are a joint absence of 3DP1 + 2DL4 + 3DL1/S1, the known contracted KIR haplotype (biology, not dropout). <b>Hence the rule: KIR haplotype claims on complete haplotypes only.</b></dd>
+<dt>Limits</dt><dd>Completeness comes from the annotation. Depth is associated with incompleteness (Part 4), partly because contracted haplotypes have lower depth.</dd>
+</dl><div class="src">Script 51 · <code>framework_by_completeness.tsv</code></div></figcaption></figure>
+
+<figure class="plate" id="f-allelic"><div class="img"><img data-src="reports/hla_popgen/51_kir_structure_qc/fig_allelic_pairs.png" alt="Allelic pair co-calls"></div>
+<figcaption><span class="fnum" data-for="f-allelic"></span><span class="ttl">Two alleles of one locus on one haplotype: artefact or duplication?</span>
+<dl>
+<dt>Shows</dt><dd>Haplotypes where both genes of an allelic pair (two genes that normally occupy the same slot) are called, by layout: the same locus annotated twice (red, 0 in both), distinct loci on one contig (blue), or different contigs (grey).</dd>
+<dt>How to read</dt><dd>Grey means the genes are joined only by an arbitrary label across a break, which is an artefact.</dd>
+<dt>Meaning</dt><dd>2DL2 + 2DL3 (0.81% of haplotypes) is mostly grey, and fewer than 20 events occur on complete haplotypes, so it is an artefact. 3DL1 + 3DS1 (1.82%) is mostly distinct loci ~34 kb apart, about one KIR gene's length. On complete haplotypes it is 1.22%, all on one contig. That is consistent with real 3DL1/S1 tandem-duplication haplotypes, at 0.9–1.7% in every ancestry.</dd>
+<dt>Limits</dt><dd>Relatives are included.</dd>
+</dl><div class="src">Script 51 · <code>allelic_pair_events.tsv</code></div></figcaption></figure>
+
+<h3>KIR by ancestry, complete haplotypes only (61)</h3>
+<p>Of the 23,755 haplotypes, 17,905 (75.4%) are complete, from 72.3% (AFR) to 78.9% (EAS). The 59 list excluded nobody.</p>
+<figure class="plate" id="f-kirpanel"><div class="img"><img data-src="reports/hla_popgen/61_kir_by_ancestry_panel/vm_2026-10-12/fig_kir_by_ancestry_panel.png" alt="KIR by ancestry panel"></div>
+<figcaption><span class="fnum" data-for="f-kirpanel"></span><span class="ttl">KIR gene content and alleles by ancestry (candidate Figure 1 panel)</span>
+<dl>
+<dt>Shows</dt><dd>(a) % of complete haplotypes carrying each gene, in approximate centromeric → telomeric order; hatched = masked. (b) Top 3 protein-field alleles per gene, as % of that gene's calls. (c) The share of haplotypes with any B-content gene, with 95% CI (labelled "cB" in the PNG; see Limits). (d) Distinct KIR genes per haplotype.</dd>
+<dt>How to read</dt><dd>Read across a row for ancestry differences. The framework genes (3DL3, 3DL2 = 100%) anchor the scale.</dd>
+<dt>Meaning</dt><dd>The B-content share runs from EAS 32.0% to SAS 57.1%: EAS is the most A-rich group, SAS and MID the most B-rich. AFR is low for the telomeric 3DS1–2DL5A–2DS1 block (3DS1 7.7% vs 20–30% elsewhere) and high for 2DL5B (24.9%, with SAS 26.3% and MID 23.0%). EAS is low for the centromeric B genes (2DL2 16.0%, 2DS2 15.6%) and has the strongest 9-gene peak (the classic A haplotype). 3DL1 and 2DS4 travel together (nearly identical rows). Alleles differ sharply: 3DL1*015 is 50% of EAS 3DL1 calls vs 8% in EUR, and 2DS4*003 is 52% in SAS.</dd>
+<dt>Limits</dt><dd>"cB" in the figure is not the strict centromeric-B motif. Script 51's B-content set includes telomeric genes (3DS1, 2DS1, 2DS5, 2DL5A), so it is the share of haplotypes with any B gene. A strict cB/tB split is a small follow-up. Compared with all haplotypes, this share is 0.4–1.6 points lower on complete haplotypes; framework and common A-content genes are 2–9 points <i>higher</i> than 43's all-haplotype values, which is the fragmentation bias the rule removes. The 991 Sequel II people (mostly AFR) have no KIR calls yet.</dd>
+</dl><div class="src">Script 61 (VM run 2026-10-12) · <code>61_kir_by_ancestry_panel/vm_2026-10-12/</code></div></figcaption></figure>
+
+<div class="tw"><table>
+<tr><th>Complete haplotypes</th><th class="r">AFR</th><th class="r">AMR</th><th class="r">EAS</th><th class="r">EUR</th><th class="r">MID</th><th class="r">SAS</th><th class="r">All</th></tr>
+<tr><td>n</td><td class="r">4,374</td><td class="r">3,984</td><td class="r">2,310</td><td class="r">4,500</td><td class="r">752</td><td class="r">1,948</td><td class="r">17,905</td></tr>
+<tr><td>B-content share (95% CI)</td><td class="r">38.7 (37.2–40.1)</td><td class="r">42.7 (41.2–44.3)</td><td class="r">32.0 (30.2–34.0)</td><td class="r">44.5 (43.1–46.0)</td><td class="r">52.0 (48.4–55.5)</td><td class="r">57.1 (54.9–59.3)</td><td class="r">42.7 (42.0–43.5)</td></tr>
+<tr><td>% of haplotypes complete</td><td class="r">72.3</td><td class="r">74.8</td><td class="r">78.9</td><td class="r">75.5</td><td class="r">77.4</td><td class="r">78.7</td><td class="r">75.4</td></tr>
+</table></div>
+<div class="sig"><b class="h">Significance</b><p>This is a KIR-by-ancestry panel from complete long-read haplotypes in ~12,000 people, with alleles. Most published KIR frequencies come from presence/absence typing of smaller, mostly European cohorts.</p><p>The strongest contrasts are EAS's A-richness and AFR's missing telomeric B block. Their KIR allele distributions differ more than their gene content does. Both are natural partners for the HLA results, since KIR receptors read HLA class I ligands.</p></div>
+<details class="critic"><summary>What the review changed here</summary><ul><li>"cB share" is now called "B-content share": the gene set includes telomeric B genes.</li><li>The claim that each value is "0.4–1.6 points lower than 43" was misattributed. That range is the B-content share vs all haplotypes; gene frequencies run 2–9 points higher.</li><li>The possible bias of complete-only analysis (B haplotypes breaking more often) is now stated.</li><li>11,882 vs 11,856 is explained.</li><li>The DRB5 and KIR expression statements were softened to "consistent with" and "untested".</li></ul></details>
+</section>
