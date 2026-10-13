@@ -1,0 +1,136 @@
+<!-- =============================================================== DEEP DIVES (raw data) -->
+<section id="dd">
+<h2><span class="part">Deep dives</span>The raw data, file by file</h2>
+<p>The background course gives the ideas. These three modules go one level down: which files exist, what one line of each looks like, and the exact steps that turn them into a coverage number, a "same contig" statement and an expression value. The example lines are made up for illustration (fake names and coordinates) but have the real layout.</p>
+
+<!-- ---------------------------------------------------------- DD1 ACCESS -->
+<details class="learn" id="dd-access"><summary>Where the data lives and how we reach it</summary>
+<p>All participant-level data stays inside the <b>All of Us Researcher Workbench</b>, a Google Cloud environment. Our analyses run on one virtual machine there (called <code>big_run</code>: 4 CPUs, 32 GB of memory, $0.37 per hour). The VM has the controlled-tier data bucket mounted as a folder, read-only:</p>
+<div class="ex"><pre>~/workspace/vwb-aou-datasets-controlled-v9/v9/
+  wgs/long_read/manifest.tsv        one row per long-read person, 61 columns of file paths
+  wgs/long_read/...                 the files those paths point to (BAMs, assemblies, alignments)
+  multiomics/rnaseq/manifest.tsv    one row per RNA-seq sample (8,980), BAM paths
+  multiomics/rnaseq/rnaseq_metadata.tsv
+  multiomics/rnaseq/rnaseqc2/       gene TPM matrix, QC metrics
+  multiomics/rnaseq/rsem/           RSEM gene and transcript expression</pre></div>
+<p>The <b>manifest</b> is the index. For long reads, the columns used here are:</p>
+<ul>
+<li><code>grch38_bam</code>: the person's HiFi reads aligned to the reference genome (GRCh38, no alternative contigs).</li>
+<li><code>assembly_hap1_fa</code>, <code>assembly_hap2_fa</code>: the person's two haplotype assemblies (FASTA, gzip).</li>
+<li><code>assembly_hap1_aln2_hg38_paf</code> (and hap2): where each assembled contig lands on the reference (PAF).</li>
+</ul>
+<p>Our own pipeline then adds files under <code>~/pipeline_outputs/</code> on the VM: the HLA and KIR annotations (GTF) per person and haplotype, and "Table 1" (<code>hla_calls_rich.tsv</code>), which collects every HLA call. Every S05 script reads these, writes per-person <i>INTERNAL</i> tables under <code>~/s05/internal/</code> (never copied out) and aggregate <i>PUBLIC</i> tables under <code>~/s05/results/</code>, which are masked and then committed to the repo.</p>
+<p>Two practical limits shape the work. Files are read through a network mount, so a script that reads 12,000 BAMs is limited by I/O, not by CPU. And the VM stops itself after about an hour idle, so long jobs are written to resume from a checkpoint.</p>
+</details>
+
+<!-- ---------------------------------------------------------- DD2 COVERAGE -->
+<details class="learn" id="dd-cov"><summary>How we know the coverage of a region</summary>
+<p><b>The file.</b> Coverage comes from the person's aligned reads, the BAM file (<code>grch38_bam</code>). A BAM is a compressed table with one record per read. The fields that matter here:</p>
+<div class="ex"><pre>read name           flag  chrom  start      MAPQ  CIGAR            sequence ...
+m84011_..._/1234    0     chr6   32601120   60    18234M2I3011M    ACGT...   (one ~18 kb HiFi read)
+m84011_..._/5678    16    chr6   32598877   0     15002M           ACGT...   (MAPQ 0: fits two places)</pre></div>
+<ul>
+<li><b>start + CIGAR</b> say which reference bases the read covers (<code>18234M</code> = 18,234 aligned bases, <code>2I</code> = 2 extra bases in the read).</li>
+<li><b>MAPQ</b> is the aligner's confidence in the placement, 0 to 60 (<a href="#bg-reads">background</a>).</li>
+</ul>
+<p><b>The measurement</b> (script 58):</p>
+<ol>
+<li>A BED file lists 137 regions: five 2 Mb control windows on chr2, 3, 5, 10 and 12, the MHC window (chr6:29.5–33.5 Mb), the KIR window on chr19, the TRB window on chr7, and every HLA, KIR and TRB gene (GENCODE v46 coordinates).</li>
+<li><code>samtools bedcov</code> walks each region and adds up, base by base, how many reads cover it. That sum divided by the region length is the <b>mean depth</b>. It runs twice: once counting every read (MAPQ ≥ 0) and once only confidently placed reads (MAPQ ≥ 20).</li>
+<li>The person's <b>control depth</b> is the median of the five control-window means. <b>Relative depth</b> = region depth / control depth. It cancels how much DNA the person was sequenced with, so people are comparable.</li>
+<li>For comparisons between people, 59 and 67 also use <b>normalised depth</b>: relative depth divided by the cohort median for that region and platform. 1.0 means "as covered as a typical person on the same machine".</li>
+</ol>
+<div class="dia"><svg class="d" viewBox="0 0 720 214" role="img" aria-label="Depth computed from reads over a gene">
+<text x="6" y="18" class="t-b">Reads over a 10 kb gene (each line = one read)</text>
+<rect x="200" y="28" width="320" height="10" class="gene"/><text x="360" y="52" text-anchor="middle" class="t-s">gene region in the BED file</text>
+<line x1="60" y1="70" x2="330" y2="70" class="read"/><line x1="150" y1="80" x2="420" y2="80" class="read"/>
+<line x1="230" y1="90" x2="520" y2="90" class="read"/><line x1="310" y1="100" x2="610" y2="100" class="read"/>
+<line x1="380" y1="110" x2="680" y2="110" class="read"/><line x1="120" y1="120" x2="260" y2="120" class="read"/>
+<line x1="420" y1="130" x2="560" y2="130" class="read-ins"/><text x="420" y="146" class="t-s">MAPQ 0 read: counted at q0, dropped at q20</text>
+<path d="M200,204 L200,177 L230,177 L230,168 L260,168 L260,177 L310,177 L310,168 L330,168 L330,177 L380,177 L380,168 L420,168 L420,168 L520,168 L520,204" class="ln"/>
+<line x1="200" y1="204" x2="520" y2="204" class="ln2"/>
+<text x="6" y="182" class="t-s">depth at each base (q0)</text><text x="6" y="196" class="t-s">here 3–4 reads</text>
+<text x="530" y="190" class="t-s mono">mean depth</text><text x="530" y="204" class="t-s mono">= Σ depth / length</text>
+</svg></div>
+<p><b>A worked example.</b> If a person's HLA-DQB1 region (about 7 kb) has a summed depth of 105,000, the mean depth is 15×. If their five control windows average 18×, relative depth is 15 / 18 = 0.83, which is about the cohort's typical value for the MHC (median 0.83). The MHC reads a bit below 1.0 for nearly everyone, not because of a deletion. The likely reason (not tested) is that reads from haplotypes very different from the reference align less completely there.</p>
+<p><b>What "coverage" cannot tell you.</b> It counts reads, not which parent they came from, and it is averaged over a region, so a small dip inside a gene is diluted. Low MAPQ in paralogous genes (KIR, some HLA pseudogenes) means reads are counted at q0 but may belong to a neighbour. The per-person table is <code>~/s05/internal/58/per_person_depth.tsv</code> (person × region × MAPQ: mean depth, read count, control depth, relative depth).</p>
+</details>
+
+<!-- ---------------------------------------------------------- DD3 SAME CONTIG -->
+<details class="learn" id="dd-ctg"><summary>How we know two genes are on the same contig, and what it means</summary>
+<p><b>Step 1, the assembly.</b> hifiasm overlaps each person's reads and outputs two FASTA files, one per haplotype. A FASTA is a header line and then the sequence:</p>
+<div class="ex"><pre>&gt;h1tg000012l
+GATTACAGGCT...   (1.8 million bases: one contig = one continuous piece of assembled DNA)
+&gt;h1tg000013l
+...</pre></div>
+<p>A contig is continuous by construction: every base of it is backed by overlapping reads. So two genes found on <b>one contig</b> are physically joined. Their phase (which alleles travel together) is then known without any statistics. Genes on different contigs have no such link. The hap1/hap2 label of each contig is assigned separately, so "both on hap1" means nothing across contigs.</p>
+<p><b>Step 2, placing contigs on the reference.</b> The PAF file aligns each contig to GRCh38. One line per aligned block, 12 fixed columns:</p>
+<div class="ex"><pre>contig       len      q.start  q.end    strand chrom len        t.start   t.end     match   block   MAPQ tags
+h1tg000012l  1830551  10234    1811002  +      chr6  170805979  29501234  31301876  1795001 1801233 60   tp:A:P ...</pre></div>
+<p>This says that most of contig 12 covers chr6:29.50–31.30 Mb (class I) at 99.7% identity (match / block). The pipeline uses these lines to cut each haplotype down to the MHC (chr6:29.5–33.5 Mb, ±100 kb). Each cut piece is named <code>contig:start-end</code>, for example <code>h1tg000012l:10234-1811002</code>.</p>
+<p><b>Step 3, finding the genes.</b> Immuannot searches each cut piece for HLA genes and writes a GTF annotation, one line per feature:</p>
+<div class="ex"><pre>h1tg000012l:10234-1811002  Immuannot  gene  412880  416121  .  +  .  gene_id "HLA-A"; allele "A*02:01:01:01"; ...</pre></div>
+<p><b>Step 4, Table 1.</b> Each GTF gene becomes one row of Table 1: person, hap, <code>contig</code> (the cut-piece name above), gene, copy, allele call, <code>gene_start</code>/<code>gene_end</code> (relative to the cut piece, not to GRCh38), and quality fields. Two genes are "on the same contig" when their rows for the same person and haplotype carry the same <code>contig</code> value. That is a simple text comparison. Script 50 counts it for every gene pair over all haplotypes where both genes were called (<code>50_qc_foundation/same_contig_matrix.tsv</code>).</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 200" role="img" aria-label="Contigs covering the MHC and which gene pairs share one">
+<text x="6" y="18" class="t-b">One haplotype of one person, MHC region (not to scale)</text>
+<line x1="20" y1="44" x2="700" y2="44" class="ln2"/>
+<text x="40" y="38" class="t-s">A</text><text x="215" y="38" class="t-s">C</text><text x="245" y="38" class="t-s">B</text><text x="290" y="38" class="t-s">MICA</text>
+<text x="430" y="38" class="t-s">DRB1</text><text x="470" y="38" class="t-s">DQA1</text><text x="505" y="38" class="t-s">DQB1</text><text x="630" y="38" class="t-s">DPA1 DPB1</text>
+<rect x="20" y="56" width="120" height="14" rx="3" class="accbox"/><text x="24" y="86" class="t-s mono">contig 1</text>
+<rect x="160" y="56" width="200" height="14" rx="3" class="accbox"/><text x="164" y="86" class="t-s mono">contig 2</text>
+<rect x="380" y="56" width="200" height="14" rx="3" class="accbox"/><text x="384" y="86" class="t-s mono">contig 3</text>
+<rect x="600" y="56" width="100" height="14" rx="3" class="accbox"/><text x="604" y="86" class="t-s mono">contig 4</text>
+<text x="6" y="116" class="t-ok">C, B, MICA share contig 2: phase known.</text>
+<text x="6" y="134" class="t-ok">DRB1, DQA1, DQB1 share contig 3: phase known.</text>
+<text x="6" y="152" class="t-bad">A (contig 1) to B (contig 2): no physical link; their "hap1" labels may come from different parents.</text>
+<text x="6" y="170" class="t-bad">DQ (contig 3) to DP (contig 4): same, unless a contig spans the gap.</text>
+<text x="6" y="190" class="t-s">Typical MHC haplotype: 4–5 contigs (4.3 on Revio, 4.9 on Sequel IIe).</text>
+</svg></div>
+<p><b>What the averages say.</b> Over 12,233 people:</p>
+<div class="tw"><table>
+<tr><th>Gene pair</th><th class="r">Same contig (% of haplotypes with both called)</th><th>Distance on GRCh38</th></tr>
+<tr><td>DPA1 ~ DPB1</td><td class="r">99.7</td><td>neighbours (~10 kb)</td></tr>
+<tr><td>DQA1 ~ DQB1</td><td class="r">97.8</td><td>~20 kb</td></tr>
+<tr><td>DRB1 ~ DQA1 / DQB1</td><td class="r">96.5 / 93.9</td><td>~50–80 kb</td></tr>
+<tr><td>B ~ C</td><td class="r">91.0</td><td>~80 kb</td></tr>
+<tr><td>DRA ~ DQ genes</td><td class="r">81–87</td><td>~190–220 kb</td></tr>
+<tr><td>DR/DQ ~ DP</td><td class="r">62–72</td><td>~400–500 kb</td></tr>
+<tr><td>A ~ B, A ~ C</td><td class="r">31–32</td><td>~1.3–1.4 Mb</td></tr>
+<tr><td>Class I ~ class II</td><td class="r">19–29</td><td>~1.1–3 Mb</td></tr>
+</table></div>
+<p>The rate falls with distance, because every extra stretch is a chance for the contig to end. Contigs end where the two parental copies are identical for longer than a read (the assembler cannot tell them apart), in segmental duplications (the class I region between A and B is full of HLA pseudogenes and repeats), or where coverage happens to be thin.</p>
+<p><b>What it does not mean.</b> "Same contig" means physically joined by the assembler. It does not guarantee that the join is correct. The trio check (<a href="#p2">Part 2</a>) found that on A~B contigs the two genes came from different parents in about 41% of cases, so the assembler switched parents inside those contigs. B~C and the class II pairs stayed correct (below 7.7%). Rules for using phased haplotypes follow from both numbers: the same contig, <i>and</i> a pair the trio check validates.</p>
+</details>
+<!-- ---------------------------------------------------------- DD4 RNA-SEQ -->
+<details class="learn" id="dd-rna"><summary>RNA-seq: how a blood sample becomes a gene expression number</summary>
+<p><b>What is in the tube.</b> A cell's RNA is mostly not messenger RNA. By mass, ribosomal RNA (rRNA, the structural RNA of ribosomes) is about 80–85% of total RNA, transfer RNA (tRNA, the short adaptors that carry amino acids) about 10–15%, and messenger RNA (mRNA, the copies of genes that get translated) only about 1–5% (<a href="https://bionumbers.hms.harvard.edu/bionumber.aspx?id=111540">BioNumbers 111540</a>). Blood adds one more problem: red-cell precursors fill it with globin mRNA (HBA1, HBA2, HBB), which can take 10–30% of reads if it is not removed (<a href="https://www.nature.com/articles/s41598-020-62801-6">Sci Rep 2020</a>). Sequencing everything would spend most reads on rRNA and globin.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 230" role="img" aria-label="RNA-seq steps from blood to TPM">
+<rect x="6" y="14" width="130" height="64" rx="6" class="box"/><text x="71" y="38" text-anchor="middle" class="t-b">Whole blood</text><text x="71" y="56" text-anchor="middle" class="t-s">total RNA:</text><text x="71" y="70" text-anchor="middle" class="t-s">~80% rRNA, ~2–5% mRNA</text>
+<line x1="136" y1="46" x2="166" y2="46" class="arrow"/>
+<rect x="168" y="14" width="150" height="64" rx="6" class="accbox"/><text x="243" y="38" text-anchor="middle" class="t-b">Depletion</text><text x="243" y="56" text-anchor="middle" class="t-s">probes remove rRNA</text><text x="243" y="70" text-anchor="middle" class="t-s">(and globin in blood kits)</text>
+<line x1="318" y1="46" x2="348" y2="46" class="arrow"/>
+<rect x="350" y="14" width="160" height="64" rx="6" class="accbox"/><text x="430" y="38" text-anchor="middle" class="t-b">Library + sequencing</text><text x="430" y="56" text-anchor="middle" class="t-s">fragments ~200–400 bp,</text><text x="430" y="70" text-anchor="middle" class="t-s">paired-end short reads</text>
+<line x1="510" y1="46" x2="540" y2="46" class="arrow"/>
+<rect x="542" y="14" width="172" height="64" rx="6" class="accbox"/><text x="628" y="38" text-anchor="middle" class="t-b">Splice-aware alignment</text><text x="628" y="56" text-anchor="middle" class="t-s">reads jump over introns</text><text x="628" y="70" text-anchor="middle" class="t-s">(exon–exon junctions)</text>
+<line x1="628" y1="78" x2="628" y2="110" class="arrow"/>
+<rect x="430" y="112" width="284" height="56" rx="6" class="accbox"/><text x="572" y="134" text-anchor="middle" class="t-b">Count reads per gene</text><text x="572" y="152" text-anchor="middle" class="t-s">a read counts if it falls inside that gene's exons</text>
+<line x1="430" y1="140" x2="400" y2="140" class="arrow"/>
+<rect x="6" y="112" width="392" height="108" rx="6" class="okbox"/><text x="18" y="134" class="t-b">TPM (transcripts per million)</text>
+<text x="18" y="154" class="t-s">1. per gene: reads / gene length in kb  (longer genes collect more reads)</text>
+<text x="18" y="172" class="t-s">2. add these up over all genes in the sample</text>
+<text x="18" y="190" class="t-s">3. TPM = (step 1) / (step 2) × 1,000,000</text>
+<text x="18" y="210" class="t-s">→ every sample sums to 1,000,000, so values compare across people</text>
+</svg></div>
+<p><b>A worked TPM example.</b> Gene X (2 kb) gets 400 reads and gene Y (10 kb) gets 1,000. Per kb that is 200 and 100. If all genes together give 1,000,000 per-kb units in this sample, X has 200 TPM and Y has 100 TPM. Y had more reads but less expression per molecule, because it is five times longer. TPM is a <i>share</i>: if globin takes a large part of a sample, every other gene's TPM is pushed down a little.</p>
+<p><b>The All of Us release</b> (CDR v9; from the All of Us data documentation in <code>reference/</code> and the RNA-seq metadata):</p>
+<ul>
+<li>8,980 <b>whole-blood</b> samples. 8,327 of these people also have long reads.</li>
+<li>Library: Watchmaker RNA library prep with Polaris depletion. Abundant RNAs are removed with probes instead of selecting poly-A tails, so non-polyadenylated RNA, and some intronic reads from unspliced RNA, remain.</li>
+<li>Paired-end short reads, 80–595 million aligned read pairs per sample. The metadata records alignment with DRAGEN 4.2.4. The documentation also describes STAR alignment, so the exact aligner is stated inconsistently in the documentation.</li>
+<li>Quantification: RNA-SeQC 2 (gene TPM, used by our script 55) and RSEM (gene and transcript TPM and expected counts). Only BAMs and these matrices are released, not raw FASTQ.</li>
+</ul>
+<p><b>What this means for HLA and KIR.</b> Gene-level TPM pools the two alleles of a gene and is computed against the reference genome, where HLA reads from divergent alleles can map poorly. Script 53 instead builds each person's own HLA sequences from their assembly and maps that person's RNA reads to them. That gives expression per allele, which is how allele-specific expression is measured (Part 7).</p>
+<!--R68-->
+<p><b>tRNA.</b> Mature tRNAs are 70–90 bases long, shorter than the fragments kept during library prep, so they are almost absent from standard RNA-seq whatever the cell contains. The mitochondrial tRNAs annotated in the gene matrix are a small trace. Measuring tRNA needs special small-RNA protocols.</p>
+</details>
+</section>

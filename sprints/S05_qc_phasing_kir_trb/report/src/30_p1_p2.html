@@ -72,7 +72,7 @@
 <dl class="trail">
 <dt>Data in</dt><dd>Table 1 plus the relatedness pairs. 569 first-degree pairs (kinship 0.177–0.354), both people HLA-called.</dd>
 <dt>Process</dt><dd><ol><li>Keep pairs that share an MHC haplotype: at most 1 of 8 classical genes without a shared allele. Siblings who inherited different haplotypes share nothing and would look like errors.</li><li>For each gene pair (DQA1~DQB1, DRB1~DQB1, DPA1~DPB1, B~C, A~B), take haplotypes where <i>both</i> relatives have the two genes on one contig.</li><li>Ask whether the one-contig combination seen in relative 1 is found intact in relative 2.</li></ol></dd>
-<dt>Trade-offs</dt><dd>All of Us gives no IBD0 information, so parents and siblings cannot be told apart. Keeping only haplotype-sharing pairs removes the IBD0 siblings, but it also drops pairs where two genes are mistyped. That pushes the measured error <i>down</i> a little; the first draft wrongly said it did not bias.</dd>
+<dt>Trade-offs</dt><dd>All of Us gives no IBD0 information, so parents and siblings cannot be told apart. Keeping only haplotype-sharing pairs removes the IBD0 siblings, but it also drops pairs where two genes are mistyped. That pushes the measured error <i>down</i> a little.</dd>
 <dt>Unit</dt><dd>Haplotype tests (one gene pair in one relative pair). n = 68 (A~B) to 435 (DPA1~DPB1).</dd>
 <dt>Output</dt><dd><code>56_phasing_typing_benchmark/refined_sweep.tsv</code></dd>
 </dl>
@@ -91,7 +91,7 @@
 <dl class="trail">
 <dt>Data in</dt><dd>For 179 trios: the child's hap1/hap2 contigs (assembly FASTA), the child's Table 1 rows, and both parents' HiFi reads (BAM).</dd>
 <dt>Process</dt><dd><ol><li>Build k-mer databases (31-letter words, <code>yak count</code>) from each parent's reads over a padded window: the MHC, KIR and all of chr20 as a genome-wide control.</li><li>57, region level: run <code>yak trioeval</code> on the child's contig pieces to get switch and hamming error (<a href="#bg-rel">background</a>). This was done for 50 trios.</li><li>57b, gene level: for every child HLA gene, count paternal-only and maternal-only k-mers within ±10 kb. Assign the parent with ≥ 5 k-mers and ≥ 3× the other, otherwise "ambiguous".</li><li>For each one-contig gene pair, ask whether the two genes came from different parents.</li></ol></dd>
-<dt>Trade-offs</dt><dd>k-mer databases cover only the windows, so k-mers from paralogs elsewhere are missed (this inflates error slightly). 10–31% of genes get no parent (ambiguous) and drop out. The k-mer assignment itself can be wrong, and no test here measures how often; that is a gap the review flagged.</dd>
+<dt>Trade-offs</dt><dd>k-mer databases cover only the windows, so k-mers from paralogs elsewhere are missed (this inflates error slightly). 10–31% of genes get no parent (ambiguous) and drop out. The k-mer assignment itself can be wrong, and no test here measures how often.</dd>
 <dt>Unit</dt><dd>Gene pairs on one contig in a child: n = 81–262 per pair.</dd>
 <dt>Output</dt><dd><code>57_yak_trioeval/trioeval_summary.tsv</code>, <code>pair_phase_truth.tsv</code>, <code>gene_origin_summary.tsv</code></dd>
 </dl>
@@ -123,5 +123,4 @@
 <tr><td>A~B, A~C</td><td>~40%</td><td>No: statistical phasing or trios only</td></tr>
 </table></div></div>
 <div class="sig"><b class="h">Significance</b><p>This is the result the rest of the project stands on. Class II is the best-phased region in the genome sample. Any DQ or DR–DQ statement can therefore use one-contig haplotypes, and so can Cole's fine-mapping units.</p><p>Any class I haplotype claim that involves HLA-A, including the older A~B~C extended-haplotype and A–B LD tables, is wrong in about 4 of 10 haplotypes. Those results need statistical phasing before they are used.</p><p>The zero cross-group DQ count in Part 6 is itself evidence for good phasing. If phasing mixed parents at random even 5% of the time, artefactual cross-group pairs would appear by the hundreds.</p></div>
-<details class="critic"><summary>What the review changed here</summary><ul><li>"Fewer than 7.7%" is now described as a masking ceiling, not an estimate.</li><li>The wrong claim that the relative filter introduces no bias was removed: the filter lowers the measured error a little.</li><li>The uncalibrated error of k-mer parent assignment is now stated as a limit.</li><li>The switch-error comparison across regions is now qualified.</li></ul></details>
 </section>
