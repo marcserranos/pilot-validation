@@ -361,3 +361,21 @@ W4 (measure ~ case + age + age^2 + sex + PC1-10 + log reads; HC3; BH / Bonferron
   model, q ~ 0.04-0.07 after utilisation adjustment. Obesity, CKD, CAD BH-nominal only, lose
   significance after utilisation adjustment. No autoimmune disease significant.
 - Caveat: no CMV serostatus (expansion driver, linked to CVD); cross-sectional.
+
+## 2026-10-13 — W5 classification (14), 15 diseases, 2 models x 6 feature sets (9,697 s)
+
+Base (age, age^2, sex, PC1-10, log reads) AUROC: cardiometabolic 0.72-0.84 (PAD 0.84, AF 0.83,
+CAD 0.81, hypertension 0.81, hyperlipidaemia 0.80, HF 0.79, CKD 0.78, COPD 0.78, T2D 0.73);
+obesity 0.65, urticaria 0.64, asthma 0.60, allergic rhinitis 0.58.
+- **Repertoire adds at most ~1 AUROC point.** 4 of 150 gain estimates have a 95% CI above 0:
+  CKD +1.3 (XGBoost, diversity; 0.4-2.2), HF +0.7 (LASSO, diversity; 0.1-1.4), T2D +0.5 (LASSO,
+  diversity), hypertension +0.5 (XGBoost, V/J; lower bound 0.0). That count is about what chance
+  gives (~3.75 of 150 at a one-sided 2.5%), so only gains that agree with W4 mean anything:
+  heart failure (diversity), weakly T2D and hypertension.
+- Diversity is the only family that ever helps. SCEPTR, 3-mers and V/J add nothing or hurt;
+  LASSO "+ all" loses 5-7 points for asthma and allergic rhinitis (many weak features overfit).
+- Reading: at ~2,000 TRB reads per person the repertoire carries little chronic-disease
+  information beyond age, sex, ancestry and depth; the measurable signal is clonal expansion
+  (W4), strongest in heart failure. Embeddings do not help these classifiers.
+- Figure 14 redrawn locally from classification.csv (`--plot-only`): panel b is a gain heatmap
+  with labelled rows (first version had unlabelled, misaligned rows); local render uses Arial.
