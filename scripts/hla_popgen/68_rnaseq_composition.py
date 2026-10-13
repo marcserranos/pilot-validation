@@ -46,6 +46,13 @@ def log(msg):
     print(f"[68] {msg}", file=sys.stderr, flush=True)
 
 
+def is_id(col):
+    """Identifier columns (sample_id, research_id, Sample, ...) are never summarised: their quantiles
+    would be participant identifiers."""
+    toks = re.split(r"[^a-z0-9]+", str(col).lower())
+    return "id" in toks or any(t.startswith("sample") or t.endswith("id") for t in toks)
+
+
 def describe(name, source, x, unit):
     x = pd.to_numeric(pd.Series(x), errors="coerce").dropna()
     row = {"source": source, "metric": name, "unit": unit, "n_samples": len(x),
@@ -88,14 +95,14 @@ def main(argv=None):
     rows = []
     meta = pd.read_csv(os.path.join(a.rna_root, "rnaseq_metadata.tsv"), sep="\t")
     for c in meta.columns:
-        if pd.to_numeric(meta[c], errors="coerce").notna().mean() > 0.9 and c.lower() not in ("research_id", "sampleid", "sample"):
+        if pd.to_numeric(meta[c], errors="coerce").notna().mean() > 0.9 and not is_id(c):
             rows.append(describe(c, "rnaseq_metadata.tsv (DRAGEN)", meta[c], "pct" if c.endswith("_pct") else "value"))
     mp = sorted(glob.glob(os.path.join(a.rna_root, "rnaseqc2", "*.metrics.txt.gz")))
     if mp:
         met = pd.read_csv(mp[-1], sep="\t")
         for c in met.columns:
             v = pd.to_numeric(met[c], errors="coerce")
-            if v.notna().mean() > 0.9 and c.lower() not in ("sample", "sample id", "research_id"):
+            if v.notna().mean() > 0.9 and not is_id(c):
                 rows.append(describe(c, "RNA-SeQC 2 metrics", v, "fraction" if "Rate" in c else "value"))
         if {"Non-Globin Reads", "Total Reads"} <= set(met.columns):
             g = 1 - pd.to_numeric(met["Non-Globin Reads"], errors="coerce") / pd.to_numeric(met["Total Reads"], errors="coerce")
