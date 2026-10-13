@@ -45,6 +45,19 @@
 
 ## Resolved decisions
 
+- **W2-W5 disease analyses, design decisions (2026-10-12).**
+  - *Cases*: >= 2 occurrences of the disease's ICD-10-CM / ICD-9-CM codes (one occurrence is
+    often a rule-out). *Controls*: no code in the case or wider exclusion family (e.g. any
+    diabetes code for T2D), EHR >= 2 years, and >= 1 ICD-coded condition of any kind. People
+    with exactly one occurrence are excluded from both. 33 chronic diseases (report 11).
+  - *Tiers*: >= 150 cases classify + associate; 50-149 associate; 20-49 describe.
+  - *Association* (13): standardised measure ~ case + age + age^2 + sex + PC1-10 + log
+    reads, OLS HC3; BH and Bonferroni; one sensitivity model + log(1 + conditions per
+    EHR-year) for health-care contact. Raw Shannon included to compare with Cole.
+  - *Classification* (14): gain over base (age, age^2, sex, PC1-10, log reads), same people
+    and folds; LASSO (inner CV) and XGBoost (fixed conservative settings, no tuning in v0);
+    5-fold stratified CV; paired bootstrap CI on the gain.
+
 - **W1 V/J usage by ancestry (report 10), design decisions (2026-10-08).**
   - *Usage counted on unique clonotypes, not reads*: reads measure expansion and
     transcription; clonotype counts measure which genes recombine and pass selection, which
