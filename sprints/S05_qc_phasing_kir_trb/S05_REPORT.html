@@ -340,7 +340,90 @@ svg.d marker path{fill:var(--fg2)}
 <text x="440" y="128" class="t-s">contig 2: C</text>
 </svg></div>
 <p>So two kinds of "same haplotype" exist. If two genes sit on <b>one contig</b>, they are physically phased: one stretch of DNA joins them. If they sit on different contigs that merely share the label "hap1", nothing ties them together. In the picture, hap1 pairs A and B correctly but joins them to the mother's C. That is why the report keeps asking "same contig?", and why Part 2 measures how often one contig really holds one parent's DNA.</p>
-<p>Two error types are measured later. A <b>switch error</b> is a short flip from one parent's sequence to the other inside a contig. A <b>hamming error</b> is the share of a contig that belongs to the "wrong" parent overall, which captures long-range mixing.</p>
+<p>Two error types are measured later, with yak trioeval (Part 2). Yak reads both parents' short reads and finds sites where the child's two copies differ and each version can be traced to one parent by k-mers unique to that parent. Along a contig, each such informative site is coloured "father" or "mother". A correct contig is one colour all the way.</p>
+<ul>
+<li>A <b>switch error</b> is a place where two neighbouring informative sites on the same contig come from different parents: the assembler jumped from one parent's copy to the other. The <b>switch error rate</b> is the share of neighbouring site pairs that switch.</li>
+<li>The <b>hamming error rate</b> is the share of sites on a contig that do not come from the contig's majority parent. It measures how much of the contig is wrongly assigned overall.</li>
+</ul>
+<p>The two react differently to the same mistakes. One switch halfway along a contig is a single switch but makes half of the contig "wrong" (high hamming). A short flip of two sites gives two switches but a low hamming error. One mis-assigned site in the middle also gives two switches, which is why a lone mis-call can look like phasing trouble.</p>
+<div class="dia"><svg class="d" viewBox="0 0 720 318" role="img" aria-label="What switch errors and hamming errors look like on one contig">
+<text x="6" y="20" class="t-b">One contig, with its informative sites coloured by the parent they come from (from yak k-mers)</text>
+<text x="150" y="44" class="t-s">sites along the contig →</text>
+<text x="530" y="44" class="t-s">switches</text><text x="610" y="44" class="t-s">hamming</text>
+<text x="6" y="76" class="t-s">Correct</text>
+<line x1="144" y1="71" x2="500" y2="71" class="ln2"/>
+<rect x="150" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="180" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="210" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="240" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="270" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="300" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="330" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="360" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="390" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="420" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="450" y="64" width="14" height="14" rx="2" class="pat"/>
+<rect x="480" y="64" width="14" height="14" rx="2" class="pat"/>
+<text x="548" y="76" text-anchor="middle" class="t-ok">0</text>
+<text x="634" y="76" text-anchor="middle" class="t-ok">0%</text>
+<text x="6" y="128" class="t-s">One switch</text>
+<line x1="144" y1="123" x2="500" y2="123" class="ln2"/>
+<rect x="150" y="116" width="14" height="14" rx="2" class="pat"/>
+<rect x="180" y="116" width="14" height="14" rx="2" class="pat"/>
+<rect x="210" y="116" width="14" height="14" rx="2" class="pat"/>
+<rect x="240" y="116" width="14" height="14" rx="2" class="pat"/>
+<rect x="270" y="116" width="14" height="14" rx="2" class="pat"/>
+<rect x="300" y="116" width="14" height="14" rx="2" class="pat"/>
+<rect x="330" y="116" width="14" height="14" rx="2" class="mat"/>
+<rect x="360" y="116" width="14" height="14" rx="2" class="mat"/>
+<rect x="390" y="116" width="14" height="14" rx="2" class="mat"/>
+<rect x="420" y="116" width="14" height="14" rx="2" class="mat"/>
+<rect x="450" y="116" width="14" height="14" rx="2" class="mat"/>
+<rect x="480" y="116" width="14" height="14" rx="2" class="mat"/>
+<line x1="322" y1="110" x2="322" y2="136" class="baddash"/>
+<text x="548" y="128" text-anchor="middle" class="t-bad">1</text>
+<text x="634" y="128" text-anchor="middle" class="t-bad">50%</text>
+<text x="6" y="180" class="t-s">Short flip</text>
+<line x1="144" y1="175" x2="500" y2="175" class="ln2"/>
+<rect x="150" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="180" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="210" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="240" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="270" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="300" y="168" width="14" height="14" rx="2" class="mat"/>
+<rect x="330" y="168" width="14" height="14" rx="2" class="mat"/>
+<rect x="360" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="390" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="420" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="450" y="168" width="14" height="14" rx="2" class="pat"/>
+<rect x="480" y="168" width="14" height="14" rx="2" class="pat"/>
+<line x1="292" y1="162" x2="292" y2="188" class="baddash"/>
+<line x1="352" y1="162" x2="352" y2="188" class="baddash"/>
+<text x="548" y="180" text-anchor="middle" class="t-bad">2</text>
+<text x="634" y="180" text-anchor="middle" class="t-bad">17%</text>
+<text x="6" y="232" class="t-s">One wrong site</text>
+<line x1="144" y1="227" x2="500" y2="227" class="ln2"/>
+<rect x="150" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="180" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="210" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="240" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="270" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="300" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="330" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="360" y="220" width="14" height="14" rx="2" class="mat"/>
+<rect x="390" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="420" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="450" y="220" width="14" height="14" rx="2" class="pat"/>
+<rect x="480" y="220" width="14" height="14" rx="2" class="pat"/>
+<line x1="352" y1="214" x2="352" y2="240" class="baddash"/>
+<line x1="382" y1="214" x2="382" y2="240" class="baddash"/>
+<text x="548" y="232" text-anchor="middle" class="t-bad">2</text>
+<text x="634" y="232" text-anchor="middle" class="t-bad">8%</text>
+<rect x="6" y="272" width="14" height="14" rx="2" class="pat"/><text x="26" y="284" class="t-pat">father's sequence</text>
+<rect x="160" y="272" width="14" height="14" rx="2" class="mat"/><text x="180" y="284" class="t-mat">mother's sequence</text>
+<line x1="330" y1="270" x2="330" y2="288" class="baddash"/><text x="338" y="284" class="t-s">a switch: neighbouring sites from different parents</text>
+<text x="6" y="308" class="t-s">Switch rate = switches ÷ neighbouring site pairs (11 here). Hamming = share of sites not from the contig's majority parent.</text>
+</svg></div>
 </details>
 
 <!-- ---------------------------------------------------------- B3 MHC + HLA -->
