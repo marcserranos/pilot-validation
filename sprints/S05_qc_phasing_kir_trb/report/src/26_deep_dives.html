@@ -27,7 +27,7 @@
 <details class="learn" id="dd-cov"><summary>How we know the coverage of a region</summary>
 <p><b>The file.</b> Coverage comes from the person's aligned reads, the BAM file (<code>grch38_bam</code>). A BAM is a compressed table with one record per read. The fields that matter here:</p>
 <div class="ex"><pre>read name           flag  chrom  start      MAPQ  CIGAR            sequence ...
-m84011_..._/1234    0     chr6   32601120   60    18234M2I3011M    ACGT...   (one ~18 kb HiFi read)
+m84011_..._/1234    0     chr6   32601120   60    18234M2I3011M    ACGT...   (one ~21 kb HiFi read)
 m84011_..._/5678    16    chr6   32598877   0     15002M           ACGT...   (MAPQ 0: fits two places)</pre></div>
 <ul>
 <li><b>start + CIGAR</b> say which reference bases the read covers (<code>18234M</code> = 18,234 aligned bases, <code>2I</code> = 2 extra bases in the read).</li>
@@ -52,7 +52,7 @@ m84011_..._/5678    16    chr6   32598877   0     15002M           ACGT...   (MA
 <text x="6" y="182" class="t-s">depth at each base (q0)</text><text x="6" y="196" class="t-s">here 3–4 reads</text>
 <text x="530" y="190" class="t-s mono">mean depth</text><text x="530" y="204" class="t-s mono">= Σ depth / length</text>
 </svg></div>
-<p><b>A worked example.</b> If a person's HLA-DQB1 region (about 7 kb) has a summed depth of 105,000, the mean depth is 15×. If their five control windows average 18×, relative depth is 15 / 18 = 0.83, which is about the cohort's typical value for the MHC (median 0.83). The MHC reads a bit below 1.0 for nearly everyone, not because of a deletion. The likely reason (not tested) is that reads from haplotypes very different from the reference align less completely there.</p>
+<p><b>A worked example.</b> If a person's HLA-DQB1 region (about 7 kb) has a summed depth of 105,000, the mean depth is 15×. If their control depth (the median of the five control windows) is 18×, relative depth is 15 / 18 = 0.83, which is about the cohort's typical value for the MHC (median 0.83). The MHC reads a bit below 1.0 for nearly everyone, not because of a deletion. The likely reason (not tested) is that reads from haplotypes very different from the reference align less completely there.</p>
 <p><b>What "coverage" cannot tell you.</b> It counts reads, not which parent they came from, and it is averaged over a region, so a small dip inside a gene is diluted. Low MAPQ in paralogous genes (KIR, some HLA pseudogenes) means reads are counted at q0 but may belong to a neighbour. The per-person table is <code>~/s05/internal/58/per_person_depth.tsv</code> (person × region × MAPQ: mean depth, read count, control depth, relative depth).</p>
 </details>
 
@@ -63,7 +63,7 @@ m84011_..._/5678    16    chr6   32598877   0     15002M           ACGT...   (MA
 GATTACAGGCT...   (1.8 million bases: one contig = one continuous piece of assembled DNA)
 &gt;h1tg000013l
 ...</pre></div>
-<p>A contig is continuous by construction: every base of it is backed by overlapping reads. So two genes found on <b>one contig</b> are physically joined. Their phase (which alleles travel together) is then known without any statistics. Genes on different contigs have no such link. The hap1/hap2 label of each contig is assigned separately, so "both on hap1" means nothing across contigs.</p>
+<p>A contig is continuous by construction: every base of it is backed by overlapping reads. So two genes found on <b>one contig</b> are physically joined: the assembler asserts their phase (which alleles travel together) without any statistics. Whether that assertion is right has to be checked (below). Genes on different contigs have no such link. The hap1/hap2 label of each contig is assigned separately, so "both on hap1" means nothing across contigs.</p>
 <p><b>Step 2, placing contigs on the reference.</b> The PAF file aligns each contig to GRCh38. One line per aligned block, 12 fixed columns:</p>
 <div class="ex"><pre>contig       len      q.start  q.end    strand chrom len        t.start   t.end     match   block   MAPQ tags
 h1tg000012l  1830551  10234    1811002  +      chr6  170805979  29501234  31301876  1795001 1801233 60   tp:A:P ...</pre></div>
@@ -99,17 +99,17 @@ h1tg000012l  1830551  10234    1811002  +      chr6  170805979  29501234  313018
 <tr><td>Class I ~ class II</td><td class="r">19–29</td><td>~1.1–3 Mb</td></tr>
 </table></div>
 <p>The rate falls with distance, because every extra stretch is a chance for the contig to end. Contigs end where the two parental copies are identical for longer than a read (the assembler cannot tell them apart), in segmental duplications (the class I region between A and B is full of HLA pseudogenes and repeats), or where coverage happens to be thin.</p>
-<p><b>What it does not mean.</b> "Same contig" means physically joined by the assembler. It does not guarantee that the join is correct. The trio check (<a href="#p2">Part 2</a>) found that on A~B contigs the two genes came from different parents in about 41% of cases, so the assembler switched parents inside those contigs. B~C and the class II pairs stayed correct (below 7.7%). Rules for using phased haplotypes follow from both numbers: the same contig, <i>and</i> a pair the trio check validates.</p>
+<p><b>What it does not mean.</b> "Same contig" means physically joined by the assembler. It does not guarantee that the join is correct. The trio check (<a href="#p2">Part 2</a>) found that on A~B contigs the two genes came from different parents in about 41% of cases, so the assembler switched parents inside those contigs. B~C and the class II pairs had low wrong-parent rates (below 7.7%). Rules for using phased haplotypes follow from both numbers: the same contig, <i>and</i> a pair the trio check validates.</p>
 </details>
 <!-- ---------------------------------------------------------- DD4 RNA-SEQ -->
 <details class="learn" id="dd-rna"><summary>RNA-seq: how a blood sample becomes a gene expression number</summary>
-<p><b>What is in the tube.</b> A cell's RNA is mostly not messenger RNA. By mass, ribosomal RNA (rRNA, the structural RNA of ribosomes) is about 80–85% of total RNA, transfer RNA (tRNA, the short adaptors that carry amino acids) about 10–15%, and messenger RNA (mRNA, the copies of genes that get translated) only about 1–5% (<a href="https://bionumbers.hms.harvard.edu/bionumber.aspx?id=111540">BioNumbers 111540</a>). Blood adds one more problem: red-cell precursors fill it with globin mRNA (HBA1, HBA2, HBB), which can take 10–30% of reads if it is not removed (<a href="https://www.nature.com/articles/s41598-020-62801-6">Sci Rep 2020</a>). Sequencing everything would spend most reads on rRNA and globin.</p>
+<p><b>What is in the tube.</b> A cell's RNA is mostly not messenger RNA. By mass, ribosomal RNA (rRNA, the structural RNA of ribosomes) is about 80–85% of total RNA, transfer RNA (tRNA, the short adaptors that carry amino acids) about 10–15%, and messenger RNA (mRNA, the copies of genes that get translated) only about 1–5% (<a href="https://bionumbers.hms.harvard.edu/bionumber.aspx?id=111540">BioNumbers 111540</a>). Blood adds one more problem: red-cell precursors fill it with globin mRNA (HBA1, HBA2, HBB), which can take a large share of reads (tens of percent) if it is not removed (<a href="https://www.nature.com/articles/s41598-020-62801-6">Sci Rep 2020</a>). Sequencing everything would spend most reads on rRNA and globin.</p>
 <div class="dia"><svg class="d" viewBox="0 0 720 230" role="img" aria-label="RNA-seq steps from blood to TPM">
 <rect x="6" y="14" width="130" height="64" rx="6" class="box"/><text x="71" y="38" text-anchor="middle" class="t-b">Whole blood</text><text x="71" y="56" text-anchor="middle" class="t-s">total RNA:</text><text x="71" y="70" text-anchor="middle" class="t-s">~80% rRNA, ~2–5% mRNA</text>
 <line x1="136" y1="46" x2="166" y2="46" class="arrow"/>
 <rect x="168" y="14" width="150" height="64" rx="6" class="accbox"/><text x="243" y="38" text-anchor="middle" class="t-b">Depletion</text><text x="243" y="56" text-anchor="middle" class="t-s">probes remove rRNA</text><text x="243" y="70" text-anchor="middle" class="t-s">(and globin in blood kits)</text>
 <line x1="318" y1="46" x2="348" y2="46" class="arrow"/>
-<rect x="350" y="14" width="160" height="64" rx="6" class="accbox"/><text x="430" y="38" text-anchor="middle" class="t-b">Library + sequencing</text><text x="430" y="56" text-anchor="middle" class="t-s">fragments ~200–400 bp,</text><text x="430" y="70" text-anchor="middle" class="t-s">paired-end short reads</text>
+<rect x="350" y="14" width="160" height="64" rx="6" class="accbox"/><text x="430" y="38" text-anchor="middle" class="t-b">Library + sequencing</text><text x="430" y="56" text-anchor="middle" class="t-s">fragments ~150–275 bp,</text><text x="430" y="70" text-anchor="middle" class="t-s">paired-end short reads</text>
 <line x1="510" y1="46" x2="540" y2="46" class="arrow"/>
 <rect x="542" y="14" width="172" height="64" rx="6" class="accbox"/><text x="628" y="38" text-anchor="middle" class="t-b">Splice-aware alignment</text><text x="628" y="56" text-anchor="middle" class="t-s">reads jump over introns</text><text x="628" y="70" text-anchor="middle" class="t-s">(exon–exon junctions)</text>
 <line x1="628" y1="78" x2="628" y2="110" class="arrow"/>
@@ -121,12 +121,12 @@ h1tg000012l  1830551  10234    1811002  +      chr6  170805979  29501234  313018
 <text x="18" y="190" class="t-s">3. TPM = (step 1) / (step 2) × 1,000,000</text>
 <text x="18" y="210" class="t-s">→ every sample sums to 1,000,000, so values compare across people</text>
 </svg></div>
-<p><b>A worked TPM example.</b> Gene X (2 kb) gets 400 reads and gene Y (10 kb) gets 1,000. Per kb that is 200 and 100. If all genes together give 1,000,000 per-kb units in this sample, X has 200 TPM and Y has 100 TPM. Y had more reads but less expression per molecule, because it is five times longer. TPM is a <i>share</i>: if globin takes a large part of a sample, every other gene's TPM is pushed down a little.</p>
+<p><b>A worked TPM example.</b> Gene X (2 kb) gets 400 reads and gene Y (10 kb) gets 1,000. Per kb that is 200 and 100. If all genes together give 1,000,000 per-kb units in this sample, X has 200 TPM and Y has 100 TPM. Y had more reads but fewer transcripts, because each Y transcript is five times longer and so yields more fragments. TPM is a <i>share</i>: if globin takes a large part of a sample, every other gene's TPM is pushed down a little.</p>
 <p><b>The All of Us release</b> (CDR v9; from the All of Us data documentation in <code>reference/</code> and the RNA-seq metadata):</p>
 <ul>
 <li>8,980 <b>whole-blood</b> samples. 8,327 of these people also have long reads.</li>
 <li>Library: Watchmaker RNA library prep with Polaris depletion. Abundant RNAs are removed with probes instead of selecting poly-A tails, so non-polyadenylated RNA, and some intronic reads from unspliced RNA, remain.</li>
-<li>Paired-end short reads, 80–595 million aligned read pairs per sample. The metadata records alignment with DRAGEN 4.2.4. The documentation also describes STAR alignment, so the exact aligner is stated inconsistently in the documentation.</li>
+<li>Paired-end short reads, about 80–600 million reads aligned in pairs (about 40–300 million pairs) per sample. The metadata records alignment with DRAGEN 4.2.4. The documentation also describes STAR alignment, so the exact aligner is stated inconsistently in the documentation.</li>
 <li>Quantification: RNA-SeQC 2 (gene TPM, used by our script 55) and RSEM (gene and transcript TPM and expected counts). Only BAMs and these matrices are released, not raw FASTQ.</li>
 </ul>
 <p><b>What this means for HLA and KIR.</b> Gene-level TPM pools the two alleles of a gene and is computed against the reference genome, where HLA reads from divergent alleles can map poorly. Script 53 instead builds each person's own HLA sequences from their assembly and maps that person's RNA reads to them. That gives expression per allele, which is how allele-specific expression is measured (Part 7).</p>
@@ -143,7 +143,7 @@ h1tg000012l  1830551  10234    1811002  +      chr6  170805979  29501234  313018
 <tr><td>Globin share of TPM</td><td>0.35% (0.01–4.1)</td><td>Globin depletion worked: 10–30% would be expected without it.</td></tr>
 <tr><td>Mitochondrial protein-coding genes, share of TPM</td><td>3.1% (1.0–8.7)</td><td>The 13 mitochondrial genes; high in some samples, a common blood QC flag.</td></tr>
 <tr><td>Classical HLA genes, share of TPM</td><td>0.31% (0.12–0.70)</td><td>The 12 classical genes together: about 1 in 300 transcripts, high for so few genes.</td></tr>
-<tr><td>KIR genes, share of TPM</td><td>0.0008% (0.0001–0.004)</td><td>Hundreds of times lower than HLA, because only NK cells and some T cells express KIR.</td></tr>
+<tr><td>KIR genes, share of TPM</td><td>0.0008% (0.0001–0.004)</td><td>Hundreds of times lower than HLA: partly because only NK cells and some T cells express KIR, and partly because reads from these near-identical genes often map to several places and are discarded by RNA-SeQC, which counts only uniquely mapped reads.</td></tr>
 </table></div>
 <p><b>How to read "share of TPM".</b> TPM shares are not the same as shares of reads: TPM divides by gene length, so short genes such as mitochondrial tRNAs get a larger share than their reads, and long genes a smaller one. The read-based numbers (rows 1–3) answer "what fraction of sequencing went where"; the TPM rows answer "what fraction of transcripts were this". <b>So, for the question "what share of the reads are rRNA, tRNA or normal RNA":</b> in these libraries about 0.5% of bases are rRNA (from ~80% in the tube), tRNA is essentially absent (see below), about 0.4% is globin, and the rest is RNA from genes: roughly 57% from exons, which is what expression is measured on, and 33% from introns of the same genes.</p>
 <p><b>tRNA.</b> Mature tRNAs are 70–90 bases long, shorter than the fragments kept during library prep, so they are almost absent from standard RNA-seq whatever the cell contains. The mitochondrial tRNAs annotated in the gene matrix are a small trace. Measuring tRNA needs special small-RNA protocols.</p>

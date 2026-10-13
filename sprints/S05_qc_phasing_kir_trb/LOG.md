@@ -68,3 +68,11 @@ PLAN, CODE, TEST, RUN, RESULT, FIX, DECISION, BLOCKER, NOTE. Never rewrite past 
   `removed_pct_<ancestry>` columns are whole percents of rounded removal counts over nested sets; differencing gives only
   approximate counts (±several people). Kept, flagged to Marc.
 - Report: new Part 4b (where errors happen, pruning), 65b/65c in Part 9, 68 numbers in the RNA-seq deep dive.
+- Independent critic (13:30 UTC) on Part 4b, the 65b subsection, deep dives, KIR context and the summary; corrections
+  folded into the text: 65b assembly mode uses the same probes as reads mode (checks read counting, not probe divergence);
+  per-ancestry concordance withheld (small-count); HWE testable under assembly only in AMR/EUR; completion differs by
+  ancestry; switch "junctions" are the long MICA→DRB and TAP→DPA1 steps (distance-confounded); logistic not gene-adjusted,
+  CIs ignore clustering; trio wording; KIR ligand table (2DL4/HLA-G), framework genes, citations softened.
+- Cleanup: VM stale locks and superseded 67/68 outputs archived to ~/s05/archive_2026-10-13/ (nothing deleted; old git stash
+  left, drop blocked by the classifier). Repo: indexes (scripts README, appendix, METHODS_LEDGER, SPRINT rows N/O) updated.
+  Deleting the merged remote branches was blocked by the classifier; list in STATUS.

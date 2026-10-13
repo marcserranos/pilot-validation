@@ -1010,3 +1010,18 @@ full:
 - **56b/57b:** the relative filter biases the error down; the two checks share people; the per-call error is about half the
   pair rate; "< 7.7%" is a masking ceiling.
 - **Disclosure:** sums across tables (65 genotype vs AF bins; 58 CN vs depth bins; older 50–56 tables) were re-masked.
+
+## 65b / 65c, 67, 68 (2026-10-13)
+
+- **65b/65c:** assembly calls on a stratified 2,000 (≈330 per ancestry), stopped at 913 on Marc's instruction; order was random,
+  so the done set is a random subset. Concordance on people called by both methods; ppv_c / sens_c per copy number; HWE on
+  people called by all three callers. Public table: rates rounded to whole percent and blanked where the implied number of
+  disagreeing people is 1–19 (two genotypers on the same people otherwise leak small counts by subtraction).
+- **67:** depth per call = 58's per-gene relative depth (MAPQ 0) ÷ the median for that gene × platform. Pair records use the
+  56b sharing filter; error = no shared 2-field allele. Trio records use 57b parent of origin. Logistic: error ~ depth (clipped
+  at 2.0) + confidence score. Switch topology: consecutive resolved genes on one contig, switch = origin changes, zones by hg38
+  midpoint. Prune: worst x% of unrelated people by each metric vs 20 random removals; pair/trio errors re-scored with the same
+  cut applied to everyone. Rates blanked when numerator or denominator is 1–19; ancestry shares of removed people blanked under 30.
+- **68:** cohort quantiles of numeric columns in `rnaseq_metadata.tsv` and the RNA-SeQC 2 metrics file (ID columns excluded),
+  and per-sample TPM shares by gene family streamed from the gene TPM GCT. Globin read share = 1 − Non-Globin / Mapped Reads
+  (an earlier row divided by Total Reads, which includes unmapped reads, and was dropped).

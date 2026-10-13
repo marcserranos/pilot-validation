@@ -24,10 +24,15 @@ complete-only; physical-haplotype rule; no coverage filter / call-level depth fl
 cuts tables; Sequel II re-call (resize + cost); disclosure residue in git history and allele-count masking. Script 60 waits on
 Aleix copying his TRBV usage table to the bucket.
 
+**Housekeeping left for a human** (blocked for Claude by the permission classifier): delete the fully merged remote
+branches `s04-kir-recurrence-style-share s05-58-results s05-59-65-results s05-61-62-results s05-64-results s05-vm-pulls`
+(`git push origin --delete ...`); `s05-oct06-work` and `s05-65b-results` are superseded too (content on main). On the VM,
+`git -C ~/repos/pilot-validation-main stash drop stash@{0}` (old 67/68 edits).
+
 **Literal next steps (VM, each under a day):**
 1. 63: 20-person Revio forced-Tier-3 comparison (~7 h) with peak memory (`/usr/bin/time -v`) → numbers to Marc for the resize.
 2. 65b: optionally finish the remaining ~1,090 people (~7 h; `65 --assembly ... --retry-failed`, then `65c_65b_summary.py`
-   and round concordance to whole percent, blank where the implied discordant count is 1–19) to get AFR HWE under assembly.
+   and round concordance to whole percent, blank where the implied discordant count is 1–19) to get AFR HWE under assembly; add a probe-free check (contigs vs the insertion sequence) since both routes share probes.
 3. 68: rerun once to replace the dropped globin row (script now divides by Mapped Reads).
 4. Re-derive PUBLIC tables with the cross-table masking (`--aggregate-only` for 58/59/62/65) and check against committed tables.
 5. 64: rerun reads (≈1.5 h) for the fixed homopolymer readout; locate the indel for the 345 CDS disagreements; short-read check.
