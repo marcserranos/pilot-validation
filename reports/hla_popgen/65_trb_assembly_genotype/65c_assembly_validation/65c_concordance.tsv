@@ -1,0 +1,37 @@
+reads_genotyper	feature	stratum_type	stratum	n_both_called	pct_concordant	lo	hi	n_reads0	ppv0	n_asm0	sens0	n_reads1	ppv1	n_asm1	sens1	n_reads2	ppv2	n_asm2	sens2
+cuts	TRBV4-3	ancestry	AFR	140				60	100	60		50		70		30		<20	
+cuts	TRBV4-3	ancestry	AMR	130				40	100	40	100	70	100	80		30		20	100
+cuts	TRBV4-3	ancestry	EAS	130				60	100	60	100	50	100	60		20		<20	
+cuts	TRBV4-3	ancestry	EUR	140				20	100	20		70		80		50		40	
+cuts	TRBV4-3	ancestry	MID	100				30	100	30	100	40	100	50		30		<20	
+cuts	TRBV4-3	ancestry	SAS	90				50	100	50	100	30	100	40		<20		<20	
+cuts	TRBV4-3	ancestry	ALL	740	93	90	94	260	100	260		320		370	86	160	68	110	
+cuts	TRBV4-3	platform	revio	680	93	90	94	240	100	240		290		340	86	150	68	100	
+cuts	TRBV4-3	platform	sequel2e	60				<20		<20		30	100	30		<20		<20	
+cuts	TRBV3-2	ancestry	AFR	140				60	100	60		60		70		30		<20	
+cuts	TRBV3-2	ancestry	AMR	130				40	100	40	100	60	100	70		30		20	100
+cuts	TRBV3-2	ancestry	EAS	130				60	100	60	100	50	100	60		20		<20	
+cuts	TRBV3-2	ancestry	EUR	140				20	100	20		70		80		40		40	
+cuts	TRBV3-2	ancestry	MID	100				30	100	30	100	40	100	50		30		<20	
+cuts	TRBV3-2	ancestry	SAS	90				50	100	50	100	30	100	40		<20		<20	
+cuts	TRBV3-2	ancestry	ALL	740	92	90	94	260	100	260		310		370	85	170	66	110	
+cuts	TRBV3-2	platform	revio	680	92	90	94	240	100	240		290		340	85	150	66	100	
+cuts	TRBV3-2	platform	sequel2e	60				<20		<20		20	100	30		<20		<20	
+mixture	TRBV4-3	ancestry	AFR	140				60	100	60		60		70		20		<20	
+mixture	TRBV4-3	ancestry	AMR	130				40	100	40	100	70	100	80		20		20	100
+mixture	TRBV4-3	ancestry	EAS	130				60	100	60	100	60		60		<20		<20	
+mixture	TRBV4-3	ancestry	EUR	140				20	100	20		80		80		40		40	
+mixture	TRBV4-3	ancestry	MID	100				30	100	30	100	50	100	50		20		<20	
+mixture	TRBV4-3	ancestry	SAS	90	100	96	100	50	100	50	100	40	100	40	100	<20		<20	
+mixture	TRBV4-3	ancestry	ALL	740	97	96	98	260	100	260		360		370		120		110	
+mixture	TRBV4-3	platform	revio	680	97	96	98	240	100	240		330		340		110		100	
+mixture	TRBV4-3	platform	sequel2e	60	100	94	100	<20		<20		30	100	30	100	<20		<20	
+mixture	TRBV3-2	ancestry	AFR	140				60	100	60		60		70		20		<20	
+mixture	TRBV3-2	ancestry	AMR	130				40	100	40	100	70	100	70		20		20	100
+mixture	TRBV3-2	ancestry	EAS	130				60	100	60	100	60		60		<20		<20	
+mixture	TRBV3-2	ancestry	EUR	140				20	100	20		80		80		40		40	
+mixture	TRBV3-2	ancestry	MID	100				30	100	30	100	50	100	50		20		<20	
+mixture	TRBV3-2	ancestry	SAS	90	100	96	100	50	100	50	100	40	100	40	100	<20		<20	
+mixture	TRBV3-2	ancestry	ALL	740	97	96	98	260	100	260		360		360		120		110	
+mixture	TRBV3-2	platform	revio	680	97	96	98	240	100	240		330		340		110		100	
+mixture	TRBV3-2	platform	sequel2e	60	100	94	100	<20		<20		30	100	30	100	<20		<20	

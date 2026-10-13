@@ -924,3 +924,16 @@ recorded as having no notes in `sprints/_calls/README.md`.
   people (was ~660 h). Peak memory not recorded.
 - **65b** assembly concordance: overnight storage stall (27 timeouts 01:29–07:48 UTC); VM restarted ~08:17; 673/2,000 done at
   08:23 UTC, resumed with 2 workers and retries. Graceful stop at 11:00 UTC 10-13 (Marc; first set at 17:21, moved to 13:00 CEST).
+- **65b** stopped on Marc's instruction at ~09:50 UTC 10-13 (SIGINT did not end the pool; SIGTERM did, finished people kept):
+  913/2,000 done (AFR 56% … SAS 35% of each ~330), 0 final failures (30 timeouts all retried OK). **65c** on ~740 people called by
+  both: TRBV4-3 concordance cuts 93% (91–94), mixture 97% (96–98); every reads 0-copy call confirmed by the assembly (AFR ~60,
+  SAS ~50 people); cuts miss 1-copy (sens 86%, 2-copy PPV 68%); mixture leaves <20 wrong in each class. HWE under assembly holds (ALL p=0.44); cuts show
+  the het deficit on the same people (obs/exp 0.87), mixture not (1.01). Rounded rates-only tables; VM commit 2587466 on
+  s05-65b-results (VM could not push).
+- **67** phasing/typing error vs coverage (main d7748b9, <1 min): pair discordance 12.9% in the thinnest tenth of gene depth vs
+  ≤3.6% from the 4th tenth on (two thinnest tenths ≈ 55% of errors); OR 1.47/0.1 lower depth adjusted for score (p≈1e-20). Trio
+  Mendel error 7.3% in the thinnest third of transmitting-parent depth vs 3.0–3.6%. Switch rate vs depth: no correlation; vs MHC
+  contig count rho 0.68 (also on chr20 control, 0.73). Switch per step: within DR–DQ 3.3%, class III→DR–DQ 39.6%, DR–DQ→DP 18.2%.
+  Pruning 30% by window depth: pair error 3.7→3.2%, outcomes −1 to −2 points; by contig count circular. Tables committed.
+- **68** RNA-seq composition (8,980 samples): alignment 93%, mRNA bases 52%, exonic 0.57 / intronic 0.33, RQS 7.9; TPM shares
+  globin 0.35%, classical HLA 0.31%, KIR 0.0008%, mt protein-coding 3.1%.

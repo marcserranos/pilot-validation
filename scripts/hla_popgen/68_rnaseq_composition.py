@@ -6,7 +6,7 @@ All of Us already ships, without touching BAMs:
   1. rnaseq_metadata.tsv (DRAGEN QC per sample): mrna_bases_pct, ribosomal_bases_pct, alignment rate,
      read pairs, insert size.
   2. rnaseqc2/*.metrics.txt.gz (RNA-SeQC 2 per sample): every numeric column (Exonic / Intronic /
-     Intergenic / rRNA Rate, mapping and duplicate rates, Total Reads, Non-Globin Reads -> globin share).
+     Intergenic / rRNA Rate, mapping and duplicate rates, Mapped Reads, Non-Globin Reads -> globin share).
   3. rnaseqc2/*.gene_tpm.gct.gz streamed in chunks: the share of each sample's TPM that falls on
      globin genes (HBA1/2, HBB, HBD, ...), mitochondrial rRNA (MT-RNR1/2), mitochondrial tRNA (MT-T*),
      other mitochondrial genes, nuclear rRNA (RNA5-8SN*, RNA18SN*, RNA28SN*, RNA45SN*, RNA5S*), and the
@@ -104,9 +104,11 @@ def main(argv=None):
             v = pd.to_numeric(met[c], errors="coerce")
             if v.notna().mean() > 0.9 and not is_id(c):
                 rows.append(describe(c, "RNA-SeQC 2 metrics", v, "fraction" if "Rate" in c else "value"))
-        if {"Non-Globin Reads", "Total Reads"} <= set(met.columns):
-            g = 1 - pd.to_numeric(met["Non-Globin Reads"], errors="coerce") / pd.to_numeric(met["Total Reads"], errors="coerce")
-            rows.append(describe("globin read share (1 - Non-Globin / Total)", "RNA-SeQC 2 metrics", 100 * g, "pct"))
+        if {"Non-Globin Reads", "Mapped Reads"} <= set(met.columns):
+            # Non-Globin Reads counts mapped reads, so the denominator is Mapped Reads (Total Reads also has unmapped ones)
+            g = 1 - pd.to_numeric(met["Non-Globin Reads"], errors="coerce") / pd.to_numeric(met["Mapped Reads"], errors="coerce")
+            rows.append(describe("globin read share of mapped reads (1 - Non-Globin / Mapped)", "RNA-SeQC 2 metrics",
+                                 100 * g, "pct"))
     tp = sorted(glob.glob(os.path.join(a.rna_root, "rnaseqc2", "*.gene_tpm.gct.gz")))
     if tp and not a.skip_tpm:
         samples, tot, sets, n_genes = tpm_shares(tp[-1])

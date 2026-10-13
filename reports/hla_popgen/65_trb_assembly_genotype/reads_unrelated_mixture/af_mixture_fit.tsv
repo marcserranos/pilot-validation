@@ -1,0 +1,7 @@
+feature	platform	n_people	f_0copy	f_1copy	f_2copy	w_0copy	w_1copy	w_2copy	pct_ambiguous
+TRBV3-2	revio	10060	0.0001	0.6329	0.9999	0.3328	0.4697	0.1975	0.51
+TRBV3-2	sequel2e	990	0.0	0.6405	0.9999	0.3017	0.4805	0.2178	0.61
+TRBV4-3	revio	10080	0.0	0.6369	0.9999	0.3323	0.4704	0.1973	0.3
+TRBV4-3	sequel2e	1000	0.0	0.6392	0.9995	0.2984	0.475	0.2266	1.0
+insertion_any	revio	10130	0.0001	0.6745	0.9999	0.3306	0.4713	0.1981	0.47
+insertion_any	sequel2e	1020	0.0	0.6832	0.9999	0.2926	0.4838	0.2236	0.88

@@ -1,0 +1,43 @@
+caller	feature	ancestry	n_called	insertion_af	pct_0copies	pct_het_obs	pct_het_exp	het_obs_exp_ratio	hwe_p
+assembly	TRBV4-3	AFR	140						
+assembly	TRBV4-3	AMR	130	0.44	28	57	49	1.16	0.11
+assembly	TRBV4-3	EAS	130						
+assembly	TRBV4-3	EUR	140	0.55	18	56	50	1.12	0.18
+assembly	TRBV4-3	MID	100						
+assembly	TRBV4-3	SAS	90						
+assembly	TRBV4-3	ALL	740	0.4	35	49	48	1.03	0.44
+assembly	TRBV3-2	AFR	140						
+assembly	TRBV3-2	AMR	130	0.43	28	56	49	1.14	0.15
+assembly	TRBV3-2	EAS	130						
+assembly	TRBV3-2	EUR	140	0.55	18	55	50	1.11	0.23
+assembly	TRBV3-2	MID	100						
+assembly	TRBV3-2	SAS	90						
+assembly	TRBV3-2	ALL	740	0.4	35	49	48	1.03	0.44
+reads_cuts	TRBV4-3	AFR	140	0.4	42	38	48	0.78	0.0094
+reads_cuts	TRBV4-3	AMR	130	0.47	28	50	50	1.0	1.0
+reads_cuts	TRBV4-3	EAS	130	0.37	43	41	46	0.88	0.19
+reads_cuts	TRBV4-3	EUR	140	0.58	17	50	49	1.03	0.86
+reads_cuts	TRBV4-3	MID	100	0.47	33	40	50	0.81	0.052
+reads_cuts	TRBV4-3	SAS	90						
+reads_cuts	TRBV4-3	ALL	740	0.44	35	43	49	0.87	0.00058
+reads_cuts	TRBV3-2	AFR	140	0.39	42	38	47	0.81	0.023
+reads_cuts	TRBV3-2	AMR	130	0.47	28	49	50	0.99	0.86
+reads_cuts	TRBV3-2	EAS	130	0.37	43	39	47	0.84	0.064
+reads_cuts	TRBV3-2	EUR	140	0.57	17	51	49	1.04	0.73
+reads_cuts	TRBV3-2	MID	100	0.48	32	40	50	0.8	0.05
+reads_cuts	TRBV3-2	SAS	90						
+reads_cuts	TRBV3-2	ALL	740	0.44	35	42	49	0.86	0.00024
+reads_mixture	TRBV4-3	AFR	140	0.36	42	44	46	0.94	0.48
+reads_mixture	TRBV4-3	AMR	130	0.44	28	55	49	1.12	0.22
+reads_mixture	TRBV4-3	EAS	130						
+reads_mixture	TRBV4-3	EUR	140	0.54	17	58	50	1.16	0.064
+reads_mixture	TRBV4-3	MID	100	0.45	33	45	49	0.91	0.43
+reads_mixture	TRBV4-3	SAS	90						
+reads_mixture	TRBV4-3	ALL	740	0.41	35	49	48	1.01	0.94
+reads_mixture	TRBV3-2	AFR	140	0.36	42	43	46	0.94	0.47
+reads_mixture	TRBV3-2	AMR	130	0.44	28	55	49	1.11	0.29
+reads_mixture	TRBV3-2	EAS	130						
+reads_mixture	TRBV3-2	EUR	140	0.54	17	57	50	1.15	0.09
+reads_mixture	TRBV3-2	MID	100	0.45	32	46	49	0.92	0.43
+reads_mixture	TRBV3-2	SAS	90						
+reads_mixture	TRBV3-2	ALL	740	0.41	35	48	48	1.0	1.0

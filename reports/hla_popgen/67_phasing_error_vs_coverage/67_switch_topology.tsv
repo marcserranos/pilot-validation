@@ -1,0 +1,14 @@
+view	level	n_intervals	switch_pct	lo	hi
+interval_class	ALL	2570	7.5	6.5	8.6
+interval_class	classI	350	13.7	10.5	17.7
+interval_class	classI->classIII	270			
+interval_class	classI->classII_DRDQ	<20			
+interval_class	classIII->classII_DRDQ	100	39.6	30.4	49.6
+interval_class	classII_DP	250			
+interval_class	classII_DRDQ	1340	3.3	2.5	4.4
+interval_class	classII_DRDQ->classII_DP	250	18.2	13.9	23.4
+child_depth_half	below_median_MHC_depth	1280	6.0	4.8	7.4
+child_depth_half	at_or_above_median_MHC_depth	1280	8.9	7.5	10.6
+haplotype_contig_count	1-2 MHC contigs on the haplotype	1220	10.4	8.8	12.3
+haplotype_contig_count	3-5	1290	4.9	3.8	6.2
+haplotype_contig_count	6+	60			

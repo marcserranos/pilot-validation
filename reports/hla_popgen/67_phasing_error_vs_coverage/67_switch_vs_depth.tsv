@@ -1,0 +1,11 @@
+target	metric	n_children	rho_vs_depth	p_vs_depth	rho_vs_contig_pieces	p_vs_contig_pieces	mean_pct_low_depth_half	mean_pct_high_depth_half	median_pct_low_depth_half	median_pct_high_depth_half
+KIR	switch_error	50	-0.051	0.72	0.264	0.058	0.93	3.97	0.27	0.34
+KIR	hamming_error	50	-0.004	0.98	0.138	0.33	3.03	4.90	0.20	0.55
+MHC	switch_error	50	-0.165	0.25	0.680	1.4e-10	0.69	0.52	0.54	0.25
+MHC	hamming_error	50	0.267	0.055	-0.155	0.28	6.13	12.17	5.34	9.27
+MHC_classII_DR_DQ	switch_error	50	0.117	0.41	0.103	0.47	0.26	3.17	0.18	0.24
+MHC_classII_DR_DQ	hamming_error	50	0.087	0.54	0.067	0.64	0.68	3.87	0.25	0.27
+MHC_classI_A_to_B	switch_error	50	-0.213	0.13	0.646	4.5e-09	0.93	0.53	0.69	0.26
+MHC_classI_A_to_B	hamming_error	50	0.037	0.8	-0.031	0.83	9.36	11.59	8.79	5.90
+chr20_control	switch_error	50			0.725	3.2e-13				
+chr20_control	hamming_error	50			-0.875	6.5e-36				
