@@ -15,7 +15,7 @@ Headline (unrelated, TRBV4-3): people with 0 copies, i.e. germline absence:
 - SAS 55.1%
 - AFR 38.5%
 - EAS 37.1%
-- MID 32.2%
+- MID ~32% (counts masked in the public table)
 - AMR 30.1%
 - EUR 19.5%
 - ALL 33.0%
@@ -25,4 +25,5 @@ Caveat: there are too few heterozygotes in every ancestry (HWE p from 1e-31 to 0
 
 Disclosure:
 - No ids. Counts 1–19 are masked by the script, with cross-row complementary suppression.
-- Checked: no single-masked allele-fraction partition; no ALL-vs-platform or ALL-vs-ancestry single mask; genotype_by_stratum has no masked cells.
+- Checked at pull: no single-masked allele-fraction partition; no ALL-vs-platform or ALL-vs-ancestry single mask. That check missed the cross-table sums (genotype counts = sums of AF bins in [0,0.2), [0.2,0.8), [0.8,1]), people not called, and the 23 people with no listed ancestry.
+- Re-masked 2026-10-13 by `scripts/hla_popgen/66_cross_table_suppression.py` (cross-table complementary suppression, `<20*`). Earlier versions of these tables remain in git history.

@@ -1,9 +1,9 @@
 gene	set	copies	n_people	tpm_q25	tpm_median	tpm_q75	pct_tpm_lt1
 KIR2DL4	kir_both_haps_complete	0	<20				
-KIR2DL4	kir_both_haps_complete	1	288	0.08	0.18	0.31	98.6
+KIR2DL4	kir_both_haps_complete	1	<20*	0.08	0.18	0.31	
 KIR2DL4	kir_both_haps_complete	2	4698	0.17	0.32	0.56	91.3
 KIR2DL4	kir_both_haps_complete	rho	4994		0.156		
-KIR2DL4	kir_all	0	56	0.03	0.19	0.37	98.2
+KIR2DL4	kir_all	0	56	0.03	0.19	0.37	
 KIR2DL4	kir_all	1	1042	0.12	0.24	0.43	94.6
 KIR2DL4	kir_all	2	7223	0.17	0.32	0.56	91.7
 KIR2DL4	kir_all	rho	8321		0.107		

@@ -13,6 +13,7 @@ Disclosure:
 - The tables were regenerated on 2026-10-12 with `--aggregate-only` at 29e17c8 (PR #23, complementary suppression), from the stored per-person depths. No new measurements.
 - People counts 1–19 are masked `<20`. The smallest other cell, where needed, is masked `<20*`: 667 and 241 cells in depth_summary_by_region.
 - Rates are blanked on masked CN rows.
+- Re-masked 2026-10-13 by `scripts/hla_popgen/66_cross_table_suppression.py` (cross-table complementary suppression, `<20*`). Earlier versions of these tables remain in git history.
 - Checked:
   - no CN row and no histogram gene has exactly one masked cell;
   - no depth-tail cell can be recovered via revio + sequel2e = ALL, or via the ancestry sum.

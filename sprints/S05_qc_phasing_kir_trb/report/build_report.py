@@ -98,7 +98,11 @@ def chart_65_zero_copy():
     order = sorted(ANC, key=lambda a: zero[a])
     rows = []
     for a in order:
-        rows.append((f"{a}  no copy", zero[a], "bar-a", f"{zero[a]:.1f}%  (insertion freq {freq[a]:.2f})"))
+        # MID counts are masked in the PUBLIC table (ALL minus the six ancestries gives the 23 unlisted people),
+        # so MID is shown rounded to whole percent only
+        txt = (f"{zero[a]:.0f}%  (rounded; counts masked)" if a == "MID"
+               else f"{zero[a]:.1f}%  (insertion freq {freq[a]:.2f})")
+        rows.append((f"{a}  no copy", zero[a], "bar-a", txt))
         rows.append((f"{a}  never used", never[a], "bar-b", f"{never[a]:.1f}%"))
     rows.append(("ALL  no copy", 33.0, "bar-a", "33.0%  (11,075 people called)"))
     rows.append(("ALL  never used", 27.3, "bar-b", "27.3%  (repertoire cohort)"))

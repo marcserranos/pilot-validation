@@ -54,7 +54,7 @@
   the current VM). Needs Marc + supervisors.
 - **(S05, 2026-10-12) Disclosure residue in git history.** Cross-table recoverable small counts were found by review and the
   committed PUBLIC tables were re-masked (cross-table complementary suppression), but earlier versions remain in public git
-  history. Options: accept; rewrite history; make the repo private until publication. Also open: whether counts of distinct
+  history. Options: accept; rewrite history; make the repo private until publication. Known gaps after re-masking (`66_cross_table_suppression.py --check`): MID related count (8) from published denominators; 65 `reads_all` − `reads_unrelated` gives related-people counts (option: drop `reads_all` from the repo); 64 `summary_by_stratum.tsv` not re-masked. Also open: whether counts of distinct
   allele sequences (not people) are masked in publications. Needs Marc.
 
   Also: typing claims at 2-field (4% error; score ≥4 → 2.6%); third/fourth-field claims need read support (12.6%

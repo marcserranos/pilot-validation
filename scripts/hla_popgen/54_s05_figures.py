@@ -77,7 +77,10 @@ def fig_dq():
     y = np.arange(len(a))[::-1]
     ax.barh(y, a["pct"], color=[SERIES[1] if c else SERIES[0] for c in a["cross"]], height=0.6)
     for yi, p, n in zip(y, a["pct"], a["n_haps"]):
-        ax.text(p + 1.5, yi, f"{p:.1f}%  (n={n})", va="center", fontsize=8, color=INK)
+        if pd.isna(p):  # masked so a small one-contig count cannot be recovered
+            ax.text(1.5, yi, f"masked (n={n})", va="center", fontsize=8, color=INK)
+        else:
+            ax.text(p + 1.5, yi, f"{p:.1f}%  (n={n})", va="center", fontsize=8, color=INK)
     ax.set_yticks(y, a["lab"])
     ax.set_xlim(0, 125)
     ax.set_xticks([0, 25, 50, 75, 100])
@@ -195,7 +198,7 @@ def fig_kir_pairs():
                       for p, c in zip(d["pair"], d["co_called_pct"])])
     for yi, l in zip(y, left):
         if l < 99:
-            ax.text(l + 1, yi, "rest: <20 (masked)", va="center", fontsize=7, color=INK2)
+            ax.text(l + 1, yi, "rest: masked", va="center", fontsize=7, color=INK2)
     ax.set_xlim(0, 115)
     ax.set_xticks([0, 20, 40, 60, 80, 100])
     ax.set_xlabel("% of co-call events")

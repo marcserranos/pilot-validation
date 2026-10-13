@@ -9,6 +9,13 @@
 <li>58's copy-number counts equal sums of its depth bins.</li>
 </ul>
 <p>It also found such leaks in older tables (50 waterfall, DQ ascertainment, 51 allelic pairs, 53 ASE classes, 55 expression, 56 platform rows, 64 call outcomes). A cross-table masking step now re-masks the committed public tables, adding <code>&lt;20*</code> where a hidden cell could be recovered. 65 and 58 now apply the cross-table sums themselves on future runs. The report text uses rounded percentages or omits values wherever a count could be recovered.</p>
+<p><b>Known gaps after re-masking</b> (checked with <code>66_cross_table_suppression.py --check</code>):</p>
+<ul>
+<li>MID's HLA-called and unrelated denominators (495 and 487) are both published in many tables, so the 8 related MID people can be worked out. Masking one table cannot hide that.</li>
+<li>More generally, 65's <code>reads_all</code> minus <code>reads_unrelated</code> gives related-people counts cell by cell. Dropping <code>reads_all</code> from the public repo would fix it.</li>
+<li><code>64/tables/summary_by_stratum.tsv</code> (counts of novel calls by gene, platform and ancestry) is not re-masked yet: too large for the solver as written.</li>
+<li>Threshold sweeps (score t vs t+1, MAPQ 0 vs 20) and tables outside the review's list (56 <code>threshold_sweep</code>, 61, 62) are not modelled across tables yet.</li>
+</ul>
 <div class="box decide"><h3>Needs your decision <span class="tag pend">flagged</span></h3>
 <p>The earlier, less-masked versions of these tables are still in the repo's git history, which is public. They can only be removed by rewriting history, and that has been ruled out so far. Options:</p>
 <ol>

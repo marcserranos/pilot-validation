@@ -263,7 +263,7 @@ def fig_call_outcomes():
             if v > 250:
                 ax.text(left + v / 2, yi, f"{v:,}", ha="center", va="center", fontsize=8, color="white")
             left += v
-            handles.append(Patch(color=c, label=plab + (" (<20)" if masked else "")))
+            handles.append(Patch(color=c, label=plab + (f" ({raw}, masked)" if masked else "")))
     ax.set_yticks([0, 1])
     ax.set_yticklabels([b[0] for b in bars[::-1]])
     ax.set_xlabel("novel-allele calls")

@@ -1,9 +1,9 @@
 stage	reason	n_calls
 call_status	cds_disagree	506
 call_status	indel_spans_exon_junction	<20
-call_status	nearest_too_distant	30
+call_status	nearest_too_distant	<20*
 call_status	ok	4066
 long_read	low_reads	1210
 long_read	mixed	2357
 long_read	no_window_spanned	<20
-long_read	ran	496
+long_read	ran	<20*

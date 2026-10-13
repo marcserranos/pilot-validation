@@ -133,6 +133,7 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 63_sequel2_recall.py        → HLA + KIR calling for the 991 Sequel II people via a fixed Tier-3 self-align (run_immuannot_person.py); new output dirs only, then merge
 64_novel_allele_validation.py → novel HLA calls vs a current IPD-IMGT/HLA release (now_known) and HiFi/short-read support per call; homopolymer run-length readout; 50d funnel with evidence
 65_trb_assembly_genotype.py → TRB ~21 kb insertion (TRBV4-3/3-2/6-3/7-8) presence per haplotype from phased assemblies; frequency, HWE, co-presence
+66_cross_table_suppression.py → laptop (and called by 58/65 at the end of a PUBLIC run): complementary <20* masking across committed PUBLIC tables (cross-table sums, waterfall steps, unlisted-ancestry residuals); `--check` audits
 ```
 
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can

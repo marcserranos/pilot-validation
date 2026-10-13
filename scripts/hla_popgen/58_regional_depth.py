@@ -74,6 +74,7 @@ Usage (VM, from the repo; samtools lives in the spechla pixi env):
 Tests: scripts/hla_popgen/tests/test_58_regional_depth.py (synthetic, no samtools needed).
 """
 import argparse
+import importlib.util
 import gzip
 import json
 import math
@@ -489,32 +490,70 @@ def trb_tables(per, people, regions, assess, cuts, mapq, mode):
             c0, c1, c2 = (int((sub["copies"] == k).sum()) for k in (0, 1, 2))
             del_af = (2 * c0 + c1) / (2 * n)
             shown = [_disc.mask(k, _disc.PARTICIPANT, mode).display for k in (c0, c1, c2)]
-            if mode == _disc.PUBLIC:   # the three classes sum to n_people
-                shown = secondary_suppress([c0, c1, c2], shown)
             row = dict(gene=gene, ancestry=anc,
                        n_people=_disc.mask(n, _disc.PARTICIPANT, mode).display,
                        n_0copies=shown[0], n_1copy=shown[1], n_2copies=shown[2])
-            # any masked cell (primary or secondary) also blanks the rates, which would undo it
+            # any masked cell also blanks the rates, which would undo it (secondary masks: _suppress_trb)
             small = mode == _disc.PUBLIC and (0 < n < _disc.SUPPRESS_BELOW
                                               or any(d in ("<20", SECONDARY) for d in shown))
             row["pct_0copies"] = "" if small else round(100 * c0 / n, 2)
             row["deletion_allele_freq"] = "" if small else round(del_af, 4)
             row["hwe_p"] = "" if small else float(f"{hwe_exact_p(c0, c1, c2):.3g}")
+            row.update(_raw_n_people=n, _raw_n_0copies=c0, _raw_n_1copy=c1, _raw_n_2copies=c2)
             cn_rows.append(row)
 
     hist_rows = []
     bins = np.round(np.arange(0, 1.55, 0.05), 2)
     for gene, g in d.groupby("region"):
         counts, edges = np.histogram(g["rel_depth"].clip(upper=1.5 - 1e-9), bins=bins)
-        shown = [_disc.mask(int(k), _disc.PARTICIPANT, mode).display for k in counts]
-        if mode == _disc.PUBLIC:   # bins sum to the people measured
-            shown = secondary_suppress([int(k) for k in counts], shown)
-        for k, lo, disp in zip(counts, edges[:-1], shown):
+        for k, lo in zip(counts, edges[:-1]):
             hist_rows.append(dict(gene=gene, bin_lo=float(lo), bin_hi=round(float(lo) + 0.05, 2),
-                                  n_people=disp, assessable=gene in ok))
+                                  n_people=_disc.mask(int(k), _disc.PARTICIPANT, mode).display,
+                                  assessable=gene in ok, _raw_n_people=int(k)))
     per_person = d[["person_id", "region", "rel_depth", "copies", "assessable"]].rename(
         columns={"region": "gene"})
-    return pd.DataFrame(cn_rows), pd.DataFrame(hist_rows), per_person
+    cn, hist = _suppress_trb(pd.DataFrame(cn_rows), pd.DataFrame(hist_rows), cuts, mode)
+    return cn, hist, per_person
+
+
+def _suppress_trb(cn, hist, cuts, mode):
+    """PUBLIC complementary suppression ('<20*') over the copy-number table and the depth histogram
+    TOGETHER. Sums a reader can rebuild: per CN row, 0 + 1 + 2 copies = people; per gene and column,
+    the ancestries sum to ALL; per gene, all bins sum to the ALL people, and the bins below cuts[0],
+    between the cuts and above cuts[1] sum to ALL n_0copies / n_1copy / n_2copies (copies = 0 if
+    rel < cuts[0], 1 if rel < cuts[1], else 2 -- the bin edges include both cuts). Without the
+    cross-table sets, one masked bin came back from the CN table (S05 fact-check 2026-10-12).
+    -> (cn, hist) without the _raw_ columns."""
+    if mode != _disc.PUBLIC or cn.empty and hist.empty:
+        return _disc.drop_raw(cn), _disc.drop_raw(hist)
+    cn = cn.reset_index(drop=True)
+    hist = hist.reset_index(drop=True)
+    hist.index = hist.index + len(cn)
+    both = pd.concat([cn, hist])
+    cols = ["n_people", "n_0copies", "n_1copy", "n_2copies"]
+    eqs = _disc.row_equations(cn, [cols])
+    if len(cn):
+        eqs += _disc.partition_equations(cn, ["gene"], "ancestry", "ALL", cols, members=list(ANCESTRY_ORDER))
+    all_row = {g: i for i, g in zip(cn.index, cn["gene"]) if cn.at[i, "ancestry"] == "ALL"} if len(cn) else {}
+    lo, hi = cuts
+    for gene, h in hist.groupby("gene"):
+        bins = [(i, "n_people") for i in h.index]
+        if gene not in all_row:
+            eqs.append(bins)     # sum to the people measured, published in depth_summary_by_region
+            continue
+        a = all_row[gene]
+        eqs.append([(a, "n_people")] + bins)
+        b = h["bin_lo"].astype(float)
+        for col, sel in (("n_0copies", b < lo - 1e-9), ("n_1copy", (b >= lo - 1e-9) & (b < hi - 1e-9)),
+                         ("n_2copies", b >= hi - 1e-9)):
+            eqs.append([(a, col)] + [(i, "n_people") for i in h.index[sel.to_numpy()]])
+    rates = ["pct_0copies", "deletion_allele_freq", "hwe_p"]
+    for c in rates + cols:
+        if c in both.columns:
+            both[c] = both[c].astype(object)
+    both = _disc.suppress_equations(both, eqs, {c: rates for c in cols})
+    return (_disc.drop_raw(both.loc[cn.index, list(cn.columns)]),
+            _disc.drop_raw(both.loc[hist.index, list(hist.columns)]).reset_index(drop=True))
 
 
 # ---------------------------------------------------------------------------
@@ -623,8 +662,27 @@ def main(argv=None):
             dict(metric="min_unique_frac", value=args.min_unique_frac),
             dict(metric="wall_seconds_this_invocation", value=int(time.time() - t0))]
     _disc.write_tsv(pd.DataFrame(run), os.path.join(args.out_dir, "run_summary.tsv"), mode)
+    if mode == _disc.PUBLIC:
+        cross_table_pass(dir58=args.out_dir)
     log(f"done: {measured} people measured; tables in {args.out_dir}")
     return 0
+
+
+def cross_table_pass(**dirs):
+    """PUBLIC: 66_cross_table_suppression over the written tables (sums across tables and the people
+    with no listed ancestry). 66 must sit next to this script (flattened VM deploy included)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "66_cross_table_suppression.py")
+    if not os.path.exists(path):
+        log(f"WARNING: {path} missing -- run 66 on the PUBLIC dir before pulling")
+        return None
+    spec = importlib.util.spec_from_file_location("_cts66", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    res = mod.apply_dir(**dirs)
+    log(f"66 cross-table pass: masked {res['masked']}; leaks left {len(res['leaks'])}")
+    if res["leaks"] or res["inconsistent"]:
+        log("WARNING: cross-table leaks remain -- do not pull before reviewing (66 --check)")
+    return res
 
 
 if __name__ == "__main__":
