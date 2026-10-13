@@ -121,6 +121,7 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 57_yak_trioeval_pilot.py    → yak trioeval/qv on kinship-inferred trios (MHC, class I/II, KIR, chr20 windows); needs ~/envs/yak
 57b_trio_gene_origin.py     → parent of origin per HLA call: same-contig pair phasing truth, Mendelian typing check
 57c_trio_figures.py         → laptop-only; 57/57b figures
+57d_trio_parent_data.py     → parent platform and depth vs 57 switch/hamming and 57b origin calls (Marc 10-13)
 ```
 
 **S05 continued (2026-10-11 →)** (sprint folder `sprints/S05_qc_phasing_kir_trb/`)

@@ -15,7 +15,6 @@ What it does, per trio (the same trios 57 and 57b scored):
   - parents' mix: both_revio / both_sequel2e / mixed_revio_sequel2e / any_sequel2.
 
 Outputs (aggregate PUBLIC, ~/s05/results/57d/):
-  57d_trio_platform_mix.tsv     trios per child platform x parents' mix (counts masked 1-19)
   57d_parent_depth.tsv          parents per platform, median MHC depth
   57d_region_error_vs_parents.tsv  per 57 target x metric: Spearman of per-trio error with the thinner
                                 parent's depth (all trios and within child platform), and a regression
@@ -23,7 +22,10 @@ Outputs (aggregate PUBLIC, ~/s05/results/57d/):
                                 + log2(thinner parent depth) + log2(child depth), with bootstrap 95% CIs
   57d_origin_vs_parents.tsv     57b gene-level: ambiguous-origin share by tertile of the thinner parent's
                                 depth, and whether resolved calls lean towards the deeper parent
-INTERNAL: ~/s05/internal/57d/per_trio.INTERNAL.tsv (one row per trio, never leaves the VM).
+INTERNAL: ~/s05/internal/57d/per_trio.INTERNAL.tsv (one row per trio) and trio_platform_mix.INTERNAL.tsv
+(trios per child platform x parents' mix). The mix table stays internal even though each cell is masked: 57's
+public trio_selection.tsv already gives the trios per child platform, so the exact cells recover the masked
+ones by subtraction. Never leaves the VM.
 """
 import argparse
 import importlib.util
@@ -267,7 +269,7 @@ def main(argv=None):
           f"57b {int((trio['set'] == '57b').sum())} of {len(kids57b)}")
     trio.to_csv(INT + "per_trio.INTERNAL.tsv", sep="\t", index=False)
     w = lambda df, name: C.write_tsv(df, os.path.join(a.out_dir, name))  # noqa: E731
-    w(mix_table(trio), "57d_trio_platform_mix.tsv")
+    mix_table(trio).to_csv(INT + "trio_platform_mix.INTERNAL.tsv", sep="\t", index=False)
     w(parent_depth_table(trio, dep), "57d_parent_depth.tsv")
     w(region_table(per_trio_rates(tr), trio[trio["set"] == "57"], dep), "57d_region_error_vs_parents.tsv")
     w(origin_table(o, trio[trio["set"] == "57b"], dep), "57d_origin_vs_parents.tsv")
