@@ -51,6 +51,16 @@
 <dt>Limits</dt><dd>A record compares two calls, so it cannot say which relative is wrong. The thinner one is the likelier culprit, which is why it is the x axis. Pairs with two or more discordant classical genes are excluded by the haplotype-sharing filter (Part 3), so the people with the most errors are under-represented and the depth effect is, if anything, understated. "Error" also includes real non-sharing from recombination in sibling pairs.</dd>
 </dl><div class="src">Script 67 part A · <code>67_pair_depth_grid.tsv</code></div></figcaption></figure>
 
+<figure class="plate" id="f-67surf"><div class="img"><img data-src="reports/hla_popgen/67_phasing_error_vs_coverage/fig_pair_error_surface.png" alt="Smoothed relative-pair error over both members' gene depth"></div>
+<figcaption><span class="fnum" data-for="f-67surf"></span><span class="ttl">The same view at high resolution: the thinner relative decides</span>
+<dl>
+<dt>Shows</dt><dd>The same 6,040 pair-gene records as <a class="fref" href="#f-67grid"></a>, on a fine grid (steps of 0.05) instead of thirds. At each grid point the colour is the share of nearby records that disagree, where "nearby" is a Gaussian kernel with sd 0.08 in depth units. Dotted contours mark how many records sit under each point, and points resting on fewer than about 100 records are left blank.</dd>
+<dt>Why not dots</dt><dd>One dot per record, coloured by agree/disagree, is individual-level data, so it can only be viewed on the VM (<code>~/s05/internal/67b/pair_scatter.INTERNAL.png</code>). The smoothed surface carries the same pattern without showing any one record.</dd>
+<dt>How to read</dt><dd>Moving right shows the effect of the thinner relative's depth. Moving up a column shows whether a well-covered partner helps. The diagonal is pairs with equal depth.</dd>
+<dt>Meaning</dt><dd><b>The thinner relative's depth sets the error rate, and a deep partner barely helps.</b> With the thinner call at 0.5 of typical depth, about 13% of records disagree. At 0.6 it is about 8–9%, at 0.75 about 4–6% and at 0.9 about 2–3%. Once both relatives are above about 1.1 it is under 1%. Up a column the colour barely changes: at a thinner depth of 0.6, the rate is 9.6% with a partner at 0.8 and 8.1% with a partner at 1.2. The fall is steepest between 0.5 and 0.9, which supports a flag near 0.75.</dd>
+<dt>Limits</dt><dd>Smoothing borrows from neighbours, so sharp steps are blurred. The edges of the coloured area rest on few records; the slight rise at the very top rests on about 100–200. Depth is scaled to the platform median at each gene, as in the grid. The data, filter and caveats are those of <a class="fref" href="#f-67grid"></a>.</dd>
+</dl><div class="src">Script 67b · <code>67_phasing_error_vs_coverage/67b_pair_error_surface.tsv</code></div></figcaption></figure>
+
 <figure class="plate" id="f-67dec"><div class="img svg"><!--SVG:67_pair_deciles--></div>
 <figcaption><span class="fnum" data-for="f-67dec"></span><span class="ttl">The errors sit in the thinnest fifth of calls</span>
 <dl>

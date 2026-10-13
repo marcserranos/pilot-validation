@@ -948,3 +948,7 @@ recorded as having no notes in `sprints/_calls/README.md`.
   46% at 1.0% vs score ≥ 6 36% at 1.2%. Within-gene distance percentile dropped (ties at 0 empty the low thresholds).
   Neighbouring-row differencing guard added (score 1 and distance 3 rows dropped); the same score 0→1 step is already in
   56b's public refined_sweep.tsv (flagged in DECISIONS).
+- **67b** pair-error surface (main 6607b5e, ~1 min; 6,042 pair-gene records): kernel sd 0.08 on a 0.05 grid, 243 of 496
+  points shown (>= 100 effective records). Thinner relative at 0.5 of typical depth ~13% disagreement, 0.6 ~8-9%, 0.75 ~4-6%,
+  0.9 ~2-3%, both > 1.1 < 1%; partner depth changes little. Point scatter drawn on the VM only
+  (~/s05/internal/67b/pair_scatter.INTERNAL.png) for Marc.

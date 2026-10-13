@@ -138,6 +138,7 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 65c_65b_summary.py          → 65b assembly-vs-reads validation, rates only: completion, failures, concordance (cuts and mixture), HWE by caller
 66_cross_table_suppression.py → laptop (and called by 58/65 at the end of a PUBLIC run): complementary <20* masking across committed PUBLIC tables (cross-table sums, waterfall steps, unlisted-ancestry residuals); `--check` audits
 67_phasing_error_vs_coverage.py → typing (relative pairs, trios) and phasing-switch error vs per-gene depth; switch topology along the MHC; prune curve vs random removal
+67b_pair_error_surface.py   → high-res smoothed pair error over both relatives' gene depth; scatter VM-only (Marc 10-13)
 68_rnaseq_composition.py    → AoU blood RNA-seq composition: DRAGEN + RNA-SeQC 2 QC distributions and TPM share by gene family (cohort quantiles only)
 ```
 
