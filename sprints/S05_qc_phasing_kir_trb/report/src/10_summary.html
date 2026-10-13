@@ -40,7 +40,7 @@
 <li><b>KIR haplotype claims only on complete haplotypes</b> (75%), with gene presence also reported from any contig as a check. Recommended: yes. <i>If no:</i> broken contigs pass for absent genes.</li>
 <li><b>Physical-haplotype rule.</b> DQ, DR–DQ, DP and B~C may be used from one contig. A~B and A~C need statistical phasing or trios. DQ–DP is flagged. Recommended: yes. Cole's units (62) already follow it.</li>
 <li><b>No coverage filter.</b> Accept that depth is a structure marker, not a usable QC cut. Recommended: yes.</li>
-<li><b>TRB genotyper.</b> Switch from fixed cuts to the new mixture model, which allows for the read-capture bias, once 65b checks it against assemblies. Recommended: yes.</li>
+<li><b>TRB genotyper.</b> Switch from fixed cuts to the new mixture model, which allows for the read-capture bias, once 65b checks it against assemblies. On the full cohort it leaves the 0-copy rates unchanged and removes the heterozygote deficit everywhere except AFR (and SAS, untestable in the public table). Recommended: yes.</li>
 <li><b>Long jobs</b> (Sequel II re-call, full ASE, genome-wide trio phasing). They are planned and costed in <a href="#plans">Long jobs</a>, for you to discuss. None was run.</li>
 <li><b>Small allele counts.</b> Counts of distinct allele sequences below 20 (for example "4 candidates") count alleles, not people, so they are shown exactly. Decide whether to mask them in published figures.</li>
 </ol>

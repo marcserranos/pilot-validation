@@ -680,8 +680,11 @@ def cross_table_pass(**dirs):
     spec.loader.exec_module(mod)
     res = mod.apply_dir(**dirs)
     log(f"66 cross-table pass: masked {res['masked']}; leaks left {len(res['leaks'])}")
-    if res["leaks"] or res["inconsistent"]:
+    if res["leaks"]:
         log("WARNING: cross-table leaks remain -- do not pull before reviewing (66 --check)")
+    if res["inconsistent"]:
+        log(f"WARNING: {len(res['inconsistent'])} cross-table equations do not hold (66's model of these "
+            "tables is off, not a leak) -- review with 66 --check -v before pulling")
     return res
 
 

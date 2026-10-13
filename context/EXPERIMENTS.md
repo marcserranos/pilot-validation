@@ -916,3 +916,11 @@ recorded as having no notes in `sprints/_calls/README.md`.
   ≥ 0.8 added (PR #29). Second smoke pending (VM hung with "Bad Gateway" ~21:50 UTC; restart with 2 workers OK'd by Marc).
 - **External review** (methods, numbers, readability): corrections integrated into the S05 report and code; cross-table
   small-count leaks re-masked in committed PUBLIC tables (see DECISIONS open item on git history).
+
+## 2026-10-13 — S05 VM follow-ups (detail: `sprints/S05_qc_phasing_kir_trb/LOG.md`)
+
+- **63** second Sequel II smoke (2 people, stage-1 identity ≥ 0.8): PASS. 4/4 person-locus jobs, 8/8 haplotypes confirmed in
+  stage 2; HLA candidates 4.2–6.1 MB, KIR ~1.8 MB; 0.70 h total, ~19–23 min/person. Re-call estimate now ~350 h for 991
+  people (was ~660 h). Peak memory not recorded.
+- **65b** assembly concordance: overnight storage stall (27 timeouts 01:29–07:48 UTC); VM restarted ~08:17; 673/2,000 done at
+  08:23 UTC, resumed with 2 workers and retries. Graceful stop at 11:00 UTC 10-13 (Marc; first set at 17:21, moved to 13:00 CEST).
