@@ -728,6 +728,35 @@ class TestStratifiedAndCompare(unittest.TestCase):
         self.assertTrue(all(x in ("0", "<20") for x in offdiag))
         self.assertFalse(any(p in open(os.path.join(out, "65b_method_concordance.tsv")).read() for p in ids))
 
+    def test_compare_rederives_reads_copies(self):
+        tmp = tempfile.mkdtemp()
+        ids = [str(5_000_000 + i) for i in range(60)]
+        coh = pd.DataFrame(dict(person_id=ids, ancestry_pred="eur", platform="revio", in_lr=True))
+        cpath = os.path.join(tmp, "cohort.tsv")
+        coh.to_csv(cpath, sep="\t", index=False)
+        # 20 people at each of af 0.0, 0.85 (stored as 2 copies under cuts 0.2,0.8) and 1.0; assembly
+        # says 0 / 1 / 2. Stored and re-derived cuts agree with each other; cuts 0.2,0.9 move the 0.85s to 1.
+        rows_r, rows_a = [], []
+        for i, p in enumerate(ids):
+            k = i // 20
+            ni = (0, 17, 20)[k]
+            rows_r.append(tg._row(tg.GENE_COLS, person_id=p, feature="TRBV4-3", copies=(0, 2, 2)[k],
+                                  status="ok", n_ins=ni, n_ref=20 - ni))
+            rows_a.append(tg._row(tg.GENE_COLS, person_id=p, feature="TRBV4-3", copies=k, status="ok"))
+        rp, apath = os.path.join(tmp, "r.tsv"), os.path.join(tmp, "a.tsv")
+        pd.DataFrame(rows_r).to_csv(rp, sep="\t", index=False)
+        pd.DataFrame(rows_a).to_csv(apath, sep="\t", index=False)
+
+        def conc(*extra):
+            out = os.path.join(tmp, "o" + "_".join(extra).replace(",", "").replace("-", ""))
+            tg.main(["--compare", rp, apath, "--cohort", cpath, "--out-dir", out] + list(extra))
+            t = pd.read_csv(os.path.join(out, "65b_method_concordance.tsv"), sep="\t", dtype=str,
+                            keep_default_na=False)
+            return t[t["stratum"] == "ALL"].iloc[0]["n_concordant"]
+        self.assertEqual(conc(), "40")
+        self.assertEqual(conc("--compare-genotyper", "cuts"), "40")
+        self.assertEqual(conc("--compare-genotyper", "cuts", "--af-cuts", "0.2,0.9"), "60")
+
 
 if __name__ == "__main__":
     unittest.main()
