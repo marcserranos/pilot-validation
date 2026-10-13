@@ -75,7 +75,8 @@ ORIGIN57B = os.path.expanduser("~/s05/internal/57b/gene_origin.INTERNAL.tsv")
 REGIONS_BED = os.path.join(HERE, "..", "..", "reports", "hla_popgen", "58_regional_depth", "regions.bed")
 TARGET_WINDOW = {"MHC": "window_MHC", "MHC_classI_A_to_B": "window_MHC", "MHC_classII_DR_DQ": "window_MHC",
                  "KIR": "window_KIR", "chr20_control": None}
-PRUNE_PCT = [0, 0.5, 1, 2, 5, 10, 15, 20, 30]
+PRUNE_PCT = [0, 1, 2, 5, 10, 15, 20, 30]   # >= 1% steps, rates to 1 decimal: differencing
+# neighbouring rows cannot pin the events among the people removed between two steps
 PRUNE_OUTCOMES = ["kir_incomplete", "kir_fw_missing", "hla_absent", "hla_hap_empty", "dq_split",
                   "mhc_fragmented"]
 MIN = 20
@@ -98,6 +99,13 @@ def rate(k, n, digits=1):
         return "", "", ""
     p, lo, hi = C.wilson(k, n)
     return f"{100*p:.{digits}f}", f"{100*lo:.{digits}f}", f"{100*hi:.{digits}f}"
+
+
+def read_int(path, **kw):
+    """INTERNAL tables may start with a '# INTERNAL ...' banner line; skip it."""
+    with open(path) as f:
+        first = f.readline()
+    return pd.read_csv(path, sep="\t", skiprows=1 if first.startswith("#") else 0, **kw)
 
 
 # --------------------------------------------------------------------------- depth
@@ -124,8 +132,14 @@ def logit_or(x, y, covars=None):
     X = [np.ones(len(x)), -10.0 * np.asarray(x, float)]
     if covars is not None:
         for c in covars.columns:
-            dm = pd.get_dummies(covars[c].astype(str), drop_first=True)
-            X += [dm[k].to_numpy(float) for k in dm.columns]
+            v = pd.to_numeric(covars[c], errors="coerce")
+            if v.notna().all():
+                X.append(v.to_numpy(float))
+            else:   # categorical: dummies only for levels with >= MIN events, others pooled in the reference
+                y_ = pd.Series(np.asarray(y, float), index=covars.index)
+                ev = y_.groupby(covars[c].astype(str)).sum()
+                for lev in sorted(ev[ev >= MIN].index)[1:]:
+                    X.append((covars[c].astype(str) == lev).to_numpy(float))
     X = np.column_stack(X)
     b, s, conv, how = m59.fit_logit(X, np.asarray(y, float))
     if not np.isfinite(b[1]):
@@ -342,7 +356,7 @@ def prune_curve(pp, metrics, pair_rec=None, trio_rec=None, everyone=None, draws=
                 if o not in pp:
                     continue
                 y = pd.to_numeric(kept[o], errors="coerce").dropna()
-                row[f"{o}_pct"] = rate(int(y.sum()), len(y), 2)[0]
+                row[f"{o}_pct"] = rate(int(y.sum()), len(y), 1)[0]
                 # random null: same number removed at random
                 if k:
                     vals = []
@@ -350,7 +364,7 @@ def prune_curve(pp, metrics, pair_rec=None, trio_rec=None, everyone=None, draws=
                         idx = rng.choice(pp.index.to_numpy(), size=k, replace=False)
                         yy = pd.to_numeric(pp.loc[~pp.index.isin(set(idx)), o], errors="coerce").dropna()
                         vals.append(100.0 * yy.mean())
-                    row[f"{o}_pct_random"] = f"{np.mean(vals):.2f}"
+                    row[f"{o}_pct_random"] = f"{np.mean(vals):.1f}"
                 else:
                     row[f"{o}_pct_random"] = row[f"{o}_pct"]
             for a in C.ANCESTRY_ORDER:
@@ -367,11 +381,11 @@ def prune_curve(pp, metrics, pair_rec=None, trio_rec=None, everyone=None, draws=
                 if pair_rec is not None and len(pair_rec):
                     pr = pair_rec[~pair_rec["i"].isin(bad_ids) & ~pair_rec["j"].isin(bad_ids)]
                     row["pair_records_kept"] = rnd(len(pr))
-                    row["pair_error_pct"] = rate(int(pr["bad"].sum()), len(pr), 2)[0]
+                    row["pair_error_pct"] = rate(int(pr["bad"].sum()), len(pr), 1)[0]
                 if trio_rec is not None and len(trio_rec):
                     tr = trio_rec[~trio_rec["child"].isin(bad_ids) & ~trio_rec["parent"].isin(bad_ids)]
                     row["trio_calls_kept"] = rnd(len(tr))
-                    row["trio_mendel_error_pct"] = rate(int(tr["bad"].sum()), len(tr), 2)[0]
+                    row["trio_mendel_error_pct"] = rate(int(tr["bad"].sum()), len(tr), 1)[0]
             rows.append(row)
     return pd.DataFrame(rows)
 
@@ -391,7 +405,7 @@ def main(argv=None):
     plat = dict(zip(cohort["person_id"], cohort["platform"]))
     anc = dict(zip(cohort["person_id"], cohort["ancestry_pred"]))
     C.log("loading 58 depth")
-    dep = gene_depth_index(pd.read_csv(DEPTH58, sep="\t", dtype={"person_id": str}), plat)
+    dep = gene_depth_index(read_int(DEPTH58, dtype={"person_id": str}), plat)
     C.TABLE1_USECOLS = C.TABLE1_USECOLS + ["n_tied"]
     t1 = C.load_table1(C.DEFAULT_TABLE1)
     calls = B.prepare(t1, plat)
@@ -413,13 +427,13 @@ def main(argv=None):
         rows = []
         for xcol in ("dep_lo", "dep_hi"):
             for name, d in (("all_scores", pair_rec), ("score_ge_6", pair_rec[pair_rec["score"] >= 6])):
-                r = logit_or(d[xcol].clip(upper=2.0), d["bad"], d[["gene", "score"]])
+                r = logit_or(d[xcol].clip(upper=2.0), d["bad"], d[["score"]])
                 rows.append({"depth": xcol, "subset": name, "n_records": rnd(len(d)), **r})
         w(pd.DataFrame(rows), "67_pair_logit.tsv")
 
     o = None
     if set("BCD") & set(a.parts) and os.path.exists(ORIGIN57B):
-        o = pd.read_csv(ORIGIN57B, sep="\t", dtype={"child": str, "contig": str})
+        o = read_int(ORIGIN57B, dtype={"child": str, "contig": str})
         T = _load("t57", "57_yak_trioeval_pilot.py")
         lr = set(cohort.loc[cohort["in_lr"].astype(str).str.lower() == "true", "person_id"])
         kids = set(o["child"])
@@ -444,7 +458,7 @@ def main(argv=None):
 
     if "C" in a.parts:
         if os.path.exists(TRIO57):
-            tr = pd.read_csv(TRIO57, sep="\t", dtype={"child": str})
+            tr = read_int(TRIO57, dtype={"child": str})
             w(switch_vs_depth(tr, dep), "67_switch_vs_depth.tsv")
         if o is not None:
             pos = gene_hg38_mid(REGIONS_BED)
@@ -453,7 +467,7 @@ def main(argv=None):
             w(topology_table(iv, dep, nctg), "67_switch_topology.tsv")
 
     if "D" in a.parts:
-        everyone = pd.read_csv(PP59, sep="\t", dtype={"person_id": str})
+        everyone = read_int(PP59, dtype={"person_id": str})
         pp = everyone
         keep = C.greedy_unrelated(pp["person_id"], C.load_relatedness_pairs(C.DEFAULT_RELATEDNESS))
         pp = pp[pp["person_id"].isin(keep)].reset_index(drop=True)

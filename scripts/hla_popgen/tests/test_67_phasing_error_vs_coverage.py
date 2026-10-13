@@ -81,7 +81,7 @@ class T(unittest.TestCase):
                            "ancestry": ["AFR"] * n, "platform": ["revio"] * n})
         out = m.prune_curve(pp, [("MHC", "norm_window_MHC_q0", False)], everyone=pp, draws=3)
         row10 = out[out["prune_pct"] == 10].iloc[0]
-        self.assertEqual(row10["hla_absent_pct"], "0.00")     # the 40 events were the 40 lowest-depth people
+        self.assertEqual(row10["hla_absent_pct"], "0.0")     # the 40 events were the 40 lowest-depth people
         self.assertGreater(float(row10["hla_absent_pct_random"]), 5)
 
 
