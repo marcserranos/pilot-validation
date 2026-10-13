@@ -49,12 +49,6 @@
   insertion reads only a ~0.3 kb probe), so heterozygotes sit at AF ≈ 0.63 and the fixed 0.8 cut calls many of them 2-copy.
   Proposed: `--genotyper mixture` (3-group binomial EM per feature × platform, posterior ≥ 0.9) once 65b confirms it against
   assemblies; quote AFR/SAS 0-copy rates with no-call bounds until then. Needs Marc.
-- **(S05, 2026-10-13) Publishing the TRB mixture tables.** The mixture PUBLIC tables pass 66 on their own, but they cover the
-  same people as the committed cuts tables, so cuts minus mixture gives small counts (people that changed call or became
-  ambiguous, by ancestry); mixture all minus unrelated gives related-people counts, as for cuts. Options: (A) commit the
-  unrelated mixture tables and list the residual; (B) commit only `af_mixture_fit` + `run_summary`, rounded rates in the report;
-  (C) replace the cuts tables with mixture so one genotyper is published. Proposed: B now, C once 65b settles the genotyper.
-  Same choice applies to the 65b concordance tables. Report and LOG use rounded mixture values meanwhile. Needs Marc.
 - **(S05, 2026-10-12) Long jobs (> 1 day) are planned and costed, not run, this sprint** (Marc, 2026-10-12). Sequel II re-call
   (63) options and costs are in the S05 report `#plans`. After the 10-13 smoke test (~21 min/person): ~350 h, ~$130 on the
   current VM (~15 one-day batches) to ~$130–260 on n2-highmem-80 (1–2 batches). Needs Marc + supervisors.
@@ -89,6 +83,12 @@
 
 ## Resolved decisions
 
+- **(S05, 2026-10-13) Publishing the TRB mixture tables.** The mixture PUBLIC tables pass 66 on their own, but they cover the
+  same people as the committed cuts tables, so cuts minus mixture gives small counts (people that changed call or became
+  ambiguous, by ancestry); mixture all minus unrelated gives related-people counts, as for cuts. Options: (A) commit the
+  unrelated mixture tables and list the residual; (B) commit only `af_mixture_fit` + `run_summary`, rounded rates in the report;
+  (C) replace the cuts tables with mixture so one genotyper is published. Proposed: B now, C once 65b settles the genotyper.
+  Same choice applies to the 65b concordance tables. Report and LOG use rounded mixture values meanwhile. **Decided (Marc, 2026-10-13): B, summary only.** Publish only `af_mixture_fit` + `run_summary` (unrelated); 65b concordance likewise summary-level only. Revisit C once 65b picks the final genotyper.
 - **Concurrency vs. threads-per-person split for the production Immuannot run (2026-08-04).** At a fixed total core budget, the split between "more people at once, fewer threads each" and "fewer people, more threads each" does NOT meaningfully affect throughput — real `scaling_probe.py` data on a 32-core test VM showed 32×1, 16×2, and 8×4 all landing within ~2% of each other (82.0-83.6 people/hour). It DOES affect memory: 32×1 peaked at 93% of 32GB vs. 8×4's 50%, for identical speed. **Decision: use a moderate split (concurrency roughly 1/4 of total cores, threads_per_person=4) for the production run** — same speed as maxing out concurrency, meaningfully lower OOM risk, and it reuses the exact `--threads 4` setting Experiment F's 60-person pilot already validated as reliable (median 6.9 min/person there; ~5.0 min/person in this session's 8×4 test — consistent). Full data: `context/EXPERIMENTS.md` (2026-08-03/04 entry). **Caveat: not tested beyond a 32-core budget** — the extrapolation to a 96-core production machine assumes the flat-throughput relationship continues, not confirmed at that scale.
   - **VM machine-type: COMMITTED 2026-08-04 — `n2-highcpu-96`** (96 vCPU, 96GB RAM at the standard 1GB/vCPU highcpu ratio), region `us-central1` (matches the Stanford-pod workspace's region policy, already proven working for mount/bucket access this session). Rough extrapolation from the 32-core data (~83 people/hr per 32 cores, linear, not confirmed above 32 cores): ~249 people/hr at 96 cores → 13,000-14,521 people in **~52-58 hours wall-clock**. Cost estimate ~$160-200 (N2 base rate ~$0.0316/vCPU-hr per this project's own earlier research → ~$3.03/hr at 96 vCPU; **confirm the live rate in the Workbench UI when the VM is actually created**, this is an estimate, not a quoted price) — comfortably inside the $300 cap. GPU confirmed a mismatch (no GPU code path in minimap2/Immuannot); High-Mem tier confirmed unnecessary (memory was never the binding constraint once the concurrency split below is used).
   - **Production concurrency config: COMMITTED 2026-08-04 — 24 people concurrently, 4 threads each (24×4 = 96 total cores).** Direct application of the resolved concurrency-split finding above, scaled from the tested 8×4-at-32-cores config to the full 96-core machine.
