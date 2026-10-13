@@ -340,3 +340,24 @@ EAS 0.88, SAS 0.83, EUR 0.80, MID 0.73, AMR 0.70.
   separable at this depth. Without TRBV4-3 (panel e) the two clusters disappear; PC1 11.6%,
   ancestry eta2 0.11; ancestries overlap with modest centre shifts. TRBV12-4 caveat: near-
   identical to TRBV12-3, so absence could be call assignment rather than germline.
+
+## 2026-10-12 — W2 disease labels (11) and W4 association (13), run_disease.sh
+
+analysis_main 6,764; 5,557 with >= 1 ICD row (92.0% of condition rows ICD-coded). 33 diseases:
+15 classify (hyperlipidaemia 2,233, hypertension 2,166, obesity 1,186, T2D 1,059, allergic
+rhinitis 892, asthma 782, CAD 778, hypothyroidism 704, CKD 475, heart failure 373, AF 337,
+COPD 326, stroke 214, PAD 201, urticaria 188); 12 associate-only (psoriasis 144, atopic
+dermatitis 143, RA 128, hepatitis B/C 128, thyrotoxicosis 127, lymphoid 118, T1D 104, HIV 76,
+UC 60, SLE 59, Sjogren 58, Crohn 57); 4 describe (Parkinson 47, MS 43, alopecia 34, vitiligo
+31); coeliac and AS < 20. W3 features: 8,376,889 clonotypes, SCEPTR vector for 98.9%, 7,993
+3-mers over 6.06 M unique CDR3s; 7 min.
+W4 (measure ~ case + age + age^2 + sex + PC1-10 + log reads; HC3; BH / Bonferroni):
+- **HIV** strongest on every measure (richness -0.87 SD, Shannon at depth -0.74, top-10 share
+  +0.66), Bonferroni, robust to utilisation adjustment. Positive control.
+- **Heart failure** (373): top-10 share +0.32 SD, Shannon at depth -0.32, raw Shannon -0.27,
+  richness -0.26 (all Bonferroni); utilisation-adjusted q 0.002-0.013. Fixed-depth effect >=
+  raw: not a depth artefact. Expansion pattern.
+- Hypertension (top-10 +0.13, Shannon -0.12) and T2D (top-10 +0.15) Bonferroni in the main
+  model, q ~ 0.04-0.07 after utilisation adjustment. Obesity, CKD, CAD BH-nominal only, lose
+  significance after utilisation adjustment. No autoimmune disease significant.
+- Caveat: no CMV serostatus (expansion driver, linked to CVD); cross-sectional.
