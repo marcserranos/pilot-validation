@@ -118,6 +118,7 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 56_phasing_typing_benchmark.py → twins / first-degree relatives: typing + haplotype transmission, confidence-score sweep
 56b_relative_pair_refinement.py → de-confounded 56 (MHC-sharing pairs; both relatives same-contig)
 56c_benchmark_figures.py    → laptop-only; 56/56b figures
+56d_score_vs_template_distance.py → 7-point score vs template distance alone, error at matched retention (Marc 10-13)
 57_yak_trioeval_pilot.py    → yak trioeval/qv on kinship-inferred trios (MHC, class I/II, KIR, chr20 windows); needs ~/envs/yak
 57b_trio_gene_origin.py     → parent of origin per HLA call: same-contig pair phasing truth, Mendelian typing check
 57c_trio_figures.py         → laptop-only; 57/57b figures
