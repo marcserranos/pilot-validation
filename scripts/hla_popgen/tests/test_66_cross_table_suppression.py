@@ -91,6 +91,23 @@ class TestSolver(unittest.TestCase):
         P.sum_eq(P.k(T, 0, "n"), [P.k(T, 1, "n"), P.k(T, 2, "n")])
         self.assertTrue(P.analyse()[1])
 
+    def test_mixture_called_any_feature_is_not_an_equation(self):
+        """Mixture genotyper: people called on any feature can exceed insertion_any n_called (a person can be
+        ambiguous on one feature only), so run_summary must not be tied to genotype_by_stratum."""
+        import shutil
+        src = os.path.join(cts.R, "65_trb_assembly_genotype", "reads_unrelated")
+        d = os.path.join(self.tmp, "mix")
+        shutil.copytree(src, d)
+        p = os.path.join(d, "run_summary.tsv")
+        rows = [ln.rstrip("\n").split("\t") for ln in open(p)]
+        for r in rows:
+            if r[0] == "people_called_any_feature":
+                r[1] = str(int(r[1]) + 21)
+        rows.append(["genotyper", "mixture"])
+        write(d, "run_summary.tsv", rows)
+        _leaks, inconsistent = cts.build(dir65=d).analyse()
+        self.assertEqual([lab for lab, _b in inconsistent if "run_summary" in lab], [])
+
     def test_chained_tables_need_two_rounds(self):
         """Masking one cell can open a second leak elsewhere; the solver iterates until stable."""
         t = write(self.tmp, "t.tsv", [["k", "x", "y"], ["tot", 100, 300], ["a", "<20", 200], ["b", 95, 100]])

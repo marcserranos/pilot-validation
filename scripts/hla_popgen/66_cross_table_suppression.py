@@ -473,9 +473,11 @@ def spec_65(P, d, tag="65"):
     if RS:
         rs = {RS.get(r, "metric"): r for r in range(len(RS))}
         P.protect(RS, range(len(RS)), ["value"])
+        # people_called_any_feature = insertion_any n_called only under the cuts rule: the mixture
+        # genotyper can leave a person ambiguous on one feature and call them on another.
         for metric, feat, col in (("people_called_any_feature", "insertion_any", "n_called"),
                                   ("people_genotyped", None, "n_people_measured")):
-            if metric not in rs:
+            if metric not in rs or (metric == "people_called_any_feature" and not cuts_rule):
                 continue
             for f in ([feat] if feat else feats):
                 a = G.where(feature=f, stratum_type="ancestry", stratum="ALL")

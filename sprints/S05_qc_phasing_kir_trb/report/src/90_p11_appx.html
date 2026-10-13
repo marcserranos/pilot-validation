@@ -27,9 +27,9 @@
 
 <h3>Other open items</h3>
 <ul>
-<li><b>65:</b> mixture-genotyper re-aggregation, then the 65b concordance by ancestry (decides the AFR/SAS question).</li>
+<li><b>65:</b> the 65b concordance by ancestry (decides the AFR/SAS question). The mixture re-aggregation is done on the VM; its PUBLIC tables are not pulled yet.</li>
 <li><b>60:</b> blocked on Aleix's usage table.</li>
-<li><b>63:</b> second smoke test, then the 20-person Revio comparison, then the resize decision.</li>
+<li><b>63:</b> the 20-person Revio comparison (with peak memory), then the resize decision. The smoke test has passed.</li>
 <li><b>64:</b>
 <ul>
 <li>homopolymer readout rerun;</li>
@@ -66,9 +66,9 @@
 <tr><td>60</td><td>TRBV copies vs never used, per person</td><td>65 copies; chance-zero filter (1−p)<sup>N</sup> &lt; 0.01</td><td>—</td><td><span class="tag block">blocked</span></td></tr>
 <tr><td>61</td><td>KIR by ancestry on complete haplotypes</td><td>11,882 unrelated; protein-field alleles; names only with ≥ 20 haplotypes</td><td><code>61_kir_by_ancestry_panel/vm_2026-10-12/</code></td><td><span class="tag done">done</span></td></tr>
 <tr><td>62</td><td>Phased class II units for fine-mapping</td><td>Trio evidence rule; 100 kb spacing flag; 59 coverage flag</td><td>summaries only; per-person table INTERNAL on the VM</td><td><span class="tag done">done</span></td></tr>
-<tr><td>63</td><td>Call the 991 Sequel II people</td><td>Two-stage self-align; stage-1 identity ≥ 0.8; MAPQ ≥ 20; 25 MB guard</td><td>—</td><td><span class="tag block">second smoke test pending</span></td></tr>
+<tr><td>63</td><td>Call the 991 Sequel II people</td><td>Two-stage self-align; stage-1 identity ≥ 0.8; MAPQ ≥ 20; 25 MB guard</td><td>—</td><td><span class="tag done">smoke test passed</span>; Revio comparison next</td></tr>
 <tr><td>64</td><td>Novel alleles vs IPD 3.65.0 and HiFi reads</td><td>≤ 5 carriers/key; supported ≥ 3 reads and ≥ 0.7; contradicted ≤ 0.15; hp readout now haplotype-assigned reads only</td><td><code>64_novel_allele_validation/tables/</code></td><td><span class="tag done">done</span>; hp rerun pending</td></tr>
-<tr><td>65</td><td>TRB insertion genotype</td><td>Breakpoint ± 1 kb; ≥ 6 reads; genotyper <code>cuts</code> (0.2/0.8) or <code>mixture</code> (3-group binomial EM, posterior ≥ 0.9)</td><td><code>65_trb_assembly_genotype/reads_*/</code></td><td><span class="tag done">reads done</span>; 65b running</td></tr>
+<tr><td>65</td><td>TRB insertion genotype</td><td>Breakpoint ± 1 kb; ≥ 6 reads; genotyper <code>cuts</code> (0.2/0.8) or <code>mixture</code> (3-group binomial EM, posterior ≥ 0.9)</td><td><code>65_trb_assembly_genotype/reads_*/</code></td><td><span class="tag done">reads done</span>; 65b running until 13 Oct 11:00 UTC</td></tr>
 <tr><td>58b</td><td>Figures for 58 and 64</td><td>Committed PUBLIC tables only</td><td>the figures above</td><td><span class="tag done">done</span></td></tr>
 </table></div>
 </section>
