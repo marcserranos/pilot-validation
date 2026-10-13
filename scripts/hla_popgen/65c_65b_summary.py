@@ -15,12 +15,12 @@ Inputs (INTERNAL, VM only)
 Outputs (PUBLIC, --out-dir)
   65c_completion.tsv   per stratum: sampled (rounded), % genotyped, % haplotypes complete, % TRBV4-3 called
   65c_failures.tsv     per failure reason: people (rounded / '<20'), ever-failed and still-failed
-  65c_concordance.tsv  per reads genotyper (stored, cuts, mixture) x feature x stratum: n both called
+  65c_concordance.tsv  per reads genotyper (cuts, mixture) x feature x stratum: n both called
                        (rounded), % concordant + Wilson CI, and per copy number c: % of reads-c calls the
                        assembly also calls c (ppv_c) and % of assembly-c calls the reads also call c (sens_c)
   65c_hwe.tsv          per caller (assembly, reads_cuts, reads_mixture) on the same people (called by all
-                       three) x feature x ancestry: n (rounded), insertion AF, % 0 copies, observed and
-                       HWE-expected % heterozygotes, ratio, HWE exact p
+                       three) x feature x ancestry: n (rounded), insertion AF (2 dp), % 0 copies, observed
+                       and HWE-expected % heterozygotes (whole %), ratio (2 dp), HWE exact p (2 sf)
 
 VM:
     cd ~/repos/<checkout>/scripts/hla_popgen
@@ -136,9 +136,11 @@ def hwe_rows(calls, people, caller):
             else:
                 p = (c1 + 2 * c2) / (2.0 * n)
                 exp = 2 * p * (1 - p)
-                row.update(insertion_af=round(p, 3), pct_0copies=round(100.0 * c0 / n, 1),
-                           pct_het_obs=round(100.0 * c1 / n, 1), pct_het_exp=round(100 * exp, 1),
-                           het_obs_exp_ratio=round(c1 / n / exp, 3) if exp > 0 else "",
+                # coarse rounding: the three callers cover the same people, so fine rates would give
+                # the (small) number of people whose call differs between callers by subtraction
+                row.update(insertion_af=round(p, 2), pct_0copies=int(round(100.0 * c0 / n)),
+                           pct_het_obs=int(round(100.0 * c1 / n)), pct_het_exp=int(round(100 * exp)),
+                           het_obs_exp_ratio=round(c1 / n / exp, 2) if exp > 0 else "",
                            hwe_p=float(f"{tg.hwe_exact_p(c0, c1, c2):.2g}"))
             rows.append(row)
     return rows
@@ -168,8 +170,7 @@ def main(argv=None):
 
     reads = tg._read(args.reads_gene, tg.GENE_COLS).drop_duplicates(["person_id", "feature"], keep="last")
     cuts = tuple(float(x) for x in args.af_cuts.split(","))
-    reads_by = {"stored": reads,
-                "cuts": tg.rederive_reads_calls(reads, args.min_reads, cuts),
+    reads_by = {"cuts": tg.rederive_reads_calls(reads, args.min_reads, cuts),
                 "mixture": tg.mixture_reads_calls(reads, people, args.min_reads)[0]}
     asm_ok = ok_copies(asm_gene)
     asm_ok = asm_ok[asm_ok["feature"].isin(FEATURES)]

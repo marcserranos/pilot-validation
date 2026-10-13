@@ -58,7 +58,7 @@ class Test65c(unittest.TestCase):
         f = rd("65c_failures.tsv").iloc[0]
         self.assertEqual((f["n_people_ever_failed"], f["n_people_still_failed"]), ("20", "<20"))
         c = rd("65c_concordance.tsv")
-        a = c[(c["reads_genotyper"] == "stored") & (c["feature"] == "TRBV4-3") & (c["stratum"] == "ALL")].iloc[0]
+        a = c[(c["reads_genotyper"] == "cuts") & (c["feature"] == "TRBV4-3") & (c["stratum"] == "ALL")].iloc[0]
         self.assertEqual(a["n_both_called"], "150")
         self.assertEqual(a["pct_concordant"], "96.7")
         h = rd("65c_hwe.tsv")
