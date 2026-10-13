@@ -49,7 +49,7 @@ The score is 0–7, and a claim can then use only calls at or above a threshold.
 <dl>
 <dt>Shows</dt><dd>Left: % of relative-pair genes with no shared allele (a typing error in at least one relative), keeping only calls with score ≥ the threshold. Right: % of pair-genes retained at each threshold.</dd>
 <dt>How to read</dt><dd>The line falls steadily, so the score tracks real errors. The bars show the price in data. The knee is at score ≥ 4.</dd>
-<dt>Meaning</dt><dd>4.09% at score 0 (n = 6,455) falls to 2.02% at ≥ 4 (91% retained) and 1.15% at ≥ 6 (36% retained). <b>Score ≥ 4 is the candidate default.</b> Per gene at score 0, MICA (12.3%) and DRB3 (13.3%) are the weakest. At ≥ 6, the masked per-gene counts are all small.</dd>
+<dt>Meaning</dt><dd>4.09% at score 0 (n = 6,455) falls to 2.02% at ≥ 4 (91% retained) and 1.15% at ≥ 6 (36% retained). Score 7 (all seven points) is almost never reached: 40 pair-genes (0.6%), with 0 errors, so its interval runs from 0 to 8.8% and says little; that point is drawn hollow. Both calls of a pair must score 7, which is why so few reach it. <b>Score ≥ 4 is the candidate default.</b> Per gene at score 0, MICA (12.3%) and DRB3 (13.3%) are the weakest. At ≥ 6, the masked per-gene counts are all small.</dd>
 <dt>Limits</dt><dd>"No shared allele" catches only errors that break sharing, so these are lower bounds. The pair filter biases them down a little (see the data trail).</dd>
 </dl><div class="src">Scripts 56b, 56c · <code>refined_sweep.tsv</code></div></figcaption></figure>
 

@@ -48,26 +48,34 @@ def row(sw, check, item, ms):
 
 def fig_sweep_typing():
     sw = sweep()
-    xs = list(range(0, 7))
+    xs = list(range(0, 8))  # score 7 = all seven points; very few pair-genes reach it
     rows = [row(sw, "gene_nonsharing", "ALL", t) for t in xs]
     pct = np.array([num(r.pct) for r in rows])
     lo = np.array([num(r.lo) for r in rows])
     hi = np.array([num(r.hi) for r in rows])
     n = np.array([num(r.n) for r in rows])
     fig, (a, b) = plt.subplots(1, 2, figsize=(8.2, 3.2), gridspec_kw={"width_ratios": [1.35, 1]})
-    a.errorbar(xs, pct, yerr=[pct - lo, hi - pct], fmt="o-", color=BLUE, capsize=3, lw=1.6, ms=5)
-    a.set_ylim(0, 5.6)
+    a.errorbar(xs[:7], pct[:7], yerr=[pct[:7] - lo[:7], hi[:7] - pct[:7]], fmt="o-", color=BLUE, capsize=3,
+               lw=1.6, ms=5)
+    # score 7: 0 errors in a tiny set; its upper CI runs off the axis, so draw it hollow with an arrow
+    ytop = 5.6
+    a.plot([7], [pct[7]], "o", mfc="none", mec=BLUE, ms=5)
+    a.annotate("", xy=(7, ytop), xytext=(7, pct[7]), arrowprops=dict(arrowstyle="->", color=BLUE, lw=1))
+    a.text(6.85, 4.1, f"0 of {int(n[7])}\nCI to {hi[7]:.1f}%", ha="right", va="top", fontsize=8, color=INK2)
+    a.set_ylim(0, ytop)
+    a.set_xticks(xs)
     a.set_xlabel("minimum per-call confidence score (0-7)")
     a.set_ylabel("pair-genes with no shared allele (%)")
     a.set_title("Typing discordance in MHC-sharing relatives")
     a.annotate("4.1%", (0, pct[0]), xytext=(0.3, pct[0] + 0.85), ha="center", fontsize=9, color=INK)
     a.annotate("1.15%", (6, pct[6]), xytext=(5.3, 2.6), ha="center", fontsize=9, color=INK,
                arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8))
-    a.text(3.0, 4.6, "4.1% → 1.15% (about 3.5× lower)", ha="center", fontsize=9, color=BLUE)
+    a.text(3.6, 4.9, "4.1% → 1.15% (about 3.5× lower)", ha="center", fontsize=9, color=BLUE)
     ret = n / n[0] * 100
     b.bar(xs, ret, color=GREEN, width=0.65)
     for x, r in zip(xs, ret):
-        b.text(x, r + 2, f"{r:.0f}", ha="center", fontsize=8, color=INK)
+        b.text(x, r + 2, f"{r:.0f}" if r >= 1 else f"{r:.1f}", ha="center", fontsize=8, color=INK)
+    b.set_xticks(xs)
     b.set_ylim(0, 118)
     b.set_xlabel("minimum per-call confidence score (0-7)")
     b.set_ylabel("pair-genes retained (%)")
