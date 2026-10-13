@@ -70,7 +70,8 @@ Other actions
                           --people-file on it.
   --compare READS ASM     65b: per-person copies from two INTERNAL per_person_gene.tsv tables (status ok in
                           both) -> PUBLIC 65b_method_concordance.tsv (per feature x stratum: n, %
-                          concordant + Wilson CI, 3x3 confusion; masked).
+                          concordant + Wilson CI, 3x3 confusion; masked). --compare-genotyper cuts|mixture
+                          re-derives the reads-side copies first (default: as stored at run time).
 
 Outputs
   INTERNAL (default ~/s05/internal/65_<mode>; refuses the repo and reports/; mode recorded in
@@ -1659,6 +1660,9 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, default=65)
     ap.add_argument("--compare", nargs=2, metavar=("READS_TSV", "ASSEMBLY_TSV"),
                     help="65b: concordance of two INTERNAL per_person_gene.tsv tables -> PUBLIC table, exit")
+    ap.add_argument("--compare-genotyper", default="stored", choices=["stored", "cuts", "mixture"],
+                    help="65b: reads-side copies as stored at run time, or re-derived from n_ins/n_ref with "
+                         "--af-cuts/--min-reads or the binomial mixture (fitted on the whole READS_TSV)")
     ap.add_argument("--aligner", default="auto", choices=["auto", "mappy", "minimap2", "kmer"])
     ap.add_argument("--minimap2", default="minimap2")
     ap.add_argument("--preset", default="sr")
@@ -1701,7 +1705,15 @@ def main(argv=None):
     if args.compare:
         out = args.out_dir or os.path.join(RESULTS_ROOT, "65b")
         reads, asm = (_read(p, GENE_COLS) for p in args.compare)
-        tab = compare_methods(reads, asm, _cohort_people(args.cohort), mode)
+        people = _cohort_people(args.cohort)
+        reads = reads.drop_duplicates(["person_id", "feature"], keep="last")
+        if args.compare_genotyper == "mixture":
+            reads, fit = mixture_reads_calls(reads, people, args.min_reads)
+            log("mixture fit for --compare: " + fit[["feature", "platform", "f_1copy", "pct_ambiguous"]]
+                .to_string(index=False).replace("\n", " | "))
+        elif args.compare_genotyper == "cuts":
+            reads = rederive_reads_calls(reads, args.min_reads, tuple(float(x) for x in args.af_cuts.split(",")))
+        tab = compare_methods(reads, asm.drop_duplicates(["person_id", "feature"], keep="last"), people, mode)
         _disc.write_tsv(tab, os.path.join(out, "65b_method_concordance.tsv"), mode)
         log(f"wrote {out}/65b_method_concordance.tsv ({len(tab)} rows)")
         return 0

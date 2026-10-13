@@ -1,0 +1,25 @@
+metric	prune_pct	n_removed	n_kept	kir_incomplete_pct	kir_incomplete_pct_random	kir_fw_missing_pct	kir_fw_missing_pct_random	hla_absent_pct	hla_absent_pct_random	hla_hap_empty_pct	hla_hap_empty_pct_random	dq_split_pct	dq_split_pct_random	mhc_fragmented_pct	mhc_fragmented_pct_random	removed_pct_AFR	removed_pct_AMR	removed_pct_EAS	removed_pct_EUR	removed_pct_MID	removed_pct_SAS	removed_pct_sequel2e	pair_records_kept	pair_error_pct	trio_calls_kept	trio_mendel_error_pct
+MHC window depth (normalised)	0	0	11860	37.8	37.8	26.0	26.0	29.4	29.4			4.1	4.1	30.7	30.7								6040	3.7	3360	4.6
+MHC window depth (normalised)	1	120	11740	37.9	37.8	26.0	26.0	29.5	29.4		0.1	4.1	4.1	30.7	30.7	32	48					50	6040	3.7	3360	4.6
+MHC window depth (normalised)	2	240	11620	37.8	37.8	26.0	26.0	29.4	29.4		0.1	4.1	4.1	30.6	30.7	31	40		15			39	6030	3.7	3350	4.7
+MHC window depth (normalised)	5	590	11260	37.8	37.8	25.9	26.0	29.2	29.4		0.1	4.1	4.1	30.4	30.7	32	27	11	19		8	24	5970	3.7	3290	4.6
+MHC window depth (normalised)	10	1190	10670	37.7	37.8	25.7	25.9	29.2	29.5		0.1	4.1	4.0	30.2	30.7	31	23	12	20	3	11	17	5690	3.6	3140	4.5
+MHC window depth (normalised)	15	1780	10080	37.5	37.8	25.5	26.0	28.9	29.4		0.1	4.1	4.1	29.7	30.7	29	22	13	21	4	11	15	5440	3.4	2980	4.5
+MHC window depth (normalised)	20	2370	9480	37.3	37.8	25.3	25.9	28.6	29.4		0.1	4.1	4.1	29.4	30.7	28	21	13	22	4	11	13	5190	3.4	2800	4.5
+MHC window depth (normalised)	30	3560	8300	36.9	37.8	25.3	26.0	28.3	29.4		0.1	4.3	4.1	29.0	30.6	27	22	13	23	4	11	11	4520	3.2	2480	4.3
+KIR window depth (normalised)	0	0	11860	37.8	37.8	26.0	26.0	29.4	29.4			4.1	4.1	30.7	30.7								6040	3.7	3360	4.6
+KIR window depth (normalised)	1	120	11740	37.6	37.8	25.6	26.0	29.3	29.4		0.1	4.1	4.1	30.5	30.7	35						21	6040	3.7	3360	4.6
+KIR window depth (normalised)	2	240	11620	37.4	37.8	25.3	26.0	29.2	29.4		0.1	4.1	4.1	30.5	30.7	38	25		16			21	6030	3.6	3350	4.6
+KIR window depth (normalised)	5	590	11260	37.0	37.8	24.6	26.0	29.1	29.4		0.1	4.1	4.1	30.3	30.7	34	24	11	19		8	16	5880	3.7	3240	4.7
+KIR window depth (normalised)	10	1190	10670	36.5	37.8	23.9	26.0	29.0	29.3		0.1	4.1	4.1	30.0	30.7	30	24	11	22	4	8	14	5720	3.7	3090	4.6
+KIR window depth (normalised)	15	1780	10080	36.0	37.8	23.2	26.0	28.9	29.3		0.1	4.0	4.1	29.8	30.6	31	22	12	23	4	8	12	5380	3.5	2850	4.4
+KIR window depth (normalised)	20	2370	9480	35.8	37.8	22.7	26.0	28.8	29.4		0.1	4.0	4.0	29.7	30.7	29	23	12	24	4	9	12	5100	3.4	2720	4.4
+KIR window depth (normalised)	30	3560	8300	35.7	37.8	22.0	25.9	28.9	29.3		0.1	4.1	4.1	29.8	30.8	28	22	13	24	4	9	11	4500	3.3	2310	4.6
+MHC contigs per haplotype (mean)	0	0	11860	37.8	37.8	26.0	26.0	29.4	29.4			4.1	4.1	30.7	30.7								6040	3.7	3360	4.6
+MHC contigs per haplotype (mean)	1	120	11740	37.3	37.8	25.5	26.0	28.8	29.4		0.1	3.9	4.1	30.0	30.7		35		29			51	5970	3.6	3340	4.5
+MHC contigs per haplotype (mean)	2	240	11620	36.8	37.8	25.1	26.0	28.2	29.4		0.1	3.8	4.1	29.3	30.7	21	38		26			49	5920	3.5	3320	4.5
+MHC contigs per haplotype (mean)	5	590	11260	35.5	37.8	24.2	26.0	26.7	29.4		0.1	3.4	4.1	27.0	30.7	25	33	9	23		6	36	5860	3.4	3250	4.3
+MHC contigs per haplotype (mean)	10	1190	10670	33.3	37.8	22.7	26.0	24.6	29.4		0.1	3.0	4.1	23.0	30.7	26	29	11	24		7	28	5750	3.4	3150	4.3
+MHC contigs per haplotype (mean)	15	1780	10080	31.2	37.7	21.4	26.0	22.6	29.4		0.1	2.7	4.0	18.5	30.7	28	26	11	24	3	7	23	5610	3.3	3120	4.3
+MHC contigs per haplotype (mean)	20	2370	9480	29.3	37.8	20.3	26.0	20.8	29.4		0.1	2.5	4.0	13.4	30.6	29	26	11	24	3	7	20	5540	3.3	3070	4.2
+MHC contigs per haplotype (mean)	30	3560	8300	25.9	37.9	18.2	26.0	17.4	29.4		0.1	2.0	4.1	5.9	30.7	29	24	11	24	3	8	16	4940	2.9	2710	3.9

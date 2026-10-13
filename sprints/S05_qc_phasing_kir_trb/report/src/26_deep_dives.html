@@ -130,7 +130,22 @@ h1tg000012l  1830551  10234    1811002  +      chr6  170805979  29501234  313018
 <li>Quantification: RNA-SeQC 2 (gene TPM, used by our script 55) and RSEM (gene and transcript TPM and expected counts). Only BAMs and these matrices are released, not raw FASTQ.</li>
 </ul>
 <p><b>What this means for HLA and KIR.</b> Gene-level TPM pools the two alleles of a gene and is computed against the reference genome, where HLA reads from divergent alleles can map poorly. Script 53 instead builds each person's own HLA sequences from their assembly and maps that person's RNA reads to them. That gives expression per allele, which is how allele-specific expression is measured (Part 7).</p>
-<!--R68-->
+<p><b>What is actually in the All of Us libraries (script 68).</b> Script 68 summarised, across all 8,980 samples, the QC numbers All of Us ships with each sample (the DRAGEN metadata table and the RNA-SeQC 2 metrics file) and, from the gene TPM matrix, the share of each sample's TPM that falls on each gene family. Only cohort distributions leave the VM. Values are medians with the 1st–99th percentile range.</p>
+<div class="tw"><table>
+<tr><th>What</th><th>Median (p1–p99)</th><th>Source and meaning</th></tr>
+<tr><td>Reads that align to the genome</td><td>93% (81–98)</td><td>DRAGEN metadata. The rest are adapters, low quality, or sequences absent from the reference.</td></tr>
+<tr><td>Bases in mRNA (exons of protein-coding genes and UTRs)</td><td>52%</td><td>DRAGEN <code>mrna_bases_pct</code>. Depletion lifted mRNA from ~2–5% of total RNA to about half of the sequenced bases.</td></tr>
+<tr><td>Reads in exons / introns / between genes</td><td>0.57 / 0.33 / 0.03</td><td>RNA-SeQC 2 rates. The large intronic share is typical of total-RNA (depletion) protocols: unspliced pre-mRNA is still in the tube. The remaining ~0.06 map ambiguously (to overlapping genes).</td></tr>
+<tr><td>Bases on ribosomal RNA</td><td>0.5% (0.03–6.4)</td><td>DRAGEN <code>ribosomal_bases_pct</code>. Without depletion this would be most of the reads; the probes removed nearly all of it. RNA-SeQC 2's own "rRNA rate" is even lower (about 0.005%), because it counts only reads on the few rRNA genes annotated in the reference.</td></tr>
+<tr><td>Globin reads, share of mapped reads</td><td>about 0.4%</td><td>From RNA-SeQC 2 (mapped reads minus non-globin reads, median sample). Agrees with the TPM share below.</td></tr>
+<tr><td>RNA integrity (RQS)</td><td>7.9</td><td>On a 1–10 scale; above 7 is good-quality RNA.</td></tr>
+<tr><td>Genes detected</td><td>~30,700</td><td>Of the 77,810 genes in the matrix (protein-coding plus non-coding).</td></tr>
+<tr><td>Globin share of TPM</td><td>0.35% (0.01–4.1)</td><td>Globin depletion worked: 10–30% would be expected without it.</td></tr>
+<tr><td>Mitochondrial protein-coding genes, share of TPM</td><td>3.1% (1.0–8.7)</td><td>The 13 mitochondrial genes; high in some samples, a common blood QC flag.</td></tr>
+<tr><td>Classical HLA genes, share of TPM</td><td>0.31% (0.12–0.70)</td><td>The 12 classical genes together: about 1 in 300 transcripts, high for so few genes.</td></tr>
+<tr><td>KIR genes, share of TPM</td><td>0.0008% (0.0001–0.004)</td><td>Hundreds of times lower than HLA, because only NK cells and some T cells express KIR.</td></tr>
+</table></div>
+<p><b>How to read "share of TPM".</b> TPM shares are not the same as shares of reads: TPM divides by gene length, so short genes such as mitochondrial tRNAs get a larger share than their reads, and long genes a smaller one. The read-based numbers (rows 1–3) answer "what fraction of sequencing went where"; the TPM rows answer "what fraction of transcripts were this". <b>So, for the question "what share of the reads are rRNA, tRNA or normal RNA":</b> in these libraries about 0.5% of bases are rRNA (from ~80% in the tube), tRNA is essentially absent (see below), about 0.4% is globin, and the rest is RNA from genes: roughly 57% from exons, which is what expression is measured on, and 33% from introns of the same genes.</p>
 <p><b>tRNA.</b> Mature tRNAs are 70–90 bases long, shorter than the fragments kept during library prep, so they are almost absent from standard RNA-seq whatever the cell contains. The mitochondrial tRNAs annotated in the gene matrix are a small trace. Measuring tRNA needs special small-RNA protocols.</p>
 </details>
 </section>

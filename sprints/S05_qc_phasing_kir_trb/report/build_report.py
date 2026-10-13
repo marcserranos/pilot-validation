@@ -263,6 +263,231 @@ def chart_65_af(rel):
     return "".join(out)
 
 
+# ----------------------------------------------------------------- 67: where errors happen
+
+def _num(x):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def err_class(v):
+    if v is None:
+        return "h0"
+    for cut, c in ((12, "h6"), (9, "h5"), (6.5, "h4"), (4.5, "h3"), (3, "h2"), (1.5, "h1")):
+        if v >= cut:
+            return c
+    return "h0"
+
+
+def _range_lab(r):
+    a, b = r.split("..")
+    if a == "-inf":
+        return f"< {float(b):.2f}"
+    if b == "inf":
+        return f"≥ {float(a):.2f}"
+    return f"{float(a):.2f}–{float(b):.2f}"
+
+
+def chart_67_pair_grid(rel):
+    """67 A: discordance of relative pairs, binned on (lower depth of the pair) x (higher depth of the pair),
+    tertiles of all pair-member depths. Upper triangle only (lower <= higher by construction)."""
+    d = pd.read_csv(find(rel), sep="\t", dtype=str, keep_default_na=False)
+    nb = int(d["x_bin"].astype(int).max())
+    labs = {int(r.x_bin): _range_lab(r.x_range) for r in d.itertuples()}
+    cw, ch, l, t = 150, 74, 120, 30
+    w, h = l + cw * nb + 20, t + ch * nb + 70
+    out = [f'<svg viewBox="0 0 {w} {h}" class="chart heat heatwide" role="img" '
+           f'aria-label="Relative-pair discordance by the depth of both members">']
+    for k in range(1, nb + 1):
+        x = l + cw * (k - 1)
+        out.append(f'<text x="{x + cw / 2}" y="{t + ch * nb + 18}" class="tick" text-anchor="middle">{esc(labs[k])}</text>')
+        y = t + ch * (nb - k)
+        out.append(f'<text x="{l - 8}" y="{y + ch / 2 + 4}" class="tick" text-anchor="end">{esc(labs[k])}</text>')
+    out.append(f'<text x="{l + cw * nb / 2}" y="{t + ch * nb + 40}" class="lab" text-anchor="middle">'
+               f'depth of the LOWER-depth relative at this gene (÷ platform median)</text>')
+    out.append(f'<text x="14" y="{t + ch * nb / 2}" class="lab" text-anchor="middle" '
+               f'transform="rotate(-90 14 {t + ch * nb / 2})">depth of the HIGHER-depth relative</text>')
+    for r in d.itertuples():
+        ix, iy = int(r.x_bin), int(r.y_bin)
+        x, y = l + cw * (ix - 1), t + ch * (nb - iy)
+        v = _num(r.error_pct)
+        out.append(f'<rect x="{x + 2}" y="{y + 2}" width="{cw - 4}" height="{ch - 4}" class="{err_class(v)}"/>')
+        n = _num(r.n_records)
+        cap = f"< {100 * 19 / n:.1f}%" if v is None and n else ""
+        main = f"{v:.1f}%" if v is not None else cap
+        ci = f"{r.lo}–{r.hi}%" if v is not None and r.lo else "fewer than 20 errors"
+        if v is None:
+            v = 100 * 19 / n / 2 if n else None
+        out.append(f'<text x="{x + cw / 2}" y="{y + ch / 2 - 4}" class="cell big {err_class(v)}t" text-anchor="middle">{main}</text>')
+        out.append(f'<text x="{x + cw / 2}" y="{y + ch / 2 + 12}" class="cell {err_class(v)}t" text-anchor="middle">{esc(ci)}</text>')
+        out.append(f'<text x="{x + cw / 2}" y="{y + ch / 2 + 26}" class="cell {err_class(v)}t" text-anchor="middle">n≈{esc(r.n_records)}</text>')
+    out.append(f'<text x="{l}" y="{h - 8}" class="tiny">Cells below the diagonal are empty by construction (the lower depth cannot exceed the higher).</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def _ci_series_chart(series, xlabels, ymax, xlab, ylab, aria, width=700, height=300, yticks=None):
+    """series: list of (legend, css s1/s2/s3, [(value, lo, hi) or ('cap', bound) or None per x]).
+    A ('cap', bound) point is a masked rate (fewer than 20 events): drawn as a hollow marker at the bound."""
+    l, t, b = 56, 20, 74
+    pw, ph = width - l - 16, height - t - b
+    n = len(xlabels)
+    sx = lambda i: l + pw * (i + 0.5) / n  # noqa: E731
+    sy = lambda v: t + ph * (1 - v / ymax)  # noqa: E731
+    out = [f'<svg viewBox="0 0 {width} {height}" class="chart" role="img" aria-label="{esc(aria)}">']
+    for v in yticks or []:
+        out.append(f'<line x1="{l}" y1="{sy(v):.1f}" x2="{l + pw}" y2="{sy(v):.1f}" class="grid"/>')
+        out.append(f'<text x="{l - 6}" y="{sy(v) + 4:.1f}" class="tick" text-anchor="end">{v:g}%</text>')
+    for i, xl in enumerate(xlabels):
+        out.append(f'<text x="{sx(i):.1f}" y="{t + ph + 16}" class="tick" text-anchor="middle">{esc(xl)}</text>')
+    out.append(f'<text x="{l + pw / 2}" y="{t + ph + 36}" class="lab" text-anchor="middle">{esc(xlab)}</text>')
+    out.append(f'<text x="12" y="{t + ph / 2}" class="lab" text-anchor="middle" transform="rotate(-90 12 {t + ph / 2})">{esc(ylab)}</text>')
+    for j, (leg, cls, vals) in enumerate(series):
+        off = (j - (len(series) - 1) / 2) * 6
+        pts = []
+        for i, p in enumerate(vals):
+            if p is None:
+                continue
+            if p[0] == "cap":
+                x = sx(i) + off
+                out.append(f'<path d="M{x - 4:.1f},{sy(p[1]) - 3:.1f} L{x + 4:.1f},{sy(p[1]) - 3:.1f} L{x:.1f},{sy(p[1]) + 4:.1f} Z" class="cap {cls}"/>')
+                continue
+            v, lo, hi = p
+            x = sx(i) + off
+            pts.append((x, sy(v)))
+            if lo is not None and hi is not None:
+                out.append(f'<line x1="{x:.1f}" y1="{sy(min(hi, ymax)):.1f}" x2="{x:.1f}" y2="{sy(lo):.1f}" class="ci {cls}"/>')
+        if len(pts) > 1:
+            out.append('<polyline points="' + " ".join(f"{x:.1f},{y:.1f}" for x, y in pts) + f'" class="ser {cls}"/>')
+        for x, y in pts:
+            out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" class="pt {cls}"/>')
+        lx, ly = l + j * 250, height - 12
+        out.append(f'<circle cx="{lx + 4}" cy="{ly - 4}" r="4" class="pt {cls}"/>')
+        out.append(f'<text x="{lx + 12}" y="{ly}" class="tiny">{esc(leg)}</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def _trip(r, col="error_pct", ncol="n_records"):
+    v = _num(getattr(r, col))
+    if v is None:
+        n = _num(getattr(r, ncol, None))
+        return ("cap", 100 * 19 / n) if n else None
+    return (v, _num(r.lo), _num(r.hi))
+
+
+def chart_67_pair_deciles(rel):
+    d = pd.read_csv(find(rel), sep="\t", dtype=str, keep_default_na=False)
+    lo = d[d["axis"] == "lower_depth_of_pair"].sort_values("bin", key=lambda s: s.astype(int))
+    hi = d[d["axis"] == "higher_depth_of_pair"].sort_values("bin", key=lambda s: s.astype(int))
+    xl = [f"{int(b)}" for b in lo["bin"]]
+    vals = [x[0] for s in (lo, hi) for x in [_trip(r) for r in s.itertuples()] if x and x[0] != "cap"]
+    ymax = max(16, (max(vals + [0]) // 4 + 1) * 4)
+    return _ci_series_chart(
+        [("ranked by the LOWER depth of the two relatives", "s1", [_trip(r) for r in lo.itertuples()]),
+         ("ranked by the HIGHER depth", "s2", [_trip(r) for r in hi.itertuples()])],
+        xl, ymax, "tenth of pair records (1 = lowest depth, 10 = highest)", "pairs disagreeing",
+        "Pair discordance by depth decile", yticks=list(range(0, int(ymax) + 1, 4)))
+
+
+def chart_67_trio(rel):
+    d = pd.read_csv(find(rel), sep="\t", dtype=str, keep_default_na=False)
+    c = d[d["axis"] == "child_depth"].sort_values("bin")
+    p = d[d["axis"] == "transmitting_parent_depth"].sort_values("bin")
+    xl = ["lowest third", "middle third", "highest third"][:len(c)]
+    return _ci_series_chart(
+        [("ranked by the child's depth", "s1", [_trip(r) for r in c.itertuples()]),
+         ("ranked by the transmitting parent's depth", "s2", [_trip(r) for r in p.itertuples()])],
+        xl, 12, "depth at the gene (thirds of all trio calls)", "Mendel errors",
+        "Trio Mendel error by depth", width=620, height=280, yticks=[0, 4, 8, 12])
+
+
+TOPO_LAB = {"classI": "within class I", "classIII": "within class III",
+            "classII_DRDQ": "within DR–DQ", "classII_DP": "within DP",
+            "classI->classIII": "class I → class III", "classI->classII_DRDQ": "class I → DR–DQ",
+            "classIII->classII_DRDQ": "class III → DR–DQ",
+            "classII_DRDQ->classII_DP": "DR–DQ → DP", "ALL": "all steps"}
+TOPO_ORDER = ["classI", "classI->classIII", "classIII->classII_DRDQ", "classII_DRDQ",
+              "classII_DRDQ->classII_DP", "classII_DP", "classI->classII_DRDQ", "ALL"]
+
+
+def chart_67_topology(rel):
+    d = pd.read_csv(find(rel), sep="\t", dtype=str, keep_default_na=False)
+    d = d[d["view"] == "interval_class"]
+    d = d.assign(o=d["level"].map(lambda x: TOPO_ORDER.index(x) if x in TOPO_ORDER else 99)).sort_values("o")
+    rows = []
+    for r in d.itertuples():
+        v = _num(r.switch_pct)
+        lab = TOPO_LAB.get(r.level, r.level.replace("->", " → ").replace("_", " "))
+        cls = "bar-b" if "->" in r.level else ("bar-c" if r.level == "ALL" else "bar-a")
+        n = _num(r.n_intervals)
+        if v is not None:
+            txt = f"{v:.1f}%  ({r.lo}–{r.hi}),  {r.n_intervals} steps"
+        elif n:
+            txt = f"< {100 * 19 / n:.0f}% (fewer than 20 switches in {r.n_intervals} steps)"
+        else:
+            txt = "fewer than 20 steps"
+        rows.append((lab, v, cls, txt))
+    xmax = max([x[1] for x in rows if x[1] is not None] + [10])
+    xmax = (int(xmax) // 10 + 1) * 10 + 20
+    return svg_hbars(rows, xmax, ticks=list(range(0, xmax - 19, 10)), width=720, label_w=150,
+                     title="Switch rate between neighbouring genes, by where in the MHC the step falls")
+
+
+def chart_67_prune(rel):
+    """Prune curve: outcome among the people kept, after removing the worst x% by each metric, against
+    removing the same number at random."""
+    d = pd.read_csv(find(rel), sep="\t", dtype=str, keep_default_na=False)
+    panels = [(o, lab) for o, lab in (("kir_incomplete", "KIR haplotype incomplete"),
+                                      ("mhc_fragmented", "MHC on ≥ 7 contigs"),
+                                      ("hla_absent", "an HLA gene absent"))
+              if f"{o}_pct" in d.columns]
+    metrics = list(dict.fromkeys(d["metric"]))
+    cls = {m: f"s{i + 1}" for i, m in enumerate(metrics)}
+    xs = sorted({int(x) for x in d["prune_pct"]})
+    pw, ph, l, t, gap = 200, 170, 40, 30, 36
+    w = len(panels) * (l + pw + gap)
+    h = t + ph + 60 + 18 * (len(metrics) + 1)
+    out = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" aria-label="Outcome after pruning the worst people">']
+    for k, (o, ptitle) in enumerate(panels):
+        x0 = k * (l + pw + gap) + l
+        allv = [_num(v) for c in (f"{o}_pct", f"{o}_pct_random") for v in d[c]]
+        allv = [v for v in allv if v is not None]
+        top = (int(max(allv)) // 10 + 1) * 10
+        sy = lambda v, top=top: t + ph * (1 - v / top)  # noqa: E731
+        sx = lambda x, x0=x0: x0 + pw * x / max(xs)  # noqa: E731
+        out.append(f'<text x="{x0}" y="16" class="lab strong">{ptitle}</text>')
+        for v in range(0, top + 1, 10 if top > 20 else 5):
+            out.append(f'<line x1="{x0}" y1="{sy(v):.1f}" x2="{x0 + pw}" y2="{sy(v):.1f}" class="grid"/>')
+            out.append(f'<text x="{x0 - 5}" y="{sy(v) + 4:.1f}" class="tick" text-anchor="end">{v}%</text>')
+        for x in (0, 10, 20, 30):
+            if x <= max(xs):
+                out.append(f'<text x="{sx(x):.1f}" y="{t + ph + 15}" class="tick" text-anchor="middle">{x}%</text>')
+        out.append(f'<text x="{x0 + pw / 2}" y="{t + ph + 32}" class="tiny" text-anchor="middle">share of people removed</text>')
+        for m in metrics:
+            s = d[d["metric"] == m].assign(x=lambda z: z["prune_pct"].astype(int)).sort_values("x")
+            for col, extra in ((f"{o}_pct", ""), (f"{o}_pct_random", " dashed")):
+                pts = [(sx(r.x), sy(_num(getattr(r, col)))) for r in s.itertuples() if _num(getattr(r, col)) is not None]
+                out.append('<polyline points="' + " ".join(f"{a:.1f},{b:.1f}" for a, b in pts)
+                           + f'" class="ser {cls[m]}{extra}"/>')
+                if not extra:
+                    for a, b in pts:
+                        out.append(f'<circle cx="{a:.1f}" cy="{b:.1f}" r="2.8" class="pt {cls[m]}"/>')
+    ly = t + ph + 52
+    for i, m in enumerate(metrics):
+        y = ly + 18 * i
+        out.append(f'<line x1="{l}" y1="{y - 4}" x2="{l + 22}" y2="{y - 4}" class="ser {cls[m]}"/>')
+        out.append(f'<text x="{l + 28}" y="{y}" class="tiny">remove the worst by {esc(m)}</text>')
+    y = ly + 18 * len(metrics)
+    out.append(f'<line x1="{l}" y1="{y - 4}" x2="{l + 22}" y2="{y - 4}" class="ser s0 dashed"/>')
+    out.append(f'<text x="{l + 28}" y="{y}" class="tiny">dashed, same colour: remove the same number of people at random</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+R67 = "reports/hla_popgen/67_phasing_error_vs_coverage/"
 CHARTS = {
     "65_zero_copy": chart_65_zero_copy,
     "59_rate": lambda: chart_59(
@@ -270,6 +495,11 @@ CHARTS = {
     "trb_map": chart_trb_map,
     "65_af": lambda: chart_65_af(
         "reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated/allele_fraction_histogram.tsv"),
+    "67_pair_grid": lambda: chart_67_pair_grid(R67 + "67_pair_depth_grid.tsv"),
+    "67_pair_deciles": lambda: chart_67_pair_deciles(R67 + "67_pair_error_by_depth.tsv"),
+    "67_trio": lambda: chart_67_trio(R67 + "67_trio_error_by_depth.tsv"),
+    "67_topology": lambda: chart_67_topology(R67 + "67_switch_topology.tsv"),
+    "67_prune": lambda: chart_67_prune(R67 + "67_prune_curve.tsv"),
     "61_heat": lambda: chart_61_heatmap(
         "reports/hla_popgen/61_kir_by_ancestry_panel/vm_2026-10-12/gene_freq_by_ancestry.tsv"),
 }

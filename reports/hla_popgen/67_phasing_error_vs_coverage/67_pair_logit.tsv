@@ -1,0 +1,5 @@
+depth	subset	n_records	or_per_0.1_lower	lo	hi	p	converged
+dep_lo	all_scores	6040	1.470	1.355	1.594	1.7e-20	True
+dep_lo	score_ge_6	2180	2.760	2.032	3.749	8.2e-11	False
+dep_hi	all_scores	6040	1.174	1.090	1.264	2.2e-05	True
+dep_hi	score_ge_6	2180	1.686	1.259	2.258	0.00046	False

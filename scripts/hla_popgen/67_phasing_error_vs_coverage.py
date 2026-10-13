@@ -368,7 +368,10 @@ def prune_curve(pp, metrics, pair_rec=None, trio_rec=None, everyone=None, draws=
                 else:
                     row[f"{o}_pct_random"] = row[f"{o}_pct"]
             for a in C.ANCESTRY_ORDER:
-                row[f"removed_pct_{a}"] = rate(int((rem["ancestry"] == a).sum()), len(rem), 0)[0] if len(rem) else ""
+                # whole percents of a rounded n_removed only bound the count to a few people, so also blank shares
+                # under 30 people (a margin over MIN) to keep a back-calculated count from landing below 20
+                ka = int((rem["ancestry"] == a).sum())
+                row[f"removed_pct_{a}"] = rate(ka, len(rem), 0)[0] if len(rem) and ka >= MIN + 10 else ""
             row["removed_pct_sequel2e"] = (rate(int((rem["platform"] == "sequel2e").sum()), len(rem), 0)[0]
                                            if len(rem) else "")
             if everyone is not None and col in everyone:

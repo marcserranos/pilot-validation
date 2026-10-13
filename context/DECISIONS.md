@@ -19,6 +19,11 @@
 - **Bare `person_id`s in a public repo.** Operational commands (STATUS, EXPERIMENTS) carry bare research_ids. Genotypes are quarantined to the gitignored `.local.md`, but whether bare ids belong in a *public* repo at all is unresolved — flag to the sponsor alongside egress. (Current practice preserved, not expanded; the ids are already in git history.)
 
 ### Methodological
+- **(S05, 2026-10-13) Call-level depth flag instead of pruning people.** Script 67: typing errors concentrate in calls with
+  low depth *at the gene* (thinnest fifth of pair records ≈ 55% of disagreements), while pruning up to 30% of people by window
+  depth gains only 0.3–0.5 points and the extreme tail is AMR- and Sequel IIe-enriched. Proposal: flag calls with gene depth
+  < 0.75 of the platform median, report main results with and without them, and treat haplotype claims crossing the class
+  III→DR–DQ or DR–DQ→DP junctions as lower confidence. Needs Marc + Cole before it changes any published number.
 - **(S05, 2026-10-06) One exclusion list and one ancestry-purity rule.** Script 50 shows purity filters are not
   ancestry-neutral (p ≥ 0.95 keeps 38% of EUR, 93% of SAS) and that all 991 sequel2 people (mostly AFR) lack HLA calls. Options:
   (a) primary analyses on ancestry_pred with p ≥ 0.95 as sensitivity (current 39 practice); (b) p ≥ 0.95 everywhere (meeting
