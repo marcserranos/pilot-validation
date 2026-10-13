@@ -29,7 +29,7 @@ The 10-06 work already answers several original asks. Its results are in `report
 |---|---|---|---|---|
 | A | `58_regional_depth.py` | Regional coverage QC: long-read depth over the MHC and the KIR region, relative to each person's genome-wide depth (supervisor ask) | yes | code + tests done; VM run pending |
 | B | `58` (TRB part), `60_trb_germline_usage.py` | TRBV gene copy number from depth; join it to Aleix's per-person V usage. Prior art: the TRBV4-3/3-2/6-2 deletion is known (`READING.md` §B), so the contribution is scale, ancestry and the link to usage | yes | 58 running on VM; 60 code + tests done |
-| B2 | `65_trb_assembly_genotype.py` | TRBV4-3 has no locus on GRCh38 primary chr7 (it sits on a ~21 kb insertion carried only on an ALT contig), so 58 cannot see it. Genotype the insertion from each person's reads over the TRB span (fast, default), validated against assembly calls on a stratified 2,000 | yes | code + tests done; VM run pending |
+| B2 | `65_trb_assembly_genotype.py` | TRBV4-3 has no locus on GRCh38 primary chr7 (it sits on a ~21 kb insertion carried only on an ALT contig), so 58 cannot see it. Genotype the insertion from each person's reads over the TRB span (fast, default), validated against assembly calls on a stratified 2,000 | yes | reads mode done (12,233); mixture genotyper done; 65b assembly check stopped at 913/2,000 (Marc), 65c summary: 97% agreement, all 0-copy confirmed |
 | C | `59_depth_outcome_join.py` | Does low regional depth explain incomplete KIR haplotypes (51), structurally anomalous DQ contigs (50e) and residual absences? Propose the cutoff | yes | code + tests done; runs after 58 |
 | D | `57`, `57b`, `57c` | Trio phasing QC with yak | — | **done 10-06** (179 trios). Optional: genome-wide yak; use trios to tune the confidence score |
 | E | `50_qc_foundation.py` (a) | Canonical counts | — | **mostly done 10-06** (waterfall per ancestry). Remaining: haplotype / per-gene / novel-by-class rows in the same table, for the final report |
@@ -41,6 +41,8 @@ The 10-06 work already answers several original asks. Its results are in `report
 | K | `63_*` | Fix the Tier-3 trim for the 991 Sequel II people (mostly AFR) and call HLA + KIR for them | yes, heavy | diagnosed + patched (`SEQUEL2_DIAGNOSIS.md`); smoke PASS 10-13 (~21 min/person); full run ~350 h (~15 days on 4 vCPU, 1–2 days on n2-highmem-80); Revio comparison next |
 | L | `64_*` | Novel alleles: re-match against a current IPD-IMGT/HLA release and add read-level support (decides whether the protein-novel headline is demoted) | yes | code + tests done (21); VM run pending |
 | M | `53` scale-up | ASE on all people with long reads and RNA | yes, needs a bigger app (Marc authorises the resize) | pending |
+| N | `67_phasing_error_vs_coverage.py` | Marc 10-13: where typing and phasing errors happen vs depth, switch topology, and whether pruning the worst x% helps | yes | **done 10-13**: flag thin calls, not people (report Part 4b) |
+| O | `68_rnaseq_composition.py` | Marc 10-13: what is in the RNA-seq libraries (rRNA, globin, exon/intron shares) | yes | **done 10-13** (report deep dive) |
 
 Open decisions for Marc (`context/DECISIONS.md`, S05): the exclusion list and ancestry-purity rule; demoting
 classical protein-novel counts; KIR claims on complete haplotypes only; the physical-haplotype evidence rule from trios.

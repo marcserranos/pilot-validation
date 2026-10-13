@@ -404,11 +404,11 @@ def chart_67_trio(rel):
         "Trio Mendel error by depth", width=620, height=280, yticks=[0, 4, 8, 12])
 
 
-TOPO_LAB = {"classI": "within class I", "classIII": "within class III",
-            "classII_DRDQ": "within DR–DQ", "classII_DP": "within DP",
-            "classI->classIII": "class I → class III", "classI->classII_DRDQ": "class I → DR–DQ",
-            "classIII->classII_DRDQ": "class III → DR–DQ",
-            "classII_DRDQ->classII_DP": "DR–DQ → DP", "ALL": "all steps"}
+TOPO_LAB = {"classI": "within class I (A, C, B)", "classIII": "within class III",
+            "classII_DRDQ": "within DR–DQ, TAP", "classII_DP": "within DP",
+            "classI->classIII": "HLA-B → MICA", "classI->classII_DRDQ": "class I → DR–DQ",
+            "classIII->classII_DRDQ": "MICA → DRB (~1.1 Mb)",
+            "classII_DRDQ->classII_DP": "TAP → DPA1 (~220 kb)", "ALL": "all steps"}
 TOPO_ORDER = ["classI", "classI->classIII", "classIII->classII_DRDQ", "classII_DRDQ",
               "classII_DRDQ->classII_DP", "classII_DP", "classI->classII_DRDQ", "ALL"]
 
@@ -432,7 +432,7 @@ def chart_67_topology(rel):
         rows.append((lab, v, cls, txt))
     xmax = max([x[1] for x in rows if x[1] is not None] + [10])
     xmax = (int(xmax) // 10 + 1) * 10 + 20
-    return svg_hbars(rows, xmax, ticks=list(range(0, xmax - 19, 10)), width=720, label_w=150,
+    return svg_hbars(rows, xmax, ticks=list(range(0, xmax - 19, 10)), width=740, label_w=170,
                      title="Switch rate between neighbouring genes, by where in the MHC the step falls")
 
 
