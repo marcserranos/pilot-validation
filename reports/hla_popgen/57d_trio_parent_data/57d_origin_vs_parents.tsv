@@ -1,0 +1,9 @@
+test	group	n_trios	value	p	n_calls	depth_median	lo	hi	informative_kmers_median
+spearman_per_trio	ambiguous_share_vs_thinner_parent_depth	170	0.004	0.96					
+spearman_per_trio	informative_kmers_vs_thinner_parent_depth	170	-0.062	0.42					
+ambiguous_by_thinner_parent_depth_tertile	tertile_1	60	16.0		1440	11.8	14.2	18.0	95
+ambiguous_by_thinner_parent_depth_tertile	tertile_2	60	16.1		1400	14.4	14.3	18.1	97
+ambiguous_by_thinner_parent_depth_tertile	tertile_3	60	16.9		1490	25.4	15.1	18.9	95
+ambiguous_by_parents_mix	both_revio	120	15.6		2980		14.3	17.0	
+ambiguous_by_parents_mix	both_sequel2e	50	18.9		1220		16.8	21.2	
+resolved_calls_assigned_to_deeper_parent	depth_ratio_ge_1.25	70	52.9		1440		50.3	55.5	

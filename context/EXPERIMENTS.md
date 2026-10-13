@@ -937,3 +937,9 @@ recorded as having no notes in `sprints/_calls/README.md`.
   Pruning 30% by window depth: pair error 3.7→3.2%, outcomes −1 to −2 points; by contig count circular. Tables committed.
 - **68** RNA-seq composition (8,980 samples): alignment 93%, mRNA bases 52%, exonic 0.57 / intronic 0.33, RQS 7.9; TPM shares
   globin 0.35%, classical HLA 0.31%, KIR 0.0008%, mt protein-coding 3.1%.
+- **57d** parents' data vs trio error (main 04f785d, ~2 min; 50 trios from 57, 174 from 57b): parents nearly always share the
+  child's platform; Sequel IIe parents ~1.8× deeper over the MHC (27× vs 15×). Switch error falls with thinner-parent depth
+  (MHC ~2.3×/doubling, CI 1.5–3.2×, adjusted for child depth and platform; within Revio children rho −0.58). Hamming over
+  MHC and A..B unrelated to parent depth. 57b origin calls flat across parent-depth thirds (16.0/16.1/16.9% ambiguous); lean
+  to the deeper parent 52.9% (50.3–55.5). Mix table kept internal (recoverable against 57's trio_selection). Unmasked 57b
+  pair table for internal QC: classifier blocked the VM session; command handed to Marc (writes ~/s05/internal/57b_unmasked/).
