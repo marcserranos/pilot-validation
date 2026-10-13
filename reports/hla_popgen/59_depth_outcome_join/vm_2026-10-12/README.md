@@ -5,7 +5,7 @@ How it was made:
 - Input: 58's INTERNAL per-person depths.
 - 11,856 unrelated people (cached LR relatedness pairs). statsmodels absent, so the numpy logistic fallback was used.
 
-Result (corrected 2026-10-12 after an independent review):
+Result:
 - No coverage cutoff is worth applying. The largest admissible normalised cutoffs (0.85 KIR, 0.90 MHC, both bound by AFR) would
   remove only 4–9% of the KIR events and about 4% of the HLA-absent events, while removing 3.5–4.7% of people. `exclude_people.tsv`
   excludes 0 people.
