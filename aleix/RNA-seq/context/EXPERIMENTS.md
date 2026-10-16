@@ -398,3 +398,13 @@ entries above:
   dominant clones). Cardiometabolic diseases, HF and HIV are negative. Only psoriasis is
   nominal (p 0.032, BH q 0.13), so it's a direction to check, not a result. Possible reasons:
   immunosuppressive treatment, younger cases after age adjustment, or no CMV-type expansion.
+- **TRBV4-3 non-use matches Marc's germline genotype, group by group.** Compared W1's "never
+  use TRBV4-3" with main's script 65 (reads mode, unrelated, 0 copies of the insertion that
+  carries TRBV4-3; `reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated/genotype_by_stratum.tsv`).
+  W1 never-use vs 65 0-copy: SAS 43.5 vs 55.1%, AFR 33.3 vs 38.5, EAS 30.1 vs 37.1, AMR 25.4 vs
+  30.1, EUR 16.7 vs 19.5, all 27.3 vs 33.0 (MID masked in 65). Same ranking. Usage is lower by a
+  fairly constant factor (0.79–0.86), which fits W1's near-zero shoulder: some 0-copy people
+  get a few TRBV4-3 calls from similar TRBV4 genes. So "never used" catches ~83% of 0-copy
+  people, and expression supports the 65 genotype independently. These are group-level
+  comparisons on overlapping but different cohorts; the per-person check is Marc's script 60,
+  which is waiting on our usage table.
