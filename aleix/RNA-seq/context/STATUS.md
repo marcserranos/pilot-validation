@@ -26,6 +26,12 @@ one-pager https://claude.ai/artifact/CyJ3ktfg3xuJeJWogCZRMv (both predate W0–W
 ## Pick up here
 
 1. **W6 handover notes** — the last step of the 10-08 plan; not started.
+1b. **Fix the W5 gain design before quoting it** (DECISIONS, 2026-10-16): LASSO shrinks the
+   base along with the repertoire features. Rerun 14 with the base held fixed (~3 h on the VM).
+1c. **Back up the VM-only per-person data** (`~/pipeline_outputs/rnaseq/` on the RNA-seq VM:
+   person_table, features, labels) to `gs://aleix-rnaseq-wb-cordial-leechee-9743`. It isn't in
+   git by design, and it's lost if that VM is deleted. Rebuilding it means rerunning
+   run_w0/run_w1/run_disease.
 2. **Marc is waiting on the TRBV usage table**: his script 60 (`60_trb_germline_usage.py`,
    main) joins per-person TRBV usage to his TRBV copy-number / TRBV4-3 insertion genotypes
    (script 65, 12,233 people). Copy the table to the bucket Marc reads (confirm path with him).

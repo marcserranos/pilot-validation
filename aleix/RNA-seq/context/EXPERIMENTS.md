@@ -379,3 +379,22 @@ obesity 0.65, urticaria 0.64, asthma 0.60, allergic rhinitis 0.58.
   (W4), strongest in heart failure. Embeddings do not help these classifiers.
 - Figure 14 redrawn locally from classification.csv (`--plot-only`): panel b is a gain heatmap
   with labelled rows (first version had unlabelled, misaligned rows); local render uses Arial.
+
+## 2026-10-16 — review of W0–W5 committed outputs (no runs)
+
+New session on a new laptop; read reports 09–14 and their tables. Two points not in the
+entries above:
+- **W5 LASSO shrinks the base covariates too.** `14_disease_classification.py` puts base and
+  repertoire columns in one `StandardScaler` + `LogisticRegressionCV(penalty="l1")`, so all
+  columns share one penalty. With hundreds of repertoire columns the inner CV picks a strong
+  penalty and age/sex/PCs get shrunk with them: asthma base 0.602 -> "+ all" 0.528, allergic
+  rhinitis 0.575 -> 0.525. XGBoost "+ all" also drops (asthma 0.591 -> 0.545). So the
+  negative gains measure the cost of the extra columns, not "repertoire hurts", and the
+  positive gains may be underestimated. "Adds at most ~1 point" probably still holds, but
+  the gain estimate needs a design that keeps the base fixed (see DECISIONS).
+- **Immune-mediated diseases lean the other way from cardiometabolic ones (W4, fig 13c).** For
+  inverse Simpson at 823 reads, psoriasis, SLE, atopic dermatitis, RA, UC, allergic rhinitis,
+  Sjogren and urticaria all have positive point estimates (more even repertoire, fewer
+  dominant clones). Cardiometabolic diseases, HF and HIV are negative. Only psoriasis is
+  nominal (p 0.032, BH q 0.13), so it's a direction to check, not a result. Possible reasons:
+  immunosuppressive treatment, younger cases after age adjustment, or no CMV-type expansion.

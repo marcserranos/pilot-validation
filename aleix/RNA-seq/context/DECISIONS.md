@@ -6,6 +6,14 @@
 
 ## Open questions
 
+- **W5 gain over base: keep the base fixed (raised 2026-10-16).** LASSO puts one L1 penalty on
+  base and repertoire columns together, so adding many columns shrinks age/sex/PCs as well
+  and "+ all" lands below base (asthma -7, allergic rhinitis -5 AUROC points). Options: (a)
+  two-stage: fit the base model, then fit repertoire features with the base logit as a fixed
+  offset; (b) leave base columns unpenalised (scale them up before liblinear, or use a
+  solver that allows per-feature penalties); (c) report only diversity, a few features.
+  Leaning (a), since it measures the gain directly. Not yet decided; W5 conclusions stay
+  provisional until then.
 - **Real research_ids committed to a public GitHub repo, bound to individual-level findings**
   — in at least 6 files (incl. `results/1000291_trust4_smoke_test.md`,
   `../../context/ENVIRONMENT.md`). Flagged 2026-08-17, escalated to Marc, still undecided.
