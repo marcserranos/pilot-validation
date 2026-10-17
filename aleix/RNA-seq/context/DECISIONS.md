@@ -6,6 +6,29 @@
 
 ## Open questions
 
+- **Supervisor feedback on figure 02 and W5 (meeting, week of 2026-10-12; Aleix absent,
+  notes partial). Asks, as understood; to confirm before acting:**
+  - *Figure 02*: keep a (cohort) and d (TRBV usage); drop c (CDR3 length; supplement or
+    nowhere?). Panel f becomes **Shannon entropy with total TRB reads regressed out, vs age**,
+    instead of rarefied richness at 823 reads. Panel g is "to fix", but the notes don't say
+    how; likely the same treatment for top-10 share (read-adjusted vs age). b and e not mentioned.
+    Expected effect: small. Adjusting for log reads moved the age slopes very little (richness
+    -3.28 -> -3.20 %/decade; top-10 +1.91 -> +1.93 pp/decade, `age_models.csv`), so the age
+    trend should survive. Keep the rarefied version as a sensitivity check. Needs the per-person
+    table (VM).
+  - *W5*: add B-cell chains (IGH/IGK/IGL) and combine all repertoire features. Changes this
+    implies: (1) W3 features are TRB-only, so they need re-extracting from cdr3.out for all
+    chains (VM). (2) "+ all" already scores below base because of the joint LASSO penalty (open
+    item below), so the fixed-base design must come first, or more features will look worse.
+    (3) The Ig ancestry recovery gap (AFR/EUR 1.7x) enters as a confound; base PCs help, but say
+    so. (4) Not in the notes but worth adding: isotype shares from the C gene (IGHE for
+    asthma/allergic rhinitis, IGHA, IGHG vs IGHM) and germline similarity as a
+    somatic-hypermutation proxy. TRB stays primary for HLA-facing work (decision 2026-09-27).
+  - *Interpretation*: write the small repertoire gain as an assay sampling limit (~2,000 TRB
+    reads, ~1,100 clonotypes per person), not as absence of biological signal. Currently an
+    interpretation, not a result. Testable without new data types: down-sample the deeper
+    people and check whether the gain shrinks with depth, or compare the gain by depth tertile.
+    Literature contrast: DNA-based TCRB classifiers use ~10^5 unique clonotypes per person.
 - **W5 gain over base: keep the base fixed (raised 2026-10-16).** LASSO puts one L1 penalty on
   base and repertoire columns together, so adding many columns shrinks age/sex/PCs as well
   and "+ all" lands below base (asthma -7, allergic rhinitis -5 AUROC points). Options: (a)

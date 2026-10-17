@@ -38,6 +38,9 @@ prepared and tested on synthetic data. VM steps (1b, 1c, 2 below) are queued for
    person_table, features, labels) to `gs://aleix-rnaseq-wb-cordial-leechee-9743`. It isn't in
    git by design, and it's lost if that VM is deleted. Rebuilding it means rerunning
    run_w0/run_w1/run_disease.
+1d. **Supervisor asks (DECISIONS, week of 10-12)**: figure 02 (drop c; f = read-regressed
+   Shannon vs age; fix g), W5 with BCR + all features (after 1b), depth-ceiling framing.
+   Code can be written this week; runs need the VM. Open: what "fix g" means, where c goes.
 2. **Marc is waiting on the TRBV usage table**: his script 60 (`60_trb_germline_usage.py`,
    main) joins per-person TRBV usage to his TRBV copy-number / TRBV4-3 insertion genotypes
    (script 65, 12,233 people). Copy the table to the bucket Marc reads (confirm path with him).
