@@ -25,7 +25,7 @@ one-pager https://claude.ai/artifact/CyJ3ktfg3xuJeJWogCZRMv (both predate W0–W
 
 ## Constraint, week of 2026-10-17
 
-No VM or bucket access this week (Aleix is away from his laptop). Work only from the repo and
+No VM or bucket access this week (Aleix is away from the laptop). Work only from the repo and
 the claude.ai artifacts: methods drafting, plot-only figure redraws from committed CSVs, code
 prepared and tested on synthetic data. VM steps (1b, 1c, 2 below) are queued for next week.
 
