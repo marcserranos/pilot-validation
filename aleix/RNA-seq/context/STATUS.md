@@ -23,6 +23,12 @@ Headline numbers to use (detail in EXPERIMENTS.md):
 Links: methods artifact v3 https://claude.ai/artifact/DR6G9cPp4DKPeBSVyeZ1vi ·
 one-pager https://claude.ai/artifact/CyJ3ktfg3xuJeJWogCZRMv (both predate W0–W5).
 
+## Constraint, week of 2026-10-17
+
+No VM or bucket access this week (Aleix is away from his laptop). Work only from the repo and
+the claude.ai artifacts: methods drafting, plot-only figure redraws from committed CSVs, code
+prepared and tested on synthetic data. VM steps (1b, 1c, 2 below) are queued for next week.
+
 ## Pick up here
 
 1. **W6 handover notes** — the last step of the 10-08 plan; not started.
