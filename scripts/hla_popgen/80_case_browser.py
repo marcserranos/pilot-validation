@@ -322,10 +322,12 @@ def analyse(aref, aobs, clip5=0, clip3=0, exons=None, ars_exons=()):
             "exon_cols": exon_cols}
 
 
-def make_alignment(label_ref, label_obs, aref, aobs, source, clip5=0, clip3=0, exons=None, ars_exons=(), note=""):
+def make_alignment(label_ref, label_obs, aref, aobs, source, clip5=0, clip3=0, exons=None, ars_exons=(), note="",
+                   problems=0):
+    """One viewer alignment. `problems` = disagreements found while replaying Immuannot's cs (0 = exact)."""
     a = analyse(aref, aobs, clip5, clip3, exons, ars_exons)
     return {"source": source, "ref_label": label_ref, "obs_label": label_obs, "aref": aref, "aobs": aobs,
-            "clip5": clip5, "clip3": clip3, "note": note, **a}
+            "clip5": clip5, "clip3": clip3, "note": note, "problems": problems, **a}
 
 
 def novelty_class(consensus):
@@ -405,7 +407,7 @@ def cmd_demo(a):
     cases.append({
         "id": "c%03d" % (len(cases) + 1), "tab": "mendel", "species": "DEMO", "gene": "DEMO-B", "tier": "-", "novelty": "known",
         "verdict": "child allele absent from assigned parent", "consensus": "DEMO-B*07:02",
-        "facts": [["child call", "B*07:02"], ["assigned parent", "mother (k-mers 41 vs 2)"], ["parent calls", "B*07:03 / B*15:01"]],
+        "facts": [["child call", "B*07:02"], ["assigned parent", "Parent B (k-mers 41 vs 2)"], ["parent calls", "B*07:03 / B*15:01"]],
         "note": "SYNTHETIC: one substitution against parent hap 1, one 1-bp deletion against hap 2.",
         "alignments": [dict(mk(("parent hap1", "child"), ref, child), title="child vs parent hap 1"),
                        dict(mk(("parent hap2", "child"), other, child), title="child vs parent hap 2")]})
@@ -428,17 +430,12 @@ def main(argv=None):
     b.add_argument("--out-dir", required=True)
     d = sub.add_parser("demo")
     d.add_argument("--out-dir", required=True)
-    try:
-        from importlib import import_module  # noqa: F401
-        import importlib.util as iu
-        p = os.path.join(HERE, "80_case_browser_extract.py")
-        if os.path.exists(p):
-            spec = iu.spec_from_file_location("cb_extract", p)
-            mod = iu.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            mod.register(sub)
-    except ImportError:
-        pass
+    import importlib.util as iu
+    spec = iu.spec_from_file_location("cb_extract", os.path.join(HERE, "80_case_browser_extract.py"))
+    ext = iu.module_from_spec(spec)
+    spec.loader.exec_module(ext)
+    ext._CORE = sys.modules[__name__]
+    ext.register(sub)
     a = ap.parse_args(argv)
     if a.cmd == "build":
         cmd_build(a)
