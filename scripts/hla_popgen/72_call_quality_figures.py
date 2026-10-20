@@ -551,36 +551,46 @@ def fig_tail_models(res, out):
     pr = load(res, "stat_prune.tsv")
     if a is None or pr is None:
         return
-    cands = [("model:all", "Logistic, all metrics (bulk)"), ("model:tail", "Logistic on tail features"), ("model:gbm", "Gradient boosting"),
-             ("rule:worst_rank_depth", "Worst percentile, depth metrics"), ("rule:worst_rank_all", "Worst percentile, all metrics"), ("score7", "Old 0-7 score")]
-    views = [v for v in ("trio_child", "trio_worst", "pair", "twin", "trio_complete", "pair_complete") if v in set(a["view"])]
+    cands = [("model:all", "Logistic, all metrics (bulk)", "#1B1919", "-"), ("model:tail", "Logistic on tail features", "#E64B35", "-"),
+             ("model:gbm", "Gradient boosting", "#00A087", "-"), ("rule:worst_rank_depth", "Worst percentile, depth", "#3C5488", "--"),
+             ("rule:worst_rank_all", "Worst percentile, all metrics", "#8491B4", "--"), ("n_called", "Haplotypes called (1 vs 2)", "#F39B7F", ":"),
+             ("score7", "Old 0-7 score", "#7E6148", ":")]
+    views = [(v, l) for v, l in (("trio_worst", "Trios, worse of child and parent"), ("pair", "First-degree pairs"), ("trio_complete", "Trios, complete genotypes"),
+                                 ("pair_complete", "Pairs, complete genotypes")) if v in set(a["view"])]
     with style():
-        fig, axes = plt.subplots(1, 2, figsize=(V.mm(183), V.mm(80)), gridspec_kw=dict(width_ratios=[1, 1.3]))
-        ax = axes[0]
-        for j, (k, lab_) in enumerate(cands):
-            for i, v in enumerate(views):
+        fig = plt.figure(figsize=(V.mm(183), V.mm(112)))
+        gs = fig.add_gridspec(2, 3, width_ratios=[1.25, 1, 1], hspace=0.5, wspace=0.42, left=0.2, right=0.985, top=0.9, bottom=0.25)
+        ax = fig.add_subplot(gs[:, 0])
+        vcol = {"trio_worst": "#3C5488", "pair": "#E64B35", "trio_complete": "#8491B4", "pair_complete": "#F39B7F"}
+        for j, (k, lab_, col, ls) in enumerate(cands):
+            for i, (v, vl) in enumerate(views):
                 r = a[(a["view"] == v) & (a["metric"] == k)]
                 if len(r):
-                    ax.scatter(r["auc"].iloc[0], j + (i - (len(views) - 1) / 2) * 0.1, s=8, color=plt.cm.tab10(i), edgecolors="none",
-                               label=ISO_LABEL.get(v, v) if j == 0 else None)
+                    ax.scatter(r["auc"].iloc[0], j + (i - (len(views) - 1) / 2) * 0.16, s=9, color=vcol[v], edgecolors="none", label={"trio_worst": "Trios", "pair": "Pairs", "trio_complete": "Trios, complete", "pair_complete": "Pairs, complete"}[v] if j == 0 else None)
         ax.set_yticks(range(len(cands)))
         ax.set_yticklabels([c[1] for c in cands])
         ax.invert_yaxis()
         ax.axvline(0.5, color="0.5", lw=0.4, ls="--")
         ax.set_xlabel("AUC for the error label")
-        ax.legend(loc="lower right", **V.LEGEND_KW)
-        ax = axes[1]
-        for k, lab_ in cands:
-            for i, v in enumerate(views):
+        ax.legend(loc="lower center", bbox_to_anchor=(0.45, 1.0), ncol=2, columnspacing=0.8, **V.LEGEND_KW)
+        fig.text(0.005, 0.96, "a", fontsize=V.PANEL_LETTER_FONTSIZE, fontweight="bold", va="top")
+        for idx, (v, vl) in enumerate(views[:2]):
+            ax = fig.add_subplot(gs[idx, 1:])
+            for k, lab_, col, ls in cands:
                 d = pr[(pr["view"] == v) & (pr["metric"] == k) & (pr["scale"] == "pooled")].sort_values("prune_pct")
                 d = d[d["prune_pct"] <= 10]
                 if len(d):
-                    ax.plot(d["prune_pct"], d["captured_pct"], color=plt.cm.tab10(i), lw=0.6, ls={"model:all": "-", "model:tail": "--", "model:gbm": ":",
-                            "rule:worst_rank_depth": "-.", "rule:worst_rank_all": (0, (1, 2)), "score7": (0, (3, 1, 1, 1))}.get(k, "-"))
-        ax.plot([0, 10], [0, 10], color="0.6", lw=0.4)
-        ax.set_xlabel("worst records removed (%)")
-        ax.set_ylabel("share of all errors removed (%)")
-        fig.tight_layout()
+                    ax.plot(d["prune_pct"], d["captured_pct"], color=col, ls=ls, lw=0.9, label=lab_ if idx == 0 else None)
+            ax.plot([0, 10], [0, 10], color="0.6", lw=0.5)
+            ax.set_xlim(0, 10)
+            ax.set_ylim(0, None)
+            ax.set_ylabel("errors removed (%)")
+            ax.set_title(vl, loc="left", fontsize=6.2)
+            if idx == len(views[:2]) - 1:
+                ax.set_xlabel("worst records removed (%)")
+            V.panel_letter(ax, "bc"[idx], dy=1.12)
+        h, l = fig.axes[1].get_legend_handles_labels()
+        fig.legend(h, l, loc="lower center", bbox_to_anchor=(0.5, 0.0), ncol=4, columnspacing=0.8, **V.LEGEND_KW)
         V.save_fig(fig, os.path.join(out, "fig_tail_models"))
 
 
