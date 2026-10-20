@@ -20,8 +20,10 @@ Headline numbers to use (detail in EXPERIMENTS.md):
   ever helps; SCEPTR, 3-mers and V/J add nothing.
 - Earlier, still current: 06 identifiability 27.0% z-scored; 03 stability 0.76; cap 500.
 
-Links: methods artifact v3 https://claude.ai/artifact/DR6G9cPp4DKPeBSVyeZ1vi ·
-one-pager https://claude.ai/artifact/CyJ3ktfg3xuJeJWogCZRMv (both predate W0–W5).
+Links: methods artifact (v4, 2026-10-20, covers W0–W5 and report 15)
+https://claude.ai/artifact/DR6G9cPp4DKPeBSVyeZ1vi; source committed at
+`reports/methods/trb_repertoire_methods.html` (republish from that file). One-pager
+https://claude.ai/artifact/CyJ3ktfg3xuJeJWogCZRMv (predates W0–W5).
 
 ## Constraint, week of 2026-10-17
 
@@ -49,7 +51,8 @@ prepared and tested on synthetic data. VM steps (1b, 1c, 2 below) are queued for
 3. DONE 2026-10-20: READMEs for every report (01 updated to the polish run; 02–14 new; 15 new).
    Figure fixes that need the VM (no plot-only path, or per-person data) are listed in each
    README under "Known layout issue".
-4. Methods document, the ageing write-up (02), and the HLA-label join (J1–J5 in main's
+4. Methods document: v4 done 2026-10-20 (W0–W5, 15, corrections). Still owed: the ageing
+   write-up (02, after the supervisor's panel changes) and the HLA-label join (J1–J5 in main's
    `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` §3).
 5. Open questions in DECISIONS.md still unworked: per-person per-chain ancestry recovery
    test (B-cell chains carry the gap), rarefaction metric, research_ids in the public repo.

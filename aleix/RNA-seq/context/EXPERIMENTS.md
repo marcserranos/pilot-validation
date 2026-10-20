@@ -438,3 +438,9 @@ positions from TRUST4's hg38_bcrtcr.fa @ 4032f90. Runs in seconds.
   degenerate with empty strata: infinite for 65 tests, above 1,000 for 13 more (CMV cluster 42:
   26,497). Report p_cmh / q_cmh only. "Synthetic" (VDJdb engineered TCRs) is included as if it
   were a pathogen (44/44 matches in cluster 50); exclude it in any redraw.
+- **Methods artifact v4 published** (same link; source now in git at
+  `reports/methods/trb_repertoire_methods.html`): cards for 09, 10, 11–12, 13, 14, 15; corrections
+  to 01 (hidden fractions), 05 (enrichment counts, MH odds ratio, "Synthetic"), 07 (figure);
+  new open issues (W5 joint penalty, untested depth-ceiling claim, no CMV); statsmodels 0.15.0
+  listed, XGBoost version not recorded. Checked in headless Chromium: 25 cards, no console errors,
+  no horizontal overflow at 390 px.

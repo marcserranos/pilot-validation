@@ -1,0 +1,1172 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>TRB Repertoire Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@87,500;87,650;100,700&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a vertical pipeline spine of phase bands; every stage is a card that opens a full method sheet in a dialog. */
+:root{
+  --bg:#F4F6F8; --surface:#FFFFFF; --sunk:#EBEEF2; --ink:#14181F; --muted:#586172; --rule:#D9DEE5;
+  --accent:#2D5B88; --accent-soft:#E3ECF5;
+  --ok:#2B7652; --ok-soft:#E1F0E8; --bad:#A3443A; --bad-soft:#F6E4E1; --warn:#9A6614; --warn-soft:#F7EDD9;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1115; --surface:#161A20; --sunk:#1D2229; --ink:#E6E9EE; --muted:#9AA3B1; --rule:#2A3039;
+  --accent:#86AEDA; --accent-soft:#1D2A39;
+  --ok:#6CC499; --ok-soft:#16281F; --bad:#E58E82; --bad-soft:#2E1B19; --warn:#E2B55E; --warn-soft:#2C2416;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0E1115; --surface:#161A20; --sunk:#1D2229; --ink:#E6E9EE; --muted:#9AA3B1; --rule:#2A3039;
+  --accent:#86AEDA; --accent-soft:#1D2A39;
+  --ok:#6CC499; --ok-soft:#16281F; --bad:#E58E82; --bad-soft:#2E1B19; --warn:#E2B55E; --warn-soft:#2C2416;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+a{color:var(--accent)}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+code{background:var(--sunk);padding:.08em .35em;border-radius:3px;overflow-wrap:anywhere}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+header.top{display:grid;gap:14px;padding-bottom:22px;border-bottom:1px solid var(--rule)}
+.eyebrow{font:600 11.5px/1 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(28px,4.2vw,40px);font-weight:700;font-stretch:87%;letter-spacing:-.01em;line-height:1.05}
+.lede{max-width:72ch;color:var(--ink);margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:13px}
+nav.jump{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+nav.jump a{font-size:13px;text-decoration:none;border:1px solid var(--rule);background:var(--surface);padding:5px 11px;border-radius:999px;color:var(--ink)}
+nav.jump a:hover{border-color:var(--accent);color:var(--accent)}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:12.5px;color:var(--muted);align-items:center}
+.ev{display:inline-flex;align-items:center;gap:6px}
+.tag{font:600 10.5px/1 var(--f-mono);letter-spacing:.02em;padding:3px 6px;border-radius:3px;white-space:nowrap}
+.t-M{background:var(--ok-soft);color:var(--ok)}
+.t-L{background:var(--accent-soft);color:var(--accent)}
+.t-I{background:var(--warn-soft);color:var(--warn)}
+.t-C{background:var(--sunk);color:var(--muted)}
+.t-N{background:var(--bad-soft);color:var(--bad)}
+
+/* flow strip */
+section{margin-top:36px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+h2{font-size:22px;font-weight:650;font-stretch:87%}
+.sec-h p{margin:0;color:var(--muted);font-size:13.5px;max-width:70ch}
+.flow-scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:var(--surface)}
+.flow{display:flex;align-items:stretch;min-width:max-content;padding:14px}
+.fnode{display:grid;gap:3px;padding:10px 12px;border:1px solid var(--rule);border-radius:5px;background:var(--bg);min-width:150px;max-width:190px}
+.fnode b{font:600 12.5px/1.25 var(--f-mono);overflow-wrap:anywhere}
+.fnode span{font-size:12px;color:var(--muted);line-height:1.35}
+.fnode .n{font:700 17px/1.1 var(--f-display);font-stretch:87%;color:var(--ink)}
+.farrow{display:flex;align-items:center;padding:0 6px;color:var(--muted);font:500 11px/1.2 var(--f-mono);text-align:center;max-width:96px}
+.farrow i{font-style:normal;display:block}
+
+/* pipeline */
+.phase{display:grid;grid-template-columns:200px minmax(0,1fr);gap:18px;padding:20px 0;border-top:1px solid var(--rule)}
+.phase:first-of-type{border-top:0}
+.phase-label{position:relative}
+.phase-label .pl{position:sticky;top:12px;display:grid;gap:6px}
+.phase-label .letter{font:700 13px/1 var(--f-mono);color:var(--accent)}
+.phase-label h3{font-size:18px;font-weight:650;font-stretch:87%}
+.phase-label p{margin:0;font-size:13px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.card{display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 14px 12px;cursor:pointer;transition:border-color .15s,box-shadow .15s;min-width:0}
+.card:hover{border-color:var(--accent);box-shadow:0 1px 0 var(--accent)}
+.card .top{display:flex;align-items:baseline;gap:10px}
+.card .num{font:700 13px/1 var(--f-mono);color:var(--accent);min-width:2.2ch}
+.card h4{margin:0;font:650 16.5px/1.2 var(--f-display);font-stretch:87%}
+.card .what{font-size:13.5px;color:var(--muted);margin:0}
+.io{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;font-size:12px;align-content:start}
+.io dt{color:var(--muted);font:500 10.5px/1.6 var(--f-mono);text-transform:uppercase;letter-spacing:.04em}
+.io dd{margin:0;font-family:var(--f-mono);font-size:11.5px;line-height:1.5;overflow-wrap:anywhere}
+.card .foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;border-top:1px dashed var(--rule);padding-top:8px}
+.kn{font:600 12px/1.2 var(--f-mono)}
+.flags{display:flex;gap:6px}
+.flag{font:600 10.5px/1 var(--f-mono);padding:3px 6px;border-radius:3px}
+.flag.w{background:var(--bad-soft);color:var(--bad)}
+.flag.o{background:var(--warn-soft);color:var(--warn)}
+.open-hint{font-size:11.5px;color:var(--accent);font-weight:600}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;vertical-align:top;padding:8px 11px;border-bottom:1px solid var(--rule)}
+th{font:600 11px/1.3 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sunk);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td code{white-space:nowrap}
+
+/* issues */
+.issues{display:grid;gap:10px}
+.issue{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--bad);border-radius:5px;padding:12px 14px}
+.issue.known{border-left-color:var(--warn)}
+.issue.done{border-left-color:var(--ok)}
+.issue.done .sev{color:var(--ok)}
+.issue .sev{font:600 10.5px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.04em;color:var(--bad);padding-top:3px}
+.issue.known .sev{color:var(--warn)}
+.issue h4{margin:0;font:650 15px/1.3 var(--f-display);font-stretch:87%}
+.issue p{margin:2px 0 0;font-size:13.5px}
+.issue .fix{color:var(--muted)}
+.issue .where{grid-column:2;font:500 11.5px/1.4 var(--f-mono);color:var(--muted)}
+
+/* glossary */
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.gloss div{background:var(--surface);border:1px solid var(--rule);border-radius:5px;padding:10px 12px;font-size:13.5px}
+.gloss b{display:block;font:650 14px/1.3 var(--f-display);font-stretch:87%;margin-bottom:2px}
+
+/* dialog */
+dialog{border:1px solid var(--rule);border-radius:8px;padding:0;background:var(--surface);color:var(--ink);width:min(960px,calc(100vw - 24px));max-height:min(90vh,1000px);box-shadow:0 18px 60px rgba(0,0,0,.28)}
+dialog::backdrop{background:rgba(10,14,20,.55)}
+.dlg{display:flex;flex-direction:column;max-height:min(90vh,1000px)}
+.dlg-head{display:grid;gap:8px;padding:16px 20px 12px;border-bottom:1px solid var(--rule);background:var(--surface)}
+.dlg-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.dlg-title h3{font-size:22px;font-weight:650;font-stretch:87%;line-height:1.15}
+.dlg-title .num{font:700 13px/1 var(--f-mono);color:var(--accent);display:block;margin-bottom:5px}
+.close{border:1px solid var(--rule);background:var(--bg);border-radius:5px;padding:5px 11px;cursor:pointer;font-size:13px;flex:none}
+.close:hover{border-color:var(--accent)}
+.secnav{display:flex;flex-wrap:wrap;gap:6px}
+.secnav a{font-size:12px;text-decoration:none;color:var(--muted);border:1px solid var(--rule);border-radius:999px;padding:3px 9px}
+.secnav a:hover{color:var(--accent);border-color:var(--accent)}
+.stepper{display:flex;justify-content:space-between;gap:8px}
+.stepper button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12.5px;font-weight:600;padding:0}
+.stepper button[disabled]{color:var(--muted);opacity:.5;cursor:default}
+.dlg-body{overflow-y:auto;padding:8px 20px 28px;scroll-padding-top:8px}
+.blk{padding-top:18px}
+.blk>h5{margin:0 0 8px;font:600 11.5px/1 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+.blk p{margin:0 0 8px;max-width:78ch}
+.blk ul,.blk ol{margin:0;padding-left:20px;max-width:80ch}
+.blk li{margin:3px 0}
+.blk ol.steps{counter-reset:s;list-style:none;padding-left:0}
+.blk ol.steps>li{counter-increment:s;position:relative;padding-left:34px;margin:7px 0}
+.blk ol.steps>li::before{content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:600 11.5px/22px var(--f-mono);text-align:center}
+.iogrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.iobox{border:1px solid var(--rule);border-radius:5px;padding:10px 12px;background:var(--bg);min-width:0}
+.iobox h6{margin:0 0 4px;font:600 10.5px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.iobox ul{padding-left:16px;font-size:13px}
+.exp{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 12px;padding:9px 0;border-bottom:1px dashed var(--rule)}
+.exp:last-child{border-bottom:0}
+.exp .d{font:500 11.5px/1.5 var(--f-mono);color:var(--muted);white-space:nowrap}
+.exp b{font-weight:600}
+.exp p{margin:2px 0 0;font-size:13.5px}
+.sw{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sw>div{border-radius:5px;padding:10px 12px 10px}
+.sw .s{background:var(--ok-soft)}
+.sw .w{background:var(--bad-soft)}
+.sw h6{margin:0 0 4px;font:600 10.5px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.06em}
+.sw .s h6{color:var(--ok)} .sw .w h6{color:var(--bad)}
+.sw ul{padding-left:16px;font-size:13.5px}
+.callout{border-left:3px solid var(--warn);background:var(--warn-soft);padding:9px 12px;border-radius:0 5px 5px 0;font-size:13.5px;margin:8px 0}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-soft)}
+.cmd{font:12px/1.55 var(--f-mono);background:var(--sunk);border-radius:5px;padding:10px 12px;overflow-x:auto;white-space:pre;margin:4px 0 8px}
+
+/* decision tree */
+.tree{font-size:13.5px}
+.tree .q{font-weight:600;display:inline-block;background:var(--sunk);border-radius:4px;padding:3px 8px;margin:2px 0 4px}
+.tree ul{list-style:none;margin:0 0 4px 10px;padding-left:16px;border-left:1px solid var(--rule)}
+.tree li{position:relative;margin:5px 0;padding-left:4px}
+.tree li::before{content:"";position:absolute;left:-16px;top:.8em;width:12px;border-top:1px solid var(--rule)}
+.tree .opt{display:inline}
+.tree .mk{font:700 11px/1 var(--f-mono);padding:2px 5px;border-radius:3px;margin-right:6px}
+.tree li.yes>.opt .mk{background:var(--ok-soft);color:var(--ok)}
+.tree li.no>.opt .mk{background:var(--bad-soft);color:var(--bad)}
+.tree li.no>.opt .lbl{color:var(--muted)}
+.tree li.yes>.opt .lbl{font-weight:600}
+.tree .why{color:var(--muted);font-size:12.5px}
+.tree .tree{margin-top:4px}
+
+@media (max-width:760px){
+  .phase{grid-template-columns:1fr;gap:10px}
+  .phase-label .pl{position:static}
+  .iogrid,.sw{grid-template-columns:1fr}
+  .dlg-body{padding:6px 14px 24px}
+  .dlg-head{padding:14px 14px 10px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">All of Us · RNA-seq repertoire workstream · methods reference</div>
+  <h1>TRB Repertoire Pipeline</h1>
+  <p class="lede">Every step from the All of Us RNA-seq BAMs to the analyses: what was done, with which software and parameters, why, what was tested to decide it, what was discarded, and where each step is weak. Click any stage to open its full method sheet.</p>
+  <div class="meta">
+    <span>Sourced from scripts, context docs and committed report tables on <code>aleix/hla-resolve-phase1</code> @ <code>7ee814d</code></span>
+    <span>State as of 2026-10-20 (v4): adds the disease and ancestry work W0–W5 (reports 09–14) and report 15; corrections to 01, 05, 07</span>
+    <span>No participant-level data on this page</span>
+  </div>
+  <div class="legend" aria-label="Evidence legend">
+    <span>Why a choice was made:</span>
+    <span class="ev"><span class="tag t-M">MEASURED</span>tested on our data</span>
+    <span class="ev"><span class="tag t-L">LITERATURE</span>tool docs or papers</span>
+    <span class="ev"><span class="tag t-C">CONSTRAINT</span>deadline, compute, privacy, supervisor scope</span>
+    <span class="ev"><span class="tag t-I">INHERITED</span>default or carried over, never tuned</span>
+  </div>
+  <nav class="jump" aria-label="Sections">
+    <a href="#flow">Data flow</a><a href="#pipeline">Pipeline stages</a><a href="#software">Software and versions</a><a href="#issues">Open issues</a><a href="#glossary">Glossary</a>
+  </nav>
+</header>
+
+<section id="flow">
+  <div class="sec-h"><h2>Data flow at a glance</h2><p>What each step consumes and produces, with the counts from the full-cohort run.</p></div>
+  <div class="flow-scroll"><div class="flow" id="flowstrip"></div></div>
+</section>
+
+<section id="pipeline">
+  <div class="sec-h"><h2>Pipeline stages</h2><p>Stages 0 to 9 run in this order. Reports 01 to 07 describe the repertoire and the embedding; reports 09 to 15 are the disease and ancestry work built on one analysis table. Red flags count weak points, amber flags count open items.</p></div>
+  <div id="phases"></div>
+</section>
+
+<section id="software">
+  <div class="sec-h"><h2>Software and versions</h2><p>Captured from the VM by <code>freeze_env.sh</code> on 2026-10-04 (<code>reports/08_methods_audit/environment.txt</code>). These are the versions that produced every result on this page.</p></div>
+  <div class="tbl-wrap"><table id="swtable"></table></div>
+</section>
+
+<section id="issues">
+  <div class="sec-h"><h2>Open issues</h2><p>Green: found while assembling this page, fixed or measured on the VM (2026-10-04 to 10-06); each card says what the rerun showed. Amber: logged earlier, still open.</p></div>
+  <div class="issues" id="issuelist"></div>
+</section>
+
+<section id="glossary">
+  <div class="sec-h"><h2>Glossary</h2><p>Terms used across the method sheets.</p></div>
+  <div class="gloss" id="glosslist"></div>
+</section>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-h">
+  <div class="dlg">
+    <div class="dlg-head">
+      <div class="dlg-title"><div><span class="num" id="dlg-num"></span><h3 id="dlg-h"></h3></div><button class="close" id="dlg-close" type="button">Close</button></div>
+      <nav class="secnav" id="dlg-nav" aria-label="Sections of this stage"></nav>
+      <div class="stepper"><button type="button" id="dlg-prev">← previous stage</button><button type="button" id="dlg-next">next stage →</button></div>
+    </div>
+    <div class="dlg-body" id="dlg-body"></div>
+  </div>
+</dialog>
+
+<script>
+const T = (k) => `<span class="tag t-${k}">${{M:'MEASURED',L:'LITERATURE',C:'CONSTRAINT',I:'INHERITED',N:'NOT TESTED'}[k]}</span>`;
+
+const PHASES = [
+  {id:'A', title:'Data and cohort', blurb:'Which BAMs, which people, which covariates.'},
+  {id:'B', title:'Repertoire calling', blurb:'TRUST4 on every BAM, how it was run at scale, and how recovery was checked.'},
+  {id:'C', title:'From contigs to clonotypes', blurb:'The shared filter every analysis uses, and the per-person sample that feeds the embedding.'},
+  {id:'D', title:'Embedding', blurb:'Choosing SCEPTR and the production run.'},
+  {id:'E', title:'Repertoire analyses', blurb:'Reports 01 to 07. Each is a script plus a report folder.'},
+ {id:'F', title:'Disease and ancestry (W0–W5)', blurb:'Reports 09 to 15: one analysis table, V/J usage by ancestry, disease labels, association, classification, and the TRBV4-3 genotype check.'},
+  {id:'X', title:'Cross-cutting rules', blurb:'Apply to every stage.'}
+];
+
+const S = [
+/* ------------------------------------------------------------------ 0 */
+{id:'s0', num:'0', phase:'A', title:'Source data',
+ what:'All of Us v9 short-read RNA-seq: STAR-aligned whole-blood BAMs. The only input.',
+ inp:'AoU controlled tier', out:'8,980 BAM + BAI, manifest.tsv',
+ key:'8,980 people', w:6, o:1,
+ scripts:['find_rnaseq_manifest.sh','(read-only: AoU manifests on the gcsfuse mount)'],
+ how:`<p>We use the BAM files themselves, not any expression product AoU derives from them. Expression pipelines (RSEM, gene counts) align to a reference genome, and a rearranged T-cell receptor gene exists in no reference genome. The receptor sequence therefore never reaches any of AoU's expression files; it survives only as reads in the BAM, mostly in the unmapped pool.</p>
+ <table><tr><th>Property</th><th>Value</th><th>Source</th></tr>
+ <tr><td>Tissue</td><td>Whole blood, all 8,980 samples</td><td>AoU v9 data docs</td></tr>
+ <tr><td>Library</td><td>Watchmaker RNA Library Prep with Polaris depletion (rRNA and globin)</td><td>AoU v9 data docs</td></tr>
+ <tr><td>Layout, read length</td><td>Paired-end, 146 bp, constant across all 8,980 samples</td><td>RNA-SeQC2 table, checked 2026-08-17</td></tr>
+ <tr><td>Aligner</td><td>STAR v2.7.11b, two-pass; then samtools 1.19.2 and 1.21 post-processing</td><td>BAM <code>@PG</code> headers of 4 samples (3 checked 2026-10-04)</td></tr>
+ <tr><td>Reference</td><td>hg38 without ALT, HLA and decoy contigs; GENCODE v48</td><td>AoU v9 data docs</td></tr>
+ <tr><td>Unmapped reads</td><td>Kept inside the BAM (<code>--outSAMunmapped Within</code>)</td><td>Verified in the smoke test</td></tr>
+ <tr><td>Duplicates</td><td>Marked, not removed (<code>.md.bam</code>)</td><td>File naming, AoU docs</td></tr>
+ <tr><td>Depth</td><td>Mostly 95 to 145 M aligned read pairs, tail past 350 M</td><td>100-person pilot</td></tr>
+ <tr><td>BAM size</td><td>Typically 4.8 to 6.4 GB, up to ~20 GB</td><td>2026-09-10 timing run</td></tr>
+ <tr><td>Location</td><td><code>v9/multiomics/rnaseq/manifest.tsv</code> on <code>vwb-aou-datasets-controlled</code></td><td>Verified</td></tr></table>`,
+ io:{i:['AoU controlled-tier bucket (requester pays)'],o:['<code>manifest.tsv</code>: research_id, BAM path, BAI path','8,980 BAMs, one per person (no technical replicates)']},
+ params:[],
+ why:[
+  `Whole blood is mostly leukocytes by RNA content, so T and B cells are present in every sample. ${T('L')}`,
+  `Depth of about 100 M pairs after globin and rRNA depletion is 2 to 5 times a typical expression study, which is what makes rare receptor transcripts recoverable. ${T('L')}`,
+  `AoU keeps unmapped reads in the BAM. That pool is where the most heavily rearranged receptor reads land. ${T('M')}`],
+ exps:[
+  {d:'2026-08-10',t:'Smoke test on one person',r:'TRUST4 recovered 2,013 CDR3s across all 7 chains from one BAM. The repertoire direction is feasible on this data.',e:'M'},
+  {d:'2026-08-17',t:'Read length and replicates',r:'Read length is 146 bp in every sample. 8,980 samples are 8,980 distinct people.',e:'M'}],
+ disc:[['RSEM / gene-level expression files','Receptor sequences are absent by construction.'],['Re-deriving FASTQs from the BAM','More I/O for no gain; TRUST4 reads BAMs directly.']],
+ tree:null,
+ str:['One tissue, one kit, one aligner, one reference: no molecular batch heterogeneity.','High depth for bulk RNA-seq.','Unmapped reads retained.','Per-sample QC tables (RNA-SeQC2) available as covariates.'],
+ weak:['Circulating cells only. Tissue-resident T cells are invisible.','One time point per person; recent infection at draw is unknown.','How the 8,980 were selected from AoU is not documented (data report item N3). Population claims inherit whatever enrichment exists.','Bulk RNA: no cell barcodes, so alpha and beta chains cannot be paired.','Excluding ALT/HLA/decoy contigs disables one of TRUST4\'s three read-capture routes. Small, systematic sensitivity loss.','AoU docs mention DRAGEN once for RNA alignment; the BAM headers say STAR 2.7.11b on all 4 BAMs checked.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ 1 */
+{id:'s1', num:'1', phase:'A', title:'Cohort definition',
+ what:'People with both RNA-seq and long-read WGS, labelled by genetic ancestry, BAM at most 12 GB.',
+ inp:'manifest.tsv, LR manifest, ancestry_preds.tsv', out:'cohort_full.tsv (7,922)',
+ key:'7,922 people', w:3, o:1,
+ scripts:['check_lr_rnaseq_overlap.py','build_rnaseq_cohort.py'],
+ how:`<ol class="steps">
+ <li><b>Overlap.</b> Intersect the RNA-seq manifest (8,980 people) with the long-read WGS manifest (14,521 people): <b>8,327</b> people have both. This is 34.2 times what independent sampling would give, so the two assays were deliberately co-assigned.</li>
+ <li><b>Ancestry label.</b> Join AoU's predicted genetic ancestry (<code>ancestry_preds.tsv</code>, continental groups AFR, AMR, EAS, EUR, MID, SAS). 8,326 have a label; 1 does not.</li>
+ <li><b>Per group, deterministic order.</b> Sort each ancestry group by research_id. Walk the list; keep a person only if their BAM actually exists on the mount (file-by-file check, never trusted from the manifest).</li>
+ <li><b>BAM size cap.</b> Skip any BAM over 12 GB, read with a metadata-only <code>stat()</code>. Removes 404 people: AFR 81, AMR 92, EAS 38, EUR 124, MID 23, SAS 46.</li>
+ <li><b>Per-group quota.</b> <code>--per-group 2500</code>. Every group is smaller than 2,500, so in practice this takes everyone eligible. Result: <b>7,922</b> (AFR 1,288 · AMR 1,699 · EAS 1,134 · EUR 2,351 · MID 404 · SAS 1,046). Every eligible BAM existed.</li></ol>
+ <div class="cmd">python3 check_lr_rnaseq_overlap.py
+python3 build_rnaseq_cohort.py --per-group 2500 --max-bam-gb 12 \\
+    --out ~/pipeline_outputs/rnaseq/cohort_full.tsv</div>`,
+ io:{i:['RNA-seq manifest (8,980)','Long-read WGS manifest (14,521 people)','<code>ancestry_preds.tsv</code>','gcsfuse mount (for existence and size checks)'],o:['<code>lr_rnaseq_overlap_cohort.tsv</code> (8,327), VM-local','<code>cohort_full.tsv</code>: research_id, ancestry, bam_rel_path (7,922), VM-local','<code>lr_rnaseq_overlap_summary.csv</code>: group counts only, committed']},
+ params:[['--restrict-to','LR × RNA-seq overlap (default)','Keeps every repertoire joinable to long-read HLA calls and EHR labels.'],['--per-group','2500','Larger than every group, so nobody eligible is left out.'],['--max-bam-gb','12','The one 20 GB BAM took 59 min in TRUST4 alone, CPU-bound. 12 GB is well above typical (4.8 to 6.4 GB).'],['--skip','0','Used only to build non-overlapping pilot cohorts on a second machine.'],['Order','sorted by research_id','Re-running gives the identical cohort.']],
+ why:[
+  `Restricting to the long-read overlap means every person can later be joined to Marc's long-read HLA calls and to disease labels without re-deriving a compatible cohort. ${T('C')}`,
+  `Stratifying by ancestry lets every result be reported per group, which matters because recovery was suspected to differ by ancestry. ${T('M')}`,
+  `The 12 GB cap keeps batch wall-clock predictable under a 3 to 4 day deadline. ${T('C')} ${T('M')}`],
+ exps:[
+  {d:'2026-08-11',t:'100-person pilot',r:'Ancestry-balanced 17/17/17/17/16/16 cohort. Established the per-group design and surfaced the ancestry recovery question.',e:'M'},
+  {d:'2026-08-17',t:'Overlap measurement',r:'8,327 people with both assays, ancestrally balanced, 5 of 6 groups above 1,000 people.',e:'M'},
+  {d:'2026-09-10',t:'BAM size timing',r:'Typical BAMs 4.8 to 6.4 GB. One 20 GB BAM took 59 min in TRUST4; local copy did not fix it.',e:'M'}],
+ disc:[['All 8,980 RNA-seq people','653 have no long-read WGS, so no long-read HLA label.'],['Equal N per ancestry group','Right for a 100-person pilot, wastes data at full scale.'],['No size cap','Unbounded outliers against a fixed deadline.']],
+ tree:{q:'Who enters the cohort?',o:[
+   {t:'All RNA-seq people (8,980)',x:0,w:'no long-read join for 653'},
+   {t:'RNA-seq × long-read overlap (8,327)',x:1,w:'joinable to HLA and EHR',n:{q:'How many per ancestry group?',o:[
+     {t:'Balanced fixed N',x:0,w:'pilot only'},
+     {t:'Everyone eligible',x:1,w:'--per-group 2500 exceeds every group',n:{q:'Large BAMs?',o:[
+       {t:'Keep all',x:0,w:'20 GB BAM took 59 min'},
+       {t:'Cap at 12 GB',x:1,w:'−404 people, 7,922 kept'}]}}]}}]},
+ str:['Deterministic and re-runnable.','BAM existence verified file by file.','Joinable to HLA and disease labels by construction.'],
+ weak:['The cap removes the deepest samples (report 08, RNA-SeQC2): the 404 excluded people have a median 277 M mapped reads against 109 M for those kept (2.5×), 2.1× the library complexity and 16% more genes detected (all p < 10⁻³). Results describe typical-depth samples. Report 02 is protected by rarefaction; raw-count analyses are biased slightly downward. TRUST4 was never run on the excluded people, so a biological difference cannot be ruled out.','Exclusion is mildly ancestry-uneven: 3.2% (EAS) to 5.9% (AFR).','Ancestry is a predicted continental label; admixed people are assigned one group.','The cohort inherits the undocumented selection of the 8,980 RNA-seq participants.'],
+ open:['If a reviewer asks: run TRUST4 on the 404 excluded people (about 4–6 h on one VM) and confirm the main results hold with them included.']},
+
+/* ------------------------------------------------------------------ 2 */
+{id:'s2', num:'2', phase:'A', title:'Demographics and covariates',
+ what:'Year of birth and sex at birth from the AoU clinical database; QC metrics from RNA-SeQC2.',
+ inp:'CDR (BigQuery), RNA-SeQC2', out:'person.tsv (VM-local)',
+ key:'age = 2020 − YOB', w:2, o:0,
+ scripts:['query_overlap_phenotypes.py (Workbench notebook)','repfig.load_people()'],
+ how:`<ol class="steps">
+ <li>Run <code>query_overlap_phenotypes.py</code> in a Workbench Jupyter notebook against the CDR <code>wb-silky-artichoke-2408.C2025Q4R6</code> (BigQuery only; not reachable from the plain shell).</li>
+ <li>Pull <code>person</code> (year of birth, sex at birth), <code>observation_period</code> (EHR window) and conditions. Write to <code>~/pipeline_outputs/rnaseq/pheno/person.tsv</code>. Never committed.</li>
+ <li>In every report, <code>load_people()</code> joins this to the cohort: <b>age = 2020 − year_of_birth</b>; sex = Female / Male, anything else missing; age bins 18–29, 30–39, 40–49, 50–59, 60–69, 70+.</li>
+ <li>Depth covariate where used: log of total TRB reads per person after the clonotype filter (stage 6).</li></ol>`,
+ io:{i:['AoU CDR C2025Q4R6 tables: person, observation_period, condition_occurrence'],o:['<code>person.tsv</code> (VM-local)','Disease tables used by the separate disease-counts work']},
+ params:[['Reference year','2020','Blood draws span roughly 2017 to 2023, so age is accurate to about ±3 years. Adequate for per-decade effects.'],['Adults only','age ≥ 18 (reports 06, 07)','Paediatric repertoires differ; very few people.'],['Sex','sex_at_birth Female / Male','Other answers set to missing.']],
+ why:[`Age is the strongest known biological driver of TCR repertoire diversity, so it is the main covariate and the main validation target. ${T('L')}`,`Draw dates were not pulled; a fixed reference year was the fastest adequate proxy. ${T('C')}`],
+ exps:[{d:'2026-08-17',t:'QC confound screen (100 people)',r:'16 RNA-SeQC2 metrics checked against recovery. Genes Detected predicts recovery (r = 0.61) but is flat across ancestry. RNA quality score is flat (7.82 to 8.00) and unrelated to recovery (r = 0.06).',e:'M'}],
+ disc:[['Per-person draw date','Not pulled yet; would remove the ±3 y noise.']],
+ tree:null,
+ str:['Same demographic source as the rest of the AoU work.','Individual data never leaves the VM.'],
+ weak:['Age proxy uses a fixed year instead of the draw date.','No blood cell counts: T-cell fraction of the sample is not adjusted anywhere.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ 3 */
+{id:'s3', num:'3', phase:'B', title:'Repertoire calling with TRUST4',
+ what:'De novo assembly of T- and B-cell receptor transcripts directly from each BAM.',
+ inp:'one BAM + 2 reference FASTAs', out:'report.tsv, cdr3.out, airr.tsv, annot.fa',
+ key:'7,922 / 7,922 called', w:5, o:2,
+ scripts:['run_trust4_sample.sh','setup_trust4_refs.sh'],
+ how:`<p><b>What TRUST4 is.</b> Song et al., <i>Nature Methods</i> 2021. Standard aligners cannot place receptor reads because each T cell builds its receptor gene by cutting and rejoining its own DNA (V(D)J recombination), so the sequence exists in no reference genome. TRUST4 does not align. It collects reads that look receptor-derived, assembles them into contigs, and only then compares the contigs with IMGT germline genes to name the parts. The output unit is the CDR3, the hypervariable junction that contacts the antigen.</p>
+ <p><b>Version that ran: TRUST4 v1.1.5-r573</b> (bioconda build). <b>How it runs, four programs in sequence</b> (from reading the v1.1.10 source; the stages are the same in 1.1.5):</p>
+ <ol class="steps">
+ <li><b>Extraction</b> (<code>bam-extractor</code>, ~95% of runtime). Keeps a read if it aligns inside a V/D/J/C gene interval, or if it is unmapped and shares an exact stretch with a receptor gene, or if it sits on an ALT/decoy contig. The exact-match length is read length / 5 = <b>29 bp</b> for our 146 bp reads, identical for everyone. Low-complexity reads are dropped. For paired-end data it reads the whole BAM <b>twice</b> (first collecting read names, then fetching both mates).</li>
+ <li><b>Assembly</b> (<code>trust4</code>, seconds). Overlap-based de novo assembly into consensus contigs per sample, extended using mate pairs.</li>
+ <li><b>Annotation</b> (<code>annotator</code>). Aligns contigs to IMGT, calls up to 3 ranked V, D, J, C candidates and locates CDR1, CDR2, CDR3. Missing CDR3 bases are <b>imputed</b> for TCRs by default; imputed CDR3s get score 0.01, partial ones 0.00.</li>
+ <li><b>Reporting.</b> Writes <code>report.tsv</code>, the AIRR table and <code>cdr3.out</code>.</li></ol>
+ <div class="cmd">run-trust4 -b &lt;local copy of BAM&gt; \\
+    -f reference/hg38_bcrtcr.fa --ref reference/human_IMGT+C.fa \\
+    --abnormalUnmapFlag --clean 1 -t 2 \\
+    -o &lt;research_id&gt; --od ~/pipeline_outputs/rnaseq/&lt;research_id&gt;</div>`,
+ io:{i:['One coordinate-sorted BAM (local copy, stage 4)','<code>hg38_bcrtcr.fa</code>: receptor gene coordinates and sequences','<code>human_IMGT+C.fa</code>: IMGT allele database'],o:['<code>&lt;rid&gt;_report.tsv</code>: one row per CDR3, read count, V/D/J/C, amino acids','<code>&lt;rid&gt;_cdr3.out</code>: adds CDR1, CDR2, <b>CDR3_score</b>, germline similarity, completeness (13 columns, CDR3 as nucleotides)','<code>&lt;rid&gt;_airr.tsv</code>, <code>&lt;rid&gt;_annot.fa</code>','Synced per person to <code>gs://aleix-rnaseq-…/repertoire_results/</code>']},
+ params:[
+  ['--abnormalUnmapFlag','on','Required. AoU keeps unmapped mates interleaved in the BAM; without it extraction dies with “Two reads from the unaligned fragment are not showing up together”.'],
+  ['--clean','1','Deletes intermediate FASTQs and raw files; keeps report, AIRR, cdr3.out, annot.fa. Disk only.'],
+  ['-t','2 (nproc / jobs = 16 / 8)','Threads help only the k-mer screen, not the BAM read. Parallelism is spent on jobs instead.'],
+  ['-f / --ref','files shipped in the TRUST4 GitHub repo','Prebuilt for human hg38; the README build steps are unnecessary.'],
+  ['--contigMinCov','0 (default)','Keeps single-read-pair contigs. The main precision/sensitivity dial; never tested.'],
+  ['CDR3 imputation','on (default)','Not exposed by run-trust4. Imputed CDR3s are removed later by the score filter (stage 6).'],
+  ['-k','9 (default)','Contig indexing k-mer. No reason to change.'],
+  ['--stage','0 (default)','Full run. --stage 2 would allow re-annotation without re-extraction.']],
+ why:[
+  `Built for unselected bulk RNA-seq, reads BAMs directly, recovers near-full-length contigs including the V gene, which the embedding needs. ${T('L')}`,
+  `Authors report about 281% more CDR3s than MiXCR on bulk RNA-seq. That is the authors' own benchmark; read it as “a defensible mainstream choice”, not “objectively best”. ${T('L')}`,
+  `Feasibility was proven on our own data before scaling. ${T('M')}`],
+ exps:[
+  {d:'2026-08-10',t:'Smoke test, one person',r:'2,013 CDR3s, all 7 chain types, ~9 min. Found that --abnormalUnmapFlag is mandatory on AoU BAMs.',e:'M'},
+  {d:'2026-08-17',t:'Source-code reading',r:'Confirmed the two full BAM passes and the 29 bp extraction threshold, which explained every timing result so far.',e:'L'},
+  {d:'2026-08-17',t:'Read length uniformity',r:'Read length is constant, so extraction stringency is identical across people and cannot cause ancestry differences.',e:'M'}],
+ disc:[['MiXCR','Not run. TRUST4 is designed for this data type and takes BAMs directly.'],['FASTQ input','More I/O for nothing.'],['--repseq, barcode/UMI options','For targeted or single-cell libraries; ours is bulk.'],['GPU machine','The cost is reading the BAM; a GPU does nothing for it.']],
+ tree:{q:'How do we get receptor sequences out of RNA-seq?',o:[
+   {t:'Use AoU expression files',x:0,w:'receptors are absent'},
+   {t:'Alignment-based caller (MiXCR)',x:0,w:'not tested; TRUST4 preferred for bulk RNA-seq'},
+   {t:'TRUST4 de novo assembly',x:1,w:'',n:{q:'Default run fails on AoU BAMs',o:[{t:'--abnormalUnmapFlag',x:1,w:'fixes interleaved unmapped mates'}]}}]},
+ str:['Recovers TCR and BCR chains from data never designed for it.','Uniform extraction stringency across people.','Full-length contigs give V-gene identity.','Per-CDR3 quality score enables the downstream filter.'],
+ weak:['No alpha/beta pairing (bulk).','Read count reflects transcripts, not cells: an activated cell transcribes more receptor mRNA than a resting one.','Recovered diversity rises with depth without saturating.','The ALT/decoy capture route is dead on AoU BAMs.','Binary and references are from different TRUST4 versions: the binary is v1.1.5-r573, the reference FASTAs come from the repository at commit 4032f90 (2026-08-03). The reference format is stable across versions, but a methods section should say so or pin both.','<code>pixi.toml</code> still says <code>trust4 = "*"</code>; a fresh install could pull a newer version.'],
+ open:['Pin <code>trust4 = "1.1.5"</code> in pixi.toml.','One controlled <code>--contigMinCov 0 vs 2</code> experiment on the same people.']},
+
+/* ------------------------------------------------------------------ 4 */
+{id:'s4', num:'4', phase:'B', title:'Batch execution at scale',
+ what:'Copy each BAM to local disk, run TRUST4, delete, sync. Four VMs in parallel.',
+ inp:'cohort_full.tsv shards', out:'7,922 output dirs in the rnaseq bucket',
+ key:'0 failures', w:2, o:0,
+ scripts:['run_rnaseq_batch_local.sh','experiment_A_local_vs_fuse.sh','experiment_B_vcpu_scaling.sh'],
+ how:`<ol class="steps">
+ <li><b>Shard.</b> The first 500 people were already done on the pilot VM. The remaining 7,422 were split with <code>split -l</code> into 4 files of about 1,856. A research_id appears in exactly one shard, so VMs never collide.</li>
+ <li><b>Per person, on each VM</b> (<code>xargs -P 8</code>): <code>gcloud storage cp</code> the BAM to local disk (BAI best-effort), run TRUST4 (stage 3), delete the BAM, then copy the output folder to <code>gs://aleix-rnaseq-wb-cordial-leechee-9743/repertoire_results/</code>.</li>
+ <li><b>Resumable.</b> Anyone with an existing <code>report.tsv</code> is skipped, so the script can be stopped and rerun.</li>
+ <li><b>Disk bound.</b> At most 8 BAMs on disk at once; a preflight warns if free space is under 22 GB × jobs.</li>
+ <li><b>Reconciliation.</b> Bucket listing compared with the cohort list: 0 people missing, 36 harmless extras (timing-test folders and 4 old pilot people).</li></ol>
+ <div class="cmd">bash run_rnaseq_batch_local.sh shard_N.tsv --jobs 8
+# 4 × n1-highmem-16 (16 vCPU, 104 GB), one shard each, 2026-09-19 to 09-20</div>`,
+ io:{i:['<code>cohort_full.tsv</code> minus the 500 done → <code>shard_0..3.tsv</code>'],o:['<code>repertoire_results/&lt;research_id&gt;/</code> in the rnaseq bucket','<code>batch_local.log</code> per VM with per-person timings']},
+ params:[['Staging','copy to local disk','gcsfuse streams a BAM at ~11 MB/s; gcloud storage cp at ~670 MB/s.'],['--jobs','8 per VM','CPU-bound once BAMs are local; 8 × 2 threads fills 16 vCPU.'],['Machines','4 × n1-highmem-16','Turns a multi-day sequential run into a parallel one. Cost cuts were accepted only with zero timeline risk.'],['Sync','per person, right after success','A lost VM loses at most the person in progress.'],['Bucket','aleix-rnaseq-…','Not the disease-counts bucket (wrong default caught and fixed mid-launch).']],
+ why:[`TRUST4 reads every BAM twice. Over gcsfuse those two passes ran at network speed through one shared pipe, so adding jobs did not help. ${T('M')}`,`Deadline of 3 to 4 days for the full cohort. ${T('C')}`],
+ exps:[
+  {d:'2026-08-11',t:'jobs 1 vs 3, then 4 to 16',r:'2.55× speedup at 3 jobs. The 4 to 16 sweep was non-monotonic because each setting ran on different people; that design flaw was fixed in Experiment A.',e:'M'},
+  {d:'2026-09-10',t:'Experiment A: gcsfuse vs local copy',r:'Same people, sequential arms. gcloud storage cp moved a 4.8 GB BAM in 15 s (~670 MB/s) against ~11 MB/s through gcsfuse.',e:'M'},
+  {d:'2026-09-10',t:'Experiment B: vCPU scaling on gcsfuse',r:'9 people/hour at 4 jobs on 16 vCPU, projecting ~$925 and 38 days for the cohort. Motivated the copy-local redesign.',e:'M'},
+  {d:'2026-09-20',t:'Full run',r:'All 4 shards finished (“batch finished” markers checked in run.log, not inferred from auto-shutdown). 7,922 of 7,922 have a report.',e:'M'}],
+ disc:[['Read BAMs through gcsfuse','~60× slower and does not parallelise.'],['One VM, sequential','Days longer than the deadline allowed.'],['Spot/preemptible VMs','Cheaper, but preemption risk against the deadline.'],['Sync only at the end','A lost VM would lose its whole shard.']],
+ tree:{q:'How to read 5–20 GB BAMs twice each, 7,922 times?',o:[
+   {t:'Through the gcsfuse mount',x:0,w:'11 MB/s, one shared pipe'},
+   {t:'Copy locally, then run',x:1,w:'670 MB/s, CPU-bound',n:{q:'How many machines?',o:[
+     {t:'One VM',x:0,w:'too slow for the deadline'},
+     {t:'4 sharded VMs, 8 jobs each',x:1,w:'collision-safe by construction'}]}}]},
+ str:['Resumable, disk-bounded, collision-safe.','Every person accounted for in a bucket-versus-cohort reconciliation.'],
+ weak:['Operational, now resolved: shard VMs\' <code>cdr3.out</code> files were not copied back to the main VM at first (about 5,566 people), and the first 500 people predated per-person sync and needed a manual backfill.','Wall time per person was logged but not summarised into a cost/runtime table for the methods.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ 5 */
+{id:'s5', num:'5', phase:'B', title:'Recovery QC and aggregation',
+ what:'How many CDR3s per person and per chain, and whether recovery differs by ancestry.',
+ inp:'7,922 report.tsv', out:'batch_summary_detail.tsv, ancestry summary CSV',
+ key:'TRB AFR/EUR 1.06×', w:3, o:2,
+ scripts:['aggregate_rnaseq_results.py','check_depth_confound.py','check_qc_confounds.py','check_ancestry_confounds.py'],
+ how:`<ol class="steps">
+ <li>For each person, count rows of <code>report.tsv</code> overall and per chain (chain = first 3 letters of the V call).</li>
+ <li>Write per-person counts VM-local; write group means and medians per ancestry to <code>results/rnaseq_cohort_ancestry_summary.csv</code>.</li>
+ <li>At n = 100, test candidate explanations of the ancestry difference: depth, RNA quality, 16 QC metrics, a cell-composition proxy.</li></ol>
+ <table><tr><th>Ancestry</th><th class="num">People</th><th class="num">Mean CDR3s</th><th class="num">Mean TRB</th><th class="num">Mean IGH</th></tr>
+ <tr><td>AFR</td><td class="num">1,288</td><td class="num">6,331</td><td class="num">1,362</td><td class="num">1,314</td></tr>
+ <tr><td>SAS</td><td class="num">1,046</td><td class="num">5,998</td><td class="num">1,493</td><td class="num">1,249</td></tr>
+ <tr><td>EAS</td><td class="num">1,134</td><td class="num">5,406</td><td class="num">1,301</td><td class="num">1,121</td></tr>
+ <tr><td>AMR</td><td class="num">1,699</td><td class="num">5,230</td><td class="num">1,253</td><td class="num">1,064</td></tr>
+ <tr><td>MID</td><td class="num">404</td><td class="num">5,209</td><td class="num">1,470</td><td class="num">957</td></tr>
+ <tr><td>EUR</td><td class="num">2,351</td><td class="num">4,392</td><td class="num">1,281</td><td class="num">783</td></tr></table>
+ <p style="margin-top:8px">AFR/EUR ratio per chain: TRB 1.06 · TRA 1.12 · IGH 1.68 · IGK 1.75 · IGL 1.75. The all-chain gap is carried by the B-cell chains; TRB is nearly flat.</p>`,
+ io:{i:['<code>report.tsv</code> for all 7,922 people','cohort ancestry labels'],o:['<code>batch_summary_detail.tsv</code> (VM-local)','<code>rnaseq_cohort_ancestry_summary.csv</code> (committed)']},
+ params:[['Unit','raw CDR3 rows in report.tsv','Simple first look; known to be depth-dependent.'],['Report per chain, TRB first','supervisor decision (Cole, 2026-09-27)','The all-chain total is dominated by Ig chains and told the wrong story.']],
+ why:[`A recovery difference by ancestry would contaminate any later HLA or disease association, so it had to be checked first. ${T('M')}`,`TRB is the chain that matters for HLA. ${T('C')}`],
+ exps:[
+  {d:'2026-08-11',t:'Ancestry gap at n = 100',r:'AFR highest, EAS lowest, 1.63×. Kruskal–Wallis p = 0.18.',e:'M'},
+  {d:'2026-08-11',t:'Depth confound',r:'Depth explains about 40% of the gap (1.63× → 1.38× after normalising).',e:'M'},
+  {d:'2026-08-17',t:'QC confounds',r:'None of 16 QC metrics explains the gap. Genes Detected is the best recovery predictor (r = 0.61) but flat across ancestry.',e:'M'},
+  {d:'2026-09-20',t:'Full cohort',r:'Reverses the pilot: EUR is lowest, and the gap is in Ig chains, not TRB.',e:'M'}],
+ disc:[['All-chain totals','Dominated by Ig chains; masked a near-flat TRB.'],['Post-hoc depth normalisation','Closed only 40% of the gap; rarefaction is the better fix (used for TRB in report 02).']],
+ tree:null,
+ str:['Per-chain reporting caught that the pilot story did not hold at scale.','Confounds were tested one by one rather than assumed.'],
+ weak:['Group means only at full scale; no per-person test, no dispersion.','Raw counts depend on depth; the recovery metric was not rarefied.','Chain was assigned from the V call only here. Fixed to V, then J, then C; the rerun shows it made almost no difference (TRB +0.00%, IGH +0.66%, others under 0.1%).','Old committed summaries contain per-group min and max (single-person values). New summaries report 5th/95th percentiles; the old values remain in git history.'],
+ open:['Per-person, per-chain test with depth handled by rarefaction.','Leading hypothesis for the Ig gap (biological Ig expression, not artifact) is untested.']},
+
+/* ------------------------------------------------------------------ 6 */
+{id:'s6', num:'6', phase:'C', title:'Clonotype definition and filtering',
+ what:'One shared function turns TRUST4 output into clean TRB clonotypes. Every analysis uses it.',
+ inp:'cdr3.out per person', out:'9.44 M TRB clonotypes (full cache)',
+ key:'median 1,136 / person', w:4, o:1,
+ scripts:['embed_cdr3s.py :: load_person_cdr3s()','02_repertoire_atlas.py (builds trb_clonotypes_full.pkl)'],
+ how:`<ol class="steps">
+ <li><b>Read <code>cdr3.out</code></b>: headerless, 13 named columns. Not <code>report.tsv</code>, because only <code>cdr3.out</code> has the quality score.</li>
+ <li><b>Translate</b> the CDR3 nucleotide sequence to amino acids (standard code, TRUST4's convention: <code>_</code> stop, <code>?</code> ambiguous or out of frame).</li>
+ <li><b>Quality:</b> keep <code>CDR3_score ≥ 0.02</code>. Drops 0.00 (partial) and 0.01 (imputed).</li>
+ <li><b>Gene calls:</b> keep the top-ranked of up to three candidates for V, J and C.</li>
+ <li><b>Chain:</b> from the first gene actually called, V, then J, then C.</li>
+ <li><b>Canonical junction:</b> must match <code>C[ACDEFGHIKLMNPQRSTVWY]{3,}[FW]</code>: starts with the conserved cysteine, ends with F or W, standard residues only.</li>
+ <li><b>Length:</b> at most <b>30 amino acids</b>.</li>
+ <li><b>Collapse</b> to unique (chain, V gene, CDR3 amino acids): sum reads across TRUST4 assemblies, keep the max score.</li>
+ <li><b>Chain filter:</b> TRB only.</li>
+ <li><b>V gene</b> written as IMGT gene symbol with allele removed (<code>TRBV10-3*01</code> → <code>TRBV10-3</code>).</li></ol>
+ <p><b>What each step removes</b> (all 7,922 people, report 08):</p>
+ <table><tr><th>After step</th><th class="num">Rows</th><th class="num">% of raw</th><th class="num">% of previous</th><th class="num">Median / person</th></tr>
+ <tr><td>cdr3.out rows</td><td class="num">51,298,728</td><td class="num">100</td><td class="num"></td><td class="num">5,909</td></tr>
+ <tr><td>CDR3_score ≥ 0.02</td><td class="num">42,430,269</td><td class="num">82.7</td><td class="num">82.7</td><td class="num">4,850</td></tr>
+ <tr><td>Canonical junction C…F/W</td><td class="num">39,121,306</td><td class="num">76.3</td><td class="num">92.2</td><td class="num">4,447</td></tr>
+ <tr><td>Length ≤ 30 aa</td><td class="num">39,105,483</td><td class="num">76.2</td><td class="num">99.96</td><td class="num">4,446</td></tr>
+ <tr><td>Chain called (V/J/C)</td><td class="num">39,105,483</td><td class="num">76.2</td><td class="num">100</td><td class="num">4,446</td></tr>
+ <tr><td>Unique clonotypes (all chains)</td><td class="num">34,831,663</td><td class="num">67.9</td><td class="num">89.1</td><td class="num">4,063</td></tr>
+ <tr><td>TRB clonotypes</td><td class="num">9,444,810</td><td class="num">18.4</td><td class="num">27.1</td><td class="num">1,137</td></tr></table>
+ <p style="margin-top:8px">Median 2,076 TRB reads per person. Most clonotypes are supported by one or two reads.</p>`,
+ io:{i:['<code>&lt;rid&gt;_cdr3.out</code> for all 7,922 people (5,566 had to be pulled back from the bucket)'],o:['<code>atlas/trb_clonotypes_full.pkl</code> (VM-local): research_id, trbv, cdr3aa, reads, score','The same rows, capped per person, feed the embedding pool (stage 7)']},
+ params:[['--min-score','0.02','Removes partial (0.00) and imputed (0.01) CDR3s, which are guesses.'],['Junction regex','C…[FW], ≥ 3 inner residues','The format SCEPTR is trained on; removes truncated CDR3s.'],['--max-cdr3-len','30 aa','Sits in an empty gap between real CDR3s and a > 40 aa artifact mode.'],['Clonotype key','(chain, V gene, CDR3 aa)','Amino-acid level: matches SCEPTR and VDJdb.'],['--chain','TRB','HLA-facing chain (supervisor scope); SCEPTR\'s b_sceptr is beta-only.'],['--allow-report-fallback','off','report.tsv has no score; mixing filtered and unfiltered people makes the pool inhomogeneous.']],
+ why:[`Imputed sequences would feed guesses into the embedding. ${T('L')}`,`The length cap was set from the observed distribution, not chosen in advance. ${T('M')}`,`Chain from V then J then C recovers TRB CDR3s whose V was not called. ${T('M')}`],
+ exps:[
+  {d:'2026-09-12',t:'Chain filter order',r:'Capping before filtering to TRB spent the cap on other chains and lost 83 of 500 people. Filter now runs before the cap.',e:'M'},
+  {d:'2026-09-27',t:'Missing cdr3.out',r:'About 70% of the first full pool silently came from unfiltered report.tsv because shard VMs\' cdr3.out files had not been copied back. Pulled them; made the fallback opt-in.',e:'M'},
+  {d:'2026-09-28',t:'CDR3 length distribution',r:'Median 14 aa, 99.9% ≤ 22 aa, 97 clonotypes in 26–40 aa, then a separate mode of 2,036 above 40 aa (0.053%, in 1,175 people) that clustered together in the embedding. Found from a ~100 aa cell in a report 01 figure.',e:'M'}],
+ disc:[['report.tsv as source','No quality score.'],['Chain from V only','Dropped TRB CDR3s with no V call.'],['Keeping imputed CDR3s (--keep-imputed)','Available, off.'],['No length cap','Artifact mode pollutes the embedding.'],['Nucleotide-level clonotypes','The models and databases work in amino acids.']],
+ tree:{q:'Which TRUST4 calls count as a clonotype?',o:[
+   {t:'Every row of report.tsv',x:0,w:'no quality score'},
+   {t:'cdr3.out rows',x:1,w:'',n:{q:'Quality?',o:[{t:'Keep imputed / partial',x:0,w:'guesses'},{t:'Score ≥ 0.02',x:1,w:'',n:{q:'Shape?',o:[{t:'Any translation',x:0,w:'stops, truncations'},{t:'Canonical C…F/W, ≤ 30 aa',x:1,w:'',n:{q:'Identity?',o:[{t:'Nucleotide sequence',x:0,w:''},{t:'(TRBV gene, CDR3 aa), reads summed',x:1,w:''}]}}]}}]}}]},
+ str:['One implementation shared by every report, so definitions cannot drift.','Every threshold traceable to a measurement or to the model\'s input format.'],
+ weak:['V calls from 146 bp reads are uncertain; only the top candidate is kept.','The same CDR3 with two different V calls becomes two clonotypes.','Score threshold 0.02 was not tuned.','Amino-acid collapse merges different nucleotide rearrangements, which raises apparent sharing compared with nucleotide-level studies.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ 7 */
+{id:'s7', num:'7', phase:'C', title:'Per-person sample: top 500',
+ what:'Each person\'s 500 TRB clonotypes with the most reads form the embedding pool; ties broken at random (seeded).',
+ inp:'filtered clonotypes per person', out:'3.84 M pooled clonotypes',
+ key:'40% of slots set by ties', w:1, o:0,
+ scripts:['embed_cdr3s.py --max-per-person 500','embed_cdr3s.tie_key()','08_methods_audit.py'],
+ how:`<ol class="steps">
+ <li>After the stage 6 filters and the TRB filter, rank each person's clonotypes by summed reads.</li>
+ <li><b>Break ties</b> with a deterministic per-person hash of (research_id, V, CDR3): random with respect to gene name and sequence, identical on every rerun.</li>
+ <li>Keep the top 500 and pool across people.</li>
+ <li>Which reports use this pool: 01, 03, 05 directly. Report 06 now uses the whole repertoire (stage 9b). Reports 02 and 04 use the full cache. Report 07 draws its own top 250 with the same kind of tie-break.</li></ol>
+ <p><b>What the audit found</b> (report 08). 7,340 of 7,922 people have more than 500 TRB clonotypes. For <b>98.8%</b> of them the cutoff falls inside a block of equal read counts: at 1 read for 78%, at 2 reads for 20%. The median tied block holds 625 clonotypes, of which 199 fit in the top 500. So for the median person about 300 slots are set by read count and about <b>200 by the tie-break</b>.</p>
+ <p>Until 2026-10-04 that tie-break was alphabetical by V-gene name. Switching to the random rule changed 19% of each person's top 500 and shifted pool V-gene composition by 13.6 percentage points (total variation):</p>
+ <table><tr><th>TRBV</th><th class="num">Full repertoire</th><th class="num">Old pool</th><th class="num">New pool</th><th class="num">Old / new</th></tr>
+ <tr><td>TRBV12-3</td><td class="num">5.7%</td><td class="num">8.8%</td><td class="num">5.4%</td><td class="num">1.62</td></tr>
+ <tr><td>TRBV10-3</td><td class="num">2.1%</td><td class="num">4.0%</td><td class="num">2.2%</td><td class="num">1.77</td></tr>
+ <tr><td>TRBV11-2</td><td class="num">2.3%</td><td class="num">4.0%</td><td class="num">2.3%</td><td class="num">1.72</td></tr>
+ <tr><td>TRBV7-2</td><td class="num">5.1%</td><td class="num">3.3%</td><td class="num">4.9%</td><td class="num">0.68</td></tr>
+ <tr><td>TRBV7-9</td><td class="num">3.7%</td><td class="num">2.4%</td><td class="num">3.7%</td><td class="num">0.65</td></tr>
+ <tr><td>TRBV5-1</td><td class="num">6.7%</td><td class="num">5.0%</td><td class="num">6.5%</td><td class="num">0.76</td></tr></table>
+ <p style="margin-top:8px">The audit reproduced the old pool exactly (0 per-gene count differences), so these numbers describe what was actually embedded before. The new pool tracks the full repertoire closely.</p>`,
+ io:{i:['Stage 6 clonotypes per person'],o:['<code>pool_sceptr_cohort_full_vcdr3.tsv</code> (VM-local); the old pool kept in <code>embeddings/v1_alphabetical_ties/</code>']},
+ params:[['--max-per-person','500','Kept after review (2026-10-06): the random fill is an unbiased sample of the low-count tail; 300 would not remove ties (median tied block 625) and would make vectors noisier; top-250 vs top-500 stability 0.76.'],['Ranking','summed reads, descending','Most reliably assembled and most expanded clones first.'],['Tie-break','seeded per-person hash','Unrelated to gene name or sequence; reproducible.']],
+ why:[`Fixed sample size, so a person vector does not simply track sequencing depth. ${T('L')}`,`500 kept after measuring ties and stability; the cap now affects only the descriptive reports 01, 03 and 05. ${T('M')}`,`Random tie-break measured against the old alphabetical one. ${T('M')}`],
+ exps:[
+  {d:'2026-09-29',t:'Report 03 robustness, old pool',r:'Top-250 vs top-500 mean person vectors: distance correlation 0.35.',e:'M'},
+  {d:'2026-10-04',t:'Tie audit (report 08)',r:'Cutoff inside a tie for 98.8% of people; 19% of each top 500 changed; V composition shifted 13.6 pp.',e:'M'},
+  {d:'2026-10-04',t:'Report 03 robustness, new pool',r:'Top-250 vs top-500 distance correlation rose from 0.35 to 0.76. Much of the “instability” was the alphabetical tie-break selecting different V genes at different caps.',e:'M'}],
+ disc:[['All clonotypes','Person summaries would scale with depth.'],['Read-weighted pool','Dominated by a few expanded clones; near chance in report 06.'],['Alphabetical tie-break (implicit, until 2026-10-04)','Skewed V composition; replaced.']],
+ tree:{q:'Which 500 clonotypes per person?',o:[{t:'Random 500',x:0,w:'ignores reliability'},{t:'Top 500 by reads',x:1,w:'',n:{q:'Ties at the cutoff (98.8% of people)?',o:[{t:'Alphabetical by V gene',x:0,w:'implicit until 2026-10-04; skews V usage'},{t:'Seeded random per person',x:1,w:'current'}]}}]},
+ str:['V composition of the pool now matches the full repertoire.','Old and new pools both kept for comparison.'],
+ weak:['“Top 500 by reads” is in practice about 300 reads-ranked clonotypes plus about 200 sampled at random among 1–2-read clonotypes. Methods wording: “up to 500 TRB clonotypes per person, ranked by read support; ties at the cutoff sampled at random (seeded)”.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ 8 */
+{id:'s8', num:'8', phase:'D', title:'Embedding model: SCEPTR',
+ what:'A small TCR-specific language model turns each receptor into 64 numbers.',
+ inp:'TRBV gene + CDR3β amino acids', out:'64-d vector per clonotype',
+ key:'b_sceptr, 64-d', w:5, o:1,
+ scripts:['embed_cdr3s.py','compare_embeddings.py','embed_catelmo.py (never run)'],
+ how:`<p><b>What SCEPTR is.</b> Nagano et al., <i>Cell Systems</i> 2025: <i>Simple Contrastive Embedding of the Primary sequence of T cell Receptors</i>. A small BERT-style transformer, about 153,000 parameters in the default model, which runs on CPU.</p>
+ <ul>
+ <li><b>Input.</b> A receptor as its V genes and CDR3s. The V gene is not used as a label: SCEPTR looks up the germline CDR1 and CDR2 loops encoded by that V gene and reads them as amino-acid sequences alongside CDR3. CDR1 and CDR2 are the loops that mostly contact the HLA molecule; CDR3 mostly contacts the peptide.</li>
+ <li><b>Training</b>, on unlabelled TCR sequences (no epitope labels): masked language modelling (predict hidden residues) plus <b>autocontrastive learning</b>. Two corrupted copies of the same receptor (residues dropped, a whole chain dropped, dropout noise) are pulled together; different receptors are pushed apart. Dropping a chain during training is why β-only input is supported.</li>
+ <li><b>Output.</b> The <code>&lt;cls&gt;</code> token's representation: 64 dimensions in the default model. Receptors with similar sequence embed close together.</li>
+ <li><b>Variants exposed by the package:</b> default (paired chains), b_sceptr (β only), cdr3_only, tiny (16-d), small (32-d), large (128-d), average_pooling, blosum, mlm_only, synthetic_data (trained on OLGA-generated sequences), shuffled_data.</li></ul>
+ <p><b>How we use it.</b> <code>variant.b_sceptr()</code> with a table of <code>TRBV</code> and <code>CDR3B</code>, <code>calc_vector_representations()</code> in chunks of 200,000, CPU, no fine-tuning. Bulk data has no α chain, so we use the variant trained for β only, and we give it the V gene so CDR1β and CDR2β are included.</p>`,
+ io:{i:['Pool from stage 7: TRBV gene, CDR3 amino acids'],o:['One 64-d float vector per clonotype']},
+ params:[['Variant','b_sceptr','Trained for β-only input, which is all bulk data gives.'],['Input columns','TRBV + CDR3B','Adds the V-encoded CDR1/CDR2 loops that contact HLA.'],['Pooling within the model','<cls> token','Package default; average pooling scored the same in report 07.'],['Dimension','64','Package default; 16-d reaches 96% of the epitope score (report 07).'],['Fine-tuning','none','No labels to fine-tune on.']],
+ why:[
+  `TCR-specific and tiny: ~1,300 receptors per second on CPU, the whole cohort in under an hour. ${T('M')}`,
+  `Separated V-gene structure where a general protein model did not. ${T('M')}`,
+  `b_sceptr with TRBV was chosen from SCEPTR's documentation and receptor biology before it was measured; report 04 later showed it beats CDR3-only on epitope grouping. ${T('L')} ${T('M')}`],
+ exps:[
+  {d:'2026-09-10',t:'SCEPTR vs ESMC-300M, 500 people',r:'Same CDR3 pool, CDR3 only. Criterion: cosine similarity of same-V vs different-V pairs. SCEPTR gap 0.019 in 23 s (64-d). ESMC-300M, mean-pooled, gap 0.0006 in 3,666 s (960-d); every pair ~0.98 similar.',e:'M'},
+  {d:'2026-09-27',t:'Switch to b_sceptr on TRBV + CDR3B',r:'We had been running the paired default model on CDR3B alone, which ignores CDR1/CDR2. Decided from the documentation.',e:'L'},
+  {d:'2026-09-29',t:'Report 04 epitope benchmark',r:'VDJdb, 4,193 TCRs, 45 epitopes. Pairwise AUROC / 5-NN balanced accuracy: b_sceptr 0.580 / 0.380; cdr3_only 0.552 / 0.328; CDR3 3-mers 0.554 / 0.267; TRBV gene only 0.553 / 0.106. Chance for 5-NN is 0.022.',e:'M'},
+  {d:'2026-09-29',t:'Report 07 settings sweep',r:'All SCEPTR variants between 0.566 and 0.579 epitope AUROC.',e:'M'},
+  {d:'2026-10-04',t:'Report 07 with paired bootstrap CIs',r:'No SCEPTR variant differs from b_sceptr (all difference CIs include 0); 3-mer and TRBV one-hot baselines are significantly worse. synthetic_data is indistinguishable from the real model.',e:'M'}],
+ disc:[['ESMC-300M (general protein model)','30× smaller V-gene gap, 156× slower; not rerun at scale.'],['catELMo','Environment scripted, never run: needs Python 3.6 and old TensorFlow; dropped once SCEPTR was clearly adequate.'],['TCR-BERT, TCR2vec, ESM-2','Literature only; larger and not shown to be better for this.'],['Paired default model on CDR3B only','Ignores CDR1/CDR2; replaced by b_sceptr.'],['cdr3_only','Kept for the V-gene check, where V as input would be circular.']],
+ tree:{q:'Which model embeds a CDR3?',o:[
+   {t:'General protein LM (ESMC-300M)',x:0,w:'gap 0.0006, 3,666 s'},
+   {t:'catELMo',x:0,w:'never run'},
+   {t:'SCEPTR',x:1,w:'gap 0.019, 23 s',n:{q:'Which variant and input?',o:[
+     {t:'default, CDR3B only',x:0,w:'used until 2026-09-27'},
+     {t:'cdr3_only',x:0,w:'benchmark use only'},
+     {t:'b_sceptr, TRBV + CDR3B',x:1,w:'best epitope AUROC with blosum (0.579)'}]}}]},
+ str:['Fast, small, deterministic, documented.','Beats non-learned baselines on epitope grouping (5-NN 0.380 vs 0.267 for 3-mers).','16-d version nearly as good: cheap downstream.'],
+ weak:['The adoption test (V-gene gap) is a floor check, and it becomes circular once V is an input.','ESMC was tested with one pooling (mean). The fair conclusion is “mean-pooled ESMC is not useful here”, not “general models cannot work”.','Epitope AUROC 0.58 is modest; VDJdb may overlap SCEPTR\'s training data, so absolute values are optimistic.','β-only is SCEPTR\'s degraded mode; its published numbers are for paired chains.','The synthetic-data model matching the real one suggests what the embedding captures is mostly recombination statistics, not learned specificity.','Benchmark intervals are wide (b_sceptr 0.529–0.648): 45 epitopes is small, so only differences larger than about 0.04 are detectable.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ 9 */
+{id:'s9', num:'9', phase:'D', title:'Production embedding run',
+ what:'The full pool embedded once with b_sceptr on CPU.',
+ inp:'3,882,613 pooled clonotypes', out:'3,836,906 × 64 matrix',
+ key:'2,981 s on CPU', w:2, o:0,
+ scripts:['embed_cdr3s.py'],
+ how:`<div class="cmd">pixi run python3 scripts/embed_cdr3s.py ~/pipeline_outputs/rnaseq/cohort_full.tsv --models sceptr
+# defaults: --sceptr-input v+cdr3 --chain TRB --min-score 0.02 --max-cdr3-len 30
+#           --max-per-person 500   (report.tsv fallback off)   tag: cohort_full_vcdr3</div>
+ <ol class="steps">
+ <li><b>Which V genes SCEPTR accepts.</b> Each distinct TRBV symbol is tested on its own with a dummy CDR3, so one unusable gene cannot crash the run. 48 of 59 symbols accepted (functional IMGT genes).</li>
+ <li><b>Exclude</b> clonotypes with no V call or an unaccepted V: 45,567 (1.2%). By ancestry: AFR 1.1%, all others 1.2%, so the filter is ancestry-neutral.</li>
+ <li><b>Embed</b> the pool in chunks of 200,000 on one n1-highmem-16: 3,836,906 clonotypes in 2,981 s (first run); <b>3,837,818</b> after the tie-break rerun (2026-10-04).</li>
+ <li><b>Full repertoire</b> (<code>embed_full_cache.py</code>, 2026-10-04): every distinct (TRBV, CDR3) in the 9.44 M-row cache embedded once, so report 06 can use whole repertoires. 98.9% of cache clonotypes get a vector (the rest have no usable V). About 1.7 h, checkpointed per chunk.</li>
+ <li><b>Check</b>: same-V cosine 0.251 vs different-V −0.004. Recorded, not interpreted: V is an input, so this is circular.</li>
+ <li><b>Save</b> the matrix and the aligned pool VM-local; back up to <code>gs://aleix-rnaseq-…/embeddings/</code>.</li></ol>`,
+ io:{i:['Stage 7 pool'],o:['<code>embeddings_sceptr_cohort_full_vcdr3.npy</code> (3,836,906 × 64)','<code>pool_sceptr_cohort_full_vcdr3.tsv</code>','<code>results/cdr3_embedding_summary_cohort_full_vcdr3.csv</code> (committed, aggregate)']},
+ params:[['Chunk size','200,000','Progress reporting and bounded memory.'],['Hardware','CPU only','Model is small; a GPU was unnecessary.']],
+ why:[`One embedding, reused by every report, so all analyses see identical vectors. ${T('C')}`],
+ exps:[{d:'2026-09-28',t:'Re-embed after the length cap',r:'140 fewer clonotypes than the first run (3,837,046): freed slots refilled from each person\'s next-ranked clonotypes.',e:'M'}],
+ disc:[['Dropping the long CDR3s after embedding','Would leave those people with fewer than their share; re-embedding refills the slots.']],
+ tree:null,
+ str:['Deterministic: the same sequence always gets the same vector, which report 06 relies on.','Ancestry-neutral V exclusion, checked.'],
+ weak:['11 TRBV symbols cannot be embedded at all (non-functional genes or non-IMGT names).','The first run inherited the alphabetical tie-break; rerun 2026-10-04.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R01 */
+{id:'r1', num:'01', phase:'E', title:'Embedding maps',
+ what:'UMAP and PCA of clonotype and person vectors, drawn so no individual is shown.',
+ inp:'embedding + pool', out:'4 figures, summary.csv',
+ key:'V islands, length gradient', w:2, o:0,
+ scripts:['01_sceptr_embedding_viz.py'],
+ how:`<ol class="steps">
+ <li><b>Clonotype map:</b> seeded random subsample of 200,000 clonotypes, UMAP (umap-learn; <code>n_neighbors 15, min_dist 0.3</code>, euclidean). Coloured by TRBV family, CDR3 length, log10 reads, publicness.</li>
+ <li><b>Person map:</b> person vector = mean of that person's clonotype vectors (7,922 people), UMAP. Coloured by ancestry and by repertoire size.</li>
+ <li><b>PCA</b> (10 components) of both, as a linear check that UMAP did not invent the structure.</li>
+ <li><b>Disclosure-safe drawing:</b> the map is gridded; a cell is coloured only if its points come from at least 20 distinct people. Ancestry is drawn as 50% and 80% density contours from a Gaussian KDE. Colour limits are the 2nd to 98th percentile of cell values. Hidden fractions (current run): 1.0%, 1.7%, 3.5%, 4.8%.</li>
+ <li>UMAP results cached under a hash of the input vectors.</li></ol>
+ <p><b>Findings.</b> Clonotypes form islands by V family with a CDR3-length gradient inside each; public clonotypes sit at the short end. 14.3% of pooled clonotype rows are carried by at least 2 people.</p>
+ <p><b>Changed by the tie-break fix.</b> On the old pool, person PC1 correlated with repertoire size (Spearman −0.21, p ≈ 10<sup>−77</sup>) and the map showed a small-repertoire region. On the new pool that correlation is 0.004 (p = 0.71). The size effect was an artifact of the alphabetical tie-break, not of averaging fewer vectors as we had assumed.</p>`,
+ io:{i:['Stage 9 embedding and pool'],o:['fig1 clonotype UMAP, fig2 person UMAP, figS1a/b PCA (PDF, SVG, PNG)','summary.csv']},
+ params:[['Subsample','200,000 clonotypes, seed 0','UMAP cost.'],['UMAP','n_neighbors 15, min_dist 0.3, euclidean','Library defaults except min_dist.'],['Cell rule','≥ 20 distinct people','AoU small-cell rule applied to people, not points.']],
+ why:[`First look at whether the embedding encodes known receptor biology. ${T('L')}`],
+ exps:[{d:'2026-09-28',t:'Length artifact found here',r:'A cell averaging ~100 aa led to the 30 aa cap in stage 6.',e:'M'}],
+ disc:[['Dot plots','Show individuals; VM-only option.']],
+ tree:null,
+ str:['PCA confirms the UMAP structure.','Nothing individual-level drawn.'],
+ weak:['V family structure is expected because V is an input; panel a validates, it does not discover.','Person maps use the mean vector, which report 06 shows is a weak person summary (11% identifiable alone).','Panel letters are upper case and the font is DejaVu Sans, unlike the other reports; restyling needs the VM.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R02 */
+{id:'r2', num:'02', phase:'E', title:'Repertoire atlas and ageing',
+ what:'Population description of 7,922 TRB repertoires and a test of known age effects.',
+ inp:'full clonotype cache, person.tsv', out:'7-panel figure, age models',
+ key:'−3.3% diversity / decade', w:3, o:1,
+ scripts:['02_repertoire_atlas.py','repfig.py'],
+ how:`<ol class="steps">
+ <li>Build the full clonotype cache (stage 6, no cap): 9,440,989 TRB clonotypes.</li>
+ <li><b>Rarefied richness</b> (Hurlbert 1971): expected number of distinct clonotypes in a random subsample of <b>823 reads</b> without replacement, computed exactly with log-binomials. 823 = 5th percentile of total TRB reads; people below it are excluded from this metric.</li>
+ <li><b>Clonal expansion</b>: share of a person's TRB reads in their 10 largest clonotypes.</li>
+ <li><b>Models</b> (OLS, n = 7,105 with richness, age and sex): log richness ~ age per decade + sex + ancestry (reference Male, EUR). Same for top-10 share. Sensitivity models add log total TRB reads.</li>
+ <li>Descriptive panels: cohort table, clonotypes per person, CDR3 length by ancestry, TRBV usage (median, IQR, 5–95%), sharing spectrum.</li></ol>
+ <p><b>Results.</b> Richness −3.3% per decade (95% CI −3.5 to −3.1, p = 2 × 10<sup>−168</sup>); −3.2% after adjusting for depth. Top-10 share +1.9 percentage points per decade (1.8 to 2.0). Replicates Britanova 2014 (n = 65) and Qi 2014 at about 100 times Britanova's sample size. 7.2% of unique clonotypes are shared by at least 2 people.</p>`,
+ io:{i:['<code>trb_clonotypes_full.pkl</code>','<code>person.tsv</code>'],o:['fig_repertoire_atlas','age_models.csv, age_bins.csv, trbv_usage.csv, sharing_spectrum.csv, cohort_by_ancestry.csv']},
+ params:[['Rarefaction depth','823 reads (5th percentile, floor 50)','Keeps 95% of people while equalising depth.'],['Age','2020 − year of birth, per decade','See stage 2.'],['Covariates','sex, ancestry; sensitivity + log reads','Separate biology from depth.']],
+ why:[`A known, large biological effect is the best test that bulk-RNA repertoires carry real immunology. ${T('L')}`,`Rarefaction rather than raw counts so depth and blood T-cell content cannot pose as diversity. ${T('L')}`],
+ exps:[{d:'2026-09-29',t:'Full-cohort run',r:'Both age effects replicate with tight intervals; adjusting for depth barely moves them.',e:'M'}],
+ disc:[['Raw clonotype counts','Depth-dependent.'],['Shannon/Simpson on raw data','Also depth-dependent; rarefied richness chosen for clarity.']],
+ tree:null,
+ str:['Strongest result: large n, tight intervals, robust to depth adjustment.','Uses the full repertoire, not the top-500 sample.'],
+ weak:['Cross-sectional; age is a ±3 y proxy.','823 reads is shallow, so richness is measured mostly over the expanded part of the repertoire.','Lymphocyte fraction and CMV status, both strong drivers of expansion, are not adjusted.'],
+ open:['Supervisor changes (week of 2026-10-12): drop the CDR3-length panel; diversity panel becomes Shannon with total TRB reads regressed out, vs age; expansion panel to be adjusted the same way. Adjusting for reads moved the age slopes very little (−3.28 → −3.20%/decade; +1.91 → +1.93 pp), so the trends should hold. Needs the VM.']},
+
+/* ------------------------------------------------------------------ R03 */
+{id:'r3', num:'03', phase:'E', title:'Publicness and robustness',
+ what:'Why some receptors are shared, and whether the person vector is stable.',
+ inp:'full cache, embedding', out:'5-panel figure',
+ key:'ρ = 0.66 sharing vs Pgen', w:2, o:0,
+ scripts:['03_publicness_and_robustness.py','repfig.olga_pgen()'],
+ how:`<ol class="steps">
+ <li><b>Generation probability (Pgen)</b>: OLGA with its default human TRB model, marginalised over V and J, for 19,006 clonotypes sampled up to 5,000 per sharing bin (1, 2–4, 5–19, 20–99, ≥100 people).</li>
+ <li><b>Test</b>: Spearman correlation of number of people sharing a clonotype vs log10 Pgen. Also public fraction and length by sharing.</li>
+ <li><b>Robustness</b>: rebuild mean person vectors from the top 25, 50, 100, 250 and read-weighted 500 on 1,500 people; compare to top-500 by Spearman of all pairwise distances and overlap of 10 nearest neighbours.</li>
+ <li><b>Ancestry signal</b>: cross-validated one-vs-rest AUROC from the SCEPTR person vector vs TRBV usage vs 10 label permutations.</li></ol>
+ <p><b>Results.</b> Sharing rises with Pgen (ρ = 0.66): public receptors are the ones recombination makes often (Venturi 2006, Elhanati 2018). Ancestry AUROC 0.730 from SCEPTR, 0.741 from TRBV usage alone, 0.500 permuted.</p>
+ <p><b>Robustness, before and after the tie-break fix</b> (distance correlation with top 500 / 10-NN overlap): top 250: 0.35 / 7.9% → <b>0.76 / 18.9%</b>; top 100: 0.25 / 2.5% → 0.43 / 4.4%; read-weighted: 0.18 / 7.5% → 0.23 / 8.8%. The person vector is far more stable than first reported; neighbour identity still is not.</p>`,
+ io:{i:['full cache, embedding, pool'],o:['fig_publicness_and_robustness','pgen_and_length_by_sharing.csv, person_vector_robustness.csv, ancestry_auroc.csv']},
+ params:[['OLGA model','default human_T_beta','Standard published model.'],['Pgen sample','5,000 per sharing bin','OLGA is slow per sequence.'],['Robustness subsample','1,500 people','Pairwise distance cost.']],
+ why:[`If sharing is real convergent recombination and not artifact, Pgen must rise with sharing. ${T('L')}`],
+ exps:[{d:'2026-09-29',t:'Robustness test',r:'Mean person vector looked unstable (ρ 0.35); motivated report 06.',e:'M'},{d:'2026-10-04',t:'Rerun on the fixed pool',r:'ρ 0.76. Most of the original instability came from the tie-break.',e:'M'}],
+ disc:[],
+ tree:null,
+ str:['Clean replication of a known mechanism.','Found a flaw in our own representation before building on it.'],
+ weak:['Pgen on a sample, not all clonotypes.','Robustness is measured against one arbitrary reference (top-500).'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R04 */
+{id:'r4', num:'04', phase:'E', title:'Antigen specificity',
+ what:'Does the embedding group receptors by target, and can database matches reveal past infections?',
+ inp:'VDJdb, full cache, OLGA', out:'6-panel figure',
+ key:'self-peptides enrich 2.9×', w:4, o:0,
+ scripts:['04_antigen_specificity.py','prep_vdjdb_pool.py','repfig.matched_decoys()'],
+ how:`<p><b>Part 1, benchmark.</b> VDJdb release 2026-06-03, human TRB, confidence score ≥ 1: 8,204 TCR–epitope pairs. Keep receptors with a single epitope; epitopes with ≥ 30 receptors, at most 300 each: 4,193 TCRs, 45 epitopes. Score = negative distance. Pairwise AUROC (same vs different epitope, up to 2 M sampled pairs) and 5-nearest-neighbour balanced accuracy.</p>
+ <p><b>Part 2, cohort.</b></p>
+ <ol class="steps">
+ <li>Exact match: same TRBV gene and identical CDR3 amino acids between a person's full repertoire and VDJdb.</li>
+ <li>Naive carriage per pathogen compared with published US seroprevalence.</li>
+ <li><b>Decoy null</b>: OLGA generates 249,616 productive TRB sequences. For each VDJdb receptor, draw decoys with the same TRBV gene, same CDR3 length and log10 Pgen within 0.25 (widened to 0.5, 1.0, then unlimited if nothing fits). 3 replicates. Same matching pipeline.</li>
+ <li>Enrichment = observed / decoy-expected carriage, for positives (EBV, CMV, influenza A) and negative controls (HIV-1, HCV, HBV, dengue, HTLV-1, human self-peptides).</li>
+ <li>Excess matches vs age for CMV and EBV.</li></ol>
+ <p><b>Results.</b> Benchmark (95% CI from 500 epitope-level bootstrap replicates): b_sceptr AUROC 0.580 (0.527–0.641). Paired against it, CDR3-only is lower (difference −0.077 to −0.0002) and so is TRBV-only; the 3-mer baseline's difference CI includes zero for AUROC but not for 5-NN accuracy (0.380 vs 0.267, difference −0.140 to −0.084). The 95% interval on each method alone is wide: 45 epitopes is a small benchmark. Decoys: 97.9% of VDJdb TCRs got decoys within 0.25 log10 Pgen; only MCPyV (12.8% with no same-V/length decoy) and wheat (9.7% Pgen = 0) are notably affected. Cohort: every pathogen enriched, including controls: EBV 7.6×, CMV 5.5×, HBV 4.4×, self-peptides 2.9×, HIV-1 2.5×. CMV excess does not rise with age (p = 0.12). Database matching cannot infer exposure at ~2,000 TRB reads per person.</p>`,
+ io:{i:['VDJdb zip (downloaded, cached)','full cache','OLGA model'],o:['fig_antigen_specificity','benchmark_methods.csv, carriage_by_pathogen.csv, excess_by_age.csv, …']},
+ params:[['Matching','exact (TRBV + CDR3 aa)','≤ 1 aa matching hit most people for every pathogen, controls included; reported as a failure mode.'],['Decoy match','same V, same length, |Δlog10 Pgen| ≤ 0.25','Controls the three properties that drive chance matches.'],['Decoy replicates','3','Cost.'],['VDJdb filter','score ≥ 1','Excludes the lowest-confidence entries.']],
+ why:[`Naive matching gave 69% HBV carriage against < 1% US prevalence. A null was needed before any claim. ${T('M')}`],
+ exps:[{d:'2026-09-29',t:'First run without a null',r:'88% CMV, 69% HBV, 27% HIV-1, 71% self-peptide “carriers”; carriage fell with age, tracking repertoire size. Script rewritten around the decoy null.',e:'M'}],
+ disc:[['Naive carriage','Chance-dominated.'],['≤ 1 aa matching','Matches nearly everyone.']],
+ tree:null,
+ str:['A rigorous negative with internal negative controls.','Benchmark ranks methods on a real external label.'],
+ weak:['The Pgen-matched null does not model thymic selection or the “seen in a real person” filter, so it is too permissive.','VDJdb is biased toward HLA-A*02:01 and a few viruses; carriage depends on HLA, which is not modelled yet.','Per-method AUROC intervals are wide (about ±0.06); claims should rest on paired differences.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R05 */
+{id:'r5', num:'05', phase:'E', title:'Embedding metaclusters',
+ what:'Partition the 3.84 M clonotypes into 60 clusters and test which hold receptors of known specificity.',
+ inp:'embedding, VDJdb, full cache', out:'4-panel figure, clusters_3d.csv',
+ key:'50 enriched crude and within V', w:4, o:0,
+ scripts:['05_embedding_clusters.py'],
+ how:`<ol class="steps">
+ <li>MiniBatchKMeans, <code>k = 60</code>, batch 10,000, n_init 3, max_iter 300, seed 0, on all pooled vectors.</li>
+ <li>Stability: refit with seed 1; mean best-match Jaccard of cluster membership.</li>
+ <li>Per cluster: size, dominant TRBV family, CDR3 length, Pgen (60,000 sampled), publicness, expansion; centroids in 3-d PCA.</li>
+ <li><b>Crude enrichment</b>: exact VDJdb matches per (cluster, pathogen), Fisher exact vs the rest of the space, Benjamini–Hochberg.</li>
+ <li><b>Within-V enrichment</b> (added 2026-10-04): Mantel–Haenszel odds ratio and CMH test stratified by TRBV gene, i.e. compared only with receptors of the same V gene. Separates CDR3 motif from V-gene bias in VDJdb.</li></ol>
+ <p><b>Results (rerun on the fixed pool).</b> Stability 0.47 (was 0.41). Clusters are 63% one TRBV family on average (was 74%: the old pool's V skew made clusters look more V-driven). 5,526 matched clonotypes. Of 364 tests, 169 have BH q &lt; 0.05 crude: <b>81 enrichments and 88 depletions</b>. 126 are significant within V and 89 both ways, of which <b>50 are enriched both ways</b> (counts re-read from the committed table, 2026-10-20). The per-pathogen table below counts significant tests in either direction.</p>
+ <table><tr><th>Pathogen</th><th class="num">Tests</th><th class="num">Significant crude</th><th class="num">Significant within V</th></tr>
+ <tr><td>CMV</td><td class="num">16</td><td class="num">10</td><td class="num">9</td></tr>
+ <tr><td>EBV</td><td class="num">13</td><td class="num">9</td><td class="num">8</td></tr>
+ <tr><td>Influenza A</td><td class="num">11</td><td class="num">5</td><td class="num">7</td></tr>
+ <tr><td>HBV</td><td class="num">12</td><td class="num">10</td><td class="num">7</td></tr>
+ <tr><td>Human self-peptides</td><td class="num">9</td><td class="num">5</td><td class="num">2</td></tr></table>
+ <p style="margin-top:8px">The single strongest crude hits were V-gene effects: influenza A cluster 50 (OR 29.8 crude, 2.8 within V, not significant) and the self-peptide cluster 12 (OR 23.8 crude, not significant within V). CMV and EBV clusters hold within V (q ≈ 10<sup>−151</sup> and 10<sup>−108</sup>). Self-peptide receptors still concentrate in 2 clusters within V (cluster 36, OR 19 within V), so the conclusion stands in a sharper form: clusters capture shared CDR3 motifs, which some self-reactive receptors share too.</p>`,
+ io:{i:['embedding, pool, VDJdb'],o:['fig_embedding_clusters','clusters_3d.csv, vdjdb_cluster_enrichment.csv (crude and within-V columns)']},
+ params:[['k','60','Chosen for describability; not tuned.'],['Algorithm','MiniBatchKMeans','Scales to 3.8 M points.'],['Within-V test','Mantel–Haenszel over TRBV strata','Removes V-gene usage differences.'],['Multiple testing','Benjamini–Hochberg','Across all tested pairs, separately per test.']],
+ why:[`Makes the space describable between single receptors and V genes. ${T('I')}`,`V stratification answers the confound the first version left open. ${T('M')}`],
+ exps:[{d:'2026-09-29',t:'First run',r:'150/347 crude enrichments; self-peptides OR 28.6, read as “motif, not target”.',e:'M'},{d:'2026-10-04',t:'Rerun with within-V test',r:'The strongest influenza and self-peptide hits were V-gene bias; CMV and EBV survive; 2 self-peptide clusters survive.',e:'M'}],
+ disc:[],
+ tree:null,
+ str:['Every cluster pools ≥ 20 people; only aggregates leave the VM.','Crude and V-adjusted results reported side by side.'],
+ weak:['k = 60 is arbitrary; stability is moderate (0.47).','Euclidean k-means on an embedding whose natural metric was not checked.','The within-V Mantel–Haenszel odds ratio is degenerate with empty TRBV strata: infinite for 65 of 364 tests and above 1,000 for 13 more (CMV cluster 42: 26,497). Use the CMH p / q only; the figure\'s within-V diamonds inherit this.','“Synthetic” (VDJdb engineered TCRs) is tested as if it were a pathogen: all 44 matches fall in cluster 50 (the influenza A cluster). Exclude it.','“169 significant” in earlier versions of this page did not say that 88 of them are depletions.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R06 */
+{id:'r6', num:'06', phase:'E', title:'Person representation benchmark',
+ what:'Sixteen ways to turn a repertoire into one vector, judged without disease labels.',
+ inp:'full cache + full-cache vectors', out:'benchmark table, figure',
+ key:'27.0% identifiable (25.6–28.4%)', w:2, o:0,
+ scripts:['06_person_representation.py','embed_full_cache.py','repfig.balanced_concat()'],
+ how:`<ol class="steps">
+ <li><b>Clonotypes:</b> every full-cache clonotype with a SCEPTR vector, from the full-repertoire embedding (stage 9): 98.9% coverage. Until 2026-10-04 vectors came from the top-500 pool, which covered only sequences in somebody's top 500.</li>
+ <li><b>People:</b> adults with age, sex and ≥ 100 clonotypes; seeded sample of 4,000: 4,724,280 clonotypes.</li>
+ <li><b>Representations:</b> TRBV usage (48 proportions), CDR3 length profile, CDR3 3-mers (SVD 100), SCEPTR mean, read-weighted mean, SCEPTR cluster profiles at k = 30, 100, 300 and their CLR transforms, a read-weighted profile, and two concatenations, each both raw and <b>block-balanced</b> (every column standardised, each block scaled by 1/√width).</li>
+ <li><b>Split-half identifiability</b>: one coin flip per clonotype (seed 0) splits each person in two; build each half; is a person's own half B their nearest of 4,000 (cosine)? Chance 0.025%. Reported three ways: raw vectors; <b>z-scored</b> features (cosine becomes a correlation, so the shared mean direction of all-positive profiles cannot dominate); z-scored with each half's log depth regressed out. Wilson 95% CIs.</li>
+ <li><b>Signal and nuisance</b> (5-fold CV, standardised): ridge α = 10 for age and log depth; logistic for sex and ancestry.</li>
+ <li><b>Permuted control.</b></li></ol>
+ <table><tr><th>Representation</th><th class="num">Dim</th><th class="num">ID raw</th><th class="num">ID z-scored</th><th class="num">ID depth removed</th><th class="num">Age R²</th><th class="num">Depth R²</th></tr>
+ <tr><td>SCEPTR mean + TRBV usage</td><td class="num">112</td><td class="num">29.4%</td><td class="num">27.0%</td><td class="num">26.9%</td><td class="num">0.34</td><td class="num">0.17</td></tr>
+ <tr><td>TRBV usage</td><td class="num">48</td><td class="num">23.8%</td><td class="num">16.5%</td><td class="num">16.3%</td><td class="num">0.26</td><td class="num">0.18</td></tr>
+ <tr><td>SCEPTR clusters k = 300</td><td class="num">300</td><td class="num">7.5%</td><td class="num">15.6%</td><td class="num">15.5%</td><td class="num">0.24</td><td class="num">0.07</td></tr>
+ <tr><td>SCEPTR clusters k = 100</td><td class="num">100</td><td class="num">13.2%</td><td class="num">12.6%</td><td class="num">12.4%</td><td class="num">0.25</td><td class="num">0.14</td></tr>
+ <tr><td>SCEPTR mean</td><td class="num">64</td><td class="num">11.2%</td><td class="num">11.5%</td><td class="num">11.4%</td><td class="num">0.28</td><td class="num">0.12</td></tr>
+ <tr><td>CDR3 3-mer (SVD)</td><td class="num">100</td><td class="num">4.7%</td><td class="num">2.4%</td><td class="num">2.3%</td><td class="num">0.19</td><td class="num">0.05</td></tr>
+ <tr><td>SCEPTR mean, read-weighted</td><td class="num">64</td><td class="num">1.6%</td><td class="num">1.5%</td><td class="num">1.6%</td><td class="num">0.05</td><td class="num">0.04</td></tr>
+ <tr><td>Permuted control</td><td class="num"></td><td class="num">0.025%</td><td class="num"></td><td class="num"></td><td class="num">−0.02</td><td class="num"></td></tr></table>
+ <p style="margin-top:8px"><b>Headline (z-scored): 27.0%, 95% CI 25.6–28.4%</b>, against 16.5% (15.4–17.7%) for TRBV usage and 11.5% (10.6–12.6%) for the SCEPTR mean alone. The SCEPTR mean adds 10.5 points over TRBV usage alone once both are z-scored (27.0% vs 16.5%), so the embedding contributes identity beyond V-gene usage. Removing depth changes almost nothing: identity is not depth.</p>`,
+ io:{i:['full cache, full-cache vectors, person.tsv'],o:['representation_benchmark.csv (with z-scored, depth-removed and CI columns), permuted_control.csv, fig_person_representation']},
+ params:[['People','4,000, seed 0','Cost.'],['Split','per-clonotype coin flip','Disjoint halves of one person.'],['Similarity','cosine on L2-normalised vectors','Direction, not magnitude.'],['Headline variant','z-scored (decided 2026-10-06)','Scale-free, so raw and balanced concatenations agree; conservative (27.0% vs 29.4% raw); not a depth effect (26.9% with depth removed). Raw and depth-removed kept as sensitivity analyses.'],['Ridge α','10','Fixed, not tuned.']],
+ why:[`Identifiability (Finn et al. 2015) needs no disease label and directly tests the instability report 03 found. ${T('L')}`],
+ exps:[
+  {d:'2026-09-29',t:'First benchmark',r:'SCEPTR mean + TRBV 19.6%, depth R² 0.41; vectors only for pooled sequences.',e:'M'},
+  {d:'2026-10-04',t:'Rerun: whole repertoires, z-scoring, depth removal',r:'Winner 29.4% raw / 27.0% z-scored / 26.9% depth removed; depth R² fell to 0.17. The earlier depth leakage came mostly from using only pooled sequences.',e:'M'}],
+ disc:[['Mean SCEPTR vector alone','11.5%.'],['Read-weighted pooling','Near chance.'],['Raw concatenation','Kept for comparison; balanced and z-scored versions agree.'],['Supervised pooling (DeepRC-type)','Needs labels; not attempted.']],
+ tree:null,
+ str:['Label-free benchmark with permuted control and CIs.','Result survives z-scoring and depth removal.'],
+ weak:['One split seed; CIs cover people, not split randomness.','Cluster profiles fit k-means on the same data they are evaluated on.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R07 */
+{id:'r7', num:'07', phase:'E', title:'Embedding settings sweep',
+ what:'Eleven SCEPTR variants and two baselines on the same data, with paired confidence intervals.',
+ inp:'full cache, VDJdb', out:'embedding_settings.csv, figure',
+ key:'no SCEPTR variant beats b_sceptr', w:1, o:0,
+ scripts:['07_embedding_settings.py'],
+ how:`<ol class="steps">
+ <li><b>Cohort slice</b>: 1,000 adults with ≥ 250 V-called clonotypes, seed 0; each person's top 250 by reads, ties broken at random (seeded). Each setting re-embeds the 250,000 sequences.</li>
+ <li><b>Benchmark</b>: VDJdb as in report 04, restricted to TRBVs b_sceptr accepts so all settings see the same 4,193 TCRs. Pairwise AUROC and 5-NN balanced accuracy with 500 epitope-level bootstrap replicates, and paired differences against b_sceptr.</li>
+ <li><b>Person level</b> (changed 2026-10-04): z-scored split-half identifiability and age R² for mean pooling (the embedding alone) and for mean + TRBV usage (balanced). The first version used k = 100 CLR cluster profiles, which scored 0.5% in report 06.</li></ol>
+ <table><tr><th>Setting</th><th class="num">Dim</th><th class="num">Epitope AUROC (95% CI)</th><th class="num">Difference vs b_sceptr (95% CI)</th></tr>
+ <tr><td>b_sceptr (TRBV + CDR3)</td><td class="num">64</td><td class="num">0.579 (0.529–0.648)</td><td class="num">reference</td></tr>
+ <tr><td>blosum</td><td class="num">64</td><td class="num">0.578</td><td class="num">−0.010 to +0.011</td></tr>
+ <tr><td>default (β only)</td><td class="num">64</td><td class="num">0.575</td><td class="num">−0.014 to +0.010</td></tr>
+ <tr><td>synthetic_data</td><td class="num">64</td><td class="num">0.575</td><td class="num">−0.016 to +0.011</td></tr>
+ <tr><td>large</td><td class="num">128</td><td class="num">0.575</td><td class="num">−0.015 to +0.009</td></tr>
+ <tr><td>tiny</td><td class="num">16</td><td class="num">0.567</td><td class="num">−0.034 to +0.009</td></tr>
+ <tr><td>mlm_only</td><td class="num">64</td><td class="num">0.566</td><td class="num">−0.043 to +0.010</td></tr>
+ <tr><td>cdr3_only</td><td class="num">64</td><td class="num">0.552</td><td class="num">−0.078 to +0.000</td></tr>
+ <tr><td>TRBV one-hot</td><td class="num">59</td><td class="num">0.552</td><td class="num">−0.080 to −0.003</td></tr>
+ <tr><td>CDR3 3-mer (SVD)</td><td class="num">100</td><td class="num">0.541</td><td class="num">−0.093 to −0.001</td></tr></table>
+ <p style="margin-top:8px">Every SCEPTR variant's difference from b_sceptr includes zero, now with a test behind it; the non-learned baselines are significantly worse. The synthetic-data model is indistinguishable from the real one. Person-level identifiability at 250 clonotypes is low for every setting (0.3–2.0% mean pooling, 1.0–3.1% with TRBV) and does not separate the embeddings.</p>`,
+ io:{i:['full cache, VDJdb'],o:['embedding_settings.csv, fig_embedding_settings']},
+ params:[['People × clonotypes','1,000 × 250','Each setting re-embeds; cost.'],['Bootstrap','500 epitope resamples, paired','Epitopes are the independent units.']],
+ why:[`The original adoption test was circular once V became an input; this scores every setting on an external label. ${T('M')}`],
+ exps:[{d:'2026-09-29',t:'First run',r:'All SCEPTR variants 0.566–0.579, no intervals.',e:'M'},{d:'2026-10-04',t:'Rerun with CIs and corrected pooling',r:'No SCEPTR variant differs from b_sceptr; baselines are worse.',e:'M'}],
+ disc:[['Cluster-profile person axis','Scored near floor in 06; replaced.']],
+ tree:null,
+ str:['Paired comparisons on identical TCRs.','Shows a 16-d model is statistically as good on this benchmark.'],
+ weak:['Person-level axis at 250 clonotypes is too weak to rank embeddings; a larger slice would be needed.','Until 2026-10-20 panels b and c sorted rows by their own values and hid their labels, so bars could not be matched to settings. Redrawn from the committed table with panel a\'s row order (--plot-only); numbers unchanged.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R09 */
+{id:'r9', num:'09', phase:'F', title:'W0: analysis table',
+ what:'One row per person with every covariate, flag and depth-robust repertoire measure the disease and ancestry work uses.',
+ inp:'cohort, pheno, full cache, RNA-SeQC2, AoU ancestry & kinship', out:'person_table (VM-local), waterfall',
+ key:'analysis_main 6,764', w:3, o:1,
+ scripts:['09_analysis_table.py','run_w0.sh'],
+ how:`<ol class="steps">
+ <li><b>Rows:</b> all 7,922 people. Nobody is dropped; exclusions are boolean flags so each analysis picks its subset and the cost of each rule is visible.</li>
+ <li><b>Identity:</b> AoU ancestry label, the six ancestry probabilities (parsed from AoU's list, order AFR…SAS checked: argmax reproduces the label for 100%), PC1–10.</li>
+ <li><b>EHR:</b> observation window, distinct conditions, conditions per EHR-year (a health-care-contact proxy).</li>
+ <li><b>Repertoire, raw:</b> Shannon, inverse Simpson, top-10 share, public fraction (public = carried by ≥ 2 of the 7,922).</li>
+ <li><b>Repertoire, fixed depth:</b> at <b>823 TRB reads</b>, exact Hurlbert richness, plus Shannon, e<sup>H</sup>, inverse Simpson and public fraction averaged over 10 seeded subsamples. Missing below 823 reads.</li>
+ <li><b>Relatedness inside the cohort:</b> AoU pairwise kinship ≥ 0.0884; connected components = families; keep the relative with more TRB reads.</li>
+ <li><b>Flags:</b> read floor, EHR window, adult, unrelated; <code>analysis_main</code> = all four. Sex is a covariate (Female / Male / Unknown), not a filter.</li></ol>
+ <table><tr><th>Step (cumulative)</th><th class="num">All</th><th class="num">AFR</th><th class="num">AMR</th><th class="num">EAS</th><th class="num">EUR</th><th class="num">MID</th><th class="num">SAS</th></tr>
+ <tr><td>cohort</td><td class="num">7,922</td><td class="num">1,288</td><td class="num">1,699</td><td class="num">1,134</td><td class="num">2,351</td><td class="num">404</td><td class="num">1,046</td></tr>
+ <tr><td>TRB reads ≥ 823</td><td class="num">7,527</td><td class="num">1,236</td><td class="num">1,592</td><td class="num">1,078</td><td class="num">2,203</td><td class="num">392</td><td class="num">1,026</td></tr>
+ <tr><td>EHR window &gt; 0</td><td class="num">6,971</td><td class="num">1,058</td><td class="num">1,419</td><td class="num">1,021</td><td class="num">2,101</td><td class="num">375</td><td class="num">997</td></tr>
+ <tr><td>adult</td><td class="num">6,968</td><td class="num">1,058</td><td class="num">1,418</td><td class="num">1,019</td><td class="num">2,101</td><td class="num">375</td><td class="num">997</td></tr>
+ <tr><td><b>unrelated = analysis_main</b></td><td class="num"><b>6,764</b></td><td class="num">1,018</td><td class="num">1,362</td><td class="num">1,006</td><td class="num">2,023</td><td class="num">371</td><td class="num">984</td></tr></table>
+ <p style="margin-top:8px"><b>Depth control works.</b> Spearman with log TRB reads: Shannon raw 0.56 → 0.15 at 823 reads; inverse Simpson 0.13 → 0.02; clonotype count 0.90 → rarefied richness 0.30; public fraction ≈ 0 either way.</p>`,
+ io:{i:['cohort_full.tsv, pheno/{person, observation_period, conditions}.tsv','atlas/trb_clonotypes_full.pkl, batch_summary_detail.tsv','RNA-SeQC2 metrics, ancestry_preds.tsv, samples_relatedness.tsv, rnaseq_metadata.tsv'],o:['<code>analysis/person_table.{tsv.gz,pkl}</code> (VM-local, 7,922 × 72)','waterfall.csv, waterfall_by_floor.csv, column_summary.csv, data_dictionary.csv, metadata_columns.csv, fig_depth_and_diversity']},
+ params:[['--depth','823 reads','Report 02\'s rarefaction depth; keeps 95% of people and costs every ancestry about the same (94–98%).'],['--draws','10','Seeded subsamples for the non-exact fixed-depth measures.'],['--kin','0.0884','Third-degree relatives; standard KING-style threshold.'],['Which relative to keep','more TRB reads, ties by id','Better data; resolved inside this cohort, so nobody is dropped for a relative outside it.'],['Sex','covariate, not filter','Requiring a recorded sex removed 13% of AFR vs 1.5% of EAS.']],
+ why:[`Every downstream analysis must use identical inclusion rules and covariates. ${T('C')}`,`Raw diversity rises ~1.5 nats across the cohort's depth range, half the size of the CMV effect in the earlier entropy-wide association (−0.78 nats), so a fixed-depth version is needed beside the raw one. ${T('M')}`],
+ exps:[{d:'2026-10-08',t:'First run with sex as a filter',r:'Removed 13% of AFR; changed to a covariate the same day (+371 people).',e:'M'},{d:'2026-10-08',t:'Metadata profile',r:'rnaseq_metadata.tsv has no draw date; age stays 2020 − year of birth.',e:'M'}],
+ disc:[['AoU global related-sample list','Drops people whose relative is not in our 7,922; loses data for no protection.'],['Requiring recorded sex','Ancestry-uneven loss.']],
+ tree:null,
+ str:['One table, every rule a flag, every cost in the waterfall.','Depth-robust measures validated against depth.'],
+ weak:['The EHR-window requirement costs AFR 14% and AMR 11% vs EUR and EAS 5%.','Ancestry purity is uneven (≥ 0.90 keeps 31% of EUR, 88% of SAS); used for coloured figures only.','No draw date: age is a ±3 y proxy.'],
+ open:['Back up person_table to the rnaseq bucket (it exists only on the VM).']},
+
+/* ------------------------------------------------------------------ R10 */
+{id:'r10', num:'10', phase:'F', title:'W1: V/J usage by ancestry',
+ what:'Model-free view of whether TRBV and TRBJ usage differs by genetic ancestry, and which genes carry it.',
+ inp:'person_table, cdr3.out', out:'PCA, AUROC, zero-usage tables',
+ key:'AUROC 0.80; TRBV4-3 never used by 27%', w:2, o:0,
+ scripts:['10_vj_usage_ancestry.py','run_w1.sh'],
+ how:`<ol class="steps">
+ <li><b>Unit:</b> unique clonotypes per gene (which genes recombine and survive selection), not reads (which add expansion and transcription).</li>
+ <li><b>Genes:</b> 46 TRBV + 13 TRBJ with mean usage ≥ 0.1% and present in ≥ 50% of people (13 V and 1 J dropped).</li>
+ <li><b>Composition:</b> CLR per composition (V and J separately), +0.5 pseudocount; PCA on the centred CLR matrix (Aitchison PCA), 7,527 people at the read floor.</li>
+ <li><b>Per PC:</b> variance explained, ancestry η², correlation with log depth and age.</li>
+ <li><b>Prediction:</b> macro one-vs-rest AUROC on unrelated people, CV grouped by family; covariates-only and permuted controls.</li>
+ <li><b>Zero usage:</b> observed share of people with no clonotype of a gene vs the share expected by chance at its pooled usage rate; genes with ≥ 1% chance zeros marked not assessable; implied absence-allele frequency = √(excess-zero fraction).</li></ol>
+ <p><b>Results.</b> V+J predicts ancestry with macro AUROC <b>0.804</b> (V 0.774, J 0.701, covariates 0.614, permuted 0.504; per group AFR 0.88 … AMR 0.70). <b>PC1 (19.4%) is almost one gene, TRBV4-3</b> (loading 0.90); ancestry explains 7.5% of it. TRBV4-3 is never used by <b>27.3%</b> of people (chance 0.04%): SAS 43.5%, AFR 33.3%, EAS 30.1%, MID 25.8%, AMR 25.4%, EUR 16.7%. TRBV12-4: 15.6% (may be call assignment with TRBV12-3). Removing indel genes leaves the AUROC at 0.803.</p>`,
+ io:{i:['person_table.pkl','cdr3.out per person'],o:['analysis/vj_usage.pkl (VM-local, reused by W3)','ancestry_auroc.csv, genes_by_ancestry.csv, pca_*.csv, zero_usage_by_ancestry.csv, dosage_histogram.csv, codeletion_vs_absence.csv, fig_vj_usage_ancestry']},
+ params:[['Common-gene rule','mean ≥ 0.1%, present in ≥ 50%','Rare genes are noise in CLR.'],['Pseudocount','0.5','Standard for zero counts before log-ratios.'],['Figure subset','ancestry probability ≥ 0.90','Cleaner contours; features and PCA use everyone.'],['Assessable zero','chance zeros < 1%','Below that, zeros are informative about genotype.']],
+ why:[`Requested at the 2026-10-06 meeting: a model-free check of composition by ancestry before any HLA join. ${T('C')}`,`Unit = clonotypes because a germline or HLA effect changes which genes are used, not how much they expand. ${T('L')}`],
+ exps:[{d:'2026-10-08',t:'Zero-usage estimator, first version',r:'Expected zeros were computed from median usage among users, giving ~1/e for every rare gene. Wrong; replaced by the pooled-rate estimator and tested on a planted 80% / 10% deletion (recovered 80.5% / 12.7%).',e:'M'},{d:'2026-10-08',t:'Co-deletion',r:'In TRBV4-3 non-users, TRBV6-2 usage halves and TRBV7-2 is reduced. Explained in report 15.',e:'M'}],
+ disc:[['Read-weighted usage','Mixes expansion into composition.'],['PCA on raw proportions','Compositional; spurious negative correlations.']],
+ tree:null,
+ str:['Grouped CV and permuted control.','The germline signal is found and then shown not to carry the ancestry prediction.'],
+ weak:['Compositional echo: one gene up pushes all others down a little; read the top of gene lists, not the tail.','Germline vs reference-mapping explanations for J-gene and TRBV28 differences are not separated.'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R11 */
+{id:'r11', num:'11–12', phase:'F', title:'W2–W3: disease labels and feature sets',
+ what:'Case/control labels for 33 chronic diseases, and one matrix per repertoire feature family for the same people.',
+ inp:'person_table, EHR conditions, cdr3.out, embeddings', out:'disease_labels, 5 feature matrices (VM-local)',
+ key:'15 classify, 12 associate', w:2, o:0,
+ scripts:['11_disease_labels.py','12_feature_sets.py','run_disease.sh'],
+ how:`<p><b>Labels (11).</b> Population: analysis_main (6,764); 5,557 have ICD rows; 92% of condition rows are ICD-coded.</p>
+ <ul>
+ <li><b>Case:</b> ≥ 2 occurrences of the disease's ICD-10-CM / ICD-9-CM codes (summed over codes).</li>
+ <li><b>Control:</b> no code of the case or wider exclusion family (e.g. any diabetes code for T2D), EHR ≥ 2 years, and ≥ 1 ICD-coded condition of any kind.</li>
+ <li><b>Excluded:</b> exactly one occurrence, or an exclusion-family code.</li>
+ <li><b>Tiers:</b> ≥ 150 cases classify + associate (15 diseases); 50–149 associate (12); 20–49 describe (4); &lt; 20 suppressed (coeliac, ankylosing spondylitis).</li></ul>
+ <p><b>Feature sets (12)</b>, rows = analysis_main:</p>
+ <ul>
+ <li><b>base:</b> age, age², sex (Female / Unknown vs Male), PC1–10, log10 TRB reads.</li>
+ <li><b>diversity:</b> fixed-depth richness, Shannon, inverse Simpson, public fraction, top-10 share (from 09).</li>
+ <li><b>vj:</b> CLR usage of the common TRBV and TRBJ genes (from 10).</li>
+ <li><b>sceptr:</b> mean SCEPTR vector over the whole repertoire + CLR TRBV usage (report 06's best).</li>
+ <li><b>kmer:</b> CDR3 3-mer frequencies over 6.06 M unique CDR3s, 7,993 3-mers, truncated SVD to 100 dimensions.</li></ul>
+ <p>8,376,889 clonotypes; 98.9% have a SCEPTR vector; 7 minutes.</p>`,
+ io:{i:['person_table.pkl, pheno conditions, vj_usage.pkl, full-cache embeddings'],o:['analysis/disease_labels.pkl, feature matrices (VM-local)','disease_definitions.csv, case_counts.csv (cells &lt; 20 suppressed)']},
+ params:[['Case rule','≥ 2 occurrences','One occurrence is often a rule-out or billing artefact.'],['Control EHR','≥ 2 years + ≥ 1 ICD condition','A person with no ICD data cannot be called disease-free.'],['Chronic only','33 diseases','Draw dates exist for few people; a chronic diagnosis is permanent.'],['k-mer SVD','100 dimensions','Bounded feature count.']],
+ why:[`Requested at the 2026-10-06 meeting: about 30 chronic conditions, autoimmune and not classically immune, defined cleanly even at the cost of data. ${T('C')}`],
+ exps:[{d:'2026-10-12',t:'Label run',r:'Classic autoimmune diseases mostly below 150 cases in 6,764 people: associate, not classify.',e:'M'}],
+ disc:[['Single-occurrence cases','Too noisy.']],
+ tree:null,
+ str:['Identical people and inputs for W4 and W5.','Definitions committed per disease.'],
+ weak:['No timing of diagnosis relative to the blood draw.','TRB only; B-cell chains not in any feature set (supervisor ask for v1).'],
+ open:[]},
+
+/* ------------------------------------------------------------------ R13 */
+{id:'r13', num:'13', phase:'F', title:'W4: diversity vs disease at fixed depth',
+ what:'Does repertoire diversity or expansion differ between cases and controls, adjusted for age, sex, ancestry and depth?',
+ inp:'person_table, labels, diversity features', out:'association.csv, figure',
+ key:'HF expansion, Bonferroni', w:2, o:1,
+ scripts:['13_disease_association.py'],
+ how:`<ol class="steps">
+ <li>For each of 27 diseases with ≥ 50 cases and 6 measures (162 tests): <code>measure (SD) ~ case + age + age² + sex + PC1–10 + log10 TRB reads</code>, OLS with HC3 errors. Effect = case − control difference in SD.</li>
+ <li>Measures: Shannon, inverse Simpson, richness and public fraction at 823 reads; top-10 share; raw Shannon (for comparison with the earlier entropy-wide association, which used raw Shannon adjusted for total reads).</li>
+ <li>Benjamini–Hochberg and Bonferroni across the main model.</li>
+ <li>Sensitivity: + log(1 + conditions per EHR-year).</li></ol>
+ <p><b>Results.</b> 33 tests BH q &lt; 0.05, 12 Bonferroni, 12 hold BH after the utilisation term. <b>HIV</b> (positive control): richness −0.87 SD, Shannon −0.74, top-10 +0.66. <b>Heart failure</b> (373 cases): top-10 share +0.32 SD, Shannon at depth −0.32, all Bonferroni, utilisation-adjusted q 0.002–0.013; the fixed-depth effect is at least as large as the raw one. Hypertension and T2D weaker. No autoimmune disease significant. Raw and fixed-depth Shannon effects agree (panel b).</p>`,
+ io:{i:['person_table, disease_labels, diversity features'],o:['association.csv (every test, main and utilisation-adjusted)','fig_disease_association']},
+ params:[['Min cases','50','Below that, CIs are too wide to read.'],['Errors','HC3','Heteroscedasticity-robust; case groups are unbalanced.'],['Sensitivity covariate','log(1 + conditions per EHR-year)','People seen more often collect more diagnoses, and acute illness lowers circulating T cells.']],
+ why:[`Depth-controlled version of an existing raw-entropy association, to see what survives once depth is fixed. ${T('M')}`],
+ exps:[{d:'2026-10-12',t:'Main run',r:'Heart failure is the one non-HIV disease that survives every check.',e:'M'},{d:'2026-10-20',t:'Review of the committed table',r:'For inverse Simpson, immune-mediated diseases lean positive (fewer dominant clones), cardiometabolic negative. Only psoriasis nominal (p 0.032, q 0.13). A direction, not a result.',e:'M'}],
+ disc:[['Raw measures only','Depth-dependent.']],
+ tree:null,
+ str:['Positive control behaves as expected.','Robustness to health-care contact checked.'],
+ weak:['No CMV serostatus: CMV drives expansion and is linked to cardiovascular disease.','Cross-sectional; treatment not modelled.'],
+ open:['CMV or a proxy before the heart-failure result is written up.']},
+
+/* ------------------------------------------------------------------ R14 */
+{id:'r14', num:'14', phase:'F', title:'W5: disease classification v0',
+ what:'How much does the repertoire add to age, sex, ancestry and depth for predicting 15 chronic diseases?',
+ inp:'labels, 5 feature sets', out:'classification.csv, figure',
+ key:'≤ ~1 AUROC point', w:3, o:2,
+ scripts:['14_disease_classification.py'],
+ how:`<ol class="steps">
+ <li>15 diseases with ≥ 150 cases. Feature sets: base; base + diversity; + V/J; + SCEPTR (mean + TRBV); + 3-mers; + all.</li>
+ <li><b>LASSO:</b> median imputation, standardisation, L1 logistic with the penalty chosen by inner 3-fold CV (10 values, AUROC).</li>
+ <li><b>XGBoost:</b> 300 trees, depth 3, learning rate 0.05, row and column subsampling 0.8; not tuned in v0.</li>
+ <li>5-fold stratified CV, same folds for every set; out-of-fold AUROC. Gain over base with a paired bootstrap (500 resamples of people).</li></ol>
+ <p><b>Results.</b> Base AUROC 0.72–0.84 for cardiometabolic disease; 0.58–0.65 for obesity, urticaria, asthma, allergic rhinitis. 4 of 150 gains have a CI above 0 (CKD +1.3, HF +0.7, T2D +0.5, hypertension +0.5), about what chance gives. Only diversity ever helps; SCEPTR, 3-mers and V/J add nothing or hurt.</p>
+ <div class="callout bad"><b>Design problem (found 2026-10-16).</b> Base and repertoire columns share one L1 penalty. With hundreds of repertoire columns, the inner CV picks a strong penalty that shrinks age, sex and the PCs too, so “+ all” scores below base (asthma 0.602 → 0.528). Negative gains are the cost of extra columns; positive gains may be underestimated. Fix before quoting: hold the base fixed (base logit as an offset).</div>`,
+ io:{i:['disease_labels, feature matrices'],o:['classification.csv (AUROC, gain, CIs per disease × model × set)','fig_disease_classification']},
+ params:[['CV','5-fold stratified, seed 0','analysis_main is unrelated, so plain folds cannot leak relatives.'],['LASSO penalty','inner 3-fold CV, 10 values','Standard; but shared with base columns (see problem).'],['XGBoost','fixed conservative settings','v0: avoid tuning on 5 folds.'],['Bootstrap','500 resamples of people, paired','Same predictions, so the gain CI is tight.']],
+ why:[`Requested at the 2026-10-06 meeting: TRB, SCEPTR and k-mer features, XGBoost and LASSO, a working first version. ${T('C')}`],
+ exps:[{d:'2026-10-13',t:'v0 run',r:'9,697 s. Repertoire adds at most ~1 point; consistent with W4 only for heart failure.',e:'M'}],
+ disc:[],
+ tree:null,
+ str:['Gain is measured against a strong base on identical folds.','Chance level of “significant” gains stated (≈ 3.75 of 150).'],
+ weak:['Joint L1 penalty biases gains downward (open).','XGBoost not tuned.','The “assay depth ceiling” reading (~2,000 TRB reads) is an interpretation, not tested; a depth-tertile or down-sampling comparison would test it.'],
+ open:['v1: fixed base, B-cell chains (IGH/IGK/IGL, isotype shares, hypermutation proxy), all features (supervisor ask).','Test the depth ceiling: gain by depth tertile or after down-sampling deep samples.']},
+
+/* ------------------------------------------------------------------ R15 */
+{id:'r15', num:'15', phase:'F', title:'TRBV4-3: expression vs germline',
+ what:'Does “never uses TRBV4-3” in RNA match a direct DNA genotype of the insertion that carries the gene?',
+ inp:'report 10 tables; Marc\'s script 65 tables', out:'5-panel figure, comparison tables',
+ key:'same ranking, RNA/DNA 0.83', w:1, o:1,
+ scripts:['15_trbv43_usage_vs_genotype.py (runs off the VM, aggregates only)'],
+ how:`<p>TRBV4-3 sits on a ~21.7 kb insertion (with TRBV3-2 and a second TRBV6-2/6-3 copy) that GRCh38 carries only on an ALT contig. Script 65 (long-read workstream) counts reads spanning the breakpoint (chr7:142,346,200) and calls 0/1/2 copies for 11,856 unrelated people.</p>
+ <table><tr><th>Ancestry</th><th class="num">RNA: never used</th><th class="num">DNA: 0 copies</th><th class="num">Ratio</th><th class="num">Absence allele RNA / DNA</th></tr>
+ <tr><td>SAS</td><td class="num">43.5%</td><td class="num">55.1%</td><td class="num">0.79</td><td class="num">0.66 / 0.71</td></tr>
+ <tr><td>AFR</td><td class="num">33.3%</td><td class="num">38.5%</td><td class="num">0.87</td><td class="num">0.58 / 0.58</td></tr>
+ <tr><td>EAS</td><td class="num">30.1%</td><td class="num">37.1%</td><td class="num">0.81</td><td class="num">0.55 / 0.58</td></tr>
+ <tr><td>AMR</td><td class="num">25.4%</td><td class="num">30.1%</td><td class="num">0.84</td><td class="num">0.50 / 0.52</td></tr>
+ <tr><td>EUR</td><td class="num">16.7%</td><td class="num">19.5%</td><td class="num">0.86</td><td class="num">0.41 / 0.42</td></tr>
+ <tr><td>ALL</td><td class="num">27.3%</td><td class="num">33.0%</td><td class="num">0.83</td><td class="num">0.52 / 0.54</td></tr></table>
+ <p style="margin-top:8px">Same order in all five groups with both values (r 0.995). People with usage ≤ 0.10%: 32.1%, the DNA rate. In non-users, TRBV6-2 halves (0.47: one of its two copies is on the insertion), TRBV7-2 drops to 0.59 (first gene 3′; not deleted; unexplained), genes 5′ of the insertion rise 19–33%.</p>`,
+ io:{i:['10: zero_usage_by_ancestry, dosage_histogram, codeletion_vs_absence; 09: waterfall','65 (main @ e2584e2): genotype_by_stratum, af_mixture_fit, probe mapping; TRUST4 hg38_bcrtcr.fa coordinates'],o:['comparison_by_ancestry.csv, cumulative_usage.csv, codeletion_by_position.csv, fig_trbv43_usage_vs_genotype']},
+ params:[['RNA denominator','people with ≥ 823 TRB reads, relatives included','Report 10\'s population.'],['DNA genotyper','cut-offs 0.2 / 0.8 (mixture fit as check)','The only per-ancestry public table.'],['CIs','Wilson 95%','Proportions; implied allele interval by the same transform.']],
+ why:[`An expression-only claim of germline absence needs a genotype check. ${T('M')}`],
+ exps:[{d:'2026-10-20',t:'Group-level comparison',r:'Agreement in ranking and allele frequency; RNA under-detects 0-copy people by ~17%, recovered by a ≤ 0.1% usage rule.',e:'M'}],
+ disc:[],
+ tree:null,
+ str:['Two assays, two workstreams, same answer.','TRBV6-2 halving is a mechanistic check.'],
+ weak:['Group-level only; overlapping but different cohorts.'],
+ open:['Per-person join (Marc\'s script 60): needs the per-person TRBV usage table from the VM.']},
+
+/* ------------------------------------------------------------------ X1 */
+{id:'x1', num:'·', phase:'X', title:'Disclosure and privacy',
+ what:'What may leave the controlled environment, and in what form.',
+ inp:'every stage', out:'aggregate CSVs and figures only',
+ key:'≥ 20 people per cell', w:2, o:2,
+ scripts:['repfig.py (MIN_PEOPLE = 20)','every report script'],
+ how:`<ul>
+ <li>Any plotted group, bin or map cell must pool <b>at least 20 distinct people</b>, not 20 rows: 20 clonotypes could all come from one person.</li>
+ <li>Anything with research_ids or individual values (cohort files, clonotype caches, embeddings, person.tsv) stays VM-local under <code>~/pipeline_outputs/</code> and is never committed.</li>
+ <li>Only aggregate CSVs and finished figures are committed; the repository is public.</li></ul>`,
+ io:{i:[],o:[]}, params:[],
+ why:[`AoU data use rules and the public repository. ${T('C')}`],
+ exps:[], disc:[], tree:null,
+ str:['Enforced in shared helpers, not by hand.'],
+ weak:['Real research_ids exist in at least 6 committed files from earlier work (escalated, undecided).','Committed ancestry summary includes single-person min/max values.'],
+ open:['Joint decision with Marc and supervisors on both items.']},
+
+/* ------------------------------------------------------------------ X2 */
+{id:'x2', num:'·', phase:'X', title:'Reproducibility and records',
+ what:'How runs are made repeatable and traceable.',
+ inp:'every stage', out:'context/ docs, committed reports',
+ key:'seed 0 throughout', w:1, o:1,
+ scripts:['run_reports.sh','context/EXPERIMENTS.md, DECISIONS.md, STATUS.md'],
+ how:`<ul>
+ <li>Every analysis is a numbered script with a matching report folder and README, run in order by <code>run_reports.sh</code> (02 → 07), <code>run_w0.sh</code>, <code>run_w1.sh</code> and <code>run_disease.sh</code> (11 → 14, resumable). Reports 07, 14 and 15 can be redrawn from committed tables alone.</li>
+ <li>Seeds fixed at 0; cohort selection deterministic; UMAP cache keyed on a hash of the vectors.</li>
+ <li>Scripts are tested on synthetic data with planted effects before the real run.</li>
+ <li>EXPERIMENTS.md is append-only; DECISIONS.md keeps resolved decisions with their reasons.</li>
+ <li>Figures follow cnsplots journal style (supervisor decision, David, 2026-09-27).</li></ul>`,
+ io:{i:[],o:[]}, params:[], why:[], exps:[], disc:[], tree:null,
+ str:['Every number on this page traces to a committed CSV or a dated log entry.'],
+ weak:['numpy appears twice in the environment (conda 2.5.3, pip 2.4.6); the pip copy is the one imported. Harmless so far, but pin one.'],
+ open:['Pin trust4 and the pip packages in pixi.toml from environment.txt.']}
+];
+
+const FLOW = [
+ {b:'manifest.tsv',n:'8,980',s:'RNA-seq BAMs (stage 0)'},
+ {a:'∩ long-read, ancestry, ≤ 12 GB'},
+ {b:'cohort_full.tsv',n:'7,922',s:'people (stage 1)'},
+ {a:'TRUST4 ×7,922'},
+ {b:'cdr3.out',n:'7,922',s:'per-person outputs (stages 3–4)'},
+ {a:'score, junction, ≤ 30 aa, TRB'},
+ {b:'trb_clonotypes_full',n:'9.44 M',s:'TRB clonotypes (stage 6) → reports 02, 04, 06, 07'},
+ {a:'top 500 per person'},
+ {b:'pool_sceptr',n:'3.84 M',s:'top-500 clonotypes with usable V (stages 7, 9) → 01, 03, 05'},
+ {a:'b_sceptr'},
+ {b:'embeddings .npy',n:'3.84 M × 64',s:'pool vectors; plus a full-cache embedding of every distinct sequence → 06'},
+ {a:'+ EHR, ancestry, kinship, depth-fixed metrics'},
+ {b:'person_table',n:'6,764',s:'analysis_main people (report 09) → 10, 11–14'},
+ {a:'ICD ≥ 2 occurrences'},
+ {b:'disease labels',n:'33',s:'chronic diseases; 15 classified, 27 associated'}
+];
+
+const SOFTWARE = [
+ ['TRUST4','v1.1.5-r573 (bioconda build h5ca1c30_0); source read at v1.1.10','pixi env','Repertoire assembly (stage 3)'],
+ ['TRUST4 references','<code>hg38_bcrtcr.fa</code> (md5 236a217d…), <code>human_IMGT+C.fa</code> (md5 5511c50f…) from repo commit 4032f90, 2026-08-03','<code>reference/</code>','Gene coordinates, IMGT alleles'],
+ ['STAR','2.7.11b, two-pass (AoU; from BAM headers)','AoU pipeline','Alignment of the input BAMs'],
+ ['samtools','1.21','pixi env','BAM header checks'],
+ ['Python','3.12.14','pixi env','All scripts'],
+ ['pandas','2.3.3','pixi env','Tables'],
+ ['NumPy','2.4.6 (pip, imported); 2.5.3 also present from conda','pixi env','Arrays'],
+ ['SciPy','1.18.0','pixi env','Log-binomials, KDE, Spearman, Fisher, χ²'],
+ ['scikit-learn','1.9.1','pip','MiniBatchKMeans, PCA, TruncatedSVD, Ridge, LogisticRegression, CV, AUROC'],
+ ['sceptr','1.2.0','pip','Embedding (stages 8–9, reports 04, 07)'],
+ ['PyTorch','2.14.0','pip','SCEPTR backend'],
+ ['esm','git commit bf343ba (v3.4.1 line) + accelerate 1.15.0','pip','ESMC-300M comparison only'],
+ ['OLGA','1.3.0, default human_T_beta model','pip','Pgen and decoy generation (reports 03, 04, 05)'],
+ ['umap-learn','0.5.12 (pynndescent 0.6.0, numba 0.65.1)','pip','Report 01'],
+ ['statsmodels','0.15.0','pip','OLS with HC3 errors, BH and Bonferroni (report 13)'],
+ ['XGBoost','installed for W5 after environment.txt was captured; version not recorded','pip','Report 14'],
+ ['cnsplots','0.7.0 (matplotlib 3.10.9)','pip','All figures'],
+ ['VDJdb','release 2026-06-03, human TRB, score ≥ 1','downloaded zip','Reports 04, 05, 07'],
+ ['catELMo','scripted (Python 3.6 conda env), never run','—','Planned third model, dropped'],
+ ['Google Cloud','Cloud SDK 579.0.0: gcloud storage, gcsfuse, BigQuery (CDR C2025Q4R6)','Verily Workbench','Data access, staging, demographics'],
+ ['pixi','0.80.0','VM','Environment manager'],
+ ['Compute','n1-highmem-16 (16 vCPU, 102 GB), Ubuntu 24.04.4; 4 such VMs for the batch; CPU only','GCP','—']
+];
+
+const ISSUES = [
+ {k:'done',t:'Ties at the top-500 cutoff were broken alphabetically by V gene',w:'embed_cdr3s.py → tie_key()',p:'Confirmed and large: the cutoff fell inside a tie for 98.8% of people, about 200 of 500 slots were tie-decided, and the old pool over-represented TRBV12-3, TRBV10-3 and TRBV11-2 by 1.6–1.8×. Fixing it removed the person-map size effect (ρ −0.21 → 0.004) and raised top-250 vs top-500 stability from 0.35 to 0.76.',f:'Seeded random tie-break; pool re-embedded; 01, 03, 05, 06 rerun.'},
+ {k:'done',t:'Report 06 concatenated blocks without rescaling',w:'repfig.balanced_concat()',p:'In practice the effect was small: balanced 27.6% vs raw 29.4%, identical once z-scored (27.0%). The synthetic check shows it can matter a lot, so balanced and z-scored versions stay in the table.',f:'Balanced versions added; z-scored identifiability is the headline (decided 2026-10-06).'},
+ {k:'done',t:'Report 06 used only pooled sequences',w:'embed_full_cache.py',p:'Now 98.9% of each repertoire has a vector. Winner rose from 19.6% to 29.4% raw, and depth R² fell from 0.41 to 0.17: most of the depth leakage came from the partial coverage.',f:'Full cache embedded once; coverage written to summary.csv.'},
+ {k:'done',t:'Report 07 person-level axis used the wrong pooling',w:'07_embedding_settings.py',p:'Now mean pooling and mean + TRBV, z-scored. Still near floor at 250 clonotypes per person, so the person axis does not rank embeddings.',f:'Replaced; docstring corrected.'},
+ {k:'done',t:'No confidence intervals on epitope AUROCs',w:'repfig.epitope_bootstrap()',p:'All SCEPTR variants are statistically indistinguishable from b_sceptr; baselines are worse. Per-method intervals are wide (about ±0.06).',f:'500-replicate epitope bootstrap with paired differences in 04 and 07.'},
+ {k:'done',t:'Software versions not recorded',w:'freeze_env.sh → environment.txt',p:'Captured. One finding: TRUST4 binary v1.1.5 with reference files from a 2026-08 repository commit; numpy present twice.',f:'Pin trust4 = "1.1.5" and pip packages in pixi.toml.'},
+ {k:'done',t:'Chain assignment differed between aggregation and clonotypes',w:'aggregate_rnaseq_results.py',p:'Negligible in practice: TRB +0.00%, IGH +0.66%.',f:'Aggregation uses V, then J, then C.'},
+ {k:'done',t:'Decoy Pgen tolerance could widen without limit',w:'repfig.matched_decoys()',p:'Not a problem: 97.9% of VDJdb TCRs matched within 0.25 log10 Pgen; widening affected under 1%. MCPyV (12.8% without any decoy) and wheat (9.7% Pgen = 0) are the exceptions.',f:'decoy_tolerance.csv written by report 04.'},
+ {k:'done',t:'12 GB BAM cap removed the deepest samples',w:'08_methods_audit.py → bam_cap_qc.csv',p:'The 404 excluded people are 2.5× deeper (median 277 M vs 109 M mapped reads), with 2.1× the library complexity; 3.2% (EAS) to 5.9% (AFR) excluded. Results describe typical-depth samples; report 02 is protected by rarefaction.',f:'Documented as a selection step. Optional: run TRUST4 on the 404 to test inclusion.'},
+ {k:'done',t:'Is 500 the right per-person cap?',w:'DECISIONS.md, 2026-10-06',p:'Kept. With the random tie-break, the fill beyond the reads-ranked clonotypes is an unbiased sample of the low-count tail; a cap of 300 would not remove ties and would add noise; stability 0.76. The cap now affects only reports 01, 03 and 05.',f:'Decided; no rerun needed.'},
+ {k:'done',t:'Report 07 figure: panels b and c could not be read',w:'07_embedding_settings.py --plot-only',p:'Each panel sorted rows by its own value and hid its labels. Found while writing the report READMEs.',f:'All three panels share panel a\'s order; redrawn from the committed table (2026-10-20).'},
+ {k:'done',t:'Report 05 enrichment counts mixed enrichments and depletions',w:'vdjdb_cluster_enrichment.csv',p:'169 significant = 81 enriched + 88 depleted; 50 enriched both crude and within V. Within-V odds ratios degenerate (65 infinite).',f:'Counts corrected in the README and here; report only CMH p / q within V.'},
+ {k:'known',t:'W5: base covariates share the repertoire\'s L1 penalty',w:'14_disease_classification.py',p:'Adding many columns shrinks age, sex and PCs too, so “+ all” falls below base (asthma 0.602 → 0.528). Gains are biased downward.',f:'Hold the base fixed (base logit as offset) and rerun (~3 h, VM).'},
+ {k:'known',t:'“Assay depth ceiling” is untested',w:'reports 13, 14',p:'Small repertoire gains are read as a sampling limit at ~2,000 TRB reads, not absence of signal. That is an interpretation.',f:'Compare gains across depth tertiles, or down-sample deep samples.'},
+ {k:'known',t:'No CMV serostatus in disease models',w:'report 13',p:'CMV drives clonal expansion and is linked to cardiovascular disease; the main confounder candidate for the heart-failure result.',f:''},
+ {k:'known',t:'Recovery metric not rarefied; no per-person ancestry test',w:'DECISIONS.md',p:'Ancestry recovery claims rest on group means of raw counts.',f:''},
+ {k:'known',t:'--contigMinCov never tested',w:'TRUST4_DEEP_DIVE.md §8',p:'The only TRUST4 parameter with a real precision/sensitivity trade-off for us.',f:''},
+ {k:'known',t:'Research_ids in committed files; single-person min/max in history',w:'DECISIONS.md',p:'Escalated to Marc and supervisors.',f:''}
+];
+
+const GLOSS = [
+ ['V(D)J recombination','Each T cell cuts and rejoins one V, (D) and J gene segment, deleting and inserting random bases at the joins. The result exists in that clone only.'],
+ ['CDR3','The hypervariable loop created at the V(D)J join; the main contact with the peptide. TRUST4\'s output unit.'],
+ ['CDR1 / CDR2','Loops encoded by the germline V gene; they mostly contact the HLA molecule. SCEPTR gets them from the TRBV name.'],
+ ['TRB / TRBV','T-cell receptor beta chain / its V gene (48 usable in SCEPTR). TRB is the chain we analyse.'],
+ ['Clonotype','Here: a unique (TRBV gene, CDR3 amino-acid sequence) within one person, reads summed.'],
+ ['Public clonotype','A clonotype found in at least 2 people.'],
+ ['Pgen','Generation probability: how likely V(D)J recombination is to produce a given CDR3 by chance (OLGA).'],
+ ['OLGA','Software that computes Pgen and samples synthetic TCRs from a fitted recombination model.'],
+ ['VDJdb','Public database of TCRs with experimentally known epitope targets.'],
+ ['SCEPTR','Small TCR language model producing a 64-number vector per receptor.'],
+ ['Embedding','A fixed-length vector such that similar receptors are close together.'],
+ ['L2 normalisation','Scaling a vector to length 1; afterwards a dot product equals cosine similarity.'],
+ ['Rarefied richness','Expected number of distinct clonotypes in a random subsample of fixed read depth (here 823). Removes depth from diversity.'],
+ ['CLR','Centred log-ratio: log of each proportion minus the mean log. Standard transform for compositional data.'],
+ ['Split-half identifiability','Split each person\'s clonotypes into two random halves; the share of people whose own second half is their closest match among everyone.'],
+ ['AUROC','Probability a random positive scores above a random negative. 0.5 is chance.'],
+ ['UMAP','Non-linear 2-d projection that preserves local neighbourhoods; distances between far clusters are not meaningful.'],
+ ['Disclosure rule','AoU forbids showing groups under 20 people; we apply it to distinct people per plotted cell.'],
+ ['Hurlbert richness','Exact expected number of distinct clonotypes in a random subsample of n reads without replacement.'],
+ ['HC3','Heteroscedasticity-robust standard errors for OLS; safe when variances differ between cases and controls.'],
+ ['Benjamini–Hochberg (BH)','Controls the expected share of false discoveries among results called significant (q).'],
+ ['Bonferroni','Divides the significance threshold by the number of tests; strict.'],
+ ['η² (eta squared)','Share of a variable\'s variance explained by group membership (here ancestry).'],
+ ['Mantel–Haenszel / CMH','Odds ratio and test pooled across strata (here TRBV genes), so differences between strata cannot drive the result. The pooled odds ratio is unstable when strata have empty cells.'],
+ ['Hardy–Weinberg','Genotype frequencies p², 2pq, q² from allele frequencies; used to turn “0 copies” rates into allele frequencies.']
+];
+
+/* ---------------- render ---------------- */
+const esc = s => s;
+function evTag(e){return T(e)}
+
+function card(s){
+  const flags = `${s.w?`<span class="flag w" title="weak points">${s.w} weak</span>`:''}${s.o?`<span class="flag o" title="open items">${s.o} open</span>`:''}`;
+  return `<button class="card" type="button" data-id="${s.id}" aria-haspopup="dialog">
+    <div class="top"><span class="num">${s.num}</span><h4>${s.title}</h4></div>
+    <p class="what">${s.what}</p>
+    <dl class="io"><dt>in</dt><dd>${s.inp}</dd><dt>out</dt><dd>${s.out}</dd></dl>
+    <div class="foot"><span class="kn">${s.key}</span><span class="flags">${flags}</span></div>
+  </button>`;
+}
+document.getElementById('phases').innerHTML = PHASES.map(p=>`
+  <div class="phase">
+    <div class="phase-label"><div class="pl"><span class="letter">${p.id==='X'?'all stages':'phase '+p.id}</span><h3>${p.title}</h3><p>${p.blurb}</p></div></div>
+    <div class="cards">${S.filter(s=>s.phase===p.id).map(card).join('')}</div>
+  </div>`).join('');
+
+document.getElementById('flowstrip').innerHTML = FLOW.map(f=> f.a
+  ? `<div class="farrow"><i>→</i>${f.a}</div>`
+  : `<div class="fnode"><b>${f.b}</b><span class="n">${f.n}</span><span>${f.s}</span></div>`).join('');
+
+document.getElementById('swtable').innerHTML = `<tr><th>Tool</th><th>Version</th><th>Where</th><th>Used for</th></tr>` +
+  SOFTWARE.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1].includes('not recorded')?r[1].replace('not recorded','<span class="tag t-N">NOT RECORDED</span>'):r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+
+let ni=0;
+document.getElementById('issuelist').innerHTML = ISSUES.map(i=>{ni++;return `
+  <div class="issue ${i.k}"><span class="sev">${i.k==='done'?'fixed':ni}</span><div><h4>${i.t}</h4><p>${i.p}</p>${i.f?`<p class="fix"><b>${i.k==='done'?'Done':'Fix'}:</b> ${i.f}</p>`:''}</div><span class="where">${i.w}</span></div>`}).join('');
+
+document.getElementById('glosslist').innerHTML = GLOSS.map(g=>`<div><b>${g[0]}</b>${g[1]}</div>`).join('');
+
+function tree(t){
+  if(!t) return '';
+  return `<div class="tree"><span class="q">${t.q}</span><ul>${t.o.map(o=>`
+    <li class="${o.x?'yes':'no'}"><span class="opt"><span class="mk">${o.x?'CHOSEN':'NO'}</span><span class="lbl">${o.t}</span>${o.w?` <span class="why">· ${o.w}</span>`:''}</span>${o.n?tree(o.n):''}</li>`).join('')}</ul></div>`;
+}
+
+function sheet(s){
+  const secs = [];
+  const add = (id,label,html)=>{ if(html) secs.push({id,label,html}); };
+  add('how','Method', `<p style="color:var(--muted);font-size:13px;margin-bottom:10px">Scripts: ${s.scripts.map(x=>`<code>${x}</code>`).join(' ')}</p>${s.how}`);
+  if(s.io && (s.io.i.length||s.io.o.length)) add('io','Inputs → outputs', `<div class="iogrid"><div class="iobox"><h6>Inputs</h6><ul>${s.io.i.map(x=>`<li>${x}</li>`).join('')}</ul></div><div class="iobox"><h6>Outputs</h6><ul>${s.io.o.map(x=>`<li>${x}</li>`).join('')}</ul></div></div>`);
+  if(s.params.length) add('params','Parameters', `<div class="tbl-wrap"><table><tr><th>Parameter</th><th>Value</th><th>Why</th></tr>${s.params.map(p=>`<tr><td><code>${p[0]}</code></td><td>${p[1]}</td><td>${p[2]}</td></tr>`).join('')}</table></div>`);
+  if(s.why.length) add('why','Why we did it', `<ul>${s.why.map(x=>`<li>${x}</li>`).join('')}</ul>`);
+  if(s.exps.length) add('exps','Experiments that decided it', s.exps.map(e=>`<div class="exp"><span class="d">${e.d}</span><div><b>${e.t}</b> ${evTag(e.e)}<p>${e.r}</p></div></div>`).join(''));
+  if(s.disc.length) add('disc','Discarded', `<div class="tbl-wrap"><table><tr><th>Alternative</th><th>Why not</th></tr>${s.disc.map(d=>`<tr><td>${d[0]}</td><td>${d[1]}</td></tr>`).join('')}</table></div>`);
+  if(s.tree) add('tree','Decision tree', tree(s.tree));
+  add('sw','Strengths and weak points', `<div class="sw"><div class="s"><h6>Strengths</h6><ul>${s.str.map(x=>`<li>${x}</li>`).join('')}</ul></div><div class="w"><h6>Weak points</h6><ul>${s.weak.map(x=>`<li>${x}</li>`).join('')}</ul></div></div>`);
+  if(s.open.length) add('open','Open items', `<ul>${s.open.map(x=>`<li>${x}</li>`).join('')}</ul>`);
+  return secs;
+}
+
+const dlg = document.getElementById('dlg');
+let cur = -1;
+function openStage(i){
+  cur = i; const s = S[i];
+  document.getElementById('dlg-num').textContent = s.phase==='X' ? 'Cross-cutting' : ((s.phase==='E'||s.phase==='F') ? 'Report '+s.num : 'Stage '+s.num);
+  document.getElementById('dlg-h').textContent = s.title;
+  const secs = sheet(s);
+  document.getElementById('dlg-nav').innerHTML = secs.map(x=>`<a href="#${s.id}-${x.id}" data-t="${s.id}-${x.id}">${x.label}</a>`).join('');
+  const body = document.getElementById('dlg-body');
+  body.innerHTML = `<p style="margin:12px 0 0;font-size:15px">${s.what}</p>` + secs.map(x=>`<div class="blk" id="${s.id}-${x.id}"><h5>${x.label}</h5>${x.html}</div>`).join('');
+  body.scrollTop = 0;
+  document.getElementById('dlg-prev').disabled = i===0;
+  document.getElementById('dlg-next').disabled = i===S.length-1;
+  if(!dlg.open){ if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open',''); }
+  try{ history.replaceState(null,'','#'+s.id); }catch(e){}
+}
+function closeDlg(){ if(dlg.close) dlg.close(); else dlg.removeAttribute('open'); try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+
+document.getElementById('phases').addEventListener('click', e=>{
+  const c = e.target.closest('.card'); if(!c) return;
+  openStage(S.findIndex(s=>s.id===c.dataset.id));
+});
+document.getElementById('dlg-close').addEventListener('click', closeDlg);
+document.getElementById('dlg-prev').addEventListener('click', ()=> cur>0 && openStage(cur-1));
+document.getElementById('dlg-next').addEventListener('click', ()=> cur<S.length-1 && openStage(cur+1));
+document.getElementById('dlg-nav').addEventListener('click', e=>{
+  const a = e.target.closest('a'); if(!a) return; e.preventDefault();
+  const el = document.getElementById(a.dataset.t); if(el) el.scrollIntoView({block:'start'});
+});
+dlg.addEventListener('click', e=>{ if(e.target===dlg) closeDlg(); });
+dlg.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight' && cur<S.length-1) openStage(cur+1);
+  if(e.key==='ArrowLeft' && cur>0) openStage(cur-1);
+});
+const h = (location.hash||'').slice(1);
+const hi = S.findIndex(s=>s.id===h);
+if(hi>=0) openStage(hi);
+</script>
+
+</body></html>
