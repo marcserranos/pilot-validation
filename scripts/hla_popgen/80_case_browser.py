@@ -42,199 +42,138 @@ def translate(seq):
     return "".join(CODON.get(seq[i:i + 3], "X") for i in range(0, len(seq) - len(seq) % 3, 3))
 
 
-# ---------------------------------------------------------------------------------------- cs replay
+# ---------------------------------------------------------------------------------------- Immuannot alignment
 CS_RE = re.compile(r"(:\d+|=[acgtnACGTN]+|\*[acgtnACGTN]{2}|\+[acgtnACGTN]+|-[acgtnACGTN]+|~[acgtn]{2}\d+[acgtn]{2})")
+COMP = str.maketrans("ACGTNacgtn", "TGCANtgcan")
+
+
+def revcomp(s):
+    return s.translate(COMP)[::-1]
 
 
 def parse_cs(cs):
-    """cs string -> [(op, payload)] ; ops: '=' (n or seq), '*' (ref, obs), '+' seq, '-' seq."""
-    ops, pos = [], 0
-    cs = cs.strip()
+    """minimap2 cs string -> [(op, payload)]; ops '=' (int run or str), '*' (target_base, query_base), '+', '-'."""
+    ops, pos, cs = [], 0, cs.strip()
     while pos < len(cs):
         m = CS_RE.match(cs, pos)
         if not m:
             raise ValueError("bad cs near %r" % cs[pos:pos + 12])
-        t = m.group(1)
-        pos = m.end()
-        c = t[0]
-        if c == ":":
+        t, pos = m.group(1), m.end()
+        if t[0] == ":":
             ops.append(("=", int(t[1:])))
-        elif c == "=":
+        elif t[0] == "=":
             ops.append(("=", t[1:].upper()))
-        elif c == "*":
+        elif t[0] == "*":
             ops.append(("*", (t[1].upper(), t[2].upper())))
-        elif c in "+-":
-            ops.append((c, t[1:].upper()))
+        elif t[0] in "+-":
+            ops.append((t[0], t[1:].upper()))
         else:
             raise ValueError("intron token in a CDS cs string: %r" % t)
     return ops
 
 
-def cs_extent(ops):
-    """(target bases consumed, query bases consumed)."""
-    tl = ql = 0
-    for op, p in ops:
+def alignment_from_paf(ref, obs, qs, qe, ts, te, cs, strand="+"):
+    """Replay Immuannot's own CDS alignment (mm2.ipd.cds.paf: query = IPD reference allele, target = the
+    observed CDS) as gapped rows. cs semantics are target->query, so '*xy' = observed x / reference y,
+    '+s' = bases only in the reference, '-s' = bases only in the observed CDS. Unaligned ends are kept as
+    'clip' columns. Returns (aref, aobs, clip5, clip3, problems); problems counts any disagreement between
+    the cs string and the two sequences (0 means the replay is exactly what minimap2 aligned)."""
+    ref = ref.upper()
+    obs = obs.upper()
+    if strand == "-":
+        ref = revcomp(ref)
+        qs, qe = len(ref) - qe, len(ref) - qs
+    ti, qi, bad, R, O = ts, qs, 0, [], []
+    for op, p in parse_cs(cs):
         if op == "=":
             n = p if isinstance(p, int) else len(p)
-            tl += n
-            ql += n
+            if obs[ti:ti + n] != ref[qi:qi + n] or (not isinstance(p, int) and obs[ti:ti + n] != p):
+                bad += 1
+            R.append(ref[qi:qi + n])
+            O.append(obs[ti:ti + n])
+            ti, qi = ti + n, qi + n
         elif op == "*":
-            tl += 1
-            ql += 1
+            bad += (obs[ti:ti + 1] != p[0]) + (ref[qi:qi + 1] != p[1])
+            R.append(p[1])
+            O.append(p[0])
+            ti, qi = ti + 1, qi + 1
         elif op == "+":
-            ql += len(p)
-        else:
-            tl += len(p)
-    return tl, ql
-
-
-def replay_cs(query, cs, qoff=0):
-    """Rebuild the gapped (target, query) rows that minimap2 saw. Matches are read from `query`.
-    Returns (aref, aobs, problems) where problems counts query-vs-cs inconsistencies."""
-    ops = parse_cs(cs)
-    qi, ref, obs, bad = qoff, [], [], 0
-    for op, p in ops:
-        if op == "=":
-            seg = query[qi:qi + p] if isinstance(p, int) else p
-            if not isinstance(p, int) and query[qi:qi + len(p)] != p:
-                bad += 1
-            ref.append(seg)
-            obs.append(seg)
-            qi += len(seg)
-        elif op == "*":
-            if query[qi:qi + 1] != p[1]:
-                bad += 1
-            ref.append(p[0])
-            obs.append(p[1])
-            qi += 1
-        elif op == "+":
-            if query[qi:qi + len(p)] != p:
-                bad += 1
-            ref.append("-" * len(p))
-            obs.append(p)
+            bad += ref[qi:qi + len(p)] != p
+            R.append(p)
+            O.append("-" * len(p))
             qi += len(p)
         else:
-            ref.append(p)
-            obs.append("-" * len(p))
-    return "".join(ref), "".join(obs), bad
+            bad += obs[ti:ti + len(p)] != p
+            R.append("-" * len(p))
+            O.append(p)
+            ti += len(p)
+    bad += (ti != te) + (qi != qe)
 
+    def flank(r, o):
+        w = max(len(r), len(o))
+        return r.ljust(w, "-"), o.ljust(w, "-")
 
-def resolve_alignment(query, cs, target=None):
-    """Replay `cs` against the observed CDS (`query`) and, when the reference allele CDS (`target`) is known,
-    place the aligned block inside it (minimap2 may clip ends). Returns dict(aref, aobs, tstart, qstart, ...)
-    with unaligned flanks appended as 'clip' columns (shown but never counted as differences)."""
-    ops = parse_cs(cs)
-    tl, ql = cs_extent(ops)
-    best = None
-    for qoff in range(0, max(0, len(query) - ql) + 1):
-        aref, aobs, bad = replay_cs(query, cs, qoff)
-        tstart, tbad = 0, 0
-        if target:
-            ru = aref.replace("-", "")
-            tstart = target.find(ru)
-            if tstart < 0:
-                tstart, tbad = 0, 1 + sum(1 for x, y in zip(ru, target) if x != y)
-        score = bad * 1000 + tbad
-        if best is None or score < best[0]:
-            best = (score, qoff, tstart, aref, aobs, bad)
-        if score == 0:
-            break
-    _, qoff, tstart, aref, aobs, bad = best
-    t_end, q_end = tstart + tl, qoff + ql
-    lt = target[:tstart] if target else ""
-    rt = target[t_end:] if target else ""
-    lq, rq = query[:qoff], query[q_end:]
-    pad = lambda a, b: (a.ljust(max(len(a), len(b)), "-"), b.ljust(max(len(a), len(b)), "-"))
-    lref, lobs = pad(lt, lq)
-    rref, robs = pad(rt, rq)
-    return {"aref": lref + aref + rref, "aobs": lobs + aobs + robs,
-            "clip5": len(lref), "clip3": len(rref), "tstart": tstart - 0, "qstart": qoff,
-            "problems": bad, "ref_known": bool(target)}
+    lr, lo = flank(ref[:qs], obs[:ts])
+    rr, ro = flank(ref[qe:], obs[te:])
+    return lr + "".join(R) + rr, lo + "".join(O) + ro, len(lr), len(rr), bad
 
 
 # ---------------------------------------------------------------------------------------- direct aligner
-def banded_align(a, b, match=2, mis=-3, gap_open=-5, gap_ext=-1, band=None):
-    """Global affine-gap (Gotoh) alignment of `a` (reference row) vs `b` (observed row), banded around the
-    diagonal. Ties prefer diagonal moves, then gaps placed 3' (right-most), the usual indel convention.
-    Returns gapped strings (ra, rb)."""
-    n, m = len(a), len(b)
+def banded_align(a, b, match=2, mis=-3, gap_open=-5, gap_ext=-1, band=40):
+    """Global affine-gap (Gotoh) alignment of `a` (reference row) vs `b` (observed row), restricted to a band
+    around the main diagonal (widened by the length difference). Used only where no Immuannot alignment
+    exists (parent-vs-child haplotype CDS). Returns gapped strings (ra, rb)."""
     if a == b:
         return a, b
-    band = band or (abs(n - m) + 40)
+    n, m = len(a), len(b)
+    dlo, dhi = min(0, m - n) - band, max(0, m - n) + band
+    W = dhi - dlo + 1
     NEG = -10 ** 9
-    W = 2 * band + 1
-    # rows indexed 0..n, columns j = i + (k - band) for k in 0..W-1 (shifted for length difference)
-    shift = (m - n) // 2
-
-    def idx(i, j):
-        k = j - i - shift + band
-        return k if 0 <= k < W and 0 <= j <= m else -1
-
     M = [[NEG] * W for _ in range(n + 1)]
-    X = [[NEG] * W for _ in range(n + 1)]   # gap in b (deletion: a base consumed)
-    Y = [[NEG] * W for _ in range(n + 1)]   # gap in a (insertion: b base consumed)
-    tb = [[(0, 0, 0)] * W for _ in range(n + 1)]
-    k0 = idx(0, 0)
-    if k0 < 0:
-        return banded_align(a, b, band=band * 2)
-    M[0][k0] = 0
+    X = [[NEG] * W for _ in range(n + 1)]   # a[i-1] against a gap in b
+    Y = [[NEG] * W for _ in range(n + 1)]   # b[j-1] against a gap in a
+    PM = [[0] * W for _ in range(n + 1)]
+    PX = [[0] * W for _ in range(n + 1)]
+    PY = [[0] * W for _ in range(n + 1)]
+    M[0][-dlo] = 0
     for i in range(n + 1):
-        for j in range(max(0, i + shift - band), min(m, i + shift + band) + 1):
-            k = idx(i, j)
-            if k < 0 or (i == 0 and j == 0):
+        for k in range(W):
+            j = i + k + dlo
+            if j < 0 or j > m or (i == 0 and j == 0):
                 continue
-            best_m = (NEG, 0)
             if i > 0 and j > 0:
-                kp = idx(i - 1, j - 1)
-                if kp >= 0:
-                    s = match if a[i - 1] == b[j - 1] else mis
-                    cand = ((M[i - 1][kp], 0), (X[i - 1][kp], 1), (Y[i - 1][kp], 2))
-                    v, f = max(cand, key=lambda t: (t[0], -t[1]))
-                    if v > NEG // 2:
-                        M[i][k] = v + s
-                        tb[i][k] = (0, f, tb[i][k][2])
-            if i > 0:
-                kp = idx(i - 1, j)
-                if kp >= 0:
-                    o, e = M[i - 1][kp] + gap_open, X[i - 1][kp] + gap_ext
-                    if max(o, e) > NEG // 2:
-                        X[i][k] = max(o, e)
-                        tb[i][k] = (tb[i][k][0], tb[i][k][1], 0) if False else tb[i][k]
-            if j > 0:
-                kp = idx(i, j - 1)
-                if kp >= 0:
-                    o, e = M[i][kp] + gap_open, Y[i][kp] + gap_ext
-                    if max(o, e) > NEG // 2:
-                        Y[i][k] = max(o, e)
-    # traceback by score recomputation (keeps the code short; matrices are small)
+                s = match if a[i - 1] == b[j - 1] else mis
+                c = (M[i - 1][k], X[i - 1][k], Y[i - 1][k])
+                st = c.index(max(c))
+                if c[st] > NEG // 2:
+                    M[i][k], PM[i][k] = c[st] + s, st
+            if i > 0 and k + 1 < W:
+                o, e = M[i - 1][k + 1] + gap_open, X[i - 1][k + 1] + gap_ext
+                if max(o, e) > NEG // 2:
+                    X[i][k], PX[i][k] = (e, 1) if e > o else (o, 0)
+            if j > 0 and k > 0:
+                o, e = M[i][k - 1] + gap_open, Y[i][k - 1] + gap_ext
+                if max(o, e) > NEG // 2:
+                    Y[i][k], PY[i][k] = (e, 1) if e > o else (o, 0)
     i, j = n, m
-    k = idx(i, j)
-    if k < 0:
-        return banded_align(a, b, band=band * 2)
-    state = max((M[i][k], 0), (X[i][k], 1), (Y[i][k], 2), key=lambda t: (t[0], -t[1]))[1]
+    k = j - i - dlo
+    c = (M[i][k], X[i][k], Y[i][k])
+    st = c.index(max(c))
     ra, rb = [], []
     while i > 0 or j > 0:
-        k = idx(i, j)
-        if state == 0:
+        k = j - i - dlo
+        if st == 0:
             ra.append(a[i - 1])
             rb.append(b[j - 1])
-            s = match if a[i - 1] == b[j - 1] else mis
-            kp = idx(i - 1, j - 1)
-            tgt = M[i][k] - s
-            state = 0 if M[i - 1][kp] == tgt else (1 if X[i - 1][kp] == tgt else 2)
-            i, j = i - 1, j - 1
-        elif state == 1:
+            st, i, j = PM[i][k], i - 1, j - 1
+        elif st == 1:
             ra.append(a[i - 1])
             rb.append("-")
-            kp = idx(i - 1, j)
-            state = 1 if X[i - 1][kp] + gap_ext == X[i][k] else 0
-            i -= 1
+            st, i = (1 if PX[i][k] else 0), i - 1
         else:
             ra.append("-")
             rb.append(b[j - 1])
-            kp = idx(i, j - 1)
-            state = 2 if Y[i][kp] + gap_ext == Y[i][k] else 0
-            j -= 1
+            st, j = (2 if PY[i][k] else 0), j - 1
     return "".join(reversed(ra)), "".join(reversed(rb))
 
 
@@ -459,6 +398,24 @@ def cmd_demo(a):
                     "novelty": novel, "consensus": "%s*01:01" % gene, "template_distance": tier * 3,
                     "alignments": [make_alignment(gene + " reference (synthetic)", "observed (synthetic)", aref, aobs,
                                                   "synthetic", exons=[(1, 300), (2, 270), (3, ln - 570)], ars_exons=(2, 3))]})
+    ref = "ATG" + "".join(rng.choice("ACGT") for _ in range(ln - 6)) + "TGA"
+    child = ref[:400] + ("G" if ref[400] != "G" else "A") + ref[401:]
+    other = ref[:700] + ref[701:]
+    mk = lambda lbl, x, y: make_alignment(lbl[0], lbl[1], *banded_align(x, y), "direct", exons=[(1, 300), (2, 270), (3, ln - 570)], ars_exons=(2, 3))
+    cases.append({
+        "id": "c%03d" % (len(cases) + 1), "tab": "mendel", "species": "DEMO", "gene": "DEMO-B", "tier": "-", "novelty": "known",
+        "verdict": "child allele absent from assigned parent", "consensus": "DEMO-B*07:02",
+        "facts": [["child call", "B*07:02"], ["assigned parent", "mother (k-mers 41 vs 2)"], ["parent calls", "B*07:03 / B*15:01"]],
+        "note": "SYNTHETIC: one substitution against parent hap 1, one 1-bp deletion against hap 2.",
+        "alignments": [dict(mk(("parent hap1", "child"), ref, child), title="child vs parent hap 1"),
+                       dict(mk(("parent hap2", "child"), other, child), title="child vs parent hap 2")]})
+    genes = ["B", "C", "A", "DRB1", "DQB1", "DQA1"]
+    ori = ["mat", "mat", "pat", "pat", "amb", "mat"]
+    cases.append({
+        "id": "c%03d" % (len(cases) + 1), "tab": "switch", "species": "DEMO", "gene": None, "tier": "-", "novelty": "known",
+        "n_switch": 2, "switches": [{"i": 1, "gap_kb": 410}, {"i": 4, "gap_kb": 1200}],
+        "track": [{"gene": g, "pos_kb": 30000 + 400 * i, "origin": o, "pat_k": 3 if o != "pat" else 90, "mat_k": 80 if o == "mat" else 2, "allele": g + "*01:01"}
+                  for i, (g, o) in enumerate(zip(genes, ori))]})
     out = build_html(cases, a.out_dir, {"title": "SYNTHETIC DEMO — no real data", "synthetic": True})
     print("wrote", out)
 

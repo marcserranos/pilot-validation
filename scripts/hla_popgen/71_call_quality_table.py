@@ -438,7 +438,7 @@ def main(argv=None):
     trios = [t for t in T.find_trios(lr)]
     if a.emit_priority:
         ids = priority_ids(pairs, trios)
-        with open(a.internal_dir + "priority_ids.txt", "w") as f:
+        with open(os.path.join(a.internal_dir, "priority_ids.txt"), "w") as f:
             f.write("\n".join(ids) + "\n")
         log(f"priority ids: {len(ids)}")
         return 0
@@ -456,7 +456,7 @@ def main(argv=None):
     B.ALLG.extend(extra)        # in-process only: 56's file and its published numbers are untouched
     calls = B.prepare(t1, plat)
     ct = build_call_table(calls, gd, rel_mhc)
-    ct.to_csv(a.internal_dir + "call_table.INTERNAL.tsv", sep="\t", index=False)
+    ct.to_csv(os.path.join(a.internal_dir, "call_table.INTERNAL.tsv"), sep="\t", index=False)
     log(f"call table {len(ct)} calls, {ct['person_id'].nunique()} people")
 
     genes = {"G8": B.G8, "ALL": B.ALLG}
@@ -472,7 +472,7 @@ def main(argv=None):
         trio_of = {t[0]: (t[1], t[2]) for t in trios if t[0] in kids}
         rec_trio = trio_records(o, ct, trio_of)
     for name, df in (("trio", rec_trio), ("pair", rec_pair), ("twin", rec_twin)):
-        df.to_csv(a.internal_dir + f"records_{name}.INTERNAL.tsv", sep="\t", index=False)
+        df.to_csv(os.path.join(a.internal_dir, f"records_{name}.INTERNAL.tsv"), sep="\t", index=False)
         log(f"records {name}: {len(df)}, errors {int(df['bad'].sum()) if len(df) else 0}")
 
     w = lambda df, name: C.write_tsv(df, os.path.join(a.out_dir, name))  # noqa: E731

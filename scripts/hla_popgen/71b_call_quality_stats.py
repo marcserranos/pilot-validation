@@ -463,10 +463,10 @@ def main(argv=None):
     ap.add_argument("--no-boot", action="store_true", help="skip the cluster bootstrap CIs (quick look)")
     a = ap.parse_args(argv)
     os.makedirs(a.out_dir, exist_ok=True)
-    ct = Q.read_int(a.internal_dir + "call_table.INTERNAL.tsv", dtype={"person_id": str})
+    ct = Q.read_int(os.path.join(a.internal_dir, "call_table.INTERNAL.tsv"), dtype={"person_id": str})
     recs = {}
     for name in ("trio", "pair", "twin"):
-        p = a.internal_dir + f"records_{name}.INTERNAL.tsv"
+        p = os.path.join(a.internal_dir, f"records_{name}.INTERNAL.tsv")
         recs[name] = pd.read_csv(p, sep="\t", dtype={"person": str, "other": str}) if os.path.exists(p) else pd.DataFrame()
     views = {vn: make_view(recs[src], pre) for vn, src, pre in VIEWS if len(recs[src])}
     analyse(views, ct, a.out_dir, do_boot=not a.no_boot)
