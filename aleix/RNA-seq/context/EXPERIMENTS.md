@@ -423,3 +423,9 @@ positions from TRUST4's hg38_bcrtcr.fa @ 4032f90. Runs in seconds.
   (first gene 3′, not deleted, unexplained), genes 5′ of the insertion (TRBV2–6-1) +19–33%,
   most 3′ genes ~+4% (redistribution), TRBV10-2 1.35 and 11-2 1.15 unexplained.
 - Group-level only; the per-person test is still Marc's script 60 (needs our usage table).
+- **Figure 07 fixed (plot-only redraw from the committed `embedding_settings.csv`; table unchanged).**
+  Panels b and c each sorted rows by their own value and then hid their row labels, so no bar
+  could be matched to a setting. All three now use panel a's order (epitope AUROC). Checked
+  against the table: `mlm_only` is top on identifiability (2.0%) and `TRBV one-hot` on age R²
+  (0.13). Panel d labels de-overlapped; panel f legend moved off the bars. New:
+  `07_embedding_settings.py --plot-only`.

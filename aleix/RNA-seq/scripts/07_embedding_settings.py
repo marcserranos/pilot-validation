@@ -40,6 +40,8 @@ is the better choice for everything downstream.
 
 Usage (from aleix/RNA-seq/, after 02 and 06):
   pixi run python3 -u scripts/07_embedding_settings.py [--n-people 1000] [--per-person 250]
+Redraw the figure from the committed table only (off the VM):
+  python3 scripts/07_embedding_settings.py --plot-only --outdir reports/07_embedding_settings
 """
 import argparse
 import os
@@ -92,6 +94,131 @@ def epitope_scores(X, epi, rng, max_pairs=2_000_000):
     return auc, float(np.mean(recall)), D, dict(zip(cats, recall))
 
 
+def figure(res, outdir, n_tcrs, n_epitopes):
+    """Figure from the per-setting results table (embedding_settings.csv)."""
+    import cnsplots as cns
+    mp = cns.multipanel(max_width=540)
+    pal = R.nature()
+    W, H, GAP = 105, 105, 34
+
+    def group(n):
+        if n in ("CDR3 3-mer (SVD)", "TRBV one-hot"):
+            return "not learned"
+        if any(t in n for t in ("tiny", "small", "large")):
+            return "capacity"
+        if any(t in n for t in ("mlm_only", "synthetic", "shuffled")):
+            return "training ablation"
+        if any(t in n for t in ("average_pooling", "blosum")):
+            return "architecture"
+        return "input"
+    gcol = {"input": pal[0], "capacity": pal[1], "training ablation": pal[2],
+            "architecture": pal[4], "not learned": "0.65"}
+    res["group"] = res["setting"].map(group)
+
+    # One row order for panels a-c (panel a's: epitope AUROC), so b and c, which carry no row
+    # labels, line up with a's labels. Until 2026-10-20 each panel sorted by its own column
+    # and dropped its labels, so b and c rows could not be identified.
+    order = res.sort_values(["epitope_auroc", "setting"], na_position="first")["setting"].tolist()
+
+    def barh(ax, col, title, xlabel, ref=None, sub=None):
+        r = res.set_index("setting").loc[order].reset_index()
+        y = np.arange(len(r))
+        left = ref if ref is not None else 0
+        ax.barh(y, (r[col] - left).fillna(0), left=left, height=0.68,
+                color=[gcol[g] for g in r["group"]], linewidth=0)
+        if ref is not None:
+            ax.axvline(ref, color="0.5", lw=0.5, ls="--")
+        ax.set_yticks(y)
+        ax.set_yticklabels(r["setting"], fontsize=4.5)
+        ax.set_title(title, pad=11 if sub else 3)
+        if sub:
+            ax.text(0.5, 1.02, sub, transform=ax.transAxes, ha="center", va="bottom",
+                    fontsize=5.5)
+        R.style(ax, None, xlabel, None)
+
+    ax = mp.panel("a", width=145, height=H + 25, margin_right=12, margin_bottom=GAP)
+    barh(ax, "epitope_auroc", "Known-epitope structure", "Pairwise AUROC", ref=0.5,
+         sub=f"{n_tcrs:,} VDJdb TCRs, {n_epitopes} epitopes, 95% CI")
+    r_ = res.set_index("setting").loc[order].reset_index()
+    ax.errorbar(r_["epitope_auroc"], np.arange(len(r_)),
+                xerr=[np.maximum(r_["epitope_auroc"] - r_["epitope_auroc_lo"], 0),
+                      np.maximum(r_["epitope_auroc_hi"] - r_["epitope_auroc"], 0)],
+                fmt="none", ecolor="0.2", elinewidth=0.5, capsize=1.2)
+
+    ax = mp.panel("b", width=W, height=H + 25, margin_right=12, margin_bottom=GAP)
+    res["id_meanpool_z_pct"] = 100 * res["id_meanpool_z"]
+    barh(ax, "id_meanpool_z_pct", "Split-half identity", "Correct (%)",
+         sub="mean pooling, z-scored; rows as in a")
+    ax.set_yticklabels([])
+
+    ax = mp.panel("c", width=W, height=H + 25, margin_right=55, margin_bottom=GAP)
+    barh(ax, "age_r2_meanpool", "Age prediction", "R² (mean pooling)", sub="rows as in a")
+    ax.set_yticklabels([])
+    from matplotlib.patches import Patch
+    ax.legend(handles=[Patch(color=c, label=g) for g, c in gcol.items()], frameon=False)
+    cns.take_legend_out(title="Setting type", ax=ax)
+
+    ax = mp.panel("d", width=W, height=H, margin_right=12)
+    for g_, s_ in res.groupby("group"):
+        ax.scatter(s_["dim"], s_["epitope_auroc"], s=16, linewidths=0, color=gcol[g_])
+    # labels stacked so settings with near-equal dimension do not overprint: points within a
+    # factor 1.6 in dimension share a column, and labels in a column keep a minimum gap
+    gap = 0.0016
+    pts = res.dropna(subset=["epitope_auroc"]).sort_values("epitope_auroc", ascending=False)
+    placed = []                                  # (dim, label_y)
+    for _, r_ in pts.iterrows():
+        ly = r_["epitope_auroc"]
+        for d_, y_ in placed:
+            if max(d_, r_["dim"]) / min(d_, r_["dim"]) < 1.6:
+                ly = min(ly, y_ - gap)
+        placed.append((r_["dim"], ly))
+        ax.annotate(r_["setting"].split(" (")[0], (r_["dim"], r_["epitope_auroc"]),
+                    xytext=(r_["dim"] * 1.12, ly), textcoords="data", fontsize=4, va="center",
+                    arrowprops=dict(arrowstyle="-", lw=0.3, color="0.6", shrinkA=0, shrinkB=1.5))
+    ax.set_xscale("log")
+    ax.minorticks_off()
+    ax.set_title("Cost vs quality", pad=11)
+    ax.text(0.5, 1.02, "smaller and higher is better", transform=ax.transAxes,
+            ha="center", va="bottom", fontsize=5.5)
+    R.style(ax, None, "Embedding dimension", "Epitope AUROC")
+
+    ax = mp.panel("e", width=W, height=H, margin_right=12)
+    ok = res.dropna(subset=["epitope_auroc"])
+    ax.scatter(ok["epitope_auroc"], ok["id_meanpool_z"] * 100, s=16, linewidths=0,
+               color=[gcol[g] for g in ok["group"]])
+    rho = spearmanr(ok["epitope_auroc"], ok["id_meanpool_z"])[0] if len(ok) > 2 else np.nan
+    ax.set_title("Do the two axes agree?", pad=11)
+    ax.text(0.5, 1.02, f"Spearman ρ = {rho:.2f}", transform=ax.transAxes, ha="center",
+            va="bottom", fontsize=5.5)
+    R.style(ax, None, "Epitope AUROC (clonotype level)", "Identifiability (%)")
+
+    ax = mp.panel("f", width=W, height=H, margin_right=12)
+    r = res.dropna(subset=["id_combined_z"]).sort_values("id_combined_z")
+    y = np.arange(len(r))
+    ax.barh(y - 0.2, 100 * r["id_meanpool_z"], height=0.38, color=pal[3],
+            linewidth=0, label="mean pooling")
+    ax.barh(y + 0.2, 100 * r["id_combined_z"], height=0.38, color=pal[0],
+            linewidth=0, label="mean + TRBV usage")
+    ax.set_yticks(y)
+    ax.set_yticklabels(r["setting"], fontsize=4.5)
+    ax.legend(frameon=False, fontsize=5.5, loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2,
+              handlelength=1, columnspacing=1)
+    ax.set_title("Pooling vs embedding", pad=12)
+    R.style(ax, None, "Identifiability (%)", None)
+    R.save("fig_embedding_settings", outdir)
+
+
+def plot_only(outdir):
+    """Redraw the figure from the committed tables only (no VM data needed)."""
+    res = pd.read_csv(os.path.join(outdir, "embedding_settings.csv"))
+    summ = pd.read_csv(os.path.join(outdir, "summary.csv")).set_index("metric")["value"]
+    n_epi = summ.get("benchmark_epitopes")
+    if n_epi is None:  # older summary.csv: same VDJdb benchmark as report 04
+        s04 = os.path.join(outdir, "..", "04_antigen_specificity", "summary.csv")
+        n_epi = pd.read_csv(s04).set_index("metric")["value"]["benchmark_epitopes"]
+    figure(res, outdir, int(float(summ["benchmark_tcrs"])), int(float(n_epi)))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -105,9 +232,14 @@ def main():
     ap.add_argument("--outdir", default="~/pipeline_outputs/rnaseq/reports/07_embedding_settings")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--workers", type=int, default=os.cpu_count())
+    ap.add_argument("--plot-only", action="store_true",
+                    help="redraw the figure from embedding_settings.csv in --outdir and exit")
     args = ap.parse_args()
     outdir = os.path.expanduser(args.outdir)
     os.makedirs(outdir, exist_ok=True)
+    if args.plot_only:
+        plot_only(outdir)
+        return
     rng = np.random.default_rng(args.seed)
 
     import importlib
@@ -272,106 +404,12 @@ def main():
     res = pd.DataFrame(rows)
     res.to_csv(os.path.join(outdir, "embedding_settings.csv"), index=False)
 
-    # ---------------- figure ----------------
-    import cnsplots as cns
-    mp = cns.multipanel(max_width=540)
-    pal = R.nature()
-    W, H, GAP = 105, 105, 34
-
-    def group(n):
-        if n in ("CDR3 3-mer (SVD)", "TRBV one-hot"):
-            return "not learned"
-        if any(t in n for t in ("tiny", "small", "large")):
-            return "capacity"
-        if any(t in n for t in ("mlm_only", "synthetic", "shuffled")):
-            return "training ablation"
-        if any(t in n for t in ("average_pooling", "blosum")):
-            return "architecture"
-        return "input"
-    gcol = {"input": pal[0], "capacity": pal[1], "training ablation": pal[2],
-            "architecture": pal[4], "not learned": "0.65"}
-    res["group"] = res["setting"].map(group)
-
-    def barh(ax, col, title, xlabel, ref=None, sub=None):
-        r = res.dropna(subset=[col]).sort_values(col)
-        y = np.arange(len(r))
-        left = ref if ref is not None else 0
-        ax.barh(y, r[col] - left, left=left, height=0.68,
-                color=[gcol[g] for g in r["group"]], linewidth=0)
-        if ref is not None:
-            ax.axvline(ref, color="0.5", lw=0.5, ls="--")
-        ax.set_yticks(y)
-        ax.set_yticklabels(r["setting"], fontsize=4.5)
-        ax.set_title(title, pad=11 if sub else 3)
-        if sub:
-            ax.text(0.5, 1.02, sub, transform=ax.transAxes, ha="center", va="bottom",
-                    fontsize=5.5)
-        R.style(ax, None, xlabel, None)
-
-    ax = mp.panel("a", width=145, height=H + 25, margin_right=12, margin_bottom=GAP)
-    barh(ax, "epitope_auroc", "Known-epitope structure", "Pairwise AUROC", ref=0.5,
-         sub=f"{len(bench):,} VDJdb TCRs, {bench['epitope'].nunique()} epitopes, 95% CI")
-    r_ = res.dropna(subset=["epitope_auroc"]).sort_values("epitope_auroc")
-    ax.errorbar(r_["epitope_auroc"], np.arange(len(r_)),
-                xerr=[np.maximum(r_["epitope_auroc"] - r_["epitope_auroc_lo"], 0),
-                      np.maximum(r_["epitope_auroc_hi"] - r_["epitope_auroc"], 0)],
-                fmt="none", ecolor="0.2", elinewidth=0.5, capsize=1.2)
-
-    ax = mp.panel("b", width=W, height=H + 25, margin_right=12, margin_bottom=GAP)
-    res["id_meanpool_z_pct"] = 100 * res["id_meanpool_z"]
-    barh(ax, "id_meanpool_z_pct", "Split-half identity", "Correct (%)",
-         sub="mean pooling, z-scored")
-    ax.set_yticklabels([])
-
-    ax = mp.panel("c", width=W, height=H + 25, margin_right=55, margin_bottom=GAP)
-    barh(ax, "age_r2_meanpool", "Age prediction", "R² (mean pooling)")
-    ax.set_yticklabels([])
-    from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color=c, label=g) for g, c in gcol.items()], frameon=False)
-    cns.take_legend_out(title="Setting type", ax=ax)
-
-    ax = mp.panel("d", width=W, height=H, margin_right=12)
-    for g_, s_ in res.groupby("group"):
-        ax.scatter(s_["dim"], s_["epitope_auroc"], s=16, linewidths=0, color=gcol[g_])
-    for _, r_ in res.iterrows():
-        if pd.notna(r_["epitope_auroc"]):
-            ax.annotate(r_["setting"].split(" (")[0], (r_["dim"], r_["epitope_auroc"]),
-                        fontsize=4, xytext=(2, 2), textcoords="offset points")
-    ax.set_xscale("log")
-    ax.minorticks_off()
-    ax.set_title("Cost vs quality", pad=11)
-    ax.text(0.5, 1.02, "smaller and higher is better", transform=ax.transAxes,
-            ha="center", va="bottom", fontsize=5.5)
-    R.style(ax, None, "Embedding dimension", "Epitope AUROC")
-
-    ax = mp.panel("e", width=W, height=H, margin_right=12)
-    ok = res.dropna(subset=["epitope_auroc"])
-    ax.scatter(ok["epitope_auroc"], ok["id_meanpool_z"] * 100, s=16, linewidths=0,
-               color=[gcol[g] for g in ok["group"]])
-    rho = spearmanr(ok["epitope_auroc"], ok["id_meanpool_z"])[0] if len(ok) > 2 else np.nan
-    ax.set_title("Do the two axes agree?", pad=11)
-    ax.text(0.5, 1.02, f"Spearman ρ = {rho:.2f}", transform=ax.transAxes, ha="center",
-            va="bottom", fontsize=5.5)
-    R.style(ax, None, "Epitope AUROC (clonotype level)", "Identifiability (%)")
-
-    ax = mp.panel("f", width=W, height=H, margin_right=12)
-    r = res.dropna(subset=["id_combined_z"]).sort_values("id_combined_z")
-    y = np.arange(len(r))
-    ax.barh(y - 0.2, 100 * r["id_meanpool_z"], height=0.38, color=pal[3],
-            linewidth=0, label="mean pooling")
-    ax.barh(y + 0.2, 100 * r["id_combined_z"], height=0.38, color=pal[0],
-            linewidth=0, label="mean + TRBV usage")
-    ax.set_yticks(y)
-    ax.set_yticklabels(r["setting"], fontsize=4.5)
-    ax.legend(frameon=False, fontsize=5.5, loc="lower right")
-    ax.set_title("Pooling vs embedding", pad=3)
-    R.style(ax, None, "Identifiability (%)", None)
-    R.save("fig_embedding_settings", outdir)
+    figure(res, outdir, len(bench), bench["epitope"].nunique())
 
     summary = pd.DataFrame({
-        "metric": ["people", "clonotypes_per_variant", "benchmark_tcrs", "settings_ok",
+        "metric": ["people", "clonotypes_per_variant", "benchmark_tcrs", "benchmark_epitopes", "settings_ok",
                    "best_epitope_auroc", "best_identifiability", "best_age_r2"],
-        "value": [n_people, len(clono), len(bench), len(res),
+        "value": [n_people, len(clono), len(bench), bench["epitope"].nunique(), len(res),
                   res.loc[res["epitope_auroc"].idxmax(), "setting"]
                   if res["epitope_auroc"].notna().any() else "none",
                   res.loc[res["id_meanpool_z"].idxmax(), "setting"],
