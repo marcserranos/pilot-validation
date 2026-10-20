@@ -1,0 +1,8 @@
+Copied from marcserranos/pilot-validation main @ e2584e2 (script 65, public aggregate tables):
+- reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated/genotype_by_stratum.tsv -> 65_genotype_by_stratum_unrelated.tsv
+- reports/hla_popgen/65_trb_assembly_genotype/reads_unrelated_mixture/af_mixture_fit.tsv -> 65_af_mixture_fit_unrelated.tsv
+- reports/hla_popgen/65_trb_assembly_genotype/trb_probe_mapping_grch38_primary_vs_alt.tsv -> 65_trb_probe_mapping.tsv
+Copied unchanged; masking (<20*) as published.
+- trust4_trb_gene_coords_hg38.tsv: TRB gene coordinates (gene, chrom, start, end, strand) taken from the
+  FASTA headers of TRUST4's hg38_bcrtcr.fa at commit 4032f90 (github.com/liulab-dfci/TRUST4), the
+  reference file used for every TRUST4 run in this workstream. Public reference data.

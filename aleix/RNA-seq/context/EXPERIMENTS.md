@@ -408,3 +408,18 @@ entries above:
   people, and expression supports the 65 genotype independently. These are group-level
   comparisons on overlapping but different cohorts; the per-person check is Marc's script 60,
   which is waiting on our usage table.
+
+## 2026-10-20 — report 15: TRBV4-3 expression vs germline genotype (off-VM, aggregates only)
+
+`scripts/15_trbv43_usage_vs_genotype.py` → `reports/15_trbv43_usage_vs_genotype/`. Inputs: W1
+tables (10), W0 denominators (09), Marc's public 65 tables copied from main @ e2584e2, TRB gene
+positions from TRUST4's hg38_bcrtcr.fa @ 4032f90. Runs in seconds.
+- RNA never-used vs DNA 0-copy, all 5 groups with both values in the same order (r 0.995);
+  ratio 0.79–0.87 (ALL 27.3 vs 33.0%). Absence-allele frequency RNA 0.52 vs DNA 0.54 (counted
+  alleles; DNA's het deficit inflates its 0-copy rate, and under HWE DNA implies 28.7%).
+- People with TRBV4-3 usage ≤ 0.10%: 32.1%, the DNA rate. A ≤ 0.1% rule matches at group level;
+  not validated per person.
+- Non-users: TRBV6-2 halves (0.47; insertion A carries a second 6-2/6-3 copy), TRBV7-2 0.59
+  (first gene 3′, not deleted, unexplained), genes 5′ of the insertion (TRBV2–6-1) +19–33%,
+  most 3′ genes ~+4% (redistribution), TRBV10-2 1.35 and 11-2 1.15 unexplained.
+- Group-level only; the per-person test is still Marc's script 60 (needs our usage table).

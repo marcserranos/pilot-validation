@@ -44,7 +44,8 @@ prepared and tested on synthetic data. VM steps (1b, 1c, 2 below) are queued for
 2. **Marc is waiting on the TRBV usage table**: his script 60 (`60_trb_germline_usage.py`,
    main) joins per-person TRBV usage to his TRBV copy-number / TRBV4-3 insertion genotypes
    (script 65, 12,233 people). Copy the table to the bucket Marc reads (confirm path with him).
-   Natural check: our 27.3% TRBV4-3 non-users vs his 65 0-copy rates by ancestry.
+   Group-level check done in report 15 (2026-10-20): same ranking, RNA/DNA 0.79–0.87, TRBV6-2
+   halves in non-users. Per person still needs 60.
 3. Rewrite `reports/01_sceptr_embedding_viz/README.md` (still describes the old size region).
    Reports 02–14 have no README; their write-up lives in EXPERIMENTS.md.
 4. Methods document, the ageing write-up (02), and the HLA-label join (J1–J5 in main's

@@ -1,0 +1,14 @@
+# IMGT TRBV *01 V-REGION probes mapped to GRCh38 primary chr7:142038120-143088503 and to chr7_KI270803v1_alt (UCSC), minimap2 2.28 -x sr -c --secondary=no, best hit per probe. Offsets are 0-based from each sequence start (primary offset X = chr7:142038120+X). Public reference data only. Generated on the VM 2026-10-12.
+gene	primary_offset	primary_match	alt_offset	alt_match	shift_alt_minus_primary	note
+TRBV2	263023	290/290	263045	289/290	22
+TRBV3-1	270642	287/287	270664	287/287	22
+TRBV4-1	275260	287/287	275282	286/287	22
+TRBV5-1	283139	286/286	283157	286/286	18
+TRBV6-1	290380	287/287	290403	287/287	23
+TRBV4-2	307579	287/287	307609	287/287	30
+TRBV3-2	NA	best primary hit is TRBV3-1 (267/287)	321274	286/287	NA	insertion A (ALT only)
+TRBV4-3	NA	best primary hit is TRBV4-2 (278/287)	324727	287/287	NA	insertion A (ALT only)
+TRBV6-2/6-3	311258	287/287 (one locus)	332941	287/287	21683	ALT has a second copy (insertion A)
+TRBV7-2	314949	290/290	336640	290/290	21691
+TRBV7-3	346432	285/290	368141	290/290	21709
+TRBV7-8	NA	best primary hit is a TRBV7 paralog at 454264 (264/290)	515798	290/290	NA	separate ALT-only segment (insertion B)
