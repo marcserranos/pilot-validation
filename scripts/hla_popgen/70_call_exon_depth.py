@@ -3,8 +3,8 @@
 
 Why: 58/59/67 measured depth over whole gene spans or the 4 Mb MHC window. Two-field typing is decided by the
 exons, so the quantity that should predict a typing error is depth over the exons / coding sequence of the called
-gene, and how evenly that sequence is covered. This script measures it, per person, in one pass over the
-person's GRCh38 long-read BAM.
+gene, and how evenly that sequence is covered. This script measures it, per person, from one
+index-backed read of the MHC window of the person's GRCh38 long-read BAM per MAPQ floor (samtools view region | samtools depth -a).
 
 Features (built from a GENCODE GTF by `--build-features`; GRCh38, 0-based half-open BED):
   gene          the gene row (what 58 measured)
@@ -16,16 +16,16 @@ Features (built from a GENCODE GTF by `--build-features`; GRCh38, 0-based half-o
                 class II (DRB*, DQB1, DPB1, DRA, DQA*, DPA1) CDS exon 2. These decide 2-field typing in practice.
 
 Per person (INTERNAL, `--internal-dir`):
-  feature_depth.tsv      person x feature x MAPQ floor (0, 20): sum depth, reads, mean depth (samtools bedcov -c)
+  feature_depth.tsv      person x feature x MAPQ floor (0, 20): sum depth and mean depth (from samtools depth -a per base)
   cds_perbase.tsv        person x gene x MAPQ floor: over the CDS union and over its ARS part, per-base minimum, 5th and
                          10th percentile, median, mean, share of bases at 0x and under 5/10/20x, MAPQ-agnostic
-                         (samtools depth -a over cds.bed)
+                         (per-base depth over the CDS bases)
   failures.tsv           person + reason. A missing or slow BAM is counted, never dropped silently.
 Relative depth is NOT computed here: 71 divides by 58's per-person control-window depth (same MAPQ floor), so the
 two scripts agree on the denominator.
 
 Public (aggregate reference data only, safe to commit): features.tsv / features.bed (GENCODE coordinates),
-profile_by_gene.tsv (`--profile`: depth along each gene in 10 bp bins, median / quartiles / 10th-90th percentile
+profile_by_gene.tsv (`--profile`: depth along each gene +-500 bp in 10 bp bins, median / quartiles / 10th-90th percentile
 over a random sample of people, with the exon structure, to draw the methodology figure).
 
 VM (samtools lives in the spechla pixi env, as for 58):
@@ -33,7 +33,7 @@ VM (samtools lives in the spechla pixi env, as for 58):
     pixi run -e spechla -- python3 scripts/hla_popgen/70_call_exon_depth.py --build-features \\
         --gencode-gtf ~/ref/gencode.v46.basic.annotation.gtf.gz --out-dir ~/s06/results/70
     setsid nohup pixi run -e spechla -- python3 -u scripts/hla_popgen/70_call_exon_depth.py \\
-        --features-bed ~/s06/results/70/features.bed --out-dir ~/s06/results/70 \\
+        --out-dir ~/s06/results/70 \\
         --internal-dir ~/s06/internal/70 --priority-file ~/s06/internal/70/priority_ids.txt --workers 8 \\
         > ~/s06/logs/70.log 2>&1 < /dev/null & disown
     Smoke test first: add --limit 20 --internal-dir ~/s06/internal/70_smoke (own path, quirk #22).
@@ -233,17 +233,35 @@ def ars_intervals(df):
 # ---------------------------------------------------------------------------
 # Measurement
 # ---------------------------------------------------------------------------
-def run_bedcov(bam, bed_path, mapq, timeout, samtools="samtools"):
-    out = subprocess.run([samtools, "bedcov", "-c", "-Q", str(mapq), bed_path, bam],
-                         capture_output=True, text=True, timeout=timeout, check=True).stdout
-    return RD.parse_bedcov(out)
+# One index-backed read of the MHC window per MAPQ floor, piped into `samtools depth -a` over the padded gene spans.
+# (`samtools depth -b` alone scans the whole BAM -- only `-r` / a region argument uses the index -- which is unusable on
+# a 100 GB long-read BAM; `bedcov` over ~500 features costs ~1,000 index seeks per person.) Every feature (gene, exons,
+# CDS, each exon, ARS, per-base summaries, the population profile) is then derived from the same per-base arrays.
+MHC_REGION = "chr6:29500001-33500000"
+FLANK = 500
 
 
-def run_depth(bam, bed_path, mapq, timeout, samtools="samtools"):
-    """samtools depth -a over a BED -> DataFrame chrom, pos (1-based), depth."""
-    out = subprocess.run([samtools, "depth", "-a", "-Q", str(mapq), "-b", bed_path, bam],
-                         capture_output=True, text=True, timeout=timeout, check=True).stdout
-    return parse_depth(out)
+def gene_regions(features, flank=FLANK):
+    g = features[features["kind"] == "gene"]
+    return pd.DataFrame({"chrom": g["chrom"].to_numpy(), "start": (g["start"] - flank).clip(lower=0).to_numpy(),
+                         "end": (g["end"] + flank).to_numpy(), "gene": g["gene"].to_numpy()})
+
+
+def run_depth(bam, bed_path, mapq, timeout, samtools="samtools", region=MHC_REGION):
+    """samtools view -u BAM region | samtools depth -a -Q mapq -b BED -  -> DataFrame chrom, pos (1-based), depth."""
+    view = subprocess.Popen([samtools, "view", "-u", bam, region], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        dep = subprocess.run([samtools, "depth", "-a", "-Q", str(mapq), "-b", bed_path, "-"], stdin=view.stdout,
+                             capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        view.kill()
+        raise
+    finally:
+        view.stdout.close()
+    rc = view.wait()
+    if rc != 0 or dep.returncode != 0:
+        raise subprocess.CalledProcessError(rc or dep.returncode, "samtools view | samtools depth")
+    return parse_depth(dep.stdout)
 
 
 def parse_depth(text):
@@ -254,64 +272,82 @@ def parse_depth(text):
                          "depth": np.array([int(r[2]) for r in rows])})
 
 
-def perbase_summary(depth_df, cds, ars):
-    """depth_df over the CDS union; cds / ars: DataFrames chrom,start,end,gene (0-based half-open).
-    -> {gene: stats dict}, in the person's absolute depth units."""
+def gene_arrays(dp, regions):
+    """-> {gene: (region_start0, float array of per-base depth over [start, end))}; positions samtools did not print are 0."""
     out = {}
-    if depth_df.empty:
-        return out
-    pos0 = depth_df["pos"].to_numpy() - 1
-    dep = depth_df["depth"].to_numpy().astype(float)
-    chrom = depth_df["chrom"].to_numpy()
+    pos0 = dp["pos"].to_numpy() - 1
+    dep = dp["depth"].to_numpy().astype(float)
+    for r in regions.itertuples():
+        n = int(r.end - r.start)
+        arr = np.zeros(n)
+        m = (pos0 >= r.start) & (pos0 < r.end)
+        arr[pos0[m] - r.start] = dep[m]
+        out[r.gene] = (int(r.start), arr)
+    return out
+
+
+def feature_sums(arrays, features):
+    """Per feature: (sum of per-base depth, mean depth)."""
+    rows = []
+    for f in features.itertuples():
+        if f.gene not in arrays:
+            continue
+        rs, arr = arrays[f.gene]
+        seg = arr[int(f.start) - rs: int(f.end) - rs]
+        rows.append((f.name, float(seg.sum()), float(seg.mean()) if len(seg) else float("nan")))
+    return rows
+
+
+def perbase_summary(arrays, features):
+    """Per gene: CDS-base and ARS-base depth distribution, in the person's absolute depth units."""
+    out = {}
+    cds = features[features["kind"] == "cds"]
+    ars = features[(features["kind"] == "ex") & features["ars"].astype(bool)]
     for gene, sub in cds.groupby("gene"):
-        m = np.zeros(len(pos0), bool)
-        for s, e in zip(sub["start"], sub["end"]):
-            m |= (pos0 >= s) & (pos0 < e) & (chrom == sub["chrom"].iloc[0])
-        a = np.zeros(len(pos0), bool)
-        for s, e in zip(ars.loc[ars["gene"] == gene, "start"], ars.loc[ars["gene"] == gene, "end"]):
-            a |= (pos0 >= s) & (pos0 < e) & (chrom == sub["chrom"].iloc[0])
-        d = dep[m]
+        if gene not in arrays:
+            continue
+        rs, arr = arrays[gene]
+        d = np.concatenate([arr[int(s) - rs: int(e) - rs] for s, e in zip(sub["start"], sub["end"])])
         if not len(d):
             continue
         row = dict(cds_bases=int(len(d)), cds_min=float(d.min()), cds_p05=float(np.percentile(d, 5)),
                    cds_p10=float(np.percentile(d, 10)), cds_median=float(np.median(d)), cds_mean=float(d.mean()),
                    cds_share_0=float((d == 0).mean()), cds_share_lt5=float((d < 5).mean()),
                    cds_share_lt10=float((d < 10).mean()), cds_share_lt20=float((d < 20).mean()))
-        da = dep[a]
-        if len(da):
+        a = ars[ars["gene"] == gene]
+        if len(a):
+            da = np.concatenate([arr[int(s) - rs: int(e) - rs] for s, e in zip(a["start"], a["end"])])
             row.update(ars_bases=int(len(da)), ars_min=float(da.min()), ars_mean=float(da.mean()),
                        ars_share_lt10=float((da < 10).mean()))
         out[gene] = row
     return out
 
 
-FEATURE_DEPTH_COLS = ["person_id", "feature", "mapq", "sum_depth", "n_reads", "mean_depth"]
+FEATURE_DEPTH_COLS = ["person_id", "feature", "mapq", "sum_depth", "mean_depth"]
 PERBASE_COLS = ["person_id", "gene", "mapq", "cds_bases", "cds_min", "cds_p05", "cds_p10", "cds_median", "cds_mean",
                 "cds_share_0", "cds_share_lt5", "cds_share_lt10", "cds_share_lt20",
                 "ars_bases", "ars_min", "ars_mean", "ars_share_lt10"]
 
 
-def measure_person(person, feat_bed, cds_path, cds, ars, timeout, samtools="samtools",
-                   bedcov=None, depth=None):
+def measure_person(person, regions_bed, regions, features, timeout, samtools="samtools", depth=None):
     """-> (feature_rows, perbase_rows, None) or (None, None, reason)."""
-    bedcov, depth = bedcov or run_bedcov, depth or run_depth
+    depth = depth or run_depth
     bam = person["bam"]
     if not bam or not os.path.exists(bam):
         return None, None, "bam_missing"
     frows, prows = [], []
     for q in MAPQS:
         try:
-            df = bedcov(bam, feat_bed, q, timeout, samtools)
-            dp = depth(bam, cds_path, q, timeout, samtools)
+            dp = depth(bam, regions_bed, q, timeout, samtools)
         except subprocess.TimeoutExpired:
             return None, None, "timeout"
         except subprocess.CalledProcessError:
             return None, None, "samtools_error"
-        df["mean_depth"] = df["sum_depth"] / (df["end"] - df["start"]).clip(lower=1)
-        for r in df.itertuples():
-            frows.append(dict(person_id=person["person_id"], feature=r.name, mapq=q, sum_depth=r.sum_depth,
-                              n_reads=r.n_reads, mean_depth=round(r.mean_depth, 4)))
-        for gene, st in perbase_summary(dp, cds, ars).items():
+        arrays = gene_arrays(dp, regions)
+        for name, sm, mean in feature_sums(arrays, features):
+            frows.append(dict(person_id=person["person_id"], feature=name, mapq=q, sum_depth=round(sm, 2),
+                              mean_depth=round(mean, 4)))
+        for gene, st in perbase_summary(arrays, features).items():
             prows.append(dict(person_id=person["person_id"], gene=gene, mapq=q,
                               **{k: (round(v, 4) if isinstance(v, float) else v) for k, v in st.items()}))
     return frows, prows, None
@@ -369,32 +405,21 @@ def order_people(people, priority_ids):
 # Population depth profile along each gene (public aggregate)
 # ---------------------------------------------------------------------------
 BIN = 10
-FLANK = 500
 
 
-def profile_regions(features):
-    g = features[features["kind"] == "gene"]
-    return pd.DataFrame({"chrom": g["chrom"], "start": (g["start"] - FLANK).clip(lower=0), "end": g["end"] + FLANK,
-                         "gene": g["gene"]})
-
-
-def bin_profile(dp, regions):
-    """Mean depth per BIN-bp bin of each region -> {gene: array}."""
+def bin_profile(arrays):
+    """Mean depth per BIN-bp bin of each padded gene region -> {gene: array}."""
     out = {}
-    pos0 = dp["pos"].to_numpy() - 1
-    dep = dp["depth"].to_numpy().astype(float)
-    for r in regions.itertuples():
-        n = int(np.ceil((r.end - r.start) / BIN))
-        m = (pos0 >= r.start) & (pos0 < r.end)
-        idx = (pos0[m] - r.start) // BIN
-        s = np.bincount(idx, weights=dep[m], minlength=n)[:n]
-        c = np.bincount(idx, minlength=n)[:n]
-        out[r.gene] = np.divide(s, c, out=np.full(n, np.nan), where=c > 0)
+    for gene, (rs, arr) in arrays.items():
+        n = int(np.ceil(len(arr) / BIN))
+        padded = np.full(n * BIN, np.nan)
+        padded[: len(arr)] = arr
+        out[gene] = np.nanmean(padded.reshape(n, BIN), axis=1)
     return out
 
 
-def summarise_profile(stack, regions, features, ctrl_depth):
-    """stack: {gene: 2D array people x bins}; depth divided by each person's control depth (relative)."""
+def summarise_profile(stack, regions, ctrl_depth):
+    """stack: {gene: list of per-person bin arrays}; depth divided by each person's control depth (relative)."""
     rows = []
     for r in regions.itertuples():
         a = np.vstack(stack[r.gene]) / np.asarray(ctrl_depth)[:, None]
@@ -415,7 +440,6 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--build-features", action="store_true")
     ap.add_argument("--gencode-gtf")
-    ap.add_argument("--features-bed")
     ap.add_argument("--out-dir", default=DEFAULT_OUT_DIR)
     ap.add_argument("--internal-dir", default=DEFAULT_INTERNAL_DIR)
     ap.add_argument("--cohort", default=RD.DEFAULT_COHORT)
@@ -438,14 +462,14 @@ def main(argv=None):
         feats, missing = build_features(a.gencode_gtf)
         feats.to_csv(feat_path, sep="\t", index=False)
         write_bed(feats, os.path.join(a.out_dir, "features.bed"))
-        write_bed(feats[feats["kind"] == "cds"].assign(name=lambda d: d["gene"]), os.path.join(a.out_dir, "cds.bed"))
+        gr = gene_regions(feats)
+        gr.to_csv(os.path.join(a.out_dir, "gene_regions.bed"), sep="\t", header=False, index=False)
         log(f"features: {len(feats)} rows, genes {sorted(feats['gene'].unique())}; not on chr6 primary: {missing}")
         return 0
 
     feats = pd.read_csv(feat_path, sep="\t")
-    feat_bed = a.features_bed or os.path.join(a.out_dir, "features.bed")
-    cds_path = os.path.join(a.out_dir, "cds.bed")
-    cds, ars = cds_bed(feats), ars_intervals(feats)
+    regions = gene_regions(feats)
+    regions_bed = os.path.join(a.out_dir, "gene_regions.bed")
 
     people = RD.load_people(a.cohort, a.manifest)
     if a.priority_file and os.path.exists(a.priority_file):
@@ -466,7 +490,7 @@ def main(argv=None):
         xpath = os.path.join(a.internal_dir, "failures.tsv")
         t0, nfail = time.time(), 0
         with ThreadPoolExecutor(a.workers) as ex:
-            futs = {ex.submit(measure_person, p, feat_bed, cds_path, cds, ars, a.timeout, a.samtools): p["person_id"]
+            futs = {ex.submit(measure_person, p, regions_bed, regions, feats, a.timeout, a.samtools): p["person_id"]
                     for p in todo.to_dict("records")}
             for k, fu in enumerate(as_completed(futs), 1):
                 pid = futs[fu]
@@ -489,20 +513,19 @@ def main(argv=None):
 
 
 def run_profile(a, feats, people):
-    regions = profile_regions(feats)
+    regions = gene_regions(feats)
+    regions_bed = os.path.join(a.out_dir, "gene_regions.bed")
     rng = np.random.default_rng(70)
     pick = people[people["bam"].map(lambda b: bool(b) and os.path.exists(b))]
     pick = pick.iloc[rng.permutation(len(pick))[: a.profile]]
-    reg_path = os.path.join(a.out_dir, "profile_regions.bed")
-    regions[["chrom", "start", "end", "gene"]].to_csv(reg_path, sep="\t", header=False, index=False)
     c58 = pd.read_csv(a.control58, sep="\t", dtype={"person_id": str}, comment="#")
     c58 = c58[c58["mapq"] == 0].drop_duplicates("person_id").set_index("person_id")["control_depth"]
     stack = {g: [] for g in regions["gene"]}
     ctrl = []
 
     def one(p):
-        dp = run_depth(p["bam"], reg_path, 0, a.timeout, a.samtools)
-        return p["person_id"], bin_profile(dp, regions)
+        dp = run_depth(p["bam"], regions_bed, 0, a.timeout, a.samtools)
+        return p["person_id"], bin_profile(gene_arrays(dp, regions))
 
     with ThreadPoolExecutor(a.workers) as ex:
         for k, (pid, prof) in enumerate(ex.map(one, pick.to_dict("records")), 1):
@@ -512,7 +535,7 @@ def run_profile(a, feats, people):
                     stack[g].append(arr)
             if k % 50 == 0:
                 log(f"profile {k}/{len(pick)}")
-    out = summarise_profile(stack, regions, feats, ctrl)
+    out = summarise_profile(stack, regions, ctrl)
     out.to_csv(os.path.join(a.out_dir, "profile_by_gene.tsv"), sep="\t", index=False)
     log(f"profile_by_gene.tsv: {len(out)} bins from {len(ctrl)} people")
     return 0

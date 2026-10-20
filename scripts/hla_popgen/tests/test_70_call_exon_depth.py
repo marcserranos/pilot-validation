@@ -96,16 +96,36 @@ class T(unittest.TestCase):
         self.assertIn("A|gene", set(self.f["name"]))
         self.assertIn("A|ex2", set(self.f["name"]))
 
+    def _arrays_for(self, gene="DQA1", depth_fn=lambda pos0: 30.0):
+        regions = m.gene_regions(self.f, flank=0)
+        r = regions[regions["gene"] == gene].iloc[0]
+        pos = np.arange(r["start"], r["end"]) + 1
+        dep = np.array([depth_fn(p - 1) for p in pos])
+        dp = pd.DataFrame({"chrom": "chr6", "pos": pos, "depth": dep.astype(int)})
+        return m.gene_arrays(dp, regions[regions["gene"] == gene])
+
+    def test_gene_arrays_zero_fill_for_unprinted_positions(self):
+        regions = m.gene_regions(self.f, flank=0)
+        r = regions[regions["gene"] == "DQA1"]
+        dp = pd.DataFrame({"chrom": ["chr6"], "pos": [10001], "depth": [7]})      # only the first base printed
+        rs, arr = m.gene_arrays(dp, r)["DQA1"]
+        self.assertEqual(rs, 10000)
+        self.assertEqual(arr[0], 7)
+        self.assertEqual(arr[1:].sum(), 0)
+
+    def test_feature_sums_match_lengths(self):
+        arrays = self._arrays_for("DQA1")
+        out = {n: (s, mean) for n, s, mean in m.feature_sums(arrays, self.f[self.f["gene"] == "DQA1"])}
+        self.assertAlmostEqual(out["DQA1|gene"][1], 30.0)
+        self.assertAlmostEqual(out["DQA1|cds1"][0], 30.0 * 100)
+        self.assertAlmostEqual(out["DQA1|ex2"][1], 30.0)
+
     def test_perbase_summary(self):
-        cds, ars = m.cds_bed(self.f), m.ars_intervals(self.f)
-        gene_cds = cds[cds["gene"] == "DQA1"]
-        pos = []
-        for s, e in zip(gene_cds["start"], gene_cds["end"]):
-            pos += list(range(s + 1, e + 1))
-        dep = np.full(len(pos), 30)
-        dep[:10] = 0                                  # first 10 CDS bases uncovered
-        df = pd.DataFrame({"chrom": "chr6", "pos": pos, "depth": dep})
-        st = m.perbase_summary(df, gene_cds, ars)["DQA1"]
+        # first 10 CDS bases of DQA1 (exon 1) uncovered, everything else 30x; the intron between exons is 5x
+        cds = self.f[(self.f["gene"] == "DQA1") & (self.f["kind"] == "cds")]
+        first = int(cds["start"].min())
+        arrays = self._arrays_for("DQA1", lambda p0: 0.0 if first <= p0 < first + 10 else 30.0)
+        st = m.perbase_summary(arrays, self.f[self.f["gene"] == "DQA1"])["DQA1"]
         self.assertEqual(st["cds_bases"], 100 + 300 + 500)
         self.assertEqual(st["cds_min"], 0)
         self.assertAlmostEqual(st["cds_share_0"], 10 / 900)
@@ -117,34 +137,35 @@ class T(unittest.TestCase):
         self.assertEqual(list(d["depth"]), [5, 7])
         self.assertTrue(m.parse_depth("").empty)
 
-    def test_measure_person_with_fake_runners(self):
-        feats = self.f
-        feats_bed = os.path.join(self.d, "f.bed")
-        m.write_bed(feats, feats_bed)
-        cds, ars = m.cds_bed(feats), m.ars_intervals(feats)
+    def test_measure_person_with_fake_runner(self):
+        regions = m.gene_regions(self.f)
         bam = os.path.join(self.d, "x.bam")
         open(bam, "w").close()
-
-        def bedcov(b, bed, q, t, s):
-            r = feats[["chrom", "start", "end", "name"]].copy()
-            r["sum_depth"] = (r["end"] - r["start"]) * (20.0 if q == 0 else 18.0)
-            r["n_reads"] = 5
-            return r
+        calls = []
 
         def depth(b, bed, q, t, s):
-            return pd.DataFrame({"chrom": ["chr6"] * 3, "pos": [2001, 2002, 2003], "depth": [20, 20, 20]})
+            calls.append(q)
+            parts = []
+            for r in regions.itertuples():
+                pos = np.arange(r.start, r.end) + 1
+                parts.append(pd.DataFrame({"chrom": "chr6", "pos": pos, "depth": 20 if q == 0 else 18}))
+            return pd.concat(parts, ignore_index=True)
 
-        fr, pr, why = m.measure_person(dict(person_id="p1", bam=bam), feats_bed, "cds", cds, ars, 10,
-                                       bedcov=bedcov, depth=depth)
+        fr, pr, why = m.measure_person(dict(person_id="p1", bam=bam), "r.bed", regions, self.f, 10, depth=depth)
         self.assertIsNone(why)
+        self.assertEqual(calls, [0, 20])                 # one pass per MAPQ floor, not one per feature
         d = pd.DataFrame(fr)
-        self.assertEqual(set(d["mapq"]), {0, 20})
         self.assertAlmostEqual(d[(d["feature"] == "A|gene") & (d["mapq"] == 0)]["mean_depth"].iloc[0], 20.0)
         self.assertAlmostEqual(d[(d["feature"] == "A|gene") & (d["mapq"] == 20)]["mean_depth"].iloc[0], 18.0)
+        self.assertAlmostEqual(d[(d["feature"] == "A|ex2") & (d["mapq"] == 0)]["sum_depth"].iloc[0], 20.0 * 300)
         self.assertTrue(len(pr) >= 2)
-        _, _, why = m.measure_person(dict(person_id="p2", bam=os.path.join(self.d, "none.bam")), feats_bed, "cds",
-                                     cds, ars, 10, bedcov=bedcov, depth=depth)
+        _, _, why = m.measure_person(dict(person_id="p2", bam=os.path.join(self.d, "none.bam")), "r.bed", regions,
+                                     self.f, 10, depth=depth)
         self.assertEqual(why, "bam_missing")
+
+        def slow(b, bed, q, t, s):
+            raise m.subprocess.TimeoutExpired("samtools", 1)
+        self.assertEqual(m.measure_person(dict(person_id="p3", bam=bam), "r.bed", regions, self.f, 1, depth=slow)[2], "timeout")
 
     def test_resume_and_failures(self):
         idir = os.path.join(self.d, "int")
@@ -166,10 +187,13 @@ class T(unittest.TestCase):
         self.assertEqual(list(o["person_id"]), ["c", "d", "a", "b"])
 
     def test_bin_profile(self):
-        regions = pd.DataFrame({"chrom": ["chr6"], "start": [0], "end": [40], "gene": ["A"]})
-        dp = pd.DataFrame({"chrom": "chr6", "pos": np.arange(1, 41), "depth": [10] * 20 + [30] * 20})
-        prof = m.bin_profile(dp, regions)["A"]
-        self.assertEqual(list(prof), [10, 10, 30, 30])
+        arrays = {"A": (0, np.array([10.0] * 20 + [30.0] * 20))}
+        self.assertEqual(list(m.bin_profile(arrays)["A"]), [10, 10, 30, 30])
+
+    def test_gene_regions_padded(self):
+        r = m.gene_regions(self.f, flank=500).set_index("gene")
+        self.assertEqual(r.loc["A", "start"], 1000 - 500)
+        self.assertEqual(r.loc["A", "end"], 5000 + 500)
 
 
 if __name__ == "__main__":
