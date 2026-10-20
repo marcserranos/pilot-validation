@@ -162,7 +162,10 @@ def main():
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--summarise-only", action="store_true")
     ap.add_argument("--all-trios", action="store_true", help="every trio with assembly + HiFi parents, not only 57's 50")
+    ap.add_argument("--extra-genes", help="comma list (e.g. DRA,C4A): measure ONLY these genes, into "
+                    "gene_origin_extra.INTERNAL.tsv (S06 71c contig-vs-truth matrix); 57b's own tables are not rebuilt")
     a = ap.parse_args()
+    global GENES
     for d in (OUT, INT, WORK):
         os.makedirs(d, exist_ok=True)
     kids = set(pd.read_csv(os.path.expanduser("~/s05/internal/57/per_trio_region.INTERNAL.tsv"), sep="\t",
@@ -179,9 +182,13 @@ def main():
     people = {x for t in trios for x in t}
     C.TABLE1_USECOLS = C.TABLE1_USECOLS + ["n_tied"]
     t1 = C.load_table1(C.DEFAULT_TABLE1)
+    extra = [g for g in (a.extra_genes or "").split(",") if g]
+    if extra:       # in-process only: 56's gene universe and published numbers are untouched
+        GENES = list(extra)
+        B.ALLG.extend(g for g in extra if g not in B.ALLG)
     calls = B.prepare(t1, plat)  # score q75 on the whole cohort, as in 56
     calls = calls[calls["person_id"].isin(people) & calls["gene"].isin(GENES)].copy()
-    ck = INT + "gene_origin.INTERNAL.tsv"
+    ck = INT + ("gene_origin_extra.INTERNAL.tsv" if extra else "gene_origin.INTERNAL.tsv")
     if not a.summarise_only:
         bam, asm = T.manifest_index(people)
         done = set(pd.read_csv(ck, sep="\t", dtype={"child": str})["child"]) if os.path.exists(ck) else set()
@@ -200,7 +207,8 @@ def main():
                     os.fsync(f.fileno())
                 C.log(f"child {k}/{len(todo)} calls {len(rows)}" + (f" ERROR {err}" if err else ""))
     o = pd.read_csv(ck, sep="\t", dtype={"child": str, "contig": str})
-    summaries(o, calls, trio_of)
+    if not extra:
+        summaries(o, calls, trio_of)
     C.log("DONE 57b")
 
 
