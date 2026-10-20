@@ -20,12 +20,19 @@ import os
 import random
 import re
 import sys
+import traceback
 from collections import defaultdict
 
 TIERS = {1: (1, 1), 2: (2, 2), 5: (4, 6), 10: (8, 12), 50: (40, 60), 100: (80, 120), 200: (150, 10 ** 6)}
 HLA_GENES = ["A", "B", "C", "E", "F", "G", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1", "DRB3", "DRB4", "DRB5"]
 MENDEL_GENES = {"A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"}
 ATTR_RE = re.compile(r'(\w+)\s+("([^"]*)"|[^;\s]+)')
+
+
+def where(e):
+    """Aggregate-safe description of an exception: type, short message, file:line of the failing frame."""
+    fr = traceback.extract_tb(e.__traceback__)[-1]
+    return "%s:%s@%s:%d" % (type(e).__name__, str(e)[:40], os.path.basename(fr.filename), fr.lineno)
 
 
 def log(msg):
@@ -266,11 +273,11 @@ def build_ladder(core, store, rows, per_cell, rng, species, report):
                                "warn": call["warn"], "alignments": [a]},
                               {"person": person, "hap": hap, "contig": r["contig"], "gene": gene, "copy": r["copy"]}))
             except Exception as e:  # keep going: report the reason class, never the person
-                report["errors:" + type(e).__name__ + ":" + str(e)[:40]] += 1
+                report["errors:" + where(e)] += 1
     return cases
 
 
-def kir_rows(store, root, n_people, rng):
+def kir_rows(store, root, n_people, rng, report):
     people = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d, "immuannot_output")))
     rng.shuffle(people)
     rows = []
@@ -278,7 +285,8 @@ def kir_rows(store, root, n_people, rng):
         for h in ("1", "2"):
             try:
                 calls = store.calls("KIR", pid, h)
-            except Exception:
+            except Exception as e:
+                report["errors:kir_gtf:" + where(e)] += 1
                 continue
             for (g, copy), c in calls.items():
                 if g.startswith("KIR") and c["cds_mut"] and c["cds_distance"]:
@@ -375,7 +383,7 @@ def build_mendel(core, store, rich_by, origin, trio_of, n_bad, n_ok, rng, report
                            "alignments": aln},
                           {"person": child, "hap": o["hap"], "contig": o["contig"], "gene": o["gene"], "copy": 1, "parent": pid}))
         except Exception as e:
-            report["errors:mendel:" + type(e).__name__ + ":" + str(e)[:40]] += 1
+            report["errors:mendel:" + where(e)] += 1
     return cases
 
 
@@ -434,7 +442,7 @@ def run(a, core):
     log("rich rows: %d" % len(rich))
     allc += build_ladder(core, store, [r for r in rich], a.per_cell, rng, "HLA", report)
     if a.kir_people:
-        krows = kir_rows(store, os.path.expanduser(a.kir_root), a.kir_people, rng)
+        krows = kir_rows(store, os.path.expanduser(a.kir_root), a.kir_people, rng, report)
         log("KIR rows with CDS differences: %d" % len(krows))
         allc += build_ladder(core, store, krows, a.kir_per_cell, rng, "KIR", report)
     origin_path = os.path.expanduser(a.origin)
