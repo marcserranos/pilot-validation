@@ -22,6 +22,7 @@ Usage (laptop, after pulling the VM aggregate tables):
 import argparse
 import os
 import sys
+import textwrap
 
 import matplotlib
 matplotlib.use("Agg")
@@ -386,7 +387,7 @@ def fig_pruning(res, out):
             any_d = d0[d0["metric"] == d0["metric"].iloc[0]].sort_values("prune_pct")
             ax.fill_between(any_d["prune_pct"], any_d["random_lo"], any_d["random_hi"], color="0.8", lw=0, label="random removal (95%)")
             ax2.plot([0, 50], [0, 100], color="0.6", lw=0.5, ls="--")
-            ax.set_title(VIEW_LABEL[v], loc="left", fontsize=7)
+            ax.set_title(textwrap.fill(VIEW_LABEL[v], 24), loc="left", fontsize=6.5)
             ax.set_ylabel("typing error among calls kept (%)" if j == 0 else "")
             ax2.set_ylabel("share of all errors removed (%)" if j == 0 else "")
             ax2.set_xlabel("worst calls removed (% of records)")

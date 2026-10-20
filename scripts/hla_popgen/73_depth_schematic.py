@@ -139,6 +139,102 @@ def fig_schematic_depth(feats, gene, out):
         V.save_fig(fig, os.path.join(out, "fig_schematic_depth"))
 
 
+
+# CDS lengths (bp, with stop codon) of the modal full-length allele in IPD-IMGT/HLA 3.55.0, read from the `frame=1 NNNbp` headers of
+# ~/tools/Immuannot_refdata/CDSseq/<gene>.fa.gz on the VM, 2026-10-20. Public reference data. MICA has no single modal length
+# (1,158 / 1,156 / 1,155 bp are the three commonest), 1,155 is shown.
+IPD_CDS_BP = {"A": 1098, "B": 1089, "C": 1101, "DPA1": 783, "DPB1": 777, "DQA1": 768, "DQB1": 786, "DRB1": 801, "DRA": 765,
+              "MICA": 1155, "TAP1": 2247, "TAP2": 2061}
+CLASS_I = {"A", "B", "C"}
+CLASS_II_ALPHA = {"DQA1", "DPA1", "DRA"}
+DOMAIN = {  # coding-exon ordinal -> protein domain, by class
+    "I": {1: "leader", 2: "alpha1", 3: "alpha2", 4: "alpha3"},
+    "IIb": {1: "leader", 2: "beta1", 3: "beta2"},
+    "IIa": {1: "leader", 2: "alpha1", 3: "alpha2"},
+}
+
+
+def klass(g):
+    return "I" if g in CLASS_I else ("IIa" if g in CLASS_II_ALPHA else "IIb")
+
+
+def fig_schematic_cds(feats, out):
+    genes = ["A", "B", "C", "DRB1", "DQB1", "DPB1", "DQA1", "DPA1"]
+    with style():
+        fig = plt.figure(figsize=(V.mm(183), V.mm(165)))
+        gs = fig.add_gridspec(2, 2, height_ratios=[1.55, 1.0], width_ratios=[1.7, 1], hspace=0.22, wspace=0.3, left=0.07, right=0.985,
+                              top=0.95, bottom=0.07)
+        a = fig.add_subplot(gs[0, :])
+        maxlen = 0
+        for k, g in enumerate(genes):
+            f = feats[(feats["gene"] == g) & (feats["kind"] == "ex")].sort_values("cds_ord")
+            x = 0
+            y = len(genes) - 1 - k
+            for r in f.itertuples():
+                col = RED if bool(r.ars) else BLUE
+                a.add_patch(Rectangle((x, y - 0.32), r.length, 0.64, fc=col, ec="white", lw=0.4))
+                dom = DOMAIN[klass(g)].get(int(r.cds_ord), "TM / cytoplasmic")
+                if r.length >= 50:
+                    lab = f"{int(r.exon_number)}\n{dom}" if (r.length > 180 or int(r.cds_ord) == 1) else f"{int(r.exon_number)}"
+                    a.text(x + r.length / 2, y, lab, ha="center", va="center", fontsize=4.6, color="white", linespacing=1.3)
+                x += r.length
+            a.text(-12, y, f"HLA-{g}", ha="right", va="center", fontsize=6)
+            a.text(x + 12, y, f"{x} bp", ha="left", va="center", fontsize=5, color="0.35")
+            maxlen = max(maxlen, x)
+        a.set_xlim(-170, maxlen + 130)
+        a.set_ylim(-0.7, len(genes) - 0.3)
+        a.axis("off")
+        a.set_title("Coding exons of the reference transcript, concatenated (width = coding bases; number = GENCODE exon number)",
+                    loc="left", fontsize=6.5)
+        a.add_patch(Rectangle((maxlen * 0.50, -0.62), 40, 0.22, fc=RED, ec="none"))
+        a.text(maxlen * 0.50 + 55, -0.51, "peptide-binding (groove) exon", fontsize=5.5, va="center")
+        a.add_patch(Rectangle((maxlen * 0.78, -0.62), 40, 0.22, fc=BLUE, ec="none"))
+        a.text(maxlen * 0.78 + 55, -0.51, "other coding exon", fontsize=5.5, va="center")
+        V.panel_letter(a, "a", dx=-0.02, dy=1.0)
+        b = fig.add_subplot(gs[1, 0])
+        rows = []
+        for g, ipd in IPD_CDS_BP.items():
+            c = feats[(feats["gene"] == g) & (feats["kind"] == "cds")]["length"].sum()
+            if c:
+                rows.append((g, int(c) + 3, ipd))
+        rows.sort(key=lambda r: r[2])
+        for i, (g, gc, ipd) in enumerate(rows):
+            ok = abs(gc - ipd) <= 3
+            b.plot([ipd, gc], [i, i], color="0.7", lw=0.6)
+            b.scatter([ipd], [i], s=14, marker="o", fc="white", ec="0.2", lw=0.6, zorder=3, label="IPD-IMGT/HLA 3.55.0, modal allele" if i == 0 else None)
+            b.scatter([gc], [i], s=10, marker="s", fc=BLUE if ok else RED, ec="none", zorder=4,
+                      label="GENCODE v46 reference CDS + stop codon" if i == 0 else None)
+        b.set_yticks(range(len(rows)))
+        b.set_yticklabels([f"HLA-{r[0]}" if r[0] not in ("MICA", "TAP1", "TAP2") else r[0] for r in rows])
+        b.set_xscale("log")
+        b.set_xticks([700, 1000, 1500, 2000])
+        b.set_xticklabels(["700", "1000", "1500", "2000"])
+        b.minorticks_off()
+        b.set_xlabel("coding sequence length (bp)")
+        b.legend(loc="lower right", **V.LEGEND_KW)
+        b.set_title("CDS check against the IPD reference", loc="left", fontsize=6.5)
+        V.panel_letter(b, "b")
+        c = fig.add_subplot(gs[1, 1])
+        c.axis("off")
+        c.set_xlim(0, 1)
+        c.set_ylim(0, 1)
+        steps = [
+            "1  Reference transcript of the gene: MANE Select, else Ensembl canonical, else longest CDS (GENCODE v46, GRCh38)",
+            "2  CDS = its CDS rows. UTR, introns and alternative-isoform exons are not CDS",
+            "3  Coding exons numbered in order; class I exons 2-3 and class II exon 2 are the groove (peptide-binding) exons",
+            "4  Depth is counted per base over each set of positions",
+        ]
+        yy = 0.98
+        for st in steps:
+            w = _wrap(st[3:], 40)
+            c.text(0.0, yy, st[0], fontsize=7, fontweight="bold", va="top", color=BLUE)
+            c.text(0.08, yy, w, fontsize=5.6, va="top", linespacing=1.25)
+            yy -= 0.045 + 0.058 * (w.count("\n") + 1)
+        V.panel_letter(c, "c", dx=-0.02, dy=1.02)
+        V.save_fig(fig, os.path.join(out, "fig_schematic_cds"))
+
+
+
 def _wrap(s, n):
     words, lines, cur = s.split(), [], ""
     for w in words:
@@ -197,6 +293,7 @@ def main(argv=None):
     os.makedirs(a.out, exist_ok=True)
     feats = pd.read_csv(a.features, sep="\t")
     fig_schematic_depth(feats, a.gene, a.out)
+    fig_schematic_cds(feats, a.out)
     fig_schematic_truth(a.out)
     return 0
 
