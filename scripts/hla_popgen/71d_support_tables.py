@@ -78,7 +78,9 @@ def main(argv=None):
     trio = rd(a.internal, "records_trio.INTERNAL.tsv", ["person", "other", "gene", "hap", "bad"])
     overlap_table(pair, trio).to_csv(os.path.join(a.out, "pair_trio_overlap.tsv"), sep="\t", index=False)
     if a.main_internal:
-        ct = rd(a.main_internal, "call_table.INTERNAL.tsv", ["person_id", "hap", "gene", "named"])
+        ct = rd(a.main_internal, "call_table.INTERNAL.tsv", ["person_id", "hap", "gene", "consensus"])
+        # the first run's call table predates the `named` column: derive it from the consensus string as 71 does
+        ct["named"] = ct["consensus"].map(lambda c: str(C.two_field(c) is not None))
         mp = rd(a.main_internal, "records_pair.INTERNAL.tsv", ["person", "other", "gene", "bad"])
         mt = rd(a.main_internal, "records_trio.INTERNAL.tsv", ["person", "other", "gene", "hap", "bad"])
         named_effect(ct, mt, mp, trio, pair).to_csv(os.path.join(a.out, "named_effect.tsv"), sep="\t", index=False)
