@@ -1,5 +1,6 @@
 """Tests for 80_case_browser core: Immuannot cs replay, event classification, direct aligner."""
 import importlib.util
+import json
 import os
 import random
 import unittest
@@ -122,6 +123,19 @@ class TestAligner(unittest.TestCase):
         self.assertEqual(cb.banded_align("ACGTAAAAGT", "ACGTAAAGT")[1].count("-"), 1)
         ra, rb = cb.banded_align(REF, REF[:20] + "A" + REF[21:])
         self.assertEqual(sum(1 for x, y in zip(ra, rb) if x != y), 1 if REF[20] != "A" else 0)
+
+
+class TestNormalise(unittest.TestCase):
+    def test_exon_fill_and_mendel_summary_are_idempotent(self):
+        direct = cb.make_alignment("p", "c", *cb.banded_align(REF, REF[:8] + REF[9:]), "direct")
+        c = {"tab": "mendel", "facts": [["closest parent haplotype", "1 edits"]], "alignments": [direct]}
+        direct["exon_cols"] = [{"n": None, "c0": 0, "c1": 10, "ars": False}, {"n": 2, "c0": 10, "c1": 30, "ars": False}]
+        cb.normalise_cases([c])
+        self.assertEqual(direct["exon_cols"][0]["n"], 1)
+        self.assertIn("1 edit: 1 indel (1 in homopolymers, 1 frameshifting)", c["facts"][0][1])
+        before = json.dumps(c)
+        cb.normalise_cases([c])
+        self.assertEqual(json.dumps(c), before)
 
 
 class TestMisc(unittest.TestCase):

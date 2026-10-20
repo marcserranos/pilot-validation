@@ -225,21 +225,6 @@ def immuannot_alignment(core, store, species, person, hap, call, ars):
     return core.make_alignment(p["q"], "observed", aref, aobs, "immuannot-paf", c5, c3, exons, ars, note, problems=bad), p["q"]
 
 
-def describe(a):
-    """One-line summary of a direct alignment: edit count and what kind (for the Mendelian case header)."""
-    st, ev = a["stats"], a["events"]
-    if not st["nm"]:
-        return "identical CDS"
-    parts = []
-    if st["snv"]:
-        parts.append("%d substitution%s (%d missense, %d synonymous)" % (st["snv"], "" if st["snv"] == 1 else "s", st["missense"], st["synonymous"]))
-    ind = [e for e in ev if e["type"] != "snv"]
-    if ind:
-        parts.append("%d indel%s (%d in homopolymers, %d frameshifting)" % (
-            len(ind), "" if len(ind) == 1 else "s", sum(1 for e in ind if e.get("homopolymer")), sum(1 for e in ind if not e.get("inframe"))))
-    return "%d edit%s: %s" % (st["nm"], "" if st["nm"] == 1 else "s", "; ".join(parts))
-
-
 def pick_diverse(core, rows, k, rng):
     """Up to k rows, one person at most once, round-robin over novelty classes."""
     rng.shuffle(rows)
@@ -409,7 +394,7 @@ def build_mendel(core, store, rich_by, origin, trio_of, n_bad, n_ok, rng, report
                 aln.append(d)
             who = "Parent A" if o["origin"] == "pat" else "Parent B"
             bd = min((x for x in aln if x["source"] == "direct"), key=lambda x: x["stats"]["nm"])
-            best = describe(bd)
+            best = core.describe_alignment(bd)
             cases.append(({"tab": "mendel", "species": "HLA", "gene": o["gene"], "tier": "-", "novelty": core.novelty_class(cr["consensus"]),
                            "consensus": cr["consensus"], "verdict": ("child allele absent from assigned parent" if tag == "bad" else "control: allele present in assigned parent"),
                            "facts": [["child call", cr["consensus"]], ["assigned parent", "%s (k-mers %d vs %d)" % (who, o["pat_k"], o["mat_k"]) if o["origin"] == "pat" else "%s (k-mers %d vs %d)" % (who, o["mat_k"], o["pat_k"])],

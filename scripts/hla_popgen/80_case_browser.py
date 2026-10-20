@@ -352,8 +352,43 @@ def ars_for(gene):
     return ()
 
 
+def describe_alignment(a):
+    """One-line summary of an alignment: edit count and what kind (for the Mendelian case header)."""
+    st, ev = a["stats"], a["events"]
+    if not st["nm"]:
+        return "identical CDS"
+    parts = []
+    if st["snv"]:
+        parts.append("%d substitution%s (%d missense, %d synonymous)" % (
+            st["snv"], "" if st["snv"] == 1 else "s", st["missense"], st["synonymous"]))
+    ind = [e for e in ev if e["type"] != "snv"]
+    if ind:
+        parts.append("%d indel%s (%d in homopolymers, %d frameshifting)" % (
+            len(ind), "" if len(ind) == 1 else "s", sum(1 for e in ind if e.get("homopolymer")),
+            sum(1 for e in ind if not e.get("inframe"))))
+    return "%d edit%s: %s" % (st["nm"], "" if st["nm"] == 1 else "s", "; ".join(parts))
+
+
+def normalise_cases(cases):
+    """Idempotent touch-ups so a cases.json written by an older extract renders the same as a new one:
+    fill unmapped exon numbers from their neighbours, and give Mendelian cases the descriptive summary."""
+    for c in cases:
+        for a in c.get("alignments", []):
+            ex = a.get("exon_cols") or []
+            for i, e in enumerate(ex):
+                if e.get("n") is None:
+                    e["n"] = ex[i - 1]["n"] + 1 if i and ex[i - 1]["n"] else i + 1
+        if c.get("tab") == "mendel":
+            direct = [a for a in c["alignments"] if a["source"] == "direct"]
+            if direct:
+                best = describe_alignment(min(direct, key=lambda a: a["stats"]["nm"]))
+                c["facts"] = [[k, best if k == "closest parent haplotype" else v] for k, v in c.get("facts", [])]
+    return cases
+
+
 # ---------------------------------------------------------------------------------------- build / demo
 def build_html(cases, out_dir, meta=None):
+    cases = normalise_cases(cases)
     os.makedirs(out_dir, exist_ok=True)
     with open(VIEWER) as f:
         tpl = f.read()
@@ -411,11 +446,11 @@ def cmd_demo(a):
         "note": "SYNTHETIC: one substitution against parent hap 1, one 1-bp deletion against hap 2.",
         "alignments": [dict(mk(("parent hap1", "child"), ref, child), title="child vs parent hap 1"),
                        dict(mk(("parent hap2", "child"), other, child), title="child vs parent hap 2")]})
-    genes = ["B", "C", "A", "DRB1", "DQB1", "DQA1"]
-    ori = ["mat", "mat", "pat", "pat", "amb", "mat"]
+    genes = ["A", "C", "B", "MICA", "DRB3", "DRB1", "DQA1", "DQB1", "DQA2", "TAP2", "TAP1", "DPA1", "DPB1"]
+    ori = ["pat"] * 10 + ["mat", "pat", "amb"]
     cases.append({
         "id": "c%03d" % (len(cases) + 1), "tab": "switch", "species": "DEMO", "gene": None, "tier": "-", "novelty": "known",
-        "n_switch": 2, "switches": [{"i": 1, "gap_kb": 410}, {"i": 4, "gap_kb": 1200}],
+        "n_switch": 2, "switches": [{"i": 9.5, "gap_kb": 16.2}, {"i": 10.5, "gap_kb": 219.2}],
         "track": [{"gene": g, "pos_kb": 30000 + 400 * i, "origin": o, "pat_k": 3 if o != "pat" else 90, "mat_k": 80 if o == "mat" else 2, "allele": g + "*01:01"}
                   for i, (g, o) in enumerate(zip(genes, ori))]})
     out = build_html(cases, a.out_dir, {"title": "SYNTHETIC DEMO — no real data", "synthetic": True})
