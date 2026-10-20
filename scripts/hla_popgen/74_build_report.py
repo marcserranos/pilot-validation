@@ -60,6 +60,9 @@ METRICS = {  # key: (label, family, direction, definition, where it comes from)
     "mapq_frac": ("Unique-mapping fraction", "Depth", "lower = worse", "CDS depth counting only reads with MAPQ 20 or more, divided by the depth counting all reads: "
                   "low where reads map ambiguously (paralogs).", "70"),
     "rel_mhc": ("MHC window depth", "Depth", "lower = worse", "Mean depth over the 4 Mb MHC window relative to the genome control: a person-level coverage measure.", "58"),
+    "n_called": ("Haplotypes called at the gene", "Assembly", "1 = worse",
+                 "Number of haplotypes (1 or 2) on which the gene was called. One call means an incomplete genotype: the second allele is missing and the person looks homozygous.",
+                 "Table 1"),
     "mhc_contigs": ("MHC contigs", "Assembly", "higher = worse", "Number of distinct contigs that carry MHC genes on the haplotype: a fragmented assembly.", "Table 1 `contig`"),
     "diff_contig": ("Off partner's contig", "Assembly", "yes = worse",
                     "The gene's phasing partner (A-B, B-A/C, DRB1-DQB1, DQA1-DQB1/DRB1, DPA1-DPB1, ...) is called on the same haplotype but on another contig.", "Table 1"),
@@ -211,7 +214,7 @@ def trio_sentence(D, nrec, t_chi, t_all):
 
 
 def best_single_val(auc, view):
-    d = auc[(auc["view"] == view) & ~auc["metric"].str.startswith("model:") & (auc["metric"] != "score7")]
+    d = auc[(auc["view"] == view) & ~auc["metric"].str.startswith(("model:", "rule:")) & (auc["metric"] != "score7")]
     return float(d["auc"].max()) if len(d) else float("nan")
 
 
@@ -275,7 +278,7 @@ def strata_text(st, label):
 def top_single(auc, view, n=3):
     if auc is None:
         return ""
-    d = auc[(auc["view"] == view) & ~auc["metric"].str.startswith("model:") & (auc["metric"] != "score7")].sort_values("auc", ascending=False).head(n)
+    d = auc[(auc["view"] == view) & ~auc["metric"].str.startswith(("model:", "rule:")) & (auc["metric"] != "score7")].sort_values("auc", ascending=False).head(n)
     names = [f"{METRICS[m][0].lower()} {v:.2f}" for m, v in zip(d["metric"], d["auc"]) if m in METRICS]
     return "Strongest single metrics on the pair truth (AUC): " + ", ".join(names) + "."
 
@@ -353,7 +356,8 @@ def build(folder, compare=None, variant=False, pointer=None):
        f"({pct(nrec.get('pair', (0, 0, np.nan))[2])}). Twins: {nrec.get('twin', ('?',))[0]} records (too few to lean on).</li>" + c8 +
        f"<li><b>The label is mostly dropout, not a wrong allele.</b> {strata_text(D.strata, 'All genes')} {strata_text(D.strata8, 'Classical eight') if D.strata8 is not None else ''} See section 2.6.</li>"
        f"<li><b>Main result (pairs, the best-powered truth).</b> The old score reaches AUC {p_old:.2f}; all measured metrics combined reach {p_all:.2f} "
-       f"(classical eight only: {a(D.auc8, 'pair', 'score7'):.2f} vs {a(D.auc8, 'pair', 'model:all'):.2f}).</li>"
+       f"(classical eight only: {a(D.auc8, 'pair', 'score7'):.2f} vs {a(D.auc8, 'pair', 'model:all'):.2f}). Much of that strength is one metric: whether the gene was called on both haplotypes "
+       f"gives AUC {a(D.auc, 'pair', 'n_called'):.2f} on its own (see 2.6).</li>"
        f"<li><b>Trios.</b> {trio_sentence(D, nrec, t_chi, t_all)}</li>"
        f"<li><b>What predicts error.</b> {top_single(D.auc, 'pair')} {aa_sentence(D.auc)} "
        "The exon- and gene-normalised depth metrics are in the tables "
@@ -598,7 +602,8 @@ def build(folder, compare=None, variant=False, pointer=None):
 
     ap("<h2>7c. Incomplete genotypes over the whole cohort</h2>")
     ap('<p class="read">Because the dominant failure is observable in everyone, it can be studied without relatives: the outcome is a person-gene with a call on only one haplotype. '
-       "Per person-gene, each metric is the mean over the person's calls.</p>")
+       "Per person-gene, each metric is taken from ONE randomly chosen call of the person at that gene: a mean or maximum over two calls would reveal how many calls the person has "
+       "(a binary metric averaged over two calls can take the value 0.5, a single call never can) and make the metric look predictive by construction.</p>")
     ap(im("fig_dropout.png", "Incomplete genotypes, all genes"))
     if D.drop_auc is not None:
         top = D.drop_auc[~D.drop_auc["metric"].str.startswith(("model:", "rule:"))].sort_values("auc", ascending=False).head(3)
