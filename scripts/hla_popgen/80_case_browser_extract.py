@@ -25,6 +25,7 @@ from collections import defaultdict
 
 TIERS = {1: (1, 1), 2: (2, 2), 5: (4, 6), 10: (8, 12), 50: (40, 60), 100: (80, 120), 200: (150, 10 ** 6)}
 HLA_GENES = ["A", "B", "C", "E", "F", "G", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1", "DRB3", "DRB4", "DRB5"]
+SWITCH_EXTRA = ["MICA", "TAP1", "TAP2", "DQA2"]     # extra genes 57b measured: denser switch tracks, no ladder cases
 MENDEL_GENES = {"A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"}
 ATTR_RE = re.compile(r'(\w+)\s+("([^"]*)"|[^;\s]+)')
 
@@ -411,20 +412,17 @@ def core_two_field(consensus):
 
 
 def build_switch(origin, rich_by, n_sw, n_ok, rng, report):
+    """Group each child's origin rows by the Immuannot contig of the matching call (57b's own contig names are the
+    assembly's, a different naming), order by gene start on that contig, flag changes of resolved parent."""
     by = defaultdict(list)
     for o in origin:
-        by[(o["child"], o["hap"], o["contig"])].append(o)
+        cand = [r for r in rich_by.get((o["child"], o["gene"]), []) if hap_no(r["hap"]) == o["hap"] and r["copy"] == 1]
+        report["switch:origin_rows"] += 1
+        report["switch:matched_call"] += bool(cand)
+        if cand:
+            by[(o["child"], o["hap"], cand[0]["contig"])].append((int(float(cand[0]["start"])), o, cand[0]["consensus"]))
     sw, ok = [], []
-    for key, rs in by.items():
-        trk = []
-        for o in rs:
-            cand = [r for r in rich_by.get((o["child"], o["gene"]), []) if hap_no(r["hap"]) == o["hap"] and r["copy"] == 1]
-            rr = [r for r in cand if r["contig"] == o["contig"]]
-            report["switch:origin_rows"] += 1
-            report["switch:matched_call"] += bool(cand)
-            report["switch:matched_contig"] += bool(rr)
-            if rr:
-                trk.append((int(float(rr[0]["start"])), o, rr[0]["consensus"]))
+    for key, trk in by.items():
         trk.sort(key=lambda x: x[0])
         if len(trk) < 4:
             continue
@@ -458,9 +456,9 @@ def run(a, core):
     store = Store(os.path.expanduser(a.hla_root), os.path.expanduser(a.kir_root), os.path.expanduser(a.refdata))
     report = defaultdict(int)
     allc = []
-    rich = load_rich(os.path.expanduser(a.rich), HLA_GENES)
+    rich = load_rich(os.path.expanduser(a.rich), HLA_GENES + SWITCH_EXTRA)
     log("rich rows: %d" % len(rich))
-    allc += build_ladder(core, store, [r for r in rich], a.per_cell, rng, "HLA", report)
+    allc += build_ladder(core, store, [r for r in rich if r["gene"] in HLA_GENES], a.per_cell, rng, "HLA", report)
     if a.kir_people:
         krows = kir_rows(store, os.path.expanduser(a.kir_root), a.kir_people, rng, report)
         log("KIR rows with CDS differences: %d" % len(krows))
