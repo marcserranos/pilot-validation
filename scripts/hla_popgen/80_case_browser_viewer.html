@@ -52,7 +52,7 @@ h2{font-size:16px;margin:0 0 4px}
 svg text{font-family:system-ui,sans-serif}
 .aln{font-family:var(--mono);font-size:13px;white-space:pre;overflow-x:auto;padding-bottom:4px}
 .row{display:block;height:1.35em;line-height:1.35em}
-.lab{display:inline-block;width:9em;color:var(--mute);font-size:11px;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
+.lab{display:inline-block;width:12em;color:var(--mute);font-size:11px;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
 .row span.c{display:inline-block;width:1ch}
 .c.snv{background:var(--snv);color:#111}.c.snv-syn{background:var(--snv-syn)}.c.ins{background:var(--ins);color:#fff}.c.del{background:var(--del);color:#fff}
 .c.hp{box-shadow:inset 0 -3px 0 var(--hp)}.c.clip{background:var(--clip);color:var(--mute)}.c.dim{opacity:.35}
@@ -164,7 +164,7 @@ function shown(a){ return a.events.filter(e=>!S.protOnly||isProt(e)); }
 
 function summary(c,a){
   const s=a.stats; const el=document.createElement("div");
-  const chips=[["edits (NM)",s.nm],["% of CDS",s.pct_cds],["SNV",s.snv],["ins",`${s.ins_events} (${s.ins_bases} bp)`],["del",`${s.del_events} (${s.del_bases} bp)`],
+  const chips=[["edit"+(s.nm===1?"":"s")+" (NM)",s.nm],["% of CDS",s.pct_cds],["SNV",s.snv],["ins",`${s.ins_events} (${s.ins_bases} bp)`],["del",`${s.del_events} (${s.del_bases} bp)`],
     ["homopolymer indels",s.homopolymer_indels],["tandem-repeat indels",s.tandem_indels],["frameshifts",s.frameshifts],
     ["missense",s.missense],["synonymous",s.synonymous],["nonsense",s.nonsense],["in groove (ARS)",s.in_ars]];
   let html=`<div class="chips2">`+chips.map(([k,v])=>`<div class="stat"><b>${v}</b>${k}</div>`).join("");
@@ -183,7 +183,7 @@ function minimap(a){
   g+=`<rect x="0" y="26" width="${W}" height="22" fill="var(--bg)" stroke="var(--line)"/>`;
   a.exon_cols.forEach((e,i)=>{
     g+=`<rect x="${x(e.c0)}" y="26" width="${x(e.c1)-x(e.c0)}" height="22" fill="${i%2?"var(--line)":"transparent"}" opacity=".7"/>`;
-    g+=`<text x="${(x(e.c0)+x(e.c1))/2}" y="41" font-size="10" text-anchor="middle" fill="var(--mute)">${e.n}</text>`;
+    g+=`<text x="${(x(e.c0)+x(e.c1))/2}" y="41" font-size="10" text-anchor="middle" fill="var(--mute)">${e.n==null?"–":e.n}</text>`;
     if(e.ars) g+=`<rect x="${x(e.c0)}" y="50" width="${x(e.c1)-x(e.c0)}" height="4" fill="var(--accent)"/>`;
   });
   if(a.exon_cols.some(e=>e.ars)) g+=`<text x="2" y="66" font-size="10" fill="var(--accent)">peptide-binding groove exons</text>`;
@@ -318,24 +318,26 @@ function tierSummary(){
 
 /* ------------------------------------------------------------------ switch + mendelian */
 function switchView(c){
-  const T=c.track, n=T.length, W=1000, step=(W-60)/Math.max(1,n-1);
+  const T=c.track, n=T.length, step=96, W=Math.max(900,n*step+60), x0=48;
   const col=o=>o==="pat"?"var(--pat)":o==="mat"?"var(--mat)":"var(--amb)";
-  let g=`<svg viewBox="0 0 ${W} 150" width="100%" role="img" aria-label="Parent of origin along the contig">`;
-  g+=`<line x1="30" x2="${W-30}" y1="62" y2="62" stroke="var(--line)" stroke-width="3"/>`;
+  const short=a=>String(a||"").replace(/^HLA-/,"").split(":").slice(0,2).join(":");
+  let g=`<svg viewBox="0 0 ${W} 170" width="${W}" height="170" role="img" aria-label="Parent of origin along the contig">`;
+  g+=`<line x1="${x0}" x2="${x0+(n-1)*step}" y1="70" y2="70" stroke="var(--line)" stroke-width="3"/>`;
   T.forEach((t,i)=>{
-    const x=30+i*step; g+=`<rect x="${x-26}" y="42" width="52" height="40" rx="6" fill="${col(t.origin)}"/>`;
-    g+=`<text x="${x}" y="60" font-size="12" text-anchor="middle" fill="#fff" font-weight="600">${esc(t.gene)}</text>`;
-    g+=`<text x="${x}" y="75" font-size="10" text-anchor="middle" fill="#fff">${t.origin==="amb"?"unresolved":t.origin==="pat"?"parent A":"parent B"}</text>`;
-    g+=`<text x="${x}" y="100" font-size="10" text-anchor="middle" fill="var(--mute)">${esc(t.pos_kb)} kb</text>`;
-    g+=`<text x="${x}" y="114" font-size="10" text-anchor="middle" fill="var(--mute)">pat ${t.pat_k} · mat ${t.mat_k}</text>`;
-    g+=`<text x="${x}" y="128" font-size="10" text-anchor="middle" fill="var(--mute)">${esc(t.allele||"")}</text>`;
+    const x=x0+i*step; g+=`<rect x="${x-30}" y="50" width="60" height="40" rx="6" fill="${col(t.origin)}"/>`;
+    g+=`<text x="${x}" y="68" font-size="12" text-anchor="middle" fill="#fff" font-weight="600">${esc(t.gene)}</text>`;
+    g+=`<text x="${x}" y="82" font-size="10" text-anchor="middle" fill="#fff">${t.origin==="amb"?"unresolved":t.origin==="pat"?"parent A":"parent B"}</text>`;
+    g+=`<text x="${x}" y="108" font-size="10" text-anchor="middle" fill="var(--mute)">${esc(t.pos_kb)} kb</text>`;
+    g+=`<text x="${x}" y="122" font-size="10" text-anchor="middle" fill="var(--mute)">A ${t.pat_k} · B ${t.mat_k}</text>`;
+    g+=`<text x="${x}" y="136" font-size="10" text-anchor="middle" fill="var(--mute)">${esc(short(t.allele))}</text>`;
   });
-  (c.switches||[]).forEach(s=>{const x=30+(s.i+.5)*step; g+=`<line x1="${x}" x2="${x}" y1="28" y2="96" stroke="var(--warn)" stroke-width="3" stroke-dasharray="4 3"/><text x="${x}" y="22" font-size="11" text-anchor="middle" fill="var(--warn)">switch (${esc(s.gap_kb)} kb gap)</text>`;});
+  (c.switches||[]).forEach((s,k)=>{const x=x0+(s.i+.5)*step, y=k%2?18:34;
+    g+=`<line x1="${x}" x2="${x}" y1="${y+4}" y2="100" stroke="var(--warn)" stroke-width="3" stroke-dasharray="4 3"/><text x="${x}" y="${y}" font-size="11" text-anchor="middle" fill="var(--warn)">switch · ${Math.round(s.gap_kb)} kb gap</text>`;});
   g+=`</svg>`;
   const p=document.createElement("div"); p.className="panel";
-  p.innerHTML=`<h3>Parent of origin along one haplotype contig (gene resolution; genes in contig order, not to scale)</h3>${g}
+  p.innerHTML=`<h3>Parent of origin along one haplotype contig (gene resolution; genes in contig order, not to scale)</h3><div style="overflow-x:auto">${g}</div>
    <div class="legend"><span><i style="background:var(--pat)"></i>parent A k-mers dominate</span><span><i style="background:var(--mat)"></i>parent B</span><span><i style="background:var(--amb)"></i>unresolved</span></div>
-   <p class="mute">Origin is the existing 57b assignment (≥5 parent-specific k-mers and ≥3× the other parent in the gene ±10 kb). Parent A / B are the two parents in sorted-ID order (57's convention), not sex. A switch is a change of resolved origin between neighbouring genes; the true breakpoint lies somewhere in the gap shown, not at a base.</p>`;
+   <p class="mute">Each box: gene, resolved parent, position along the contig, parent-specific k-mer counts (A, B) and the called allele (first two fields). Origin is the existing 57b assignment (≥5 parent-specific k-mers and ≥3× the other parent in the gene ±10 kb). Parent A / B are the two parents in sorted-ID order (57's convention), not sex. A switch is a change of resolved origin between neighbouring resolved genes; the true breakpoint lies somewhere in the gap shown, not at a base.</p>`;
   return p;
 }
 function mendelHeader(c){
