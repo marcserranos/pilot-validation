@@ -39,7 +39,7 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 CLASSICAL = ["A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
 FAM_COLOR = {"depth": "#3C5488", "immuannot": "#E64B35", "assembly": "#00A087", "legacy": "#7E6148", "model": "#1B1919"}
 VIEW_LABEL = {"trio_child": "Trios: child's call", "trio_parent": "Trios: transmitting parent's call",
-              "trio_worst": "Trios: worse of child and parent", "pair": "First-degree pairs (worse call)",
+              "trio_worst": "Trios: worse of child and parent (primary)", "pair": "First-degree pairs (worse call)",
               "twin": "Twins / duplicates (worse call)"}
 METRIC_LABEL = {
     "template_distance": "Template distance (gene span)", "template_distance_per_kb": "Template distance per kb",
@@ -49,11 +49,12 @@ METRIC_LABEL = {
     "cds_p10_rel": "CDS 10th-percentile depth", "cds_min_rel": "CDS minimum depth",
     "ars_min_rel": "Peptide-binding minimum depth", "cds_share_lt10": "CDS bases under 10x",
     "ars_share_lt10": "Peptide-binding bases under 10x", "mapq_frac": "Unique-mapping fraction",
-    "rel_mhc": "MHC window depth", "mhc_contigs": "MHC contigs", "diff_contig": "Off partner's contig",
+    "rel_cds_n": "CDS depth (gene-normalised)", "rel_ars_n": "Peptide-binding depth (gene-normalised)",
+    "rel_exon_min_n": "Shallowest exon (exon-normalised)", "rel_mhc": "MHC window depth", "mhc_contigs": "MHC contigs", "diff_contig": "Off partner's contig",
     "score7": "Old 0-7 score", "model:immuannot": "Model: Immuannot", "model:depth": "Model: depth",
     "model:all": "Model: all metrics",
 }
-CURVE_METRICS = ["rel_cds", "rel_ars", "cds_p10_rel", "cds_share_lt10", "mapq_frac", "rel_mhc", "template_distance",
+CURVE_METRICS = ["rel_cds", "rel_ars", "rel_ars_n", "rel_exon_min_n", "cds_p10_rel", "cds_share_lt10", "mapq_frac", "rel_mhc", "template_distance",
                  "cds_distance", "n_aa_changes", "n_tied", "has_warning", "mhc_contigs", "diff_contig", "score7"]
 LOG_X = {"template_distance", "template_distance_per_kb", "cds_distance"}
 
@@ -62,9 +63,13 @@ def log(m):
     print("[72] " + m, file=sys.stderr, flush=True)
 
 
+SCOPE = ""      # "" (all genes) or "classical8": stat_* tables are read from 71/classical8 first
+
+
 def load(res, *names):
     for n in names:
-        for sub in ("", "71", "70", "71c"):
+        subs = (["71/" + SCOPE] if SCOPE and n.startswith("stat_") else []) + ["", "71", "70", "71c"]
+        for sub in subs:
             p = os.path.join(res, sub, n)
             if os.path.exists(p):
                 return pd.read_csv(p, sep="\t")
@@ -304,8 +309,8 @@ def fig_auc(res, out):
     a = load(res, "stat_auc.tsv")
     if a is None or not len(a):
         return
-    views = [v for v in ("trio_child", "pair", "twin") if v in set(a["view"])]
-    prim = views[0] if "pair" not in views else "pair"
+    views = [v for v in ("trio_worst", "trio_child", "pair", "twin") if v in set(a["view"])]
+    prim = "pair" if "pair" in views else views[0]
     order = a[a["view"] == prim].sort_values("auc")["metric"].tolist()
     mk = {"trio_child": "o", "pair": "s", "twin": "^", "trio_parent": "v", "trio_worst": "D"}
     with style():
@@ -361,7 +366,7 @@ def fig_pruning(res, out):
     if p is None or not len(p):
         return
     p = p[p["scale"] == "pooled"]
-    views = [v for v in ("trio_child", "pair", "twin") if v in set(p["view"])]
+    views = [v for v in ("trio_worst", "trio_child", "pair", "twin") if v in set(p["view"])]
     show = [("rel_cds", "CDS depth"), ("rel_ars", "Peptide-binding depth"), ("cds_p10_rel", "CDS 10th-pct depth"),
             ("template_distance", "Template distance"), ("cds_distance", "CDS distance"), ("n_tied", "Alleles tied"),
             ("score7", "Old 0-7 score"), ("model:all", "Model: all metrics")]
@@ -474,7 +479,12 @@ def main(argv=None):
     ap.add_argument("--results", required=True, help="directory with the pulled aggregate TSVs (or its 70/71/71c subfolders)")
     ap.add_argument("--out", default=os.path.join(REPO, "reports", "hla_popgen", "72_call_quality"))
     ap.add_argument("--only", help="comma list of figure names")
+    ap.add_argument("--scope", choices=["all", "classical8"], default="all")
     a = ap.parse_args(argv)
+    global SCOPE
+    SCOPE = "" if a.scope == "all" else "classical8"
+    if SCOPE:
+        a.out = os.path.join(a.out, SCOPE)
     os.makedirs(a.out, exist_ok=True)
     jobs = {
         "depth_distributions": lambda: fig_depth_distributions(a.results, a.out),

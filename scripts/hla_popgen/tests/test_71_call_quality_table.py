@@ -116,6 +116,21 @@ class T(unittest.TestCase):
         d = r[r["metric_a"] == r["metric_b"]]["spearman"]
         self.assertTrue(np.allclose(d, 1.0))
 
+    def test_normalised_depth_has_unit_median_per_gene_and_exon(self):
+        rows = []
+        for i in range(40):
+            d = {"A|gene": 20, "A|exons1": 10, "A|exons2": 30, "A|cds1": 10, "A|cds2": 30, "A|ex1": 10 + i * 0.1, "A|ex2": 30 - i * 0.2}
+            rows += feature_depth(f"p{i}", d, 0) + feature_depth(f"p{i}", d, 20)
+        fd = pd.DataFrame(rows)
+        ctrl = {(f"p{i}", q): 20.0 for i in range(40) for q in (0, 20)}
+        pb = pd.DataFrame([dict(person_id=f"p{i}", gene="A", mapq=0, cds_p10=5.0, cds_min=1.0, ars_min=25.0, cds_share_lt10=0.1,
+                                ars_share_lt10=0.0, cds_median=28.0, cds_mean=25.0) for i in range(40)])
+        g = m.gene_depth_table(fd, FEATURES, ctrl, pb, {f"p{i}": "revio" for i in range(40)})
+        self.assertAlmostEqual(g["rel_cds_n"].median(), 1.0, places=6)
+        self.assertAlmostEqual(g["rel_ars_n"].median(), 1.0, places=6)
+        # each exon is divided by its own median, so a systematically low exon is not "the shallowest" by default
+        self.assertTrue(0.5 < g["rel_exon_min_n"].median() <= 1.0)
+
     def test_gene_corr_columns(self):
         rng = np.random.default_rng(1)
         gd = pd.DataFrame({"person_id": [f"p{i}" for i in range(300)] * 2, "gene": ["A"] * 300 + ["B"] * 300,

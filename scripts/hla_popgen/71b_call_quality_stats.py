@@ -461,7 +461,11 @@ def main(argv=None):
     ap.add_argument("--internal-dir", default=INT)
     ap.add_argument("--out-dir", default=OUT)
     ap.add_argument("--no-boot", action="store_true", help="skip the cluster bootstrap CIs (quick look)")
+    ap.add_argument("--scope", choices=["all", "classical8"], default="all",
+                    help="classical8: only HLA-A, B, C, DRB1, DQA1, DQB1, DPA1, DPB1 (records and cohort reference); tables go to <out-dir>/classical8")
     a = ap.parse_args(argv)
+    if a.scope == "classical8":
+        a.out_dir = os.path.join(a.out_dir, "classical8")
     os.makedirs(a.out_dir, exist_ok=True)
     ct = Q.read_int(os.path.join(a.internal_dir, "call_table.INTERNAL.tsv"), dtype={"person_id": str})
     recs = {}
@@ -469,6 +473,10 @@ def main(argv=None):
         p = os.path.join(a.internal_dir, f"records_{name}.INTERNAL.tsv")
         recs[name] = pd.read_csv(p, sep="\t", dtype={"person": str, "other": str}) if os.path.exists(p) else pd.DataFrame()
     views = {vn: make_view(recs[src], pre) for vn, src, pre in VIEWS if len(recs[src])}
+    if a.scope == "classical8":
+        G8 = ["A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
+        views = {k: v[v["gene"].isin(G8)].reset_index(drop=True) for k, v in views.items()}
+        ct = ct[ct["gene"].isin(G8)].reset_index(drop=True)
     analyse(views, ct, a.out_dir, do_boot=not a.no_boot)
     log("DONE 71b")
     return 0

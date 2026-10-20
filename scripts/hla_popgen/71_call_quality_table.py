@@ -85,6 +85,9 @@ METRICS = [
     ("rel_cds", "CDS depth (relative)", "depth", -1),
     ("rel_ars", "Peptide-binding exons depth (relative)", "depth", -1),
     ("rel_exon_min", "Shallowest coding exon depth (relative)", "depth", -1),
+    ("rel_cds_n", "CDS depth, normalised to its gene and platform", "depth", -1),
+    ("rel_ars_n", "Peptide-binding exon depth, normalised to its gene and platform", "depth", -1),
+    ("rel_exon_min_n", "Shallowest exon depth, each exon normalised to its own median", "depth", -1),
     ("cds_p10_rel", "CDS 10th-percentile base depth (relative)", "depth", -1),
     ("cds_min_rel", "CDS minimum base depth (relative)", "depth", -1),
     ("ars_min_rel", "Peptide-binding exons minimum base depth (relative)", "depth", -1),
@@ -123,7 +126,7 @@ def control_depth(per58):
     return ctrl, dict(zip(w["person_id"], w["rel_depth"])), dict(zip(w["person_id"], w["mean_depth"]))
 
 
-def gene_depth_table(fd, features, ctrl, perbase):
+def gene_depth_table(fd, features, ctrl, perbase, plat_of=None):
     """fd: 70 feature_depth (person_id, feature, mapq, sum_depth, mean_depth); features: 70 features.tsv;
     perbase: 70 cds_perbase. -> DataFrame person_id, gene with absolute and relative depth columns."""
     f = features.set_index("name")
@@ -166,6 +169,18 @@ def gene_depth_table(fd, features, ctrl, perbase):
              "cds_median", "cds_mean"]]
     t = t.merge(pb, on=["person_id", "gene"], how="left")
     t["control_depth"] = c0
+    # Normalised versions: divide by the cohort median of the same gene (and exon) within a platform, so that a gene or an exon
+    # that reference-aligns systematically low (HLA-DRB1 exon 2: allelic divergence from GRCh38) is not read as "thin".
+    plat = t["person_id"].map(plat_of) if plat_of else pd.Series("all", index=t.index)
+    for src, dst in (("rel_cds", "rel_cds_n"), ("rel_ars", "rel_ars_n")):
+        med = t.groupby([t["gene"], plat])[src].transform("median")
+        t[dst] = t[src] / med
+    exd = fd[(fd["kind"] == "ex") & (fd["mapq"] == 0)].copy()
+    exd["rel"] = exd["mean_depth"] / exd["person_id"].map(lambda p: ctrl.get((p, 0), np.nan))
+    exd["plat"] = exd["person_id"].map(plat_of) if plat_of else "all"
+    exd["reln"] = exd["rel"] / exd.groupby(["feature", "plat"])["rel"].transform("median")
+    mn = exd.groupby(["person_id", "gene"])["reln"].min().rename("rel_exon_min_n").reset_index()
+    t = t.merge(mn, on=["person_id", "gene"], how="left")
     return t
 
 
@@ -193,7 +208,8 @@ def build_call_table(calls, gdepth, rel_mhc):
     t["x_n_tied"] = pd.to_numeric(t["n_tied"], errors="coerce") if "n_tied" in t else np.nan
     t["x_is_novel"] = t["novelty_depth"].notna().astype(int)
     t = t.merge(gdepth.drop(columns=["control_depth"], errors="ignore"), on=["person_id", "gene"], how="left")
-    for k in ("rel_gene", "rel_exons", "rel_cds", "rel_ars", "rel_exon_min", "cds_p10_rel", "cds_min_rel",
+    for k in ("rel_gene", "rel_exons", "rel_cds", "rel_ars", "rel_exon_min", "rel_cds_n", "rel_ars_n", "rel_exon_min_n",
+              "cds_p10_rel", "cds_min_rel",
               "ars_min_rel", "cds_share_lt10", "ars_share_lt10", "mapq_frac"):
         t["x_" + k] = t[k] if k in t else np.nan
     t["x_rel_mhc"] = t["person_id"].map(rel_mhc)
@@ -449,7 +465,7 @@ def main(argv=None):
     features = pd.read_csv(FEATURES70, sep="\t")
     fd = read_int(DEPTH70, dtype={"person_id": str})
     pb = read_int(PERBASE70, dtype={"person_id": str})
-    gd = gene_depth_table(fd, features, ctrl, pb)
+    gd = gene_depth_table(fd, features, ctrl, pb, plat)
     log(f"depth: {gd['person_id'].nunique()} people x {gd['gene'].nunique()} genes")
 
     extra = [g for g in ("DRA",) if g not in B.ALLG]
