@@ -218,7 +218,8 @@ def build_call_table(calls, gdepth, rel_mhc):
     t["x_score7"] = t["score"]
     for k in KEYS:
         t["o_" + k] = SIGN[k] * pd.to_numeric(t["x_" + k], errors="coerce")
-    keep = ["person_id", "hap", "contig", "gene", "consensus", "tf", "plat"] + ["x_" + k for k in KEYS] \
+    t["named"] = t["consensus"].map(lambda c: C.two_field(c) is not None)
+    keep = ["person_id", "hap", "contig", "gene", "consensus", "tf", "plat", "named"] + ["x_" + k for k in KEYS] \
            + ["o_" + k for k in KEYS]
     return t[keep].reset_index(drop=True)
 
@@ -260,7 +261,7 @@ def _fill_worst(rec, own, other, prefix_other="p"):
         rec["w_" + k] = np.fmax(rec["c_" + k], rec[prefix_other + "_" + k])
 
 
-def trio_records(origin, call_table, trio_of):
+def trio_records(origin, call_table, trio_of, named_only=False):
     """origin: 57b per-call table (child, hap, gene, origin); trio_of: child -> (parent_a, parent_b) with a the 'pat' side
     as 57b defined it."""
     ct = call_table.set_index(["person_id", "hap", "gene"])
@@ -272,6 +273,11 @@ def trio_records(origin, call_table, trio_of):
     cidx = {k: i for i, k in enumerate(ct.index)}
     tfs, cons, plats = ct["tf"].to_numpy(object), ct["consensus"].to_numpy(object), ct["plat"].to_numpy(object)
     allele = {(p, g): (set(d["tf"].dropna()), set(d["consensus"].dropna())) for (p, g), d in call_table.groupby(["person_id", "gene"])}
+    # named_only: a call whose 2-field name is undefined (novel in field 1 or 2, "A*01:new") cannot be compared with a parent's collapsed
+    # name; without this it is counted as a mismatch by construction. Skip a record when the child's call, or ANY call of the parent at
+    # that gene, is such a call.
+    unnamed_pg = set(zip(call_table.loc[~call_table["named"], "person_id"], call_table.loc[~call_table["named"], "gene"])) if named_only else set()
+    cnamed = ct["named"].to_numpy() if named_only else None
     rows = []
     for c, h, g, og in zip(origin["child"], origin["hap"], origin["gene"], origin["origin"]):
         if og not in ("pat", "mat") or c not in trio_of or (c, h, g) not in cidx:
@@ -281,6 +287,8 @@ def trio_records(origin, call_table, trio_of):
             continue
         i = cidx[(c, h, g)]
         if not isinstance(tfs[i], str):
+            continue
+        if named_only and (not cnamed[i] or (par, g) in unnamed_pg):
             continue
         ptf, pcons = allele[(par, g)]
         row = dict(person=c, other=par, gene=g, hap=h, origin=og, plat=plats[i], bad=int(tfs[i] not in ptf),
@@ -436,9 +444,17 @@ def priority_ids(pairs, trios):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--emit-priority", action="store_true", help="only write the list of truth-set people for 70")
+    ap.add_argument("--named-only", action="store_true",
+                    help="error labels only from calls with a collapsed (2-field) allele name: records where a child, parent or relative has a novel "
+                         "call in field 1-2 at that gene are dropped. Defaults the output dirs to ~/s06/{internal,results}/71_named/")
     ap.add_argument("--out-dir", default=OUT)
     ap.add_argument("--internal-dir", default=INT)
     a = ap.parse_args(argv)
+    if a.named_only:
+        if a.out_dir == OUT:
+            a.out_dir = os.path.expanduser("~/s06/results/71_named/")
+        if a.internal_dir == INT:
+            a.internal_dir = os.path.expanduser("~/s06/internal/71_named/")
     os.makedirs(a.out_dir, exist_ok=True)
     os.makedirs(a.internal_dir, exist_ok=True)
     B = _load("b56", "56_phasing_typing_benchmark.py")
@@ -476,6 +492,14 @@ def main(argv=None):
     log(f"call table {len(ct)} calls, {ct['person_id'].nunique()} people")
 
     genes = {"G8": B.G8, "ALL": B.ALLG}
+    if a.named_only:
+        # a person's gene with ANY call whose 2-field name is undefined (novel in field 1 or 2) is removed whole, so relatives are never
+        # compared on half a genotype
+        cn = calls["consensus"].map(lambda c: C.two_field(c) is not None)
+        bad_pg = set(zip(calls.loc[~cn, "person_id"], calls.loc[~cn, "gene"]))
+        drop = pd.Series([(p, g) in bad_pg for p, g in zip(calls["person_id"], calls["gene"])], index=calls.index)
+        log(f"named-only: dropping {int(drop.sum())} call rows of {len(calls)} ({len(bad_pg)} person-genes with a novel call in field 1-2)")
+        calls = calls[~drop]
     fd1 = pairs[pairs["cls"] != "twin"]
     tw = pairs[pairs["cls"] == "twin"]
     geno, _ = B.index_calls(calls[calls["person_id"].isin(set(fd1["i"]) | set(fd1["j"]) | set(tw["i"]) | set(tw["j"]))])
@@ -486,7 +510,7 @@ def main(argv=None):
         o = read_int(ORIGIN57B, dtype={"child": str, "contig": str})
         kids = set(o["child"])
         trio_of = {t[0]: (t[1], t[2]) for t in trios if t[0] in kids}
-        rec_trio = trio_records(o, ct, trio_of)
+        rec_trio = trio_records(o, ct, trio_of, named_only=a.named_only)
     for name, df in (("trio", rec_trio), ("pair", rec_pair), ("twin", rec_twin)):
         df.to_csv(os.path.join(a.internal_dir, f"records_{name}.INTERNAL.tsv"), sep="\t", index=False)
         log(f"records {name}: {len(df)}, errors {int(df['bad'].sum()) if len(df) else 0}")

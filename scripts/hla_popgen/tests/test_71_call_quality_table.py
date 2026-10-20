@@ -90,6 +90,26 @@ class T(unittest.TestCase):
         self.assertEqual(r2["bad"].iloc[0], 1)                       # mom lacks the child's allele
         self.assertIn("w_rel_cds", r2.columns)
 
+    def test_named_only_drops_novel_calls_from_trio_errors(self):
+        base = {"o_" + k: 1.0 for k in m.KEYS}
+        rows = [dict(person_id="child", hap="1", contig="c", gene="A", consensus="HLA-A*01:new", tf="HLA-A*01:new", plat="revio", named=False, **base),
+                dict(person_id="child", hap="2", contig="c", gene="A", consensus="HLA-A*02:01:01:01", tf="A*02:01", plat="revio", named=True, **base),
+                dict(person_id="dad", hap="1", contig="c", gene="A", consensus="HLA-A*01:01:01:01", tf="A*01:01", plat="revio", named=True, **base),
+                dict(person_id="mom", hap="1", contig="c", gene="A", consensus="HLA-A*02:01:01:01", tf="A*02:01", plat="revio", named=True, **base)]
+        ct = pd.DataFrame(rows)
+        origin = pd.DataFrame([dict(child="child", hap="1", gene="A", origin="pat"), dict(child="child", hap="2", gene="A", origin="mat")])
+        r_all = m.trio_records(origin, ct, {"child": ("dad", "mom")})
+        self.assertEqual(len(r_all), 2)
+        self.assertEqual(int(r_all[r_all["hap"] == "1"]["bad"].iloc[0]), 1)       # the novel call is an "error" by construction
+        r_named = m.trio_records(origin, ct, {"child": ("dad", "mom")}, named_only=True)
+        self.assertEqual(len(r_named), 1)                                           # dropped, not counted
+        self.assertEqual(r_named["hap"].iloc[0], "2")
+        # a parent with a novel call at the gene also removes the record
+        ct2 = ct.copy()
+        ct2.loc[ct2["person_id"] == "mom", ["consensus", "tf", "named"]] = ["HLA-A*02:new", "HLA-A*02:new", False]
+        r2 = m.trio_records(origin, ct2, {"child": ("dad", "mom")}, named_only=True)
+        self.assertEqual(len(r2), 0)
+
     def test_pair_records_use_worse_person(self):
         base = {"o_" + k: 0.0 for k in m.KEYS}
         ct = pd.DataFrame([dict(person_id="i", hap="1", gene="A", **{**base, "o_rel_cds": -1.0}),
