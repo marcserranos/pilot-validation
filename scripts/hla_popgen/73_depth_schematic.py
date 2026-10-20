@@ -235,6 +235,92 @@ def fig_schematic_cds(feats, out):
 
 
 
+def person(ax, x, y, label, fc="white", r=0.045):
+    ax.add_patch(plt.Circle((x, y), r, fc=fc, ec="0.25", lw=0.7, zorder=3))
+    ax.text(x, y, label, ha="center", va="center", fontsize=5.5, zorder=4)
+
+
+def fig_schematic_sets(overlap, out):
+    o = dict(zip(overlap["quantity"], overlap["value"]))
+    with style():
+        fig = plt.figure(figsize=(V.mm(183), V.mm(150)))
+        gs = fig.add_gridspec(2, 2, height_ratios=[1.0, 1.0], hspace=0.28, wspace=0.12, left=0.03, right=0.985, top=0.94, bottom=0.04)
+        a = fig.add_subplot(gs[0, 0])
+        a.set_xlim(0, 1)
+        a.set_ylim(0, 1)
+        a.axis("off")
+        a.set_title("Who is in each set", loc="left", fontsize=6.5)
+        # family: two parents, child, sibling
+        pos = {"P1": (0.18, 0.78), "P2": (0.50, 0.78), "C": (0.34, 0.40), "S": (0.80, 0.40)}
+        for k_, (x, y) in pos.items():
+            pass
+        a.plot([pos["P1"][0], pos["C"][0]], [pos["P1"][1], pos["C"][1]], color=BLUE, lw=2.0, zorder=1)
+        a.plot([pos["P2"][0], pos["C"][0]], [pos["P2"][1], pos["C"][1]], color=BLUE, lw=2.0, zorder=1)
+        a.plot([pos["C"][0], pos["S"][0]], [pos["C"][1], pos["S"][1]], color=RED, lw=1.4, ls="--", zorder=1)
+        a.plot([pos["P1"][0], pos["P2"][0]], [pos["P1"][1], pos["P2"][1]], color="0.75", lw=0.8, zorder=1)
+        a.plot([pos["P2"][0], pos["S"][0]], [pos["P2"][1], pos["S"][1]], color=BLUE, lw=0.0)
+        person(a, *pos["P1"], "parent")
+        person(a, *pos["P2"], "parent")
+        person(a, *pos["C"], "child", fc="#EEF3FA")
+        person(a, *pos["S"], "sibling", r=0.05)
+        a.text(0.02, 0.12, "blue: a trio is a child with both parents (2 child-parent links)\n"
+                           "pair set: every first-degree pair (child-parent links, and siblings, dashed red);\n"
+                           "parent-child and sibling cannot be told apart here (no IBS0 in All of Us)",
+               fontsize=5.4, va="top", linespacing=1.35)
+        b = fig.add_subplot(gs[0, 1])
+        b.set_xlim(-0.03, 1.03)
+        b.set_ylim(0, 1)
+        b.axis("off")
+        b.set_title("What each test asks, for one gene", loc="left", fontsize=6.5)
+        box(b, 0.0, 0.70, 0.46, 0.22, "child's two haplotypes carry X and Y", fs=5.6)
+        box(b, 0.54, 0.70, 0.46, 0.22, "mother: Y, Z     father: A, B", fs=5.6)
+        box(b, 0.0, 0.36, 0.46, 0.27, "TRIO: yak says haplotype 1 came from\nthe father, haplotype 2 from the mother.\nIs X in the father's alleles?  No: ERROR\n(each haplotype is checked on its own)",
+            fc="#EEF3FA", fs=5.3)
+        box(b, 0.54, 0.36, 0.46, 0.27, "PAIR (child-mother): do they share any\nallele? Y = Y: pass. A wrong X is\nhidden by the matching Y. Error only if\nNO allele is shared",
+            fc="#FBEDEA", fs=5.3)
+        b.text(0.0, 0.26, "Pairs also count recombination as an error, and siblings who share only part of their\nhaplotypes; pairs that share nothing across the whole MHC (haplotypes not shared) are\nleft out, so a pair record is one gene of a pair that should share an allele.",
+               fontsize=5.3, va="top", linespacing=1.35)
+        c = fig.add_subplot(gs[1, 0])
+        c.set_xlim(0, 1.45)
+        c.set_ylim(0, 1)
+        c.set_aspect("equal", adjustable="box")
+        c.axis("off")
+        c.set_title("How much the two sets overlap (this analysis)", loc="left", fontsize=6.5)
+        pairs, edges, both = o["pairs_distinct"], o["trio_edges"], o["edges_in_both"]
+        rp = 0.34
+        rt = rp * np.sqrt(edges / pairs)
+        cx, cy = 0.40, 0.46
+        c.add_patch(plt.Circle((cx, cy), rp, fc=RED, alpha=0.22, ec=RED, lw=0.7))
+        c.add_patch(plt.Circle((cx - rp + rt + 0.03, cy), rt, fc=BLUE, alpha=0.30, ec=BLUE, lw=0.7))
+        c.text(cx - rp + rt + 0.03, cy, f"{int(both)}\nin both", ha="center", va="center", fontsize=6, fontweight="bold")
+        c.text(cx, cy + rp + 0.03, f"pair set: {int(pairs)} pairs", ha="center", fontsize=5.6, color=RED)
+        c.text(cx, cy - rp - 0.08, f"trio child-parent links: {int(edges)}", ha="center", fontsize=5.6, color=BLUE)
+        c.text(0.86, 0.80, _wrap(f"{int(pairs - both)} pairs are not in a trio: siblings, or a parent-child pair whose other parent is not in the data", 28),
+               fontsize=5.3, va="top", linespacing=1.3)
+        c.text(0.86, 0.42, _wrap(f"{int(edges - both)} trio links are not in the pair set (their MHC does not pass the pair filter, or a call is missing)", 28),
+               fontsize=5.3, va="top", linespacing=1.3)
+        d = fig.add_subplot(gs[1, 1])
+        d.axis("off")
+        d.set_xlim(0, 1)
+        d.set_ylim(0, 1)
+        d.set_title("Size of each set", loc="left", fontsize=6.5)
+        rows = [("People", f"{int(o['pair_people'])}", f"{int(o['trio_people'])} ({int(o['trio_children'])} children, rest parents)"),
+                ("Relationships", f"{int(o['pairs_distinct'])} pairs", f"{int(o['trio_edges'])} child-parent links"),
+                ("Records", f"{int(o['pair_records'])} pair-genes", f"{int(o['trio_records'])} child haplotype calls"),
+                ("People in both sets", f"{int(o['people_in_both'])}", ""),
+                ("Pair-genes on a trio link", f"{int(o['pair_records_on_trio_edges'])} of {int(o['pair_records'])} ({100 * o['pair_records_on_trio_edges'] / o['pair_records']:.0f}%)", "")]
+        d.text(0.30, 0.95, "pair set", fontsize=6, fontweight="bold", color=RED, va="top")
+        d.text(0.66, 0.95, "trio set", fontsize=6, fontweight="bold", color=BLUE, va="top")
+        y = 0.82
+        for lab, x1, x2 in rows:
+            d.text(0.0, y, lab, fontsize=5.6, va="top")
+            d.text(0.30, y, x1, fontsize=5.6, va="top")
+            d.text(0.66, y, _wrap(x2, 22) if x2 else "", fontsize=5.6, va="top", linespacing=1.2)
+            y -= 0.15
+        V.save_fig(fig, os.path.join(out, "fig_schematic_sets"))
+
+
+
 def _wrap(s, n):
     words, lines, cur = s.split(), [], ""
     for w in words:
@@ -288,6 +374,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--features", required=True)
     ap.add_argument("--gene", default="DQA1")
+    ap.add_argument("--overlap", default=None, help="pair_trio_overlap.tsv (default: next to --features, under 71/)")
     ap.add_argument("--out", default=os.path.join(REPO, "reports", "hla_popgen", "72_call_quality"))
     a = ap.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
@@ -295,6 +382,9 @@ def main(argv=None):
     fig_schematic_depth(feats, a.gene, a.out)
     fig_schematic_cds(feats, a.out)
     fig_schematic_truth(a.out)
+    ov = a.overlap or os.path.join(os.path.dirname(os.path.dirname(a.features)), "71", "pair_trio_overlap.tsv")
+    if os.path.exists(ov):
+        fig_schematic_sets(pd.read_csv(ov, sep="\t"), a.out)
     return 0
 
 

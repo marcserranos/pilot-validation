@@ -298,6 +298,23 @@ def build(folder):
        "<b>Pairs</b>: first-degree pairs that share their MHC (at most one classical gene without a shared 2-field allele); error = no shared 2-field allele (typing error, or recombination). "
        "The pair's metric is the worse of the two people at that gene. <b>Twins/duplicates</b>: unordered 2-field genotypes differ.</p>")
 
+    ap("<h3>How the trio set and the pair set differ, and how much they overlap</h3>")
+    ap(im("fig_schematic_sets.png", "Trio and pair sets"))
+    ov = D.rd("71", "pair_trio_overlap.tsv")
+    if ov is not None:
+        o = dict(zip(ov["quantity"], ov["value"]))
+        ap('<p class="read"><b>Who they are.</b> Both come from the All of Us relatedness table. A <b>trio</b> is a child with two first-degree relatives who are not related to each other, i.e. the two parents; '
+           f"here {int(o['trio_children'])} children and {int(o['trio_edges'])} child-parent links. The <b>pair set</b> is every first-degree pair with calls ({int(o['pairs_distinct'])} pairs among {int(o['pair_people'])} people): parent and child, or full siblings. "
+           "Without IBS0 in the data the two cannot be told apart. Twins are a third set. "
+           f"<b>Overlap.</b> {int(o['edges_in_both'])} of the {int(o['trio_edges'])} trio child-parent links are also in the pair set, and they make up {100 * o['edges_in_both'] / o['pairs_distinct']:.0f}% of the pairs "
+           f"({int(o['pair_records_on_trio_edges'])} of {int(o['pair_records'])} pair-genes). The remaining {int(o['pairs_distinct'] - o['edges_in_both'])} pairs are siblings or parent-child pairs whose other parent is not in the data. "
+           f"{int(o['people_in_both'])} people appear in both sets, so the two truth sets are not independent: they largely re-test the same families.</p>")
+    ap('<p class="read"><b>Why they give different error rates.</b> The trio test is direct and per haplotype: yak says which parent a haplotype came from, and its allele must be among that parent\'s two alleles. '
+       "The pair test is symmetric and lenient: two relatives that share any allele at the gene pass, so a wrong allele in a heterozygote is hidden whenever the other allele matches. It only flags a gene when the pair shares nothing. "
+       "It also counts a recombination as an error, and includes siblings (who are only expected to share an allele when they inherited a haplotype in common; pairs that share nothing across the MHC are removed by the filter). "
+       "So the trio error (5.1%) is higher than the pair error (3.9%) even though the same families are involved, the pair set has about twice the records, and pair errors are partly not typing errors. "
+       "That is why both are shown: trios as the cleaner label, pairs for power.</p>")
+
     ap("<h3>2.4 The metrics</h3>")
     rows = []
     for k, (lab, fam, dirn, dfn, src) in METRICS.items():
