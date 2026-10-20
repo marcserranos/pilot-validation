@@ -410,7 +410,7 @@ def core_two_field(consensus):
     return None if len(f) < 2 or "new" in f[:2] or not f[0] or not f[1] else "%s*%s:%s" % (g, f[0], f[1])
 
 
-def build_switch(origin, rich_by, n_sw, n_ok, rng):
+def build_switch(origin, rich_by, n_sw, n_ok, rng, report):
     by = defaultdict(list)
     for o in origin:
         by[(o["child"], o["hap"], o["contig"])].append(o)
@@ -418,7 +418,11 @@ def build_switch(origin, rich_by, n_sw, n_ok, rng):
     for key, rs in by.items():
         trk = []
         for o in rs:
-            rr = [r for r in rich_by.get((o["child"], o["gene"]), []) if hap_no(r["hap"]) == o["hap"] and r["copy"] == 1 and r["contig"] == o["contig"]]
+            cand = [r for r in rich_by.get((o["child"], o["gene"]), []) if hap_no(r["hap"]) == o["hap"] and r["copy"] == 1]
+            rr = [r for r in cand if r["contig"] == o["contig"]]
+            report["switch:origin_rows"] += 1
+            report["switch:matched_call"] += bool(cand)
+            report["switch:matched_contig"] += bool(rr)
             if rr:
                 trk.append((int(float(rr[0]["start"])), o, rr[0]["consensus"]))
         trk.sort(key=lambda x: x[0])
@@ -429,6 +433,7 @@ def build_switch(origin, rich_by, n_sw, n_ok, rng):
         for a, b in zip(res, res[1:]):
             if trk[a][1]["origin"] != trk[b][1]["origin"]:
                 flips.append({"i": a, "gap_kb": round((trk[b][0] - trk[a][0]) / 1000.0, 1), "to": b})
+        report["switch:contigs>=4genes"] += 1
         (sw if flips else ok).append((key, trk, flips))
     rng.shuffle(sw)
     rng.shuffle(ok)
@@ -476,7 +481,7 @@ def run(a, core):
             else:
                 log("relatedness file not found (bucket unmounted? ENVIRONMENT quirks #14/#35): skipping Mendelian cases")
         if a.switch:
-            allc += build_switch(origin, by, a.switch, a.switch_controls, rng)
+            allc += build_switch(origin, by, a.switch, a.switch_controls, rng, report)
     cases, private = [], []
     for k, (c, priv) in enumerate(allc, 1):
         c["id"] = "c%03d" % k
