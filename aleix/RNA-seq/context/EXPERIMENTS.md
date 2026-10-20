@@ -429,3 +429,12 @@ positions from TRUST4's hg38_bcrtcr.fa @ 4032f90. Runs in seconds.
   against the table: `mlm_only` is top on identifiability (2.0%) and `TRBV one-hot` on age R²
   (0.13). Panel d labels de-overlapped; panel f legend moved off the bars. New:
   `07_embedding_settings.py --plot-only`.
+- **READMEs written for reports 02–14; 01 updated to the polish-run numbers** (person PC1 vs
+  size 0.004, not −0.21; PCA 17.4/7.4%; 3,837,818 embedded). Every number re-read from the
+  committed tables.
+- **Correction to 05 (enrichment counts):** of the 169 cluster × pathogen tests with BH
+  q < 0.05, 81 are enrichments and 88 are depletions. 126 are significant within TRBV and 89
+  both ways, of which 50 are enriched both ways. The within-TRBV Mantel–Haenszel odds ratio is
+  degenerate with empty strata: infinite for 65 tests, above 1,000 for 13 more (CMV cluster 42:
+  26,497). Report p_cmh / q_cmh only. "Synthetic" (VDJdb engineered TCRs) is included as if it
+  were a pathogen (44/44 matches in cluster 50); exclude it in any redraw.

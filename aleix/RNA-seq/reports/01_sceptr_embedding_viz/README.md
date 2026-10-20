@@ -5,8 +5,10 @@ resulting space organized by real receptor biology? What does it look like at th
 single clonotypes and of whole people?
 
 **Script:** [`scripts/01_sceptr_embedding_viz.py`](../../scripts/01_sceptr_embedding_viz.py).
-**Upstream:** [`scripts/embed_cdr3s.py`](../../scripts/embed_cdr3s.py). Final run: commit
-`02cf93b` (code), outputs committed in `56d0138`, 2026-09-28, main VM (n1-highmem-16, CPU).
+**Upstream:** [`scripts/embed_cdr3s.py`](../../scripts/embed_cdr3s.py). First run 2026-09-28
+(`02cf93b`, outputs `56d0138`). **Current outputs: the 2026-10-04 polish run (`5b83486`)**,
+re-embedded after the top-500 tie-break changed from alphabetical to seeded random (report
+08). Numbers below are from the current `summary.csv`; sections updated 2026-10-20.
 
 ## Data
 
@@ -20,7 +22,7 @@ single clonotypes and of whole people?
 | Clonotype | unique (TRBV, CDR3aa) per person, read support summed across TRUST4 consensuses | — |
 | Per-person sample | top 500 clonotypes by read support (rationale: DECISIONS.md) | median 494/person; 4.1% of people < 400, 0.1% < 100 |
 | V usable by SCEPTR | `b_sceptr` accepts IMGT-functional TRBV genes only | 48 TRBV symbols accepted; 1.2% of clonotypes excluded, **flat by ancestry (1.1–1.2%)**¹ |
-| Embedding | SCEPTR `b_sceptr` (beta-chain variant), input TRBV + CDR3B, 64-dim | **3,836,906 clonotypes**, 50 min |
+| Embedding | SCEPTR `b_sceptr` (beta-chain variant), input TRBV + CDR3B, 64-dim | **3,837,818 clonotypes** (polish run) |
 
 ¹ Measured on the first full run, before the length cap; the cap changes the pool by 140
 clonotypes (0.004%), so the fraction carries over.
@@ -43,7 +45,7 @@ space. The cap sits in the empty gap and is applied before the top-500 selection
     could all be one person.
   - Cell color is the mean value or the majority category.
   - Ancestry is drawn as each group's 50% / 80% highest-density contour (Gaussian KDE).
-  - Points in hidden cells: 1.1% (Fig 1), 2.1% (Fig 2), 2.7% (S1a), 4.1% (S1b).
+  - Points in hidden cells (polish run): 1.0% (Fig 1), 1.7% (Fig 2), 3.5% (S1a), 4.8% (S1b).
 - **Colors:** limits are the 2nd–98th percentile of cell values.
 - **Style:** all figures use cnsplots (David Bonet, DECISIONS.md).
 
@@ -65,13 +67,14 @@ space. The cap sits in the empty gap and is applied before the top-500 selection
   by V gene: TRBV10 is low, several central islands are high. This could be biology (V-gene
   usage in expanded clones) or V-specific differences in TRUST4 assembly or recovery. **Not
   separable here; not interpreted.**
-- **D, publicness.** 14.3% of clonotypes are carried by ≥ 2 people. Shared clonotypes
+- **D, publicness.** 14.3% of clonotypes in the top-500 pool are carried by ≥ 2 people (7.2%
+  in the full repertoire, report 02). Shared clonotypes
   concentrate in small hotspots, and these sit at the **short-CDR3 end of their V island**
   (compare B and D in S1a: the TRBV29 and TRBV11 islands). That matches established biology:
   public TCRs are enriched for short, near-germline junctions with high generation
-  probability. **Visual only; not yet quantified.** The 14.3% is higher than typically
-  quoted, plausibly because only each person's most expanded clones are kept and matching is
-  at the amino-acid level across 7,922 people. It is unverified.
+  probability. **Quantified in report 03:** sharing rises with generation probability
+  (Spearman 0.66) and falls with CDR3 length. The 14.3% is higher than the full-repertoire
+  7.2% because the pool keeps each person's most expanded clones.
 
 ## Figure 2 — person map (UMAP)
 
@@ -82,14 +85,14 @@ space. The cap sits in the empty gap and is applied before the top-500 selection
   higher). That is plausible biology, because HLA allele frequencies differ by ancestry and
   HLA genotype shapes TRBV usage. It is equally consistent with technical differences.
   **Observation only; not tested.**
-- **F, repertoire size.** One region collects people with somewhat fewer clonotypes (mean
-  about 460–475, against about 495 elsewhere). In PCA, person PC1 correlates with repertoire
-  size (Spearman ρ = −0.21, p ≈ 1e-77; PC2 ρ = +0.12). This is expected arithmetic, not
-  biology: a mean over fewer vectors is noisier. It concerns the 4.1% of people under 400
-  clonotypes. **Any person-level analysis must adjust for or restrict on repertoire size.**
-- Person PCA: PC1 18.5% and PC2 12.9% of variance. Clonotype PCA: PC1 4.5% and PC2 3.8%,
-  i.e. clonotype variance is spread across many dimensions, as expected for a 64-dim
-  learned space.
+- **F, repertoire size.** In the first run (2026-09-28) person PC1 correlated with repertoire
+  size (Spearman −0.21), read then as averaging noise over fewer vectors. **After the tie-break
+  fix it is gone:** PC1 ρ = 0.004 (p 0.71), PC2 ρ = 0.007. The earlier association was an
+  artifact of the alphabetical tie-break (report 08; EXPERIMENTS 2026-10-04), not averaging
+  noise. One small UMAP region still shows lower mean size
+  (~460 vs ~490 clonotypes). It is local to the non-linear map and has no linear axis behind it.
+- Person PCA: PC1 17.4% and PC2 7.4% of variance. Clonotype PCA: PC1 4.3% and PC2 3.8%, i.e.
+  clonotype variance is spread across many dimensions, as expected for a 64-dim learned space.
 
 ## Supplement S1 — PCA versions
 
@@ -100,21 +103,24 @@ space. The cap sits in the empty gap and is applied before the top-500 selection
 
 - **The V gene is an input**, so V-driven structure (Fig 1A, and much of any person-level
   structure) is partly by construction.
-- **The top-500 cap is inherited, not tuned.** A robustness check across caps
-  (100 / 250 / 500 / all) is owed before any claim.
-- **Mean pooling is a crude person representation.** It is sensitive to repertoire size
-  (Fig 2F) and to V-usage composition.
+- **The top-500 cap** was checked in report 03: top 250 vs top 500 gives person-distance
+  correlation 0.76 after the tie fix. It stays at 500 (DECISIONS, 2026-10-06).
+- **Mean pooling is a crude person representation.** Report 06 benchmarks alternatives; mean +
+  TRBV usage is best (27.0% split-half identifiability, z-scored) and is what W3–W5 use.
 - **Bulk RNA-seq gives unpaired β chains.** Alpha-chain information is absent by design.
 - **All observations here are descriptive.** Nothing is tested against HLA or disease.
   That is out of scope for this report.
 
-## Open follow-ups (not scheduled)
+## Follow-ups from the first version
 
-1. Quantify publicness vs CDR3 length (Fig 1B–D). This is cheap and aggregate.
-2. Decide whether Fig 1C's between-V expansion differences are biology or TRUST4 recovery.
-3. Cap-robustness check (item 2 of the caveats).
-4. Quantify Fig 2E: how well ancestry can be predicted from the person vector, against
-   chance. This belongs with the HLA work, where ancestry is a confounder.
+1. Publicness vs CDR3 length: done in report 03.
+2. Whether Fig 1C's between-V expansion differences are biology or TRUST4 recovery: open.
+3. Cap robustness: done in report 03 (0.76 at top 250).
+4. Ancestry from the person vector: done in report 03 (macro AUROC 0.73, no better than TRBV
+   usage at 0.74); report 10 shows much of it is germline V usage.
+
+Known figure style issue: panel letters are upper case and the font is DejaVu Sans, unlike
+reports 02–15. Restyling needs the VM (per-person embeddings).
 
 ## Reproduce (on the VM, from `aleix/RNA-seq/`)
 

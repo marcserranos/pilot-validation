@@ -46,8 +46,9 @@ prepared and tested on synthetic data. VM steps (1b, 1c, 2 below) are queued for
    (script 65, 12,233 people). Copy the table to the bucket Marc reads (confirm path with him).
    Group-level check done in report 15 (2026-10-20): same ranking, RNA/DNA 0.79–0.87, TRBV6-2
    halves in non-users. Per person still needs 60.
-3. Rewrite `reports/01_sceptr_embedding_viz/README.md` (still describes the old size region).
-   Reports 02–14 have no README; their write-up lives in EXPERIMENTS.md.
+3. DONE 2026-10-20: READMEs for every report (01 updated to the polish run; 02–14 new; 15 new).
+   Figure fixes that need the VM (no plot-only path, or per-person data) are listed in each
+   README under "Known layout issue".
 4. Methods document, the ageing write-up (02), and the HLA-label join (J1–J5 in main's
    `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` §3).
 5. Open questions in DECISIONS.md still unworked: per-person per-chain ancestry recovery
