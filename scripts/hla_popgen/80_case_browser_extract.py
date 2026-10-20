@@ -32,7 +32,7 @@ ATTR_RE = re.compile(r'(\w+)\s+("([^"]*)"|[^;\s]+)')
 def where(e):
     """Aggregate-safe description of an exception: type, short message, file:line of the failing frame."""
     fr = traceback.extract_tb(e.__traceback__)[-1]
-    return "%s:%s@%s:%d" % (type(e).__name__, str(e)[:40], os.path.basename(fr.filename), fr.lineno)
+    return "%s:%s@%s:%d" % (type(e).__name__, str(e)[:110], os.path.basename(fr.filename), fr.lineno)
 
 
 def log(msg):
@@ -154,21 +154,23 @@ class Store:
         """Observed CDS record for one gene copy, and the PAF lines Immuannot aligned it with."""
         d = os.path.join(self.odir(species, person, hap), "hap%s" % hap)
         suffix = "_%s_%d" % (call["gene_name"], call["copy"])
-        rec_id, buf, done = None, [], False
+        rec_id, buf, names = None, [], []
         with gzip.open(os.path.join(d, "cds.fa.gz"), "rt") as f:
             for ln in f:
                 if ln.startswith(">"):
                     if rec_id is not None:
-                        done = True
                         break
                     name = ln[1:].split()[0]
+                    names.append(name)
                     if name.endswith(suffix) and name.startswith(call["contig"]):
                         rec_id = name
                 elif rec_id is not None:
                     buf.append(ln.strip())
-        seq = "".join(buf) if rec_id is not None else None
-        if seq is None:
-            raise KeyError("no CDS record")
+        if rec_id is None:      # diagnostic keeps contig names out: only the gene/copy tail of same-gene records
+            tail = sorted({n[n.rfind("_" + call["gene_name"] + "_"):] for n in names if "_" + call["gene_name"] + "_" in n})
+            raise KeyError("no CDS record|want=%s|have=%s|ctg_prefix_hit=%s" % (
+                suffix, ",".join(tail)[:60], any(n.startswith(call["contig"]) for n in names)))
+        seq = "".join(buf)
         paf = []
         pp = os.path.join(d, "mm2.ipd.cds.paf.gz")
         if os.path.exists(pp):
