@@ -23,6 +23,9 @@ ex = load("cb80x", "80_case_browser_extract.py")
 ex._CORE = cb
 
 
+BLANK_EXON = False
+
+
 def cs_from(aref, aobs):
     """minimap2-style cs with target = observed, query = reference."""
     out, run, i = [], 0, 0
@@ -72,7 +75,7 @@ def person(root, pid, gene, ref_name, ref, obs, contig, start, hap="1"):
     mid = len(obs) // 2
     e = ""
     for n, (s, en) in enumerate([(start + 100, start + 100 + mid - 1), (start + 3000, start + 3000 + len(obs) - mid - 4)], 1):
-        e += '%s\tIPD\texon\t%d\t%d\t.\t+\t.\tgene_id "IAG1"; transcript_id "IAT1"; exon_number "%d";\n' % (contig, s, en, n)
+        e += '%s\tIPD\texon\t%d\t%d\t.\t+\t.\tgene_id "IAG1"; transcript_id "IAT1"; exon_number "%s";\n' % (contig, s, en, n if n != 2 or not BLANK_EXON else "")
         e += '%s\tIPD\tCDS\t%d\t%d\t.\t+\t0\tgene_id "IAG1"; transcript_id "IAT1";\n' % (contig, s, en)
     write_gz(od + "/hap%s.gtf.gz" % hap, "## format: gtf\n" + g + t + e)
     rec = "%s_%s_1" % (contig, gene)
@@ -89,6 +92,14 @@ class TestExtract(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.d)
+
+    def test_blank_exon_numbers_are_numbered_by_position(self):
+        global BLANK_EXON
+        BLANK_EXON = True
+        try:
+            self.test_pipeline()
+        finally:
+            BLANK_EXON = False
 
     def test_pipeline(self):
         rng = random.Random(5)

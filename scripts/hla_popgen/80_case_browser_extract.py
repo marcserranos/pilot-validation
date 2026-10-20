@@ -74,10 +74,14 @@ def read_gtf(path):
             elif ft == "CDS":
                 cds[a["transcript_id"]].append((int(x[3]), int(x[4])))
             elif ft == "exon":
-                exons[a["transcript_id"]].append((int(a.get("exon_number", 0)), int(x[3]), int(x[4])))
+                m = re.match(r"\s*(\d+)", a.get("exon_number", ""))
+                exons[a["transcript_id"]].append((int(m.group(1)) if m else 0, int(x[3]), int(x[4])))
     out = {}
     for tid, t in trans.items():
         g = genes.get(t.get("gene_id"))
+        if g and exons.get(tid) and not all(n for n, _, _ in exons[tid]):      # blank exon_number: number 5'->3'
+            rev = g["strand"] == "-"
+            exons[tid] = [(k, s_, e_) for k, (_, s_, e_) in enumerate(sorted(exons[tid], key=lambda z: z[1], reverse=rev), 1)]
         if not g:
             continue
         m = re.search(r"\.(\d+)$", t["gene_id"])
