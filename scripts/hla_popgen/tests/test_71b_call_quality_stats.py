@@ -141,13 +141,63 @@ class T(unittest.TestCase):
         self.assertEqual(g["n"].sum(), 2000)
         self.assertEqual(g["k"].sum(), int(v["bad"].sum()))
 
+    def _cohort(self, n=6000, seed=5):
+        c = planted(n=n, seed=seed)
+        c["gene"] = np.random.default_rng(seed).choice(["A", "B", "DRB1"], n)
+        return c
+
+    def test_tail_composites_find_outliers_that_a_bulk_model_misses(self):
+        # errors only happen in the far tail of one metric (worst 3%): a bulk-weighted linear model sees almost nothing, a tail feature sees it
+        rng = np.random.default_rng(11)
+        n = 8000
+        v = pd.DataFrame({"person": [f"p{i}" for i in range(n)], "gene": "A", "plat": "revio"})
+        for k in m.KEYS:
+            v["o_" + k] = rng.normal(size=n)
+        x = rng.normal(size=n)
+        v["o_rel_cds"] = x
+        v["bad"] = ((x > np.quantile(x, 0.97)) & (rng.random(n) < 0.5)).astype(int)
+        ct = v.copy()
+        pcts = m.metric_percentiles(v, ct, m.ALL_KEYS)
+        self.assertGreater(m.auc_score(pcts["rel_cds"], v["bad"]), 0.9)
+        Xt, names = m.tail_design(pcts, m.ALL_KEYS, v)
+        risk = m.oof_risk(Xt, v["bad"].to_numpy(), v["person"])
+        self.assertGreater(m.auc_score(risk, v["bad"]), 0.85)
+        self.assertIn("rel_cds>=p95", names)
+        pc = m.prune_curve(pcts["rel_cds"], v["bad"].to_numpy(), grid=np.array([0.0, 3.0]))
+        self.assertGreater(pc.set_index("prune_pct").loc[3.0, "captured_pct"], 80)
+
+    def test_gbm_oof_runs(self):
+        v = planted(n=3000)
+        X = np.column_stack([v["o_" + k] for k in m.ALL_KEYS])
+        r = m.gbm_oof(X, v["bad"].to_numpy(), v["person"])
+        self.assertGreater(m.auc_score(r, v["bad"]), 0.7)
+
+    def test_value_hist_counts(self):
+        v = planted(n=3000)
+        h = m.value_hist(v, "n_tied")
+        self.assertEqual(h["n"].sum(), 3000)
+        self.assertEqual(h["k"].sum(), int(v["bad"].sum()))
+        hc = m.value_hist(v, "rel_cds")
+        self.assertEqual(hc["n"].sum(), 3000)
+        self.assertTrue((hc["x_lo"] <= hc["x_hi"]).all())
+
+    def test_complete_flag_and_strata(self):
+        v = planted(n=2000)
+        v["o_n_called"] = np.where(np.arange(2000) % 5 == 0, -1.0, -2.0)
+        rec = pd.DataFrame({"person": v["person"], "gene": v["gene"], "bad": v["bad"], "plat": v["plat"], "w_n_called": v["o_n_called"]})
+        for k in m.KEYS:
+            rec["c_" + k] = v["o_" + k]
+        mv = m.make_view(rec, "c")
+        self.assertEqual(int(mv["complete"].sum()), 1600)
+
     def test_analyse_end_to_end_writes_tables(self):
         v = planted(n=1500)
         ct = planted(n=3000, seed=5)
         ct["gene"] = "A"
         d = tempfile.mkdtemp()
         m.analyse({"pair": v}, ct, d, do_boot=False)
-        for f in ("stat_error_baseline.tsv", "stat_curves.tsv", "stat_auc.tsv", "stat_prune.tsv", "stat_model_coef.tsv"):
+        for f in ("stat_error_baseline.tsv", "stat_curves.tsv", "stat_auc.tsv", "stat_prune.tsv", "stat_model_coef.tsv", "stat_metric_hist.tsv",
+                  "stat_complete_strata.tsv"):
             self.assertTrue(os.path.exists(os.path.join(d, f)), f)
         auc = pd.read_csv(os.path.join(d, "stat_auc.tsv"), sep="\t").set_index("metric")
         self.assertGreater(auc.loc["rel_cds", "auc"], 0.75)

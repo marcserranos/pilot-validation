@@ -95,6 +95,7 @@ METRICS = [
     ("ars_share_lt10", "Share of peptide-binding bases under 10x", "depth", +1),
     ("mapq_frac", "Unique-mapping fraction of CDS depth (MAPQ20/MAPQ0)", "depth", -1),
     ("rel_mhc", "MHC-window depth (relative, person)", "depth", -1),
+    ("n_called", "Haplotypes with a call at the gene (2 = complete genotype)", "assembly", -1),
     ("mhc_contigs", "MHC contigs on the haplotype", "assembly", +1),
     ("diff_contig", "Gene off its partner's contig", "assembly", +1),
     ("score7", "Old 0-7 confidence score", "legacy", -1),
@@ -213,6 +214,7 @@ def build_call_table(calls, gdepth, rel_mhc):
               "ars_min_rel", "cds_share_lt10", "ars_share_lt10", "mapq_frac"):
         t["x_" + k] = t[k] if k in t else np.nan
     t["x_rel_mhc"] = t["person_id"].map(rel_mhc)
+    t["x_n_called"] = t.groupby(["person_id", "gene"])["hap"].transform("nunique")
     t["x_mhc_contigs"] = t["nctg"]
     t["x_diff_contig"] = _off_partner_contig(t)
     t["x_score7"] = t["score"]

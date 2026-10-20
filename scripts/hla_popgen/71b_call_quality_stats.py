@@ -84,6 +84,8 @@ def make_view(rec, prefix):
     """Records -> DataFrame with person, gene, plat, bad and o_<metric> (higher = worse) for the chosen prefix."""
     v = rec[["person", "gene", "bad"]].copy()
     v["plat"] = rec["plat"] if "plat" in rec else "NA"
+    # complete = every person in the record has both haplotypes called at the gene (w_n_called is the worse, i.e. the larger of -n)
+    v["complete"] = (rec["w_n_called"] == -2).to_numpy() if "w_n_called" in rec else False
     for k in KEYS:
         col = f"{prefix}_{k}"
         v["o_" + k] = rec[col] if col in rec else np.nan
@@ -392,10 +394,87 @@ def grid2d(view, ka, kb, cohort_ct, bins=40):
     return pd.DataFrame(rows)
 
 
+TAIL_CUTS = (90.0, 95.0, 99.0)
+DEPTH_KEYS = [k for k in KEYS if Q.FAMILY[k] == "depth"]
+ALL_KEYS = [k for k in KEYS if Q.FAMILY[k] in ("immuannot", "depth", "assembly")]
+
+
+def metric_percentiles(view, cohort_ct, keys):
+    """Within-gene percentile (0-100, higher = worse) of each record's oriented value among ALL cohort calls of its gene."""
+    return {k: within_gene_percentile(view["o_" + k].to_numpy(float), view["gene"], cohort_ct, k) for k in keys}
+
+
+def tail_design(pcts, keys, view):
+    """Features that look only at the worst tail of each metric: indicators for the worst 10 / 5 / 1% of the cohort and the excess
+    above the 90th percentile, plus gene indicators. A bulk-weighted model sees the whole distribution; this one sees the outliers."""
+    cols, names = [], []
+    for k in keys:
+        r = pcts[k]
+        if not np.isfinite(r).any():
+            continue
+        r = np.where(np.isfinite(r), r, 50.0)
+        for c in TAIL_CUTS:
+            cols.append((r >= c).astype(float))
+            names.append(f"{k}>=p{c:g}")
+        cols.append(np.clip(r - 90.0, 0, None) / 10.0)
+        names.append(f"{k}:excess_over_p90")
+    for g in sorted(view["gene"].unique()):
+        d = (view["gene"] == g).to_numpy(float)
+        if 0 < d.sum() < len(d):
+            cols.append(d)
+            names.append("gene:" + g)
+    return np.column_stack(cols), names
+
+
+def gbm_oof(X, y, groups, folds=5, seed=71):
+    """Out-of-fold risk from a small gradient-boosted tree model (handles thresholds and interactions at the tails)."""
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    y = np.asarray(y, int)
+    gid = pd.factorize(np.asarray(groups))[0]
+    rng = np.random.default_rng(seed)
+    fold = rng.integers(0, folds, gid.max() + 1)[gid]
+    risk = np.full(len(y), np.nan)
+    for f in range(folds):
+        tr, te = fold != f, fold == f
+        if y[tr].sum() < 5 or te.sum() == 0:
+            continue
+        clf = HistGradientBoostingClassifier(max_depth=3, learning_rate=0.05, max_iter=150, min_samples_leaf=20, l2_regularization=1.0,
+                                             random_state=seed).fit(X[tr], y[tr])
+        risk[te] = clf.predict_proba(X[te])[:, 1]
+    return risk
+
+
+def value_hist(view, k, max_discrete=30, nbins=60):
+    """Counts and errors by value of the metric in its own units (discrete: per value; continuous: 60 bins between the 0.5th and 99.5th
+    percentile, the two tails kept as open end bins)."""
+    o = view["o_" + k].to_numpy(float)
+    y = view["bad"].to_numpy(int)
+    ok = np.isfinite(o)
+    o, y = o[ok], y[ok]
+    if len(o) < 30:
+        return pd.DataFrame()
+    raw = raw_value(k, o)
+    u = np.unique(raw)
+    rows = []
+    if len(u) <= max_discrete:
+        for val in u:
+            m = raw == val
+            rows.append((val, val, val, int(m.sum()), int(y[m].sum())))
+    else:
+        lo, hi = np.percentile(raw, [0.5, 99.5])
+        edges = np.linspace(lo, hi, nbins + 1)
+        idx = np.clip(np.digitize(raw, edges[1:-1]), 0, nbins - 1)
+        for b in range(nbins):
+            m = idx == b
+            if m.any():
+                rows.append(((edges[b] + edges[b + 1]) / 2, edges[b], edges[b + 1], int(m.sum()), int(y[m].sum())))
+    return pd.DataFrame(rows, columns=["x", "x_lo", "x_hi", "n", "k"])
+
+
 # ---------------------------------------------------------------------------
 def analyse(views, cohort_ct, out_dir, do_boot=True):
     w = lambda df, name: C.write_tsv(df, os.path.join(out_dir, name))  # noqa: E731
-    base, curves, aucs, prunes, coefs = [], [], [], [], []
+    base, curves, aucs, prunes, coefs, hist_all, strata = [], [], [], [], [], [], []
     for vname, v in views.items():
         if not len(v):
             continue
@@ -403,6 +482,10 @@ def analyse(views, cohort_ct, out_dir, do_boot=True):
         for g, d in [("ALL", v)] + list(v.groupby("gene")):
             base.append(dict(view=vname, gene=g, n_records=len(d), n_errors=int(d["bad"].sum()),
                              error_pct=100 * d["bad"].mean()))
+        comp = v["complete"] if "complete" in v else pd.Series(True, index=v.index)
+        for lab_, m_ in (("complete genotypes (all persons have both haplotypes called)", comp), ("incomplete (some person has one call at the gene)", ~comp)):
+            strata.append(dict(view=vname, stratum=lab_, n_records=int(m_.sum()), n_errors=int(v.loc[m_, "bad"].sum()),
+                               error_pct=100 * v.loc[m_, "bad"].mean() if m_.any() else np.nan))
         scores = {k: v["o_" + k].to_numpy(float) for k in KEYS}
         # multi-metric out-of-fold risks
         for mname, ks in MODEL_SETS.items():
@@ -414,9 +497,31 @@ def analyse(views, cohort_ct, out_dir, do_boot=True):
             cf.insert(0, "model", mname)
             cf.insert(0, "view", vname)
             coefs.append(cf)
+        # tail-aware composites (Marc 10-20: a bulk-weighted model may down-weight exactly the outliers we want to find)
+        pcts = metric_percentiles(v, cohort_ct, ALL_KEYS)
+        for rname, keys_ in (("rule:worst_rank_depth", DEPTH_KEYS), ("rule:worst_rank_all", ALL_KEYS)):
+            stack = np.vstack([pcts[k] for k in keys_ if np.isfinite(pcts[k]).any()])
+            scores[rname] = np.nanmax(stack, axis=0)
+        if y.sum() >= 10:
+            Xt, _nm = tail_design(pcts, ALL_KEYS, v)
+            scores["model:tail"] = oof_risk(Xt, y, v["person"])
+            try:
+                Xg = np.column_stack([v["o_" + k].to_numpy(float) for k in ALL_KEYS])
+                scores["model:gbm"] = gbm_oof(Xg, y, v["person"])
+            except ImportError:
+                pass
+        hs = []
+        for k in ALL_KEYS + ["score7"]:
+            h_ = value_hist(v, k)
+            if len(h_):
+                h_.insert(0, "metric", k)
+                h_.insert(0, "view", vname)
+                hs.append(h_)
+        if hs:
+            hist_all.append(pd.concat(hs, ignore_index=True))
         for k, o in scores.items():
-            is_model = k.startswith("model:")
-            fam = "model" if is_model else FAMILY[k]
+            is_model = k.startswith(("model:", "rule:"))
+            fam = "model" if k.startswith("model:") else ("rule" if k.startswith("rule:") else FAMILY[k])
             lo, hi = cluster_boot_auc(o, y, v["person"]) if do_boot and np.isfinite(o).sum() > 50 else (np.nan, np.nan)
             a = auc_score(o, y)
             okm = np.isfinite(o)
@@ -446,6 +551,8 @@ def analyse(views, cohort_ct, out_dir, do_boot=True):
                     pc.insert(0, "view", vname)
                     prunes.append(pc)
     w(pd.DataFrame(base), "stat_error_baseline.tsv")
+    w(pd.DataFrame(strata), "stat_complete_strata.tsv")
+    w(pd.concat(hist_all, ignore_index=True) if hist_all else pd.DataFrame(), "stat_metric_hist.tsv")
     w(pd.concat(curves, ignore_index=True) if curves else pd.DataFrame(), "stat_curves.tsv")
     w(pd.DataFrame(aucs), "stat_auc.tsv")
     w(pd.concat(prunes, ignore_index=True) if prunes else pd.DataFrame(), "stat_prune.tsv")
@@ -473,6 +580,10 @@ def main(argv=None):
         p = os.path.join(a.internal_dir, f"records_{name}.INTERNAL.tsv")
         recs[name] = pd.read_csv(p, sep="\t", dtype={"person": str, "other": str}) if os.path.exists(p) else pd.DataFrame()
     views = {vn: make_view(recs[src], pre) for vn, src, pre in VIEWS if len(recs[src])}
+    # records where every person has both haplotypes called: the "wrong allele among fully called genotypes" error, separated from dropout
+    for base_v, new_v in (("trio_worst", "trio_complete"), ("pair", "pair_complete"), ("twin", "twin_complete")):
+        if base_v in views:
+            views[new_v] = views[base_v][views[base_v]["complete"]].reset_index(drop=True)
     if a.scope == "classical8":
         G8 = ["A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
         views = {k: v[v["gene"].isin(G8)].reset_index(drop=True) for k, v in views.items()}
