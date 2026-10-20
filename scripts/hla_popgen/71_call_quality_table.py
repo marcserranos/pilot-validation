@@ -249,34 +249,39 @@ def trio_records(origin, call_table, trio_of):
     as 57b defined it."""
     ct = call_table.set_index(["person_id", "hap", "gene"])
     pg = person_gene_worst(call_table)
+    pidx = {k: i for i, k in enumerate(pg.index)}
+    parr = pg.to_numpy(float)
+    ocols = ["o_" + k for k in KEYS]
+    carr = ct[ocols].to_numpy(float)
+    cidx = {k: i for i, k in enumerate(ct.index)}
+    tfs, cons, plats = ct["tf"].to_numpy(object), ct["consensus"].to_numpy(object), ct["plat"].to_numpy(object)
     allele = {(p, g): (set(d["tf"].dropna()), set(d["consensus"].dropna())) for (p, g), d in call_table.groupby(["person_id", "gene"])}
     rows = []
     for c, h, g, og in zip(origin["child"], origin["hap"], origin["gene"], origin["origin"]):
-        if og not in ("pat", "mat") or c not in trio_of or (c, h, g) not in ct.index:
+        if og not in ("pat", "mat") or c not in trio_of or (c, h, g) not in cidx:
             continue
         par = trio_of[c][0] if og == "pat" else trio_of[c][1]
-        if (par, g) not in allele or (par, g) not in pg.index:
+        if (par, g) not in allele or (par, g) not in pidx:
             continue
-        r = ct.loc[(c, h, g)]
-        r = r.iloc[0] if isinstance(r, pd.DataFrame) else r
+        i = cidx[(c, h, g)]
+        if not isinstance(tfs[i], str):
+            continue
         ptf, pcons = allele[(par, g)]
-        rows.append(dict(person=c, other=par, gene=g, hap=h, origin=og, plat=r["plat"],
-                         bad=int(r["tf"] not in ptf) if isinstance(r["tf"], str) else np.nan,
-                         bad_full=int(r["consensus"] not in pcons),
-                         **{"c_" + k: r["o_" + k] for k in KEYS},
-                         **{"p_" + k: pg.loc[(par, g), "o_" + k] for k in KEYS}))
-    df = pd.DataFrame(rows)
-    if len(df):
-        df = df[df["bad"].notna()].copy()
-        for k in KEYS:
-            df["w_" + k] = np.fmax(df["c_" + k], df["p_" + k])
-    return df
+        row = dict(person=c, other=par, gene=g, hap=h, origin=og, plat=plats[i], bad=int(tfs[i] not in ptf),
+                   bad_full=int(cons[i] not in pcons))
+        pv = parr[pidx[(par, g)]]
+        for j, k in enumerate(KEYS):
+            row["c_" + k], row["p_" + k], row["w_" + k] = carr[i, j], pv[j], np.fmax(carr[i, j], pv[j])
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 def pair_records(pairs, geno, call_table, genes, kind):
     """pairs: DataFrame i, j, pp (and cls); geno: 56 index_calls dict; kind 'pair' or 'twin'. For pairs the 56b
     filter applies: at most one classical gene without a shared 2-field allele."""
     pg = person_gene_worst(call_table)
+    pidx = {k: i for i, k in enumerate(pg.index)}
+    parr = pg.to_numpy(float)
     rows = []
     for i, j in zip(pairs["i"], pairs["j"]):
         if kind == "pair":
@@ -286,13 +291,13 @@ def pair_records(pairs, geno, call_table, genes, kind):
                 continue
         for g in genes["ALL"]:
             a, b = geno.get((i, g)), geno.get((j, g))
-            if not a or not b or (i, g) not in pg.index or (j, g) not in pg.index:
+            if not a or not b or (i, g) not in pidx or (j, g) not in pidx:
                 continue
             bad = int(not set(a[0]) & set(b[0])) if kind == "pair" else int(a[0] != b[0])
             row = dict(person=i, other=j, gene=g, bad=bad, bad_full=int(a[1] != b[1]))
-            for k in KEYS:
-                ci, pj = pg.loc[(i, g), "o_" + k], pg.loc[(j, g), "o_" + k]
-                row["c_" + k], row["p_" + k], row["w_" + k] = ci, pj, np.fmax(ci, pj)
+            vi, vj = parr[pidx[(i, g)]], parr[pidx[(j, g)]]
+            for n, k in enumerate(KEYS):
+                row["c_" + k], row["p_" + k], row["w_" + k] = vi[n], vj[n], np.fmax(vi[n], vj[n])
             rows.append(row)
     return pd.DataFrame(rows)
 
