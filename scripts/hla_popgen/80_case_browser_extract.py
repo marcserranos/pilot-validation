@@ -153,23 +153,32 @@ class Store:
     def observed(self, species, person, hap, call):
         """Observed CDS record for one gene copy, and the PAF lines Immuannot aligned it with."""
         d = os.path.join(self.odir(species, person, hap), "hap%s" % hap)
-        suffix = "_%s_%d" % (call["gene_name"], call["copy"])
-        rec_id, buf, names = None, [], []
+        # record names are <contig>_<gene>_<N> with N a running counter per haplotype (not the GTF copy index):
+        # match contig + gene, and when a contig carries several copies take the copy-th by N
+        pat = re.compile(r"^%s_%s_(\d+)$" % (re.escape(call["contig"]), re.escape(call["gene_name"])))
+        hits, names = [], []
         with gzip.open(os.path.join(d, "cds.fa.gz"), "rt") as f:
             for ln in f:
                 if ln.startswith(">"):
-                    if rec_id is not None:
-                        break
                     name = ln[1:].split()[0]
                     names.append(name)
-                    if name.endswith(suffix) and name.startswith(call["contig"]):
-                        rec_id = name
-                elif rec_id is not None:
-                    buf.append(ln.strip())
-        if rec_id is None:      # diagnostic keeps contig names out: only the gene/copy tail of same-gene records
+                    m = pat.match(name)
+                    if m:
+                        hits.append((int(m.group(1)), name))
+        if not hits:   # diagnostic keeps contig names out: only the gene tails of same-gene records
             tail = sorted({n[n.rfind("_" + call["gene_name"] + "_"):] for n in names if "_" + call["gene_name"] + "_" in n})
-            raise KeyError("no CDS record|want=%s|have=%s|ctg_prefix_hit=%s" % (
-                suffix, ",".join(tail)[:60], any(n.startswith(call["contig"]) for n in names)))
+            raise KeyError("no CDS record|want=%s|have=%s" % (call["gene_name"], ",".join(tail)[:60]))
+        hits.sort()
+        rec_id = hits[min(call["copy"], len(hits)) - 1][1]
+        buf, take = [], False
+        with gzip.open(os.path.join(d, "cds.fa.gz"), "rt") as f:
+            for ln in f:
+                if ln.startswith(">"):
+                    if take:
+                        break
+                    take = ln[1:].split()[0] == rec_id
+                elif take:
+                    buf.append(ln.strip())
         seq = "".join(buf)
         paf = []
         pp = os.path.join(d, "mm2.ipd.cds.paf.gz")
