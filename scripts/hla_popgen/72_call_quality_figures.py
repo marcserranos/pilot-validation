@@ -281,7 +281,7 @@ def fig_error_curves(res, out, view):
             col = FAM_COLOR.get({"score7": "legacy", "mhc_contigs": "assembly", "diff_contig": "assembly"}.get(m, None) or (
                 "depth" if m.startswith(("rel_", "cds_p", "cds_min", "ars_", "cds_share", "mapq")) else "immuannot"))
             if len(d) <= 25:
-                ax.errorbar(d["x_median"], d["error_pct"], yerr=[d["error_pct"] - d["lo"], d["hi"] - d["error_pct"]],
+                ax.errorbar(d["x_median"], d["error_pct"], yerr=[np.clip(d["error_pct"] - d["lo"], 0, None), np.clip(d["hi"] - d["error_pct"], 0, None)],
                             fmt="o", ms=2.5, color=col, lw=0.6, capsize=1)
             else:
                 ax.fill_between(d["x_median"], d["lo"], d["hi"], color=col, alpha=0.25, lw=0)
