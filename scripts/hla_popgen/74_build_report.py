@@ -152,7 +152,9 @@ def flag_table(prune, base, view, targets=(5, 10)):
             if "cohort_pct_removed" not in d or d["cohort_pct_removed"].isna().all():
                 continue
             i = (d["cohort_pct_removed"] - t).abs().idxmin()
-            r = d.loc[i]
+            # the flagged set is "worse than or equal to the threshold": the LAST row that still has this threshold removes the whole tie group
+            thr = d.loc[i, "thr_oriented"]
+            r = d[d["thr_oriented"] == thr].iloc[-1]
             rem_n = float(r["n_removed"])
             if rem_n <= 0:
                 continue
@@ -427,7 +429,7 @@ def build(folder):
     for k, (lab, fam, dirn, dfn, src) in METRICS.items():
         if k == "score7":
             continue
-        r = {"family": fam, "parameter": f"{lab} (<code>{k}</code>)", "worse when": dirn}
+        r = {"family": fam, "parameter": f"<span>{esc(lab)} (<code>{k}</code>)</span>", "worse when": dirn}
         f = ft[ft["metric"] == k]
         if len(f):
             f = f.iloc[0]
