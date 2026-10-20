@@ -444,10 +444,14 @@ def run(a, core):
         by = defaultdict(list)
         for r in rich:
             by[(r["person"], r["gene"])].append(r)
-        trio_of = load_trios(os.path.expanduser(a.relatedness), kids)
-        log("origin rows %d, children %d, trios %d" % (len(origin), len(kids), len(trio_of)))
         if a.mendel:
-            allc += build_mendel(core, store, by, origin, trio_of, a.mendel, a.mendel_controls, rng, report)
+            rel = os.path.expanduser(a.relatedness)
+            if os.path.exists(rel):
+                trio_of = load_trios(rel, kids)
+                log("origin rows %d, children %d, trios %d" % (len(origin), len(kids), len(trio_of)))
+                allc += build_mendel(core, store, by, origin, trio_of, a.mendel, a.mendel_controls, rng, report)
+            else:
+                log("relatedness file not found (bucket unmounted? ENVIRONMENT quirks #14/#35): skipping Mendelian cases")
         if a.switch:
             allc += build_switch(origin, by, a.switch, a.switch_controls, rng)
     cases, private = [], []
