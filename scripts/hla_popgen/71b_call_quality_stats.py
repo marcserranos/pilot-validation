@@ -23,8 +23,8 @@ come from the parent's call); pair and twin records on the worse of the two peop
                             with the 0/1 error, logistic odds ratio per SD adjusted for gene and platform with person-
                             clustered robust SE. Also the multi-metric models (below) and the old 0-7 score.
 4. stat_prune.tsv           pruning: remove the worst x% of records by the metric (x = 0 to 50 in 0.25 steps; ties removed
-                            proportionally), error among the rest with Wilson 95% interval, the exact 95% band of removing
-                            the same number AT RANDOM (hypergeometric), the share of all errors removed, the metric threshold
+                            proportionally), error among the rest with Wilson 95% interval, the 95% band of removing
+                            the same number AT RANDOM (hypergeometric, normal approximation), the share of all errors removed, the metric threshold
                             at the cut and the share of ALL COHORT calls beyond that threshold. `scale` is `pooled` (the
                             metric as is) or `within_gene` (percentile within the gene, over all cohort calls).
 5. stat_model_coef.tsv      standardised coefficients of the multi-metric logistic models (all records, for reading)
@@ -274,10 +274,11 @@ def prune_curve(o, y, grid=PRUNE_GRID, cohort_o=None, k_name=None, band_draws=Tr
                    error_pct_kept=100 * rate, lo=100 * float(lo[0]), hi=100 * float(hi[0]),
                    captured_pct=100 * removed_e / K, thr_oriented=float(-vals[min(g, len(vals) - 1)]))
         if band_draws and 0 < kk < n:
-            m = int(round(kk))
-            rl, rh = stats.hypergeom.ppf([0.025, 0.975], n, K, m)      # errors among the removed at random
-            row["random_lo"] = 100 * (K - rh) / (n - m)
-            row["random_hi"] = 100 * (K - rl) / (n - m)
+            m = kk                                                       # removed at random: errors removed ~ hypergeometric
+            mu = m * K / n
+            sd = np.sqrt(max(m * (K / n) * (1 - K / n) * (n - m) / max(n - 1, 1), 0.0))   # normal approximation, smooth in x
+            row["random_lo"] = 100 * (K - (mu + 1.96 * sd)) / (n - m)
+            row["random_hi"] = 100 * (K - (mu - 1.96 * sd)) / (n - m)
         else:
             row["random_lo"] = row["random_hi"] = 100 * K / n
         row["random_mean"] = 100 * K / n

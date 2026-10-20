@@ -376,7 +376,8 @@ def gene_corr(gd, col="rel_cds", min_people=200):
     w = gd.pivot_table(index="person_id", columns="gene", values=col)
     w = w.loc[:, w.notna().sum() >= min_people]
     r = w.corr(method="spearman")
-    return r.stack().reset_index().rename(columns={"level_0": "gene_a", "level_1": "gene_b", 0: "spearman"})
+    r.index.name, r.columns.name = "gene_a", "gene_b"
+    return r.stack().rename("spearman").reset_index()
 
 
 def metric_corr(call_table, cap=300_000, seed=71):

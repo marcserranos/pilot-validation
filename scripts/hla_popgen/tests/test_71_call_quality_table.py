@@ -116,6 +116,14 @@ class T(unittest.TestCase):
         d = r[r["metric_a"] == r["metric_b"]]["spearman"]
         self.assertTrue(np.allclose(d, 1.0))
 
+    def test_gene_corr_columns(self):
+        rng = np.random.default_rng(1)
+        gd = pd.DataFrame({"person_id": [f"p{i}" for i in range(300)] * 2, "gene": ["A"] * 300 + ["B"] * 300,
+                           "rel_cds": rng.normal(size=600)})
+        r = m.gene_corr(gd, min_people=100)
+        self.assertEqual(list(r.columns), ["gene_a", "gene_b", "spearman"])
+        self.assertEqual(len(r), 4)
+
     def test_priority_ids(self):
         pairs = pd.DataFrame({"i": ["a", "b"], "j": ["c", "d"]})
         self.assertEqual(m.priority_ids(pairs, [("k", "m1", "m2")]), ["a", "b", "c", "d", "k", "m1", "m2"])
