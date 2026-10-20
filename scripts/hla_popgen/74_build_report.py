@@ -128,6 +128,12 @@ class Data:
         self.quant = rd("71", "dist_gene_depth_quantiles.tsv")
         self.exon = rd("71", "dist_exon_depth.tsv")
         self.features = rd("70", "features.tsv")
+        self.strata = rd("71", "stat_complete_strata.tsv")
+        self.strata8 = rd("71", "classical8", "stat_complete_strata.tsv")
+        self.drop_auc = rd("71e", "dropout_auc.tsv")
+        self.drop_auc8 = rd("71e", "classical8", "dropout_auc.tsv")
+        self.drop_rate = rd("71e", "dropout_rate_by_gene.tsv")
+        self.drop_prune8 = rd("71e", "classical8", "dropout_prune.tsv")
 
 
 def a(df, view, metric, col="auc"):
@@ -209,6 +215,63 @@ def best_single_val(auc, view):
     return float(d["auc"].max()) if len(d) else float("nan")
 
 
+ISO = [("template_distance", "Template distance", "from the HIGHEST value down: the calls furthest from any known allele are removed first"),
+       ("cds_distance", "CDS distance", "from the HIGHEST value down; the many calls with 0 are tied and removed last"),
+       ("n_aa_changes", "Amino-acid changes", "from the MOST changes down; the many calls with 0 are tied and removed last"),
+       ("n_tied", "Alleles tied", "from the MOST tied alleles down: the most ambiguous calls first"),
+       ("has_warning", "Template warning", "calls WITH a warning first (binary: one tied group)"),
+       ("mhc_contigs", "MHC contigs (assembly context)", "from the MOST contigs down: the most fragmented assemblies first"),
+       ("diff_contig", "Off partner's contig (assembly context)", "calls whose phasing partner sits on another contig first (binary)"),
+       ("n_called", "Haplotypes called at the gene", "calls from genes with only ONE called haplotype first (binary: incomplete genotype)"),
+       ("rel_cds", "CDS depth", "from the LOWEST depth up: the thinnest calls first"),
+       ("rel_ars", "Peptide-binding exon depth", "from the LOWEST depth up"),
+       ("cds_share_lt10", "Share of CDS bases under 10x", "from the HIGHEST share down"),
+       ("rel_exon_min", "Shallowest exon depth", "from the LOWEST depth up")]
+LOWER = {"rel_cds", "rel_ars", "rel_exon_min", "n_called", "rel_gene", "rel_exons", "cds_p10_rel"}
+
+
+def iso_table(prune, base, key, views=(("trio_child", "Trios: child's call"), ("trio_worst", "Trios: worse of child and parent"),
+                                        ("pair", "Pairs"), ("twin", "Twins"))):
+    rows = []
+    if prune is None:
+        return pd.DataFrame()
+    sign = -1 if key in LOWER else 1
+    for v, vl in views:
+        p = prune[(prune["view"] == v) & (prune["metric"] == key) & (prune["scale"] == "pooled")].set_index("prune_pct")
+        if not len(p):
+            continue
+        K = float(p.loc[0.0, "errors_kept"])
+        n = float(p.loc[0.0, "n_kept"])
+        for x in (1.0, 5.0, 10.0):
+            if x not in p.index:
+                continue
+            r = p.loc[x]
+            rem_n = float(r["n_removed"])
+            rem_e = K - float(r["errors_kept"])
+            rows.append({"truth": vl, "worst removed": f"{x:g}%", "cut (removed if " + ("<=" if sign < 0 else ">=") + ")": f"{sign * float(r['thr_oriented']):.3g}",
+                         "records removed": int(round(rem_n)), "error among removed": f"{100 * rem_e / rem_n:.1f}%" if rem_n else "",
+                         "error among kept": f"{r['error_pct_kept']:.2f}%", "errors removed": f"{r['captured_pct']:.0f}%",
+                         "random: errors removed": f"{x:g}%"})
+    return pd.DataFrame(rows)
+
+
+def strata_text(st, label):
+    if st is None or not len(st):
+        return ""
+    out = []
+    for v, vl in (("trio_worst", "trios"), ("pair", "pairs")):
+        d = st[st["view"] == v].set_index("stratum")
+        comp = [i for i in d.index if i.startswith("complete")]
+        inc = [i for i in d.index if i.startswith("incomplete")]
+        if not comp or not inc:
+            continue
+        c, i = d.loc[comp[0]], d.loc[inc[0]]
+        tot = c["n_errors"] + i["n_errors"]
+        out.append(f"{vl}: {int(i['n_errors'])} of {int(tot)} errors ({100 * i['n_errors'] / tot:.0f}%) are in the {int(i['n_records'])} records where someone has only one call at the gene "
+                   f"(error {i['error_pct']:.1f}%), against {int(c['n_errors'])} in the {int(c['n_records'])} fully called records ({c['error_pct']:.2f}%)")
+    return f"<b>{label}:</b> " + "; ".join(out) + "."
+
+
 def top_single(auc, view, n=3):
     if auc is None:
         return ""
@@ -288,6 +351,7 @@ def build(folder, compare=None, variant=False, pointer=None):
        f"<li><b>Truth sets.</b> Trios: {nrec.get('trio_child', ('?',))[0]} child calls with {nrec.get('trio_child', ('', '?'))[1]} Mendelian mismatches "
        f"({pct(nrec.get('trio_child', (0, 0, np.nan))[2])}). Pairs: {nrec.get('pair', ('?',))[0]} pair-genes, {nrec.get('pair', ('', '?'))[1]} disagreements "
        f"({pct(nrec.get('pair', (0, 0, np.nan))[2])}). Twins: {nrec.get('twin', ('?',))[0]} records (too few to lean on).</li>" + c8 +
+       f"<li><b>The label is mostly dropout, not a wrong allele.</b> {strata_text(D.strata, 'All genes')} {strata_text(D.strata8, 'Classical eight') if D.strata8 is not None else ''} See section 2.6.</li>"
        f"<li><b>Main result (pairs, the best-powered truth).</b> The old score reaches AUC {p_old:.2f}; all measured metrics combined reach {p_all:.2f} "
        f"(classical eight only: {a(D.auc8, 'pair', 'score7'):.2f} vs {a(D.auc8, 'pair', 'model:all'):.2f}).</li>"
        f"<li><b>Trios.</b> {trio_sentence(D, nrec, t_chi, t_all)}</li>"
@@ -408,6 +472,16 @@ def build(folder, compare=None, variant=False, pointer=None):
        "<b>Pruning</b>: records ranked worst to best by the metric; the worst x% removed (0 to 50% in 0.25% steps; ties removed proportionally); error among the rest; the grey band is what removing the same number at "
        "random would give (95%). <b>Models</b>: L2 logistic regressions on the metrics (Immuannot only, depth only, all) with gene indicators, scored out-of-fold by 5-fold cross-validation grouped by person.</p>")
 
+    ap("<h3>2.6 What the error label really measures: incomplete genotypes</h3>")
+    ap('<div class="warn"><b>Most of the error is not a wrong allele.</b> '
+       + strata_text(D.strata, "All genes") + " " + (strata_text(D.strata8, "Classical eight") if D.strata8 is not None else "")
+       + " An incomplete genotype is a person with a call on only one haplotype at the gene: the second allele is missing, so the person looks homozygous and a relative's allele is 'not found'. "
+         "That is a failure to call, not a wrong call, and it is observable for every person (section 7c). The 'wrong allele among fully called genotypes' error is much rarer and has few events, "
+         "so the analyses below separate the two where it matters.</div>")
+    ap(im("fig_complete_strata.png", "Error by genotype completeness"))
+    ap('<p class="read">Typing error / Mendelian mismatch by whether everyone in the record has both haplotypes called at the gene (blue) or someone has one call (red); labels inside the bars are errors / records. '
+       "Note that genes that are truly absent on some haplotypes (DRB3, DRB4, DRB5) are incomplete by biology, not by failure.</p>")
+
     # ------------------------------------------------------------- 3 depth data
     ap("<h2>3. What the depth data look like</h2>")
     ap(im("fig_depth_distributions.png", "Depth distributions"))
@@ -447,6 +521,19 @@ def build(folder, compare=None, variant=False, pointer=None):
         rt = pd.DataFrame(rows).sort_values("AUC pair", ascending=False)
         ap('<div class="tbl-wrap">' + table(rt, fmt={c: (lambda x: "" if (isinstance(x, float) and np.isnan(x)) else f"{x:.3f}")
                                                   for c in rt.columns if c.startswith("AUC") or c.startswith("OR")}) + "</div>")
+
+    ap("<h2>4b. One metric at a time: how it is ordered and what is removed first</h2>")
+    ap('<p class="read">For each metric the figure shows (a, b) the distribution of the metric among the truth records, with the error rate at each value, and dotted lines where the worst 1, 5 and 10% start; '
+       "(c-f) the typing error among the calls kept as the worst records are removed, for each truth set, against removing the same number at random (grey). The ordering is stated in the title and in the table: "
+       "<b>for distance-like metrics the highest values are removed first, for depth-like metrics the lowest.</b> Many calls have the best value (0 distance, 0 changes, 2 haplotypes called), so those are tied and are removed last, "
+       "in proportion; a curve therefore flattens once every call with a worse-than-best value has been removed.</p>")
+    for key, lab, rule in ISO:
+        ap(f"<h3>{esc(lab)}: ranked {esc(rule)}</h3>")
+        ap(im(f"fig_isolated_{key}.png", lab))
+        it = iso_table(D.prune, D.base, key)
+        if len(it):
+            ap('<div class="tbl-wrap">' + table(it) + "</div>")
+
 
     # ------------------------------------------------------------- 5 AUC
     ap("<h2>5. Which metrics carry information</h2>")
@@ -489,6 +576,38 @@ def build(folder, compare=None, variant=False, pointer=None):
                                                   if c not in ("truth", "metric")}) + "</div>")
 
     # ------------------------------------------------------------- 8 contig
+    ap("<h2>7b. Is the combined model blind to the outliers? Tail-aware models</h2>")
+    ap('<p class="read">The hypothesis: a model fitted on the whole cohort is dominated by the bulk of the distribution, so a metric that is only informative in the far tail (a few percent of calls) gets little weight. '
+       "Four alternatives that look at the tail: a logistic model on tail features only (is the call in the worst 10 / 5 / 1% of the cohort for each metric, and by how much above the 90th percentile); a gradient-boosted tree model (which can "
+       "learn thresholds); and two parameter-free rules, the worst within-gene percentile over the depth metrics or over all metrics. All are scored out-of-fold with folds grouped by person.</p>")
+    ap(im("fig_tail_models.png", "Tail-aware models"))
+    if D.auc is not None:
+        rows = []
+        for v, vl in (("trio_child", "Trios, child"), ("trio_worst", "Trios, worse of two"), ("pair", "Pairs"), ("pair_complete", "Pairs, complete genotypes"), ("trio_complete", "Trios, complete genotypes")):
+            for k, kl in (("model:all", "Logistic, bulk"), ("model:tail", "Logistic, tail features"), ("model:gbm", "Gradient boosting"),
+                          ("rule:worst_rank_depth", "Worst percentile, depth"), ("rule:worst_rank_all", "Worst percentile, all"), ("score7", "Old 0-7 score")):
+                r = {"truth": vl, "score": kl, "AUC": a(D.auc, v, k)}
+                if D.prune is not None:
+                    d = D.prune[(D.prune["view"] == v) & (D.prune["metric"] == k) & (D.prune["scale"] == "pooled")].set_index("prune_pct")
+                    for x in (1.0, 2.0, 5.0, 10.0):
+                        r[f"errors removed at {x:g}%"] = float(d.loc[x, "captured_pct"]) if len(d) and x in d.index else np.nan
+                rows.append(r)
+        mt2 = pd.DataFrame(rows)
+        ap('<div class="tbl-wrap">' + table(mt2, fmt={c: (lambda x: "" if (isinstance(x, float) and np.isnan(x)) else f"{x:.2f}") for c in mt2.columns if c not in ("truth", "score")}) + "</div>")
+        ap('<p class="read">Random removal would remove 1, 2, 5 and 10% of the errors at those points. A score is useful where the numbers are clearly above that.</p>')
+
+    ap("<h2>7c. Incomplete genotypes over the whole cohort</h2>")
+    ap('<p class="read">Because the dominant failure is observable in everyone, it can be studied without relatives: the outcome is a person-gene with a call on only one haplotype. '
+       "Per person-gene, each metric is the mean over the person's calls.</p>")
+    ap(im("fig_dropout.png", "Incomplete genotypes, all genes"))
+    if D.drop_auc is not None:
+        top = D.drop_auc[~D.drop_auc["metric"].str.startswith(("model:", "rule:"))].sort_values("auc", ascending=False).head(3)
+        ap('<p class="read">All genes: strongest single metrics for an incomplete genotype (AUC): ' + ", ".join(f"{METRICS[m][0].lower() if m in METRICS else m} {v:.2f}" for m, v in zip(top["metric"], top["auc"]))
+           + ". Left: share of person-genes with one call by gene (DRB3, DRB4, DRB5 and others that are absent on some haplotypes are partly biology). "
+             "Middle: AUC (filled) and within-gene AUC (open) of every metric, model and rule. Right: still-incomplete share among the person-genes kept as the worst are removed.</p>")
+    if D.drop_auc8 is not None and os.path.exists(os.path.join(folder, "classical8", "fig_dropout.png")):
+        ap(im("classical8/fig_dropout.png", "Incomplete genotypes, classical eight"))
+
     ap("<h2>8. Contig co-location against the trio truth</h2>")
     ap(im("fig_contig_truth.png", "Contig co-location versus trio truth"))
     ap('<p class="read">For every pair of MHC genes in the 179 trio children. <b>a</b> the share of child haplotypes where both genes sit on one assembled contig (an assembly property, '

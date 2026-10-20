@@ -49,6 +49,20 @@ def build(d, n_people=600, seed=7):
     ct["person_id"] = ct["person"]
     V = {"trio_child": views(1200), "trio_parent": views(1200), "trio_worst": views(1200), "pair": views(5000), "twin": views(900)}
     s.analyse(V, ct, os.path.join(d, "71"), do_boot=False)
+    # ---- 71e dropout tables (synthetic person-gene outcomes)
+    e = _load("m71e", "71e_dropout_outcome.py")
+    rows = []
+    for i in range(1200):
+        for g in ("A", "B", "C", "DRB1"):
+            lat = rng.normal()
+            two = rng.random() > 1 / (1 + np.exp(-(-2.4 + 1.3 * lat)))
+            for hap in (("1", "2") if two else ("1",)):
+                r = dict(person_id=f"p{i}", hap=hap, gene=g, plat="revio")
+                for k in q.KEYS:
+                    r["o_" + k] = rng.normal()
+                r["o_rel_cds"] = lat + rng.normal(scale=0.4)
+                rows.append(r)
+    e.analyse_dropout(e.person_gene_table(pd.DataFrame(rows)), os.path.join(d, "71e"))
     # ---- 71 distributions
     gd = pd.DataFrame([dict(person_id=f"p{i}", gene=g, **{f: np.clip(rng.normal(0.85, 0.18), 0.05, 1.9) for f in q.DEPTH_FEATURES},
                             abs_gene=rng.normal(17, 4), abs_exons=rng.normal(17, 4), abs_cds=rng.normal(17, 4),

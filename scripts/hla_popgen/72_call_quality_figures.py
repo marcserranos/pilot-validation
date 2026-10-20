@@ -427,6 +427,214 @@ def fig_grid(res, out, name):
         V.save_fig(fig, os.path.join(out, f"fig_grid_{a}__{b}"))
 
 
+# ---------------------------------------------------------------------------
+# Isolated metric figures: how the metric is ordered, what is removed first, what that does to the error
+# ---------------------------------------------------------------------------
+ISOLATED = [  # key, plain statement of the ordering
+    ("template_distance", "ranked from the HIGHEST template distance down: the calls furthest from any known allele are removed first"),
+    ("cds_distance", "ranked from the HIGHEST CDS distance down (most calls have 0 and are removed last, tied)"),
+    ("n_aa_changes", "ranked from the MOST amino-acid changes down (most calls have 0 and are removed last, tied)"),
+    ("n_tied", "ranked from the MOST tied alleles down (calls whose best match is the most ambiguous go first)"),
+    ("has_warning", "calls WITH a template warning are removed first (binary: all warned calls form one tied group)"),
+    ("mhc_contigs", "ranked from the MOST MHC contigs down (the most fragmented assemblies go first)"),
+    ("diff_contig", "calls whose phasing partner is on ANOTHER contig are removed first (binary)"),
+    ("n_called", "calls from a gene with only ONE called haplotype are removed first (binary: 1 call = incomplete genotype)"),
+    ("rel_cds", "ranked from the LOWEST CDS depth up: the thinnest calls are removed first"),
+    ("rel_ars", "ranked from the LOWEST groove-exon depth up"),
+    ("cds_share_lt10", "ranked from the HIGHEST share of CDS bases under 10x down"),
+    ("rel_exon_min", "ranked from the LOWEST shallowest-exon depth up"),
+]
+ISO_VIEWS = [("trio_child", "Trios: child's call"), ("trio_worst", "Trios: worse of child and parent"), ("pair", "First-degree pairs"),
+             ("twin", "Twins / duplicates")]
+VIEW_COL = {"trio_child": "#8491B4", "trio_worst": "#3C5488", "pair": "#E64B35", "twin": "#00A087"}
+
+
+def fig_isolated(res, out, key, rule):
+    hist = load(res, "stat_metric_hist.tsv")
+    pr = load(res, "stat_prune.tsv")
+    base = load(res, "stat_error_baseline.tsv")
+    if hist is None or pr is None or key not in set(hist["metric"]):
+        return
+    lab = METRIC_LABEL.get(key, key)
+    sign = -1 if key in ("rel_gene", "rel_exons", "rel_cds", "rel_ars", "rel_exon_min", "rel_cds_n", "rel_ars_n", "rel_exon_min_n", "cds_p10_rel", "cds_min_rel",
+                         "ars_min_rel", "mapq_frac", "rel_mhc", "n_called", "score7") else 1
+    with style():
+        fig = plt.figure(figsize=(V.mm(183), V.mm(128)))
+        gs = fig.add_gridspec(2, 4, height_ratios=[1.05, 1.0], hspace=0.7, wspace=0.34, left=0.07, right=0.985, top=0.85, bottom=0.17)
+        top = gs[0, :].subgridspec(1, 2, wspace=0.62)
+        fig.suptitle(f"{lab}: {rule}", x=0.01, y=0.995, ha="left", fontsize=6.8)
+        # a, b: distribution among truth records, with the error rate per value, for the primary trio and the pair view
+        for j, (v, vl) in enumerate((("trio_worst", "Trios: worse of child and parent"), ("pair", "First-degree pairs"))):
+            inner = top[0, j].subgridspec(2, 1, hspace=0.18, height_ratios=[1.0, 1.0])
+            ax, ae = fig.add_subplot(inner[0]), fig.add_subplot(inner[1])
+            h = hist[(hist["view"] == v) & (hist["metric"] == key)].sort_values("x")
+            if not len(h):
+                ax.axis("off")
+                ae.axis("off")
+                continue
+            x = h["x"].to_numpy(float)
+            width = np.where(h["x_hi"].to_numpy(float) > h["x_lo"].to_numpy(float), h["x_hi"].to_numpy(float) - h["x_lo"].to_numpy(float), 0.8)
+            ax.bar(x, h["n"], width=width * 0.95, color="#B7C4D8", ec="none")
+            ax.set_yscale("log")
+            ax.minorticks_off()
+            ax.set_ylabel("records (log)")
+            ax.tick_params(labelbottom=False)
+            rt = h["k"] / h["n"]
+            se = np.sqrt(np.clip(rt * (1 - rt), 0, None) / h["n"])
+            ae.errorbar(x, 100 * rt, yerr=100 * 1.96 * se, fmt="o", ms=2.0, lw=0.5, color=VIEW_COL[v], capsize=0.8)
+            ae.set_ylabel("error (%)")
+            ae.set_ylim(bottom=0)
+            ae.set_xlabel(lab)
+            ax.set_xlim(ae.get_xlim())
+            p = pr[(pr["view"] == v) & (pr["metric"] == key) & (pr["scale"] == "pooled")]
+            for pc_ in (10.0, 5.0, 1.0):
+                r = p[p["prune_pct"] == pc_]
+                if len(r):
+                    thr = sign * float(r["thr_oriented"].iloc[0])
+                    for axx in (ax, ae):
+                        axx.axvline(thr, color="0.35", lw=0.5, ls=":")
+            ax.set_title(vl + ": records and error per value\n(dotted: where the worst 1 / 5 / 10% start)", loc="left", fontsize=5.6)
+            V.panel_letter(ax, "ab"[j], dy=1.3)
+        # c-f: pruning curve per view
+        for j, (v, vl) in enumerate(ISO_VIEWS):
+            ax = fig.add_subplot(gs[1, j])
+            p = pr[(pr["view"] == v) & (pr["metric"] == key) & (pr["scale"] == "pooled")].sort_values("prune_pct")
+            if not len(p):
+                ax.axis("off")
+                continue
+            ax.fill_between(p["prune_pct"], p["random_lo"], p["random_hi"], color="0.82", lw=0)
+            ax.plot(p["prune_pct"], p["error_pct_kept"], color=VIEW_COL[v], lw=1.0)
+            ax.set_xlim(0, 30)
+            ax.set_ylim(bottom=0)
+            ax.set_xlabel("worst removed (% records)")
+            if j == 0:
+                ax.set_ylabel("error among kept (%)")
+            nrec_ = base[(base["view"] == v) & (base["gene"] == "ALL")]
+            sub = vl + (f"\n{int(nrec_['n_errors'].iloc[0])} errors / {int(nrec_['n_records'].iloc[0])}" if len(nrec_) else "")
+            ax.set_title(sub, loc="left", fontsize=5.8)
+            V.panel_letter(ax, "cdef"[j], dy=1.2)
+        # thresholds strip
+        p1 = pr[(pr["view"] == "pair") & (pr["metric"] == key) & (pr["scale"] == "pooled")]
+        txt = []
+        for pc_ in (1.0, 5.0, 10.0):
+            r = p1[p1["prune_pct"] == pc_]
+            if len(r):
+                txt.append(f"worst {pc_:g}% of pair records: {METRIC_LABEL.get(key, key)} {'<=' if sign < 0 else '>='} {sign * float(r['thr_oriented'].iloc[0]):.3g}")
+        fig.text(0.01, 0.028, "\n".join(txt) + "\n(grey band: the same number of records removed at random)", fontsize=5.0, ha="left", va="top", linespacing=1.35)
+        V.save_fig(fig, os.path.join(out, f"fig_isolated_{key}"))
+
+
+def fig_complete_strata(res, out):
+    st = load(res, "stat_complete_strata.tsv")
+    if st is None or not len(st):
+        return
+    views = [v for v in ("trio_child", "trio_worst", "pair", "twin") if v in set(st["view"])]
+    with style():
+        fig, ax = plt.subplots(figsize=(V.mm(120), V.mm(70)))
+        w = 0.36
+        for j, (lab_, col) in enumerate((("complete", "#3C5488"), ("incomplete", "#E64B35"))):
+            d = st[st["stratum"].str.startswith(lab_)].set_index("view").reindex(views)
+            x = np.arange(len(views)) + (j - 0.5) * w
+            ax.bar(x, d["error_pct"], width=w * 0.92, color=col, label="everyone fully called" if lab_ == "complete" else "someone has one call at the gene")
+            for xi, (e, n) in zip(x, zip(d["n_errors"], d["n_records"])):
+                ax.text(xi, 0, f"{int(e)}/{int(n)}", fontsize=4.3, ha="center", va="bottom", rotation=90, color="white")
+        ax.set_xticks(np.arange(len(views)))
+        ax.set_xticklabels([dict(ISO_VIEWS)[v].replace(": ", ":\n") for v in views])
+        ax.set_ylabel("typing error / mismatch (%)")
+        ax.legend(**V.LEGEND_KW)
+        fig.tight_layout()
+        V.save_fig(fig, os.path.join(out, "fig_complete_strata"))
+
+
+def fig_tail_models(res, out):
+    a = load(res, "stat_auc.tsv")
+    pr = load(res, "stat_prune.tsv")
+    if a is None or pr is None:
+        return
+    cands = [("model:all", "Logistic, all metrics (bulk)"), ("model:tail", "Logistic on tail features"), ("model:gbm", "Gradient boosting"),
+             ("rule:worst_rank_depth", "Worst percentile, depth metrics"), ("rule:worst_rank_all", "Worst percentile, all metrics"), ("score7", "Old 0-7 score")]
+    views = [v for v in ("trio_child", "trio_worst", "pair", "twin", "trio_complete", "pair_complete") if v in set(a["view"])]
+    with style():
+        fig, axes = plt.subplots(1, 2, figsize=(V.mm(183), V.mm(80)), gridspec_kw=dict(width_ratios=[1, 1.3]))
+        ax = axes[0]
+        for j, (k, lab_) in enumerate(cands):
+            for i, v in enumerate(views):
+                r = a[(a["view"] == v) & (a["metric"] == k)]
+                if len(r):
+                    ax.scatter(r["auc"].iloc[0], j + (i - (len(views) - 1) / 2) * 0.1, s=8, color=plt.cm.tab10(i), edgecolors="none",
+                               label=ISO_LABEL.get(v, v) if j == 0 else None)
+        ax.set_yticks(range(len(cands)))
+        ax.set_yticklabels([c[1] for c in cands])
+        ax.invert_yaxis()
+        ax.axvline(0.5, color="0.5", lw=0.4, ls="--")
+        ax.set_xlabel("AUC for the error label")
+        ax.legend(loc="lower right", **V.LEGEND_KW)
+        ax = axes[1]
+        for k, lab_ in cands:
+            for i, v in enumerate(views):
+                d = pr[(pr["view"] == v) & (pr["metric"] == k) & (pr["scale"] == "pooled")].sort_values("prune_pct")
+                d = d[d["prune_pct"] <= 10]
+                if len(d):
+                    ax.plot(d["prune_pct"], d["captured_pct"], color=plt.cm.tab10(i), lw=0.6, ls={"model:all": "-", "model:tail": "--", "model:gbm": ":",
+                            "rule:worst_rank_depth": "-.", "rule:worst_rank_all": (0, (1, 2)), "score7": (0, (3, 1, 1, 1))}.get(k, "-"))
+        ax.plot([0, 10], [0, 10], color="0.6", lw=0.4)
+        ax.set_xlabel("worst records removed (%)")
+        ax.set_ylabel("share of all errors removed (%)")
+        fig.tight_layout()
+        V.save_fig(fig, os.path.join(out, "fig_tail_models"))
+
+
+ISO_LABEL = dict(ISO_VIEWS, trio_complete="Trios, complete genotypes", pair_complete="Pairs, complete genotypes")
+
+
+def fig_dropout(res, out):
+    d = os.path.join(res, "71e") if os.path.isdir(os.path.join(res, "71e")) else res
+    sub = "classical8" if SCOPE else ""
+    p_auc = os.path.join(d, sub, "dropout_auc.tsv")
+    if not os.path.exists(p_auc):
+        return
+    auc = pd.read_csv(p_auc, sep="\t")
+    prn = pd.read_csv(os.path.join(d, sub, "dropout_prune.tsv"), sep="\t")
+    rate = pd.read_csv(os.path.join(d, sub, "dropout_rate_by_gene.tsv"), sep="\t")
+    with style():
+        fig = plt.figure(figsize=(V.mm(183), V.mm(95)))
+        gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 1.3, 1.1], wspace=0.55, left=0.07, right=0.985, top=0.93, bottom=0.14)
+        ax = fig.add_subplot(gs[0])
+        r = rate[rate["gene"] != "ALL"].sort_values("incomplete_pct")
+        ax.barh(range(len(r)), r["incomplete_pct"], color="#3C5488", height=0.7)
+        ax.set_yticks(range(len(r)))
+        ax.set_yticklabels(r["gene"])
+        ax.set_xlabel("person-genes with ONE call (%)")
+        V.panel_letter(ax, "a")
+        ax = fig.add_subplot(gs[1])
+        a = auc.sort_values("auc")
+        a = a[a["n"] > 0]
+        cols = [FAM_COLOR.get(f, "0.4") for f in a["family"]]
+        ax.scatter(a["auc"], range(len(a)), c=cols, s=9, zorder=3)
+        ax.scatter(a["auc_within_gene"], range(len(a)), facecolors="none", edgecolors=cols, s=9, zorder=3)
+        ax.set_yticks(range(len(a)))
+        ax.set_yticklabels([METRIC_LABEL.get(m, m) for m in a["metric"]], fontsize=4.3)
+        ax.axvline(0.5, color="0.5", lw=0.4, ls="--")
+        ax.set_xlabel("AUC for an incomplete genotype (filled) and within gene (open)")
+        V.panel_letter(ax, "b")
+        ax = fig.add_subplot(gs[2])
+        for m_, col in (("cds_share_lt10", "#3C5488"), ("rel_cds", "#4DBBD5"), ("template_distance", "#E64B35"), ("mhc_contigs", "#00A087"),
+                        ("model:all", "#1B1919"), ("model:tail", "#7E6148"), ("rule:worst_rank_depth", "#8491B4")):
+            dd = prn[prn["metric"] == m_].sort_values("prune_pct")
+            dd = dd[dd["prune_pct"] <= 30]
+            if len(dd):
+                ax.plot(dd["prune_pct"], dd["error_pct_kept"], lw=0.8, color=col, label=METRIC_LABEL.get(m_, m_))
+        first = prn[prn["metric"] == prn["metric"].iloc[0]].sort_values("prune_pct")
+        first = first[first["prune_pct"] <= 30]
+        ax.fill_between(first["prune_pct"], first["random_lo"], first["random_hi"], color="0.85", lw=0)
+        ax.set_xlabel("worst person-genes removed (%)")
+        ax.set_ylabel("still incomplete among the rest (%)")
+        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=4.6, **V.LEGEND_KW)
+        V.panel_letter(ax, "c")
+        V.save_fig(fig, os.path.join(out, "fig_dropout"))
+
+
 GENE_ORDER = ["A", "C", "B", "MICA", "C4A", "DRA", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1", "TAP1"]
 
 
@@ -499,6 +707,10 @@ def main(argv=None):
                                                                          if os.path.isdir(os.path.join(a.results, "71")) else os.listdir(a.results))
                           if n.startswith("stat_grid_")],
         "contig_truth": lambda: fig_contig_truth(a.results, a.out),
+        "isolated": lambda: [fig_isolated(a.results, a.out, k, r) for k, r in ISOLATED],
+        "complete_strata": lambda: fig_complete_strata(a.results, a.out),
+        "tail_models": lambda: fig_tail_models(a.results, a.out),
+        "dropout": lambda: fig_dropout(a.results, a.out),
     }
     want = a.only.split(",") if a.only else list(jobs)
     for k in want:

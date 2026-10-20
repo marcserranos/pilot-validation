@@ -30,7 +30,8 @@ class T(unittest.TestCase):
         names = os.listdir(self.out)
         for stem in ("fig_depth_distributions", "fig_gene_depth_profile", "fig_exon_depth", "fig_error_curves_pair",
                      "fig_error_curves_trio_child", "fig_auc", "fig_metric_correlation", "fig_pruning",
-                     "fig_grid_rel_cds__template_distance", "fig_contig_truth"):
+                     "fig_grid_rel_cds__template_distance", "fig_contig_truth", "fig_isolated_template_distance", "fig_isolated_has_warning",
+                     "fig_isolated_rel_cds", "fig_tail_models", "fig_dropout", "fig_complete_strata"):
             self.assertIn(stem + ".png", names, stem)
             self.assertIn(stem + ".pdf", names, stem)
 
