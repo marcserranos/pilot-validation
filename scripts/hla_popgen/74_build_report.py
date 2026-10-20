@@ -193,6 +193,22 @@ code{background:var(--soft);padding:0 3px;border-radius:3px}
 
 
 
+def trio_sentence(D, nrec, t_chi, t_all):
+    ne = nrec.get("trio_child", (0, 0, 0))[1]
+    s = (f"On the trio truth ({ne} Mendelian mismatches) the combined model scores AUC {t_chi:.2f} on the child's own call and {t_all:.2f} on the worse of child and parent; "
+         f"the old score {a(D.auc, 'trio_worst', 'score7'):.2f}, the best single metric {best_single_val(D.auc, 'trio_worst'):.2f}. ")
+    if t_all >= 0.65:
+        s += "A Mendelian mismatch is rarely attributable to one person's call: neither person alone carries the signal."
+    else:
+        s += "With so few errors the intervals are wide, but no per-call metric here predicts which child calls disagree with the transmitting parent."
+    return s
+
+
+def best_single_val(auc, view):
+    d = auc[(auc["view"] == view) & ~auc["metric"].str.startswith("model:") & (auc["metric"] != "score7")]
+    return float(d["auc"].max()) if len(d) else float("nan")
+
+
 def top_single(auc, view, n=3):
     if auc is None:
         return ""
@@ -224,7 +240,7 @@ def prune_sentence(prune):
     return "Removing the worst 10% of records by the combined model: " + "; ".join(out) + ". Section 7 compares every single metric and a random removal."
 
 
-def build(folder, compare=None, variant=False):
+def build(folder, compare=None, variant=False, pointer=None):
     D = Data(folder)
     C0 = Data(compare) if compare else None
     H = []
@@ -249,6 +265,8 @@ def build(folder, compare=None, variant=False):
 
     ap("<h1>Per-call quality metrics for HLA typing: depth over the exons, Immuannot's own numbers, and how well they predict typing error"
        + (" <span class=\"sub\">(version B: named alleles only)</span>" if variant else "") + "</h1>")
+    if pointer:
+        ap('<div class="warn"><b>Important correction.</b> ' + pointer + "</div>")
     ap('<p class="sub">Sprint S06, 2026-10-20 / 21. Long-read HLA calls in All of Us. Figures at full resolution; values are fine-grained aggregates (small-cell '
        'masking deferred, so this file is for internal reading only).</p>')
 
@@ -272,15 +290,14 @@ def build(folder, compare=None, variant=False):
        f"({pct(nrec.get('pair', (0, 0, np.nan))[2])}). Twins: {nrec.get('twin', ('?',))[0]} records (too few to lean on).</li>" + c8 +
        f"<li><b>Main result (pairs, the best-powered truth).</b> The old score reaches AUC {p_old:.2f}; all measured metrics combined reach {p_all:.2f} "
        f"(classical eight only: {a(D.auc8, 'pair', 'score7'):.2f} vs {a(D.auc8, 'pair', 'model:all'):.2f}).</li>"
-       f"<li><b>Trios are harder.</b> The child's own call alone gives AUC {t_chi:.2f} (combined model); the worse of child and parent {t_all:.2f}. A Mendelian mismatch is rarely attributable to one person's call. "
-       f"On trios the combined model is only on par with the old score (all genes {t_all:.2f} vs {a(D.auc, 'trio_worst', 'score7'):.2f}; classical eight {a(D.auc8, 'trio_worst', 'model:all'):.2f} vs "
-       f"{a(D.auc8, 'trio_worst', 'score7'):.2f}); Immuannot's CDS distance alone gets {a(D.auc, 'trio_worst', 'cds_distance'):.2f}.</li>"
+       f"<li><b>Trios.</b> {trio_sentence(D, nrec, t_chi, t_all)}</li>"
        f"<li><b>What predicts error.</b> {top_single(D.auc, 'pair')} {aa_sentence(D.auc)} "
        "The exon- and gene-normalised depth metrics are in the tables "
        f"(CDS depth {a(D.auc, 'pair', 'rel_cds'):.2f} raw vs {a(D.auc, 'pair', 'rel_cds_n'):.2f} normalised; groove {a(D.auc, 'pair', 'rel_ars'):.2f} vs {a(D.auc, 'pair', 'rel_ars_n'):.2f}).</li>"
        f"<li><b>Pruning.</b> {prune_sentence(D.prune)}</li>"
-       "<li><b>Caveats that matter.</b> Depth is measured on the GRCh38 reference, so it is reference-biased where alleles are divergent (DRB1 exon 2); the non-classical genes "
-       "(DRB3, MICA) err far more than the classical eight, so everything is also shown for the classical eight alone; the twin set is tiny; pair errors include recombination.</li>"
+       "<li><b>Caveats that matter.</b> Depth is measured on the GRCh38 reference, so it is reference-biased where alleles are divergent (DRB1 exon 2); "
+       f"the pair error is {pct(nrec.get('pair', (0, 0, np.nan))[2])} over all genes and {pct(nrec8.get('pair', (0, 0, np.nan))[2])} over the classical eight, so everything is also shown for the classical eight alone; "
+       "the twin set is tiny; pair errors include recombination.</li>"
        "</ul></div>")
 
     if variant:
@@ -372,7 +389,7 @@ def build(folder, compare=None, variant=False):
     ap('<p class="read"><b>Why they give different error rates.</b> The trio test is direct and per haplotype: yak says which parent a haplotype came from, and its allele must be among that parent\'s two alleles. '
        "The pair test is symmetric and lenient: two relatives that share any allele at the gene pass, so a wrong allele in a heterozygote is hidden whenever the other allele matches. It only flags a gene when the pair shares nothing. "
        "It also counts a recombination as an error, and includes siblings (who are only expected to share an allele when they inherited a haplotype in common; pairs that share nothing across the MHC are removed by the filter). "
-       "So the trio error (5.1%) is higher than the pair error (3.9%) even though the same families are involved, the pair set has about twice the records, and pair errors are partly not typing errors. "
+       f"The error rates are {pct(nrec.get('trio_child', (0, 0, np.nan))[2])} for trios and {pct(nrec.get('pair', (0, 0, np.nan))[2])} for pairs, from the same families; the pair set has about twice the records, and pair errors are partly not typing errors. "
        "That is why both are shown: trios as the cleaner label, pairs for power.</p>")
 
     ap("<h3>2.4 The metrics</h3>")
@@ -413,7 +430,7 @@ def build(folder, compare=None, variant=False):
                    ("trio_worst", "Trios, worse of child and parent (primary trio view)"), ("trio_child", "Trios, the child's own call (strict)")):
         ap(f"<h3>{esc(lab)}</h3>")
         ap(im(f"fig_error_curves_{v}.png", lab))
-    ap('<p class="read">Twins/duplicates (72 records, about 10 errors) are drawn in <code>fig_error_curves_twin</code> but are too few to read curves from.</p>')
+    ap(f'<p class="read">Twins/duplicates ({nrec.get("twin", (0, 0))[0]} records, {nrec.get("twin", (0, 0))[1]} errors) are drawn in <code>fig_error_curves_twin</code> but are too few to read curves from.</p>')
 
     # metric-by-metric reading table from the auc table
     if D.auc is not None:
@@ -435,7 +452,7 @@ def build(folder, compare=None, variant=False):
     ap("<h2>5. Which metrics carry information</h2>")
     ap(im("fig_auc.png", "AUC per metric"))
     ap('<p class="read">Left: AUC with 95% interval (resampling people) for every metric and truth set, sorted by the pair truth set; colour = family of metric, marker = truth set. '
-       "Right: AUC within gene. The black rows are the multi-metric models (out-of-fold). Intervals are wide for trios (about 180 errors) and very wide for twins (about 10).</p>")
+       f"Right: AUC within gene. The black rows are the multi-metric models (out-of-fold). Intervals are wide for trios ({nrec.get('trio_child', (0, 0))[1]} errors) and very wide for twins ({nrec.get('twin', (0, 0))[1]}).</p>")
 
     ap("<h2>6. How the metrics relate to each other</h2>")
     ap(im("fig_metric_correlation.png", "Metric correlation"))
@@ -544,7 +561,7 @@ def build(folder, compare=None, variant=False):
 
     ap("<h2>11. Limits of these results</h2>")
     ap("<ul>"
-       "<li><b>Counts.</b> About 180 trio errors, 270 pair errors, 10 twin errors. Intervals are wide for trios and twins; read single-metric differences below about 0.05 AUC as ties.</li>"
+       f"<li><b>Counts.</b> {nrec.get('trio_child', (0, 0))[1]} trio errors, {nrec.get('pair', (0, 0))[1]} pair errors, {nrec.get('twin', (0, 0))[1]} twin errors. Intervals are wide for trios and twins; read single-metric differences below about 0.05 AUC as ties.</li>"
        "<li><b>Attribution.</b> A Mendelian mismatch is not necessarily the child's error; the strict child view and the worse-of-two view bracket it.</li>"
        "<li><b>Pair errors include recombination</b> and are limited to pairs that share their MHC; the 'worse of two' metric rewards any metric that flags either person.</li>"
        "<li><b>Reference bias.</b> Depth is on GRCh38. It is lower where the sample's allele diverges from the reference (DRB1 exon 2), and it is not measurable for DRB3/DRB4 (absent from the primary assembly). Exon-normalised metrics reduce but do not remove this.</li>"
@@ -572,10 +589,11 @@ def main(argv=None):
     ap.add_argument("--folder", required=True)
     ap.add_argument("--out", default=None)
     ap.add_argument("--compare", default=None, help="folder of the first analysis, for the before/after table (version B)")
+    ap.add_argument("--pointer", default=None, help="a correction note shown at the top (first-analysis report)")
     ap.add_argument("--variant-named", action="store_true", help="version B: error labels from named (collapsed two-field) alleles only")
     a_ = ap.parse_args(argv)
     out = a_.out or os.path.join(a_.folder, "S06_CALL_QUALITY_REPORT.html")
-    h = build(a_.folder, compare=a_.compare, variant=a_.variant_named)
+    h = build(a_.folder, compare=a_.compare, variant=a_.variant_named, pointer=a_.pointer)
     with open(out, "w") as f:
         f.write(h)
     print(f"wrote {out} ({len(h) / 1e6:.1f} MB)")
