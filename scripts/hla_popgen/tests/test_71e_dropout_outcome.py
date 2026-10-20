@@ -44,6 +44,23 @@ class T(unittest.TestCase):
         self.assertEqual(int(pg["incomplete"].sum()), int((pg["n_called"] < 2).sum()))
         self.assertTrue(set(pg["n_called"]) <= {1, 2})
 
+    def test_no_leakage_from_discrete_metrics(self):
+        # a binary per-call metric that is pure noise must not predict the call count, for a logistic or a tree model, once one call is sampled
+        rng = np.random.default_rng(5)
+        rows = []
+        for i in range(3000):
+            for hap in (("1", "2") if rng.random() < 0.8 else ("1",)):
+                r = dict(person_id=f"p{i}", hap=hap, gene="A", plat="revio")
+                for k in Q.KEYS:
+                    r["o_" + k] = float(rng.random() < 0.3) if k in ("has_warning", "is_novel", "diff_contig") else rng.normal()
+                rows.append(r)
+        pg = m.person_gene_table(pd.DataFrame(rows))
+        y = pg["incomplete"].to_numpy()
+        for k in ("has_warning", "is_novel", "diff_contig"):
+            self.assertLess(abs(m.S.auc_score(pg["o_" + k], y) - 0.5), 0.05)
+        X = np.column_stack([pg["o_" + k] for k in m.S.ALL_KEYS if k != "n_called" and ("o_" + k) in pg])
+        self.assertLess(abs(m.S.auc_score(m.S.gbm_oof(X, y, pg["person"]), y) - 0.5), 0.07)
+
     def test_depth_predicts_incompleteness_and_outputs_written(self):
         pg = m.person_gene_table(calls())
         d = tempfile.mkdtemp()

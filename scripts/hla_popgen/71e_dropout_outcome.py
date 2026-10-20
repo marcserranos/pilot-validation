@@ -7,7 +7,7 @@ relative's allele is "not found"). In the classical eight, 59 of 67 pair errors 
 and 1% error when everyone is fully called. That is observable for every call, not only for relatives, so it can be studied on the whole cohort:
 
     outcome   incomplete = the person has a call on only one haplotype at that gene (n_called < 2)
-    unit      one row per person x gene (metrics = the mean of the person's calls at the gene)
+    unit      one row per person x gene (metrics of one randomly chosen call of the person at the gene, so the metric cannot reveal how many calls there are)
     outputs   dropout_auc.tsv    AUC of every metric (and models / rules) for predicting incompleteness; within-gene AUC
               dropout_prune.tsv  remove the worst x% of person-genes by the metric: share still incomplete among the rest, share of all
                                  incomplete genotypes removed (0.25% steps), plus the random band
@@ -53,17 +53,18 @@ def log(m):
     C.log("[71e] " + m)
 
 
-def person_gene_table(ct):
-    """Call table -> one row per person x gene: incomplete flag and the MEAN over the person's calls of every oriented metric (a max over two calls
-    would be larger than a single call by construction, which would make complete genotypes look worse than incomplete ones)."""
+def person_gene_table(ct, seed=71):
+    """Call table -> one row per person x gene: incomplete flag, and the metrics of ONE randomly chosen call of the person at the gene.
+    A mean or a max over the person's calls would leak the outcome: for binary or discrete metrics a mean of two calls takes values (0.5, 1.5 ...)
+    that a single call never has, so a model could read the number of calls straight off the feature; a max is larger than a single value by
+    construction. One random call has the same distribution whether the person has one call or two."""
     ocols = ["o_" + k for k in Q.KEYS if k != "n_called"]
-    g = ct.groupby(["person_id", "gene"])
-    out = g[ocols].mean()
-    out["n_called"] = g["hap"].nunique()
-    out["plat"] = g["plat"].first()
-    out = out.reset_index().rename(columns={"person_id": "person"})
+    n_called = ct.groupby(["person_id", "gene"])["hap"].nunique().rename("n_called")
+    pick = ct.sample(frac=1.0, random_state=seed).drop_duplicates(["person_id", "gene"])
+    out = pick[["person_id", "gene", "plat"] + ocols].merge(n_called.reset_index(), on=["person_id", "gene"])
+    out = out.rename(columns={"person_id": "person"})
     out["incomplete"] = (out["n_called"] < 2).astype(int)
-    return out
+    return out.reset_index(drop=True)
 
 
 def analyse_dropout(pg, out_dir, scope="all"):
