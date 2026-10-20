@@ -28,7 +28,9 @@ tail -2 ~/s06/logs/70.log
 # 4. population depth profile along each gene (300 random people, ~10 min; separate invocation)
 $PY scripts/hla_popgen/70_call_exon_depth.py --out-dir ~/s06/results/70 --profile 300 --workers 8
 
-# 5. E7: the extra genes for the trio-truth contig matrix (reruns yak per child; run after 3 or while it runs if CPUs allow)
+# 5. OPTIONAL, only to add DRA and C4A to the trio-truth contig matrix (E7). 71c already works on the genes 57b measured
+#    (A, B, C, DRB1, DQA1, DQB1, DPA1, DPB1, MICA, TAP1, TAP2, ...) from the existing per-call origin table; this reruns yak
+#    for those two genes only (57b --all-trios took ~1 h, 20:33-21:35 on 2026-10-06). Do not run unless Marc wants them.
 setsid nohup $PY -u scripts/hla_popgen/57b_trio_gene_origin.py --all-trios --extra-genes DRA,C4A --workers 3 \
     > ~/s06/logs/57b_extra.log 2>&1 < /dev/null & disown
 

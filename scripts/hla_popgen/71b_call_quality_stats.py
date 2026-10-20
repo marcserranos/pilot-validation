@@ -5,6 +5,11 @@ Reads 71's INTERNAL tables (call_table, records_trio / pair / twin) and writes A
 (rolling windows, 0.25% pruning steps, 2.5-percentile grids), from which 72 draws the figures. Nothing person-level
 leaves the Workbench: every row here is a bin, a window or a summary.
 
+Error label for the trios = the Mendelian mismatch only: the parent that yak says transmitted the child's haplotype does not
+carry the child's 2-field allele. Whose metrics to attribute it to is a modelling choice, so three views are kept: the
+child's own call (`trio_child`, primary), the transmitting parent's call (`trio_parent`, if parent metrics predict the mismatch
+as well as the child's, attribution is ambiguous) and the worse of the two (`trio_worst`).
+
 Views of a truth set. Each record has the oriented metrics of the child (`c_`), the other person (`p_`: transmitting
 parent, or the relative) and the worse of the two (`w_`; higher = worse). Trio records are analysed on the child's own call
 (`trio_child`, the call being judged) and on the worse of child and parent (`trio_worst`, because a Mendelian mismatch can
@@ -59,7 +64,7 @@ KEYS, SIGN, FAMILY = Q.KEYS, Q.SIGN, Q.FAMILY
 INT = os.path.expanduser("~/s06/internal/71/")
 OUT = os.path.expanduser("~/s06/results/71/")
 PRUNE_GRID = np.round(np.arange(0, 50.0001, 0.25), 2)
-VIEWS = [("trio_child", "trio", "c"), ("trio_worst", "trio", "w"), ("pair", "pair", "w"), ("twin", "twin", "w")]
+VIEWS = [("trio_child", "trio", "c"), ("trio_parent", "trio", "p"), ("trio_worst", "trio", "w"), ("pair", "pair", "w"), ("twin", "twin", "w")]
 MODEL_SETS = {
     "model:immuannot": [k for k in KEYS if Q.FAMILY[k] == "immuannot"],
     "model:depth": [k for k in KEYS if Q.FAMILY[k] == "depth"],

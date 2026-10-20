@@ -26,6 +26,21 @@ Scope is exactly this. Aleix's repertoire work, KIR and everything else are out 
    (typing error or recombination). Pair metric = the worse of the two calls.
 3. **Twin / duplicate pairs (56)** — tertiary, cleanest: discordant genotype between two samples of one person.
 
+**Error label (Marc, 10-20):** only the Mendelian mismatch — the parent yak says transmitted the child's haplotype does not carry
+the child's 2-field allele. Metrics attributed to the child's call (primary), the parent's call, or the worse of both (all
+three analysed). No yak rerun is needed: 57b's per-call origin table (179 trios, ~1 h on 2026-10-06) is read as is.
+
+## What counts as CDS (ground truth for the exon depth; goes in the report)
+- Annotation: GENCODE v46 basic, GRCh38 (`~/ref/gencode.v46.basic.annotation.gtf.gz`). CDS = its `CDS` rows of protein-coding
+  transcripts of the gene (union across transcripts for "cds" and "exons"; the MANE Select, else Ensembl-canonical, else longest-CDS
+  transcript for per-exon and ARS definitions). UTR and introns are not CDS. Pure-UTR exons are not measured as exons.
+- Why this and not another: it is the public reference annotation of the same coordinates the reads are aligned to. Immuannot
+  itself uses IPD-IMGT/HLA 3.55.0 allele annotation (`alleles.csv.gz`, `exon=`/`CDS=` per allele) projected onto each contig;
+  that is what defines the exons of a CALL, but it lives in contig coordinates, not GRCh38.
+- Cross-check to run on the VM and report: per gene, GENCODE CDS length and exon count vs the IPD CDS length (`CDSseq/<gene>.fa.gz`
+  headers) for the allele the hg38 reference carries; flag any gene where they differ by more than a few bp.
+- ARS exons (class I exons 2–3, class II exon 2) follow the standard domain-exon map; they are a convention, stated in the report.
+
 ## Metrics per call (grain: person × hap × gene)
 - Immuannot: `template_distance`, `template_distance_per_kb`, `cds_distance`, `n_aa_changes`, `template_warning`,
   `n_tied` (alleles tied for best CDS match), novelty depth, copy index.
