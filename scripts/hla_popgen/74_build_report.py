@@ -192,8 +192,41 @@ code{background:var(--soft);padding:0 3px;border-radius:3px}
 """
 
 
-def build(folder):
+
+def top_single(auc, view, n=3):
+    if auc is None:
+        return ""
+    d = auc[(auc["view"] == view) & ~auc["metric"].str.startswith("model:") & (auc["metric"] != "score7")].sort_values("auc", ascending=False).head(n)
+    names = [f"{METRICS[m][0].lower()} {v:.2f}" for m, v in zip(d["metric"], d["auc"]) if m in METRICS]
+    return "Strongest single metrics on the pair truth (AUC): " + ", ".join(names) + "."
+
+
+def aa_sentence(auc):
+    v = a(auc, "pair", "n_aa_changes")
+    if np.isnan(v):
+        return ""
+    if v >= 0.70:
+        return f"The number of amino-acid changes against the closest allele is informative (AUC {v:.2f})."
+    return f"The number of amino-acid changes against the closest allele carries little information here (AUC {v:.2f})."
+
+
+def prune_sentence(prune):
+    if prune is None:
+        return ""
+    out = []
+    for v, lab in (("pair", "pairs"), ("trio_worst", "trios (worse of two)")):
+        d = prune[(prune["view"] == v) & (prune["scale"] == "pooled")]
+        m = d[d["metric"] == "model:all"].set_index("prune_pct")
+        if not len(m):
+            continue
+        out.append(f"{lab}: error {m.loc[0.0, 'error_pct_kept']:.1f}% to {m.loc[10.0, 'error_pct_kept']:.1f}% after removing the worst 10% by the combined model "
+                   f"(catches {m.loc[10.0, 'captured_pct']:.0f}% of the errors)")
+    return "Removing the worst 10% of records by the combined model: " + "; ".join(out) + ". Section 7 compares every single metric and a random removal."
+
+
+def build(folder, compare=None, variant=False):
     D = Data(folder)
+    C0 = Data(compare) if compare else None
     H = []
     ap = H.append
     im = lambda n, alt: img_tag(os.path.join(folder, n), alt)  # noqa: E731
@@ -214,7 +247,8 @@ def build(folder):
             if len(r):
                 nrec8[v] = (int(r["n_records"].iloc[0]), int(r["n_errors"].iloc[0]), float(r["error_pct"].iloc[0]))
 
-    ap("<h1>Per-call quality metrics for HLA typing: depth over the exons, Immuannot's own numbers, and how well they predict typing error</h1>")
+    ap("<h1>Per-call quality metrics for HLA typing: depth over the exons, Immuannot's own numbers, and how well they predict typing error"
+       + (" <span class=\"sub\">(version B: named alleles only)</span>" if variant else "") + "</h1>")
     ap('<p class="sub">Sprint S06, 2026-10-20 / 21. Long-read HLA calls in All of Us. Figures at full resolution; values are fine-grained aggregates (small-cell '
        'masking deferred, so this file is for internal reading only).</p>')
 
@@ -241,15 +275,41 @@ def build(folder):
        f"<li><b>Trios are harder.</b> The child's own call alone gives AUC {t_chi:.2f} (combined model); the worse of child and parent {t_all:.2f}. A Mendelian mismatch is rarely attributable to one person's call. "
        f"On trios the combined model is only on par with the old score (all genes {t_all:.2f} vs {a(D.auc, 'trio_worst', 'score7'):.2f}; classical eight {a(D.auc8, 'trio_worst', 'model:all'):.2f} vs "
        f"{a(D.auc8, 'trio_worst', 'score7'):.2f}); Immuannot's CDS distance alone gets {a(D.auc, 'trio_worst', 'cds_distance'):.2f}.</li>"
-       f"<li><b>What predicts error.</b> Immuannot's distances and the share of CDS bases under 10x are the strongest single metrics (pairs: share under 10x {a(D.auc, 'pair', 'cds_share_lt10'):.2f}, template distance "
-       f"{a(D.auc, 'pair', 'template_distance'):.2f}, CDS depth {a(D.auc, 'pair', 'rel_cds'):.2f}, gene depth {a(D.auc, 'pair', 'rel_gene'):.2f}); the number of amino-acid changes separates almost error-free calls "
-       "(zero changes) from error-prone ones. The exon- and gene-normalised depth metrics did not beat the raw ones "
-       f"(CDS depth {a(D.auc, 'pair', 'rel_cds'):.2f} raw vs {a(D.auc, 'pair', 'rel_cds_n'):.2f} normalised; groove {a(D.auc, 'pair', 'rel_ars'):.2f} vs {a(D.auc, 'pair', 'rel_ars_n'):.2f}), so the raw versions are the ones to keep.</li>"
-       "<li><b>Pruning.</b> Removing a few percent of the worst calls removes a large share of the errors (numbers in section 7), clearly better than removing the same number at random. On pairs the combined model beats every single "
-       "metric; on trios it is modestly better than the best single metrics.</li>"
+       f"<li><b>What predicts error.</b> {top_single(D.auc, 'pair')} {aa_sentence(D.auc)} "
+       "The exon- and gene-normalised depth metrics are in the tables "
+       f"(CDS depth {a(D.auc, 'pair', 'rel_cds'):.2f} raw vs {a(D.auc, 'pair', 'rel_cds_n'):.2f} normalised; groove {a(D.auc, 'pair', 'rel_ars'):.2f} vs {a(D.auc, 'pair', 'rel_ars_n'):.2f}).</li>"
+       f"<li><b>Pruning.</b> {prune_sentence(D.prune)}</li>"
        "<li><b>Caveats that matter.</b> Depth is measured on the GRCh38 reference, so it is reference-biased where alleles are divergent (DRB1 exon 2); the non-classical genes "
        "(DRB3, MICA) err far more than the classical eight, so everything is also shown for the classical eight alone; the twin set is tiny; pair errors include recombination.</li>"
        "</ul></div>")
+
+    if variant:
+        ap("<h2>What this version changes</h2>")
+        ap('<div class="warn"><b>Definition of a typing error in this version.</b> Only calls that have a collapsed two-field allele name are used to define errors. '
+           "A call that is novel in field 1 or 2 (written <code>A*01:new</code>: a protein-altering difference from every named allele) has no two-field name to compare "
+           "with a parent or relative, so in the first analysis it was counted as a mismatch by construction. Here a record is dropped when the child's call, any call of the parent, or any call of a relative at that gene is "
+           "of that kind. The metrics themselves are unchanged and still computed for every call (including <code>is_novel</code> and the amino-acid changes); what changes is which records define the error. "
+           "The first analysis is left untouched and is a parallel report.</div>")
+        ne = D.rd("71", "named_effect.tsv")
+        if ne is not None:
+            o2 = dict(zip(ne["quantity"], ne["value"]))
+            ap('<p class="read">Why it matters: ' f"{int(o2['calls_unnamed'])} of {int(o2['calls_total'])} calls ({100 * o2['calls_unnamed'] / o2['calls_total']:.1f}%) carry a novel allele in field 1 or 2. "
+               f"They touch only {int(o2['trio_any_unnamed_records'])} of {int(o2['trio_records'])} trio records ({100 * o2['trio_any_unnamed_records'] / o2['trio_records']:.0f}%) but {int(o2['trio_any_unnamed_errors'])} of the "
+               f"{int(o2['trio_errors'])} trio errors ({100 * o2['trio_any_unnamed_errors'] / o2['trio_errors']:.0f}%); in pairs {int(o2['pair_any_unnamed_records'])} of {int(o2['pair_records'])} records and "
+               f"{int(o2['pair_any_unnamed_errors'])} of {int(o2['pair_errors'])} errors ({100 * o2['pair_any_unnamed_errors'] / o2['pair_errors']:.0f}%). "
+               f"With named alleles only the trio error is {100 * o2['trio_named_errors'] / o2['trio_named_records']:.2f}% ({int(o2['trio_named_errors'])} / {int(o2['trio_named_records'])}) and the pair error "
+               f"{100 * o2['pair_named_errors'] / o2['pair_named_records']:.2f}% ({int(o2['pair_named_errors'])} / {int(o2['pair_named_records'])}).</p>")
+        if C0 is not None and C0.auc is not None:
+            rows = []
+            for m_ in ("model:all", "model:immuannot", "model:depth", "score7", "template_distance", "cds_distance", "n_aa_changes", "has_warning", "is_novel", "n_tied",
+                       "cds_share_lt10", "rel_cds", "rel_ars", "rel_exon_min", "mhc_contigs"):
+                lab = METRICS[m_][0] if m_ in METRICS else m_
+                rows.append({"metric": lab,
+                             "pair AUC, first analysis": a(C0.auc, "pair", m_), "pair AUC, named only": a(D.auc, "pair", m_),
+                             "trio (worse of two), first": a(C0.auc, "trio_worst", m_), "trio (worse of two), named only": a(D.auc, "trio_worst", m_)})
+            ap("<h3>Effect on the AUC of the main metrics</h3>")
+            ap(table(pd.DataFrame(rows), fmt={c: (lambda x: "" if (isinstance(x, float) and np.isnan(x)) else f"{x:.3f}") for c in
+                                              ["pair AUC, first analysis", "pair AUC, named only", "trio (worse of two), first", "trio (worse of two), named only"]}))
 
     # ------------------------------------------------------------- 1 design
     ap("<h2>1. Question and design</h2>")
@@ -511,9 +571,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--folder", required=True)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--compare", default=None, help="folder of the first analysis, for the before/after table (version B)")
+    ap.add_argument("--variant-named", action="store_true", help="version B: error labels from named (collapsed two-field) alleles only")
     a_ = ap.parse_args(argv)
     out = a_.out or os.path.join(a_.folder, "S06_CALL_QUALITY_REPORT.html")
-    h = build(a_.folder)
+    h = build(a_.folder, compare=a_.compare, variant=a_.variant_named)
     with open(out, "w") as f:
         f.write(h)
     print(f"wrote {out} ({len(h) / 1e6:.1f} MB)")
