@@ -8,10 +8,10 @@ person's GRCh38 long-read BAM.
 
 Features (built from a GENCODE GTF by `--build-features`; GRCh38, 0-based half-open BED):
   gene          the gene row (what 58 measured)
-  exons         union of the exons of the gene's protein-coding transcripts
-  cds           union of the CDS rows of those transcripts (no UTR, no introns)
-  ex<k>         each exon of the reference transcript (MANE Select, else Ensembl canonical, else the transcript
-                with the longest CDS), k = GENCODE exon_number; `cds_ord` counts only exons that carry CDS
+  exons         exons (transcribed, incl. UTR) of the reference transcript
+  cds           CDS rows of the reference transcript (no UTR, no introns, no alternative-isoform exons)
+  reference transcript = MANE Select, else Ensembl canonical, else the protein-coding transcript with the longest CDS
+  ex<k>         each coding exon of the reference transcript, clipped to its CDS part, k = GENCODE exon_number; `cds_ord` counts only exons that carry CDS
   ARS flag      the exons that encode the peptide-binding groove: class I (A, B, C, E, F, G) CDS exons 2 and 3,
                 class II (DRB*, DQB1, DPB1, DRA, DQA*, DPA1) CDS exon 2. These decide 2-field typing in practice.
 
@@ -180,11 +180,12 @@ def build_features(gtf_path, genes=GENES):
         if not g or g["gene"] is None or not any(t["cds"] for t in g["tx"].values()):
             missing.append(gene)
             continue
-        coding = {tid: t for tid, t in g["tx"].items() if t["cds"]}
         ref = reference_transcript(g)
         base = dict(chrom=g["chrom"], gene=bare(gene), strand=g["strand"])
-        ex_union = merge_intervals([iv for t in coding.values() for iv in t["exons"].values()])
-        cds_union = merge_intervals([iv for t in coding.values() for iv in t["cds"]])
+        # exons / cds are those of the REFERENCE transcript, not a union over isoforms: a union adds alternative-isoform coding
+        # exons (HLA-A: 1,211 bp vs the 1,098 bp coding sequence IPD and Immuannot use), which would dilute the depth.
+        ex_union = merge_intervals(list(g["tx"][ref]["exons"].values()))
+        cds_union = merge_intervals(list(g["tx"][ref]["cds"]))
         s, e = g["gene"]
         rows.append(dict(base, start=s, end=e, kind="gene", exon_number=0, cds_ord=0, ars=False, transcript_id=""))
         for k, (s, e) in enumerate(ex_union, 1):

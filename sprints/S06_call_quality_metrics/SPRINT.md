@@ -31,9 +31,10 @@ the child's 2-field allele. Metrics attributed to the child's call (primary), th
 three analysed). No yak rerun is needed: 57b's per-call origin table (179 trios, ~1 h on 2026-10-06) is read as is.
 
 ## What counts as CDS (ground truth for the exon depth; goes in the report)
-- Annotation: GENCODE v46 basic, GRCh38 (`~/ref/gencode.v46.basic.annotation.gtf.gz`). CDS = its `CDS` rows of protein-coding
-  transcripts of the gene (union across transcripts for "cds" and "exons"; the MANE Select, else Ensembl-canonical, else longest-CDS
-  transcript for per-exon and ARS definitions). UTR and introns are not CDS. Pure-UTR exons are not measured as exons.
+- Annotation: GENCODE v46 basic, GRCh38 (`~/ref/gencode.v46.basic.annotation.gtf.gz`). CDS = the `CDS` rows of the gene's
+  REFERENCE transcript (MANE Select, else Ensembl canonical, else the protein-coding transcript with the longest CDS); `exons`
+  = that transcript's exons; per-exon and ARS definitions use the same transcript. A union over isoforms was tried first and
+  rejected: it adds alternative-isoform coding exons (HLA-A 1,211 bp vs 1,098 bp) and would dilute the depth. UTR and introns are not CDS. Pure-UTR exons are not measured as exons.
 - Why this and not another: it is the public reference annotation of the same coordinates the reads are aligned to. Immuannot
   itself uses IPD-IMGT/HLA 3.55.0 allele annotation (`alleles.csv.gz`, `exon=`/`CDS=` per allele) projected onto each contig;
   that is what defines the exons of a CALL, but it lives in contig coordinates, not GRCh38.

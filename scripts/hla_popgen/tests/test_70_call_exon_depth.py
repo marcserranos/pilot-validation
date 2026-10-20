@@ -67,13 +67,14 @@ class T(unittest.TestCase):
         self.assertIn("HLA-DRB3", self.missing)
         self.assertNotIn("A", self.missing)
 
-    def test_union_excludes_noncoding_transcripts_and_merges(self):
+    def test_exons_and_cds_are_reference_transcript_only(self):
         ex = self.f[(self.f["gene"] == "A") & (self.f["kind"] == "exons")]
         spans = sorted(zip(ex["start"], ex["end"]))
         self.assertNotIn((3500, 3900), spans)          # retained-intron transcript left out
-        self.assertIn((2500, 2600), spans)             # alternative coding exon kept
+        self.assertNotIn((2500, 2600), spans)          # alternative-isoform coding exon NOT in the reference CDS
+        self.assertEqual(len(spans), 4)
         cds = self.f[(self.f["gene"] == "A") & (self.f["kind"] == "cds")]
-        self.assertEqual(int((cds["end"] - cds["start"]).sum()), 100 + 300 + 300 + 500 + 100)
+        self.assertEqual(int((cds["end"] - cds["start"]).sum()), 100 + 300 + 300 + 500)
 
     def test_reference_transcript_is_mane_and_exons_clipped_to_cds(self):
         ex = self.f[(self.f["gene"] == "A") & (self.f["kind"] == "ex")].sort_values("cds_ord")
