@@ -378,7 +378,7 @@ document.addEventListener("keydown",e=>{
   if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
   const b=e.key==="ArrowRight"?"#next":e.key==="ArrowLeft"?"#prev":null; if(b){const el=$(b); if(el) el.click();}
 });
-if(!DATA){ $("#detail").innerHTML='<div class="empty">No data embedded. Build with 80_case_browser.py.</div>'; }
+if(!DATA){ $("#detail").innerHTML='<div class="empty">No data embedded. Build with 90_case_browser.py.</div>'; }
 else {
   S.win=fitWin();
   const m=DATA.meta||{}; $("#meta").textContent=m.title||"real data — keep inside the Workbench"; if(m.synthetic) $("#meta").classList.add("syn");

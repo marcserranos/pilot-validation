@@ -19,7 +19,7 @@ reports/walkthrough_S03_S04/
 reports/walkthrough_S05/
 
 # S08 case browser: generated cases/HTML hold participant-derived sequence and never leave the Workbench
-reports/hla_popgen/80_case_browser/*
-!reports/hla_popgen/80_case_browser/README.md
+reports/hla_popgen/90_case_browser/*
+!reports/hla_popgen/90_case_browser/README.md
 case_browser/
 *.private.tsv

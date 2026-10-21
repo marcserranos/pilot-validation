@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""S08 80: base-level case browser for HLA/KIR call errors (Immuannot alignment, Mendelian, switches).
+"""S08 90: base-level case browser for HLA/KIR call errors (Immuannot alignment, Mendelian, switches).
 
 A deliberately small, dependency-free (stdlib, Python >= 3.8) pair of steps:
 
   extract  (VM only)   read already-computed outputs, write ONE anonymised JSON of cases
                        (observed CDS + Immuannot's own minimap2 cs string, trio haplotypes, origin tracks).
                        Read-only on shared paths; writes only under --out-dir. Never runs yak.
-  build    (anywhere)  turn that JSON into one self-contained index.html (80_case_browser_viewer.html).
+  build    (anywhere)  turn that JSON into one self-contained index.html (90_case_browser_viewer.html).
   demo     (laptop)    synthetic cases -> index.html, to try the viewer without any data.
 
 The alignment shown for the "Immuannot" tabs is NOT recomputed: it is replayed from the `cds_mut` cs
@@ -18,8 +18,8 @@ Disclosure: the JSON/HTML hold participant-derived sequence. They stay in the Wo
 from JupyterLab); case ids are `c001`-style, the id->person map is a separate *.private.tsv. Nothing
 here is committed (see .gitignore) and the repo holds code only.
 
-    python3 80_case_browser.py demo --out-dir /tmp/cb_demo
-    python3 80_case_browser.py build --cases ~/case_browser/cases.json --out-dir ~/case_browser
+    python3 90_case_browser.py demo --out-dir /tmp/cb_demo
+    python3 90_case_browser.py build --cases ~/case_browser/cases.json --out-dir ~/case_browser
 """
 import argparse
 import json
@@ -28,7 +28,7 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VIEWER = os.path.join(HERE, "80_case_browser_viewer.html")
+VIEWER = os.path.join(HERE, "90_case_browser_viewer.html")
 
 # ---------------------------------------------------------------------------------------- genetics
 _BASES = "TCAG"
@@ -466,7 +466,7 @@ def main(argv=None):
     d = sub.add_parser("demo")
     d.add_argument("--out-dir", required=True)
     import importlib.util as iu
-    spec = iu.spec_from_file_location("cb_extract", os.path.join(HERE, "80_case_browser_extract.py"))
+    spec = iu.spec_from_file_location("cb_extract", os.path.join(HERE, "90_case_browser_extract.py"))
     ext = iu.module_from_spec(spec)
     spec.loader.exec_module(ext)
     ext._CORE = sys.modules[__name__]

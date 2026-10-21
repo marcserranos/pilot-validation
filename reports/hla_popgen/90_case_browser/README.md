@@ -1,4 +1,4 @@
-# 80 — case browser (code only; outputs are never committed)
+# 90 — case browser (code only; outputs are never committed)
 
 A small, dependency-free viewer for looking at the *bases* behind HLA/KIR call-quality numbers.
 
@@ -11,19 +11,19 @@ A small, dependency-free viewer for looking at the *bases* behind HLA/KIR call-q
 
 ```
 # VM (JupyterLab terminal), from a throwaway clone of this branch:
-python3 scripts/hla_popgen/80_case_browser.py extract --out-dir ~/case_browser
-python3 scripts/hla_popgen/80_case_browser.py build   --cases ~/case_browser/cases.json --out-dir ~/case_browser
+python3 scripts/hla_popgen/90_case_browser.py extract --out-dir ~/case_browser
+python3 scripts/hla_popgen/90_case_browser.py build   --cases ~/case_browser/cases.json --out-dir ~/case_browser
 # open ~/case_browser/index.html from JupyterLab (right-click -> Open in New Browser Tab)
 
 # anywhere, synthetic data only:
-python3 scripts/hla_popgen/80_case_browser.py demo --out-dir /tmp/cb_demo
-python3 -m pytest scripts/hla_popgen/tests/test_80_case_browser.py scripts/hla_popgen/tests/test_80_extract.py -q
+python3 scripts/hla_popgen/90_case_browser.py demo --out-dir /tmp/cb_demo
+python3 -m pytest scripts/hla_popgen/tests/test_90_case_browser.py scripts/hla_popgen/tests/test_90_extract.py -q
 ```
 
 Local viewing of a downloaded `cases.json` (put it in the gitignored `case_browser/` folder, then):
 
 ```
-python3 scripts/hla_popgen/80_case_browser.py build --cases case_browser/cases.json --out-dir case_browser
+python3 scripts/hla_popgen/90_case_browser.py build --cases case_browser/cases.json --out-dir case_browser
 open case_browser/index.html
 ```
 

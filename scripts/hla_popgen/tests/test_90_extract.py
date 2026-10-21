@@ -18,8 +18,8 @@ def load(name, fn):
     return m
 
 
-cb = load("cb80", "80_case_browser.py")
-ex = load("cb80x", "80_case_browser_extract.py")
+cb = load("cb80", "90_case_browser.py")
+ex = load("cb80x", "90_case_browser_extract.py")
 ex._CORE = cb
 
 

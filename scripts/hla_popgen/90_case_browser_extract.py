@@ -1,4 +1,4 @@
-"""80 extract (VM side): pick example calls and pull their sequences into one anonymised cases.json.
+"""90 extract (VM side): pick example calls and pull their sequences into one anonymised cases.json.
 
 Read-only on shared paths (pipeline outputs, Immuannot reference, 57b's existing origin table); writes only
 under --out-dir. Never runs yak, minimap2 or any BAM access: every alignment shown is replayed from files
@@ -529,4 +529,4 @@ def register(sub):
     p.set_defaults(func=lambda a: run(a, _CORE))
 
 
-_CORE = None  # set by 80_case_browser.main()
+_CORE = None  # set by 90_case_browser.main()

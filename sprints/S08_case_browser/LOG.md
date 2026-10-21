@@ -14,3 +14,5 @@
   Reading: low-distance "novel" calls are mostly consensus/assembly indel errors, not new alleles; consistent with the S05 demotion.
 - [10-20] OPS — local copy built from a user-downloaded cases.json (classifier blocked agent download: PII). VM: throwaway clone
   ~/cb_code may remain (rm -rf); ~/case_browser holds cases.json, index.html, private id map.
+- [10-21] RENUMBER — moved from 80 to the 90 series (`90_case_browser*`, `reports/hla_popgen/90_case_browser/`) so S06's 70-75+ never collides;
+  76-89 left free as grace. Stale `80_*` copies still sit in S06 commits c97667a/1b936ef (not mine to rewrite).

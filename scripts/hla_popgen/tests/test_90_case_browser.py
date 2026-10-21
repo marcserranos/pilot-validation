@@ -1,4 +1,4 @@
-"""Tests for 80_case_browser core: Immuannot cs replay, event classification, direct aligner."""
+"""Tests for 90_case_browser core: Immuannot cs replay, event classification, direct aligner."""
 import importlib.util
 import json
 import os
@@ -6,7 +6,7 @@ import random
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-spec = importlib.util.spec_from_file_location("cb80", os.path.join(HERE, "..", "80_case_browser.py"))
+spec = importlib.util.spec_from_file_location("cb80", os.path.join(HERE, "..", "90_case_browser.py"))
 cb = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cb)
 
