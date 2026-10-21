@@ -322,11 +322,11 @@ def run(a, core):
                 with open(os.path.join(tmp, "ref.fa"), "w") as f:
                     f.write(">ref\n%s\n" % seq[rs - 1:re_])
                 region = "%s:%d-%d" % (chrom, max(1, s - LOCUS_PAD), e + LOCUS_PAD)
-                cmd = "%s view -u -T %s %s %s | %s fastq -F 0x900 - > %s/r.fq" % (
+                cmd = "set -o pipefail; %s view -u -T %s %s %s | %s fastq -F 0x900 - > %s/r.fq" % (
                     a.samtools, a.hg38, crams[person], region, a.samtools, tmp)
                 sh = subprocess.run(cmd, shell=True, executable="/bin/bash", capture_output=True, text=True)
                 if sh.returncode:
-                    raise RuntimeError("samtools: " + sh.stderr.strip().splitlines()[-1][:90] if sh.stderr.strip() else "samtools rc %d" % sh.returncode)
+                    raise RuntimeError("samtools: " + (sh.stderr.strip().splitlines()[0][:90] if sh.stderr.strip() else "rc %d" % sh.returncode))
                 mm = subprocess.run([a.minimap2, "-ax", "sr", "-t", "1", os.path.join(tmp, "ref.fa"), os.path.join(tmp, "r.fq")],
                                     capture_output=True, text=True)
                 if mm.returncode:
@@ -355,7 +355,7 @@ def register(sub):
     p.add_argument("--refdata", default="~/tools/Immuannot_refdata")
     p.add_argument("--features", default="~/s06/results/70/features.tsv", help="hg38 gene loci (S06 70)")
     p.add_argument("--manifest", default=MOUNT + "v9/wgs/cram/manifest.csv")
-    p.add_argument("--hg38", default="~/ref/Homo_sapiens_assembly38.fasta")
+    p.add_argument("--hg38", default="~/ref/hg38_ucsc.fa")
     p.add_argument("--samtools", default="~/envs/yak/bin/samtools")
     p.add_argument("--minimap2", default="~/repos/pilot-validation/.pixi/envs/spechla/bin/minimap2")
     p.add_argument("--max-cases", type=int, default=250)
