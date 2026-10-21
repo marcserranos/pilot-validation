@@ -48,6 +48,17 @@ class T(unittest.TestCase):
         self.assertEqual(int(r0["child_allele_missing_from_parent"].iloc[0]), 1)     # dad has no call: the child's allele is "missing" by construction
         self.assertEqual(int(r1["child_allele_missing_from_parent"].iloc[0]), 0)
 
+    def test_origin_misassignment_is_visible(self):
+        # child's hap1 allele is in MOM (not dad): if yak had said "dad" the mismatch is an origin error, not a wrong call
+        ct = pd.DataFrame([dict(person_id="c", hap="1", gene="A", tf="A*02:01", named=True), dict(person_id="c", hap="2", gene="A", tf="A*03:01", named=True),
+                           dict(person_id="dad", hap="1", gene="A", tf="A*01:01", named=True), dict(person_id="dad", hap="2", gene="A", tf="A*05:01", named=True),
+                           dict(person_id="mom", hap="1", gene="A", tf="A*02:01", named=True), dict(person_id="mom", hap="2", gene="A", tf="A*07:01", named=True)])
+        origin = pd.DataFrame([dict(child="c", hap="1", gene="A", origin="pat")])
+        out = m.trio_parent_status(origin, ct, {"c": ("dad", "mom")})
+        r = out[(out["scope"] == "ALL") & (out["parent_calls_at_gene"] == 2)].iloc[0]
+        self.assertEqual(int(r["child_allele_missing_from_parent"]), 1)
+        self.assertEqual(int(r["missing_but_in_other_parent"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

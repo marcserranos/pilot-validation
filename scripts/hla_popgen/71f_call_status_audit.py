@@ -8,6 +8,7 @@ Three tables, all counts (no person ids):
                                no_gene_row   the haplotype has other MHC rows for this person but none for this gene
                                no_haplotype  the haplotype has no MHC rows at all for this person (assembly or trimming gave nothing)
                              counted as an unordered pair of statuses, e.g. valid+no_gene_row = "one call, gene absent on the other haplotype"
+  trio_candidates.tsv        how many children have 2+ candidate trios (57b used the first; 71 used the last before the fix of 2026-10-21)
   trio_parent_status.tsv     for every child haplotype call whose parent of origin is resolved (57b): how many calls the transmitting parent has at that gene
                              (0 = the record is SKIPPED by 71, 1, 2), the child's allele name status, and how often the child's 2-field allele is absent from
                              the parent's calls. This is the "what if the parent has no call" question.
@@ -96,14 +97,17 @@ def trio_parent_status(origin, ct, trio_of):
             continue
         par = trio_of[c][0] if og == "pat" else trio_of[c][1]
         n = ncalls.get((par, g), 0)
+        other = trio_of[c][1] if og == "pat" else trio_of[c][0]
         absent = isinstance(tf[(c, h, g)], str) and tf[(c, h, g)] not in alle.get((par, g), set())
-        rows.append((g in G8, n, bool(named.get((c, h, g), True)), absent))
-    d = pd.DataFrame(rows, columns=["classical8", "parent_calls", "child_named", "child_allele_missing_from_parent"])
+        in_other = isinstance(tf[(c, h, g)], str) and tf[(c, h, g)] in alle.get((other, g), set())
+        rows.append((g in G8, n, bool(named.get((c, h, g), True)), absent, absent and in_other))
+    d = pd.DataFrame(rows, columns=["classical8", "parent_calls", "child_named", "child_allele_missing_from_parent", "missing_but_in_other_parent"])
     out = []
     for scope, sub in (("ALL", d), ("CLASSICAL8", d[d["classical8"]])):
         for (pc, nm), s in sub.groupby(["parent_calls", "child_named"]):
             out.append(dict(scope=scope, parent_calls_at_gene=int(pc), child_call_named=bool(nm), child_calls=len(s),
                             child_allele_missing_from_parent=int(s["child_allele_missing_from_parent"].sum()),
+                            missing_but_in_other_parent=int(s["missing_but_in_other_parent"].sum()),
                             missing_pct=100.0 * s["child_allele_missing_from_parent"].mean()))
     return pd.DataFrame(out)
 
@@ -147,7 +151,14 @@ def main(argv=None):
     cohort = C.load_cohort(C.DEFAULT_COHORT)
     lr = set(cohort.loc[cohort["in_lr"].astype(str).str.lower() == "true", "person_id"])
     origin = Q.read_int(Q.ORIGIN57B, dtype={"child": str, "contig": str})
-    trio_of = {t[0]: (t[1], t[2]) for t in T.find_trios(lr) if t[0] in set(origin["child"])}
+    kids = set(origin["child"])
+    cand = [t for t in T.find_trios(lr) if t[0] in kids]
+    trio_of = {}
+    for t in cand:                      # first candidate trio per child, as 57b used
+        trio_of.setdefault(t[0], (t[1], t[2]))
+    multi = pd.Series([t[0] for t in cand]).value_counts()
+    pd.DataFrame([dict(children=len(trio_of), children_with_2plus_candidate_trios=int((multi >= 2).sum()), max_candidates=int(multi.max()),
+                       candidate_trios=len(cand))]).to_csv(os.path.join(a.out, "trio_candidates.tsv"), sep="\t", index=False)
     ct["hap"] = ct["hap"].astype(str)
     w(trio_parent_status(origin, ct, trio_of), "trio_parent_status.tsv")
     rec = pd.read_csv(os.path.join(a.internal, "records_trio.INTERNAL.tsv"), sep="\t", dtype={"person": str, "other": str})

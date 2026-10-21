@@ -511,7 +511,12 @@ def main(argv=None):
     if os.path.exists(ORIGIN57B):
         o = read_int(ORIGIN57B, dtype={"child": str, "contig": str})
         kids = set(o["child"])
-        trio_of = {t[0]: (t[1], t[2]) for t in trios if t[0] in kids}
+        # 57b computed each child's parents-of-origin against the FIRST candidate trio of that child (57b: `seen`); the dict comprehension that was
+        # here let the LAST candidate win, so a child with two candidate parent pairs could be checked against the wrong parents.
+        trio_of = {}
+        for t in trios:
+            if t[0] in kids and t[0] not in trio_of:
+                trio_of[t[0]] = (t[1], t[2])
         rec_trio = trio_records(o, ct, trio_of, named_only=a.named_only)
     for name, df in (("trio", rec_trio), ("pair", rec_pair), ("twin", rec_twin)):
         df.to_csv(os.path.join(a.internal_dir, f"records_{name}.INTERNAL.tsv"), sep="\t", index=False)
