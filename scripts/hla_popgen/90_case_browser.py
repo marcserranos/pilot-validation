@@ -465,10 +465,36 @@ def build_html(cases, out_dir, meta=None):
     return out
 
 
+def merge_sr(cases, path):
+    """Attach sr.jsonl blocks (one JSON per line, keyed by case id) to their cases; also the short-read gene depth."""
+    by = {}
+    with open(path) as f:
+        for ln in f:
+            if ln.strip():
+                b = json.loads(ln)
+                by[b["id"]] = b
+    for c in cases:
+        b = by.get(c.get("id"))
+        if b:
+            c["sr"] = {"sample": b.get("sample"), "sites": b["sites"], "note": b.get("note", "")}
+            c.setdefault("depth", {}).setdefault("sr", {})["gene_mean"] = b.get("depth_sr")
+    return len(by)
+
+
 def cmd_build(a):
+    base = os.path.dirname(os.path.abspath(a.cases))
     with open(a.cases) as f:
         d = json.load(f)
-    out = build_html(d["cases"], a.out_dir, d.get("meta"))
+    sr = a.sr or os.path.join(base, "sr.jsonl")
+    if os.path.exists(sr):
+        print("merged short-read blocks for %d cases" % merge_sr(d["cases"], sr))
+    meta = dict(d.get("meta") or {})
+    st = a.stats or os.path.join(base, "cohort_stats.json")
+    if os.path.exists(st):
+        with open(st) as f:
+            meta["cohort_stats"] = json.load(f)
+        print("embedded whole-cohort statistics (%d rows)" % len(meta["cohort_stats"]["rows"]))
+    out = build_html(d["cases"], a.out_dir, meta)
     print("wrote %s (%d cases, %.1f KB)" % (out, len(d["cases"]), os.path.getsize(out) / 1024.0))
 
 
@@ -566,10 +592,12 @@ def main(argv=None):
     b = sub.add_parser("build")
     b.add_argument("--cases", required=True)
     b.add_argument("--out-dir", required=True)
+    b.add_argument("--sr", help="sr.jsonl from the short-read step (optional)")
+    b.add_argument("--stats", help="cohort_stats.json from the stats step (optional)")
     d = sub.add_parser("demo")
     d.add_argument("--out-dir", required=True)
     import importlib.util as iu
-    for fn in ("90_case_browser_extract.py", "90_case_browser_stats.py"):
+    for fn in ("90_case_browser_extract.py", "90_case_browser_stats.py", "90_case_browser_sr.py"):
         spec = iu.spec_from_file_location(fn[:-3], os.path.join(HERE, fn))
         mod = iu.module_from_spec(spec)
         spec.loader.exec_module(mod)

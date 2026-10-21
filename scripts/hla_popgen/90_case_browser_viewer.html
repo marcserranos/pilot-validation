@@ -433,7 +433,7 @@ function srPanel(c,a){
   p.innerHTML=h;
   p.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{
     const k=+b.dataset.k, row=p.querySelector("#pile"+k), x=c.sr.sites[k], w=x.window;
-    if(row.style.display==="none"){ row.style.display=""; row.firstChild.innerHTML=pileup(w,a.events[x.ev]); } else row.style.display="none"; });
+    if(row.style.display==="none"){ row.style.display=""; row.firstChild.innerHTML=w?pileup(w,a.events[x.ev]):"<span class=mute>no pileup for this site</span>"; } else row.style.display="none"; });
   return p;
 }
 function pileup(w,e){
