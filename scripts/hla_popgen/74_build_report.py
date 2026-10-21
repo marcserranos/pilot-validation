@@ -131,6 +131,9 @@ class Data:
         self.quant = rd("71", "dist_gene_depth_quantiles.tsv")
         self.exon = rd("71", "dist_exon_depth.tsv")
         self.features = rd("70", "features.tsv")
+        self.tax = rd("71f", "call_status_taxonomy.tsv")
+        self.tparent = rd("71f", "trio_parent_status.tsv")
+        self.tcand = rd("71f", "trio_candidates.tsv")
         self.strata = rd("71", "stat_complete_strata.tsv")
         self.strata8 = rd("71", "classical8", "stat_complete_strata.tsv")
         self.drop_auc = rd("71e", "dropout_auc.tsv")
@@ -485,6 +488,46 @@ def build(folder, compare=None, variant=False, pointer=None):
     ap(im("fig_complete_strata.png", "Error by genotype completeness"))
     ap('<p class="read">Typing error / Mendelian mismatch by whether everyone in the record has both haplotypes called at the gene (blue) or someone has one call (red); labels inside the bars are errors / records. '
        "Note that genes that are truly absent on some haplotypes (DRB3, DRB4, DRB5) are incomplete by biology, not by failure.</p>")
+
+    if D.tax is not None and D.tparent is not None:
+        t8 = D.tax[(D.tax["scope"] == "CLASSICAL8") & (D.tax["gene"] == "ALL")].set_index("status_pair")["pct"]
+        tp = D.tparent[D.tparent["scope"] == "CLASSICAL8"]
+
+        def tprow(pc, named):
+            r = tp[(tp["parent_calls_at_gene"] == pc) & (tp["child_call_named"] == named)]
+            return (int(r["child_calls"].iloc[0]), int(r["child_allele_missing_from_parent"].iloc[0]), int(r["missing_but_in_other_parent"].iloc[0])) if len(r) else (0, 0, 0)
+        n2, k2, o2 = tprow(2, True)
+        n1, k1, o1 = tprow(1, True)
+        n0, k0, _ = tprow(0, True)
+        cand = ""
+        if D.tcand is not None and len(D.tcand):
+            c_ = D.tcand.iloc[0]
+            cand = (f" {int(c_['children_with_2plus_candidate_trios'])} of {int(c_['children'])} children have two or more candidate trios (57b used the first; the analysis had used the last, now fixed).")
+        ap("<h3>2.7 What a missing call is, and why the trio and pair tests disagree</h3>")
+        ap(im("fig_call_status.png", "What a missing call is"))
+        ap('<p class="read"><b>What "one call" means.</b> Table 1 has one row per person, haplotype and gene when Immuannot annotated the gene on that haplotype assembly. '
+           f"For the classical eight, {t8.get('valid + valid', 0):.1f}% of person-genes have a call on both haplotypes and {t8.get('valid + no_gene_row', 0):.1f}% have a call on one haplotype and NO row at all for the gene on the other, "
+           f"although that haplotype carries other MHC genes. The other causes are negligible: the whole haplotype missing ({t8.get('valid + no_haplotype', 0):.1f}%), both haplotypes without the gene "
+           f"({t8.get('no_gene_row + no_gene_row', 0):.1f}%), and an 'undetermined' call (none were found). So a missing call means Immuannot did not annotate the gene on that assembly: the template search found no sequence "
+           "passing its overlap (90%) and divergence (at most 3 edits, or under 3%) cut-offs, which happens when the gene is cut by a contig end, sits on a contig that was not in the trimmed MHC window, is truncated, or is "
+           "very divergent from every reference allele. In DRB3, DRB4 and DRB5 it is mostly real biology (the genes are absent on many haplotypes).</p>")
+        ap('<p class="read"><b>What the trio test does with it.</b> A trio record exists for every child haplotype call whose parent of origin is resolved. If the transmitting parent has no call at the gene the record is skipped '
+           f"({n0} classical-eight records). If the parent has ONE call, the record is kept, and it is a 'mismatch' whenever the child inherited the haplotype the parent has no call for: {k1} of {n1} records ({100 * k1 / max(n1, 1):.0f}%), "
+           f"close to the coin-flip expectation. If the parent is fully called, {k2} of {n2} records mismatch ({100 * k2 / max(n2, 1):.1f}%), and in {o2} of those the child's allele is carried by the OTHER parent, which points to a wrong parent of origin "
+           "from yak and not to a wrong call. A child's own missing haplotype produces no record at all, so it can never be a mismatch. This is why the child's own number of calls has no effect on the trio curves, while the parent's has a large one, "
+           "and why the pair test (which sees a missing call in either person) is much more sensitive to it.</p>" + (f'<p class="read">{cand}</p>' if cand else ""))
+        ap('<p class="read"><b>The child-versus-parent view.</b> The figure plots the trio mismatch over the cohort percentile of the groove-exon depth of the child\'s call (x) and of the transmitting parent\'s call (y), in three strata, '
+           "with the k/n of every cell and the one-dimensional curves below. There is no asymmetry to exploit: among fully called parents the mismatch is flat across the whole range for both child and parent (only a few dozen events), "
+           "and with a one-call parent it is high everywhere. The other two depth metrics are in <code>fig_trio_pc_grid_rel_cds</code> and <code>fig_trio_pc_grid_cds_share_lt10</code>.</p>")
+        ap(im("fig_trio_pc_grid_rel_ars.png", "Trio mismatch over child and parent groove depth"))
+        ap('<div class="box"><b>What the independent review concluded</b> (an external reviewer given the code, the Immuannot documentation and these numbers): '
+           "<ul><li>No bug creates the asymmetry between trios and pairs; it follows from how the two tests are built. The trio test can only see a missing call in the PARENT; the pair test sees it in either person, and also scores DRB3/DRB4/DRB5 biology as errors.</li>"
+           "<li>The pair error rate is therefore mostly a completeness measure, and its high depth AUC is mostly depth predicting a missing call. It should not be read as typing accuracy.</li>"
+           "<li>Among fully called genotypes there are only a few dozen trio events and a few dozen pair events. With that few events a predictor needs an AUC above about 0.65 to be detectable, so 'nothing predicts it' is mostly a lack of power, not evidence of no signal.</li>"
+           "<li>Open checks: whether every trio link is truly parent-child (the trio finder does not check IBS0), how the errors spread over families, and whether the missing calls correspond to the gene being cut by a contig end or lying on a contig outside the window.</li></ul>"
+           "<b>Recommended structure.</b> (a) <i>Missing call</i> as its own outcome, studied over the whole cohort with features of the haplotype that has no call. (b) <i>Wrong allele among fully called genotypes</i>, with the transmitting parent fully called, "
+           "the origin resolved, and each child call classified as matching the transmitting parent, matching only the other parent (an origin error, kept apart) or matching neither (the error); expect tens of events, enough for a rate and for "
+           "pre-specified tail tests, not for ranking many metrics. (c) <i>Novel or undetermined</i> calls as a separate stream, checked by sequence against short reads or twins, never by two-field name.</div>")
 
     # ------------------------------------------------------------- 3 depth data
     ap("<h2>3. What the depth data look like</h2>")

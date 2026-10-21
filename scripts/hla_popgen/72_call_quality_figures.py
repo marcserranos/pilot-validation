@@ -645,6 +645,116 @@ def fig_dropout(res, out):
         V.save_fig(fig, os.path.join(out, "fig_dropout"))
 
 
+# ---------------------------------------------------------------------------
+# 71f: what "one call" means, parent status in trios, child-versus-parent grids
+# ---------------------------------------------------------------------------
+def _load71f(res, name):
+    for sub in ("71f", ""):
+        p = os.path.join(res, sub, name)
+        if os.path.exists(p):
+            return pd.read_csv(p, sep="\t")
+    return None
+
+
+def fig_call_status(res, out):
+    tax = _load71f(res, "call_status_taxonomy.tsv")
+    tp = _load71f(res, "trio_parent_status.tsv")
+    if tax is None or tp is None:
+        return
+    genes = ["A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1", "MICA", "TAP1", "TAP2", "DRB3", "DRB4", "DRB5"]
+    cats = [("valid + valid", "#3C5488", "called on both haplotypes"), ("valid + no_gene_row", "#E64B35", "no annotation for the gene on one haplotype"),
+            ("no_gene_row + no_gene_row", "#F39B7F", "no annotation on either haplotype"), ("valid + no_haplotype", "#7E6148", "one haplotype has no MHC rows at all"),
+            ("valid + undetermined", "#00A087", "one call 'undetermined'")]
+    t = tax[tax["scope"] == "gene"].set_index(["gene", "status_pair"])["pct"]
+    with style():
+        fig = plt.figure(figsize=(V.mm(183), V.mm(88)))
+        gs = fig.add_gridspec(1, 2, width_ratios=[1.25, 1], wspace=0.5, left=0.07, right=0.985, top=0.9, bottom=0.2)
+        ax = fig.add_subplot(gs[0])
+        gl = [g for g in genes if (g, "valid + valid") in t.index]
+        left = np.zeros(len(gl))
+        for c, col, lab in cats:
+            v = np.array([t.get((g, c), 0.0) for g in gl])
+            ax.barh(range(len(gl)), v, left=left, color=col, height=0.72, label=lab)
+            left += v
+        ax.set_yticks(range(len(gl)))
+        ax.set_yticklabels(gl)
+        ax.invert_yaxis()
+        ax.set_xlim(0, 100)
+        ax.set_xlabel("% of people (person-genes)")
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2, fontsize=5, **V.LEGEND_KW)
+        ax.set_title("What a missing call is, per gene (Table 1, before any filter)", loc="left", fontsize=6.2)
+        V.panel_letter(ax, "a")
+        bx = fig.add_subplot(gs[1])
+        c8 = tp[tp["scope"] == "CLASSICAL8"].copy()
+        c8["label"] = [f"parent {int(a)} call{'s' if a != 1 else ''}\n" + ("child named" if b else "child novel") for a, b in zip(c8["parent_calls_at_gene"], c8["child_call_named"])]
+        c8 = c8.sort_values(["child_call_named", "parent_calls_at_gene"], ascending=[False, False])
+        x = np.arange(len(c8))
+        bx.bar(x, c8["missing_pct"], color=["#3C5488" if (b and a == 2) else "#E64B35" for a, b in zip(c8["parent_calls_at_gene"], c8["child_call_named"])], width=0.7)
+        for xi, (n, k) in zip(x, zip(c8["child_calls"], c8["child_allele_missing_from_parent"])):
+            bx.text(xi, 1.5, f"{int(k)}/{int(n)}", fontsize=4.6, ha="center", va="bottom", rotation=90, color="white")
+        bx.set_xticks(x)
+        bx.set_xticklabels(c8["label"], rotation=90, fontsize=4.8)
+        bx.set_ylabel("child's allele absent from the parent's calls (%)")
+        bx.set_title("Trios, classical eight: by parent status", loc="left", fontsize=6.2)
+        V.panel_letter(bx, "b")
+        V.save_fig(fig, os.path.join(out, "fig_call_status"))
+
+
+def fig_trio_pc_grid(res, out, metric, label):
+    g = _load71f(res, f"trio_pc_grid_{metric}.tsv")
+    if g is None or not len(g):
+        return
+    strata = [("all", "All trio records"), ("parent_two_calls", "Parent fully called"), ("parent_one_call", "Parent has one call")]
+    B = 8                    # coarse grid: 12.5 percentile points per cell, 40 fine cells -> 8 (5 per cell)
+    with style():
+        fig, axes = plt.subplots(2, 3, figsize=(V.mm(183), V.mm(112)), gridspec_kw=dict(hspace=0.55, wspace=0.42))
+        fig.suptitle(f"Trio mismatch against the {label} of the child's call and of the transmitting parent's call (cohort percentile, 100 = worst)",
+                     x=0.01, y=0.995, ha="left", fontsize=6.4)
+        for j, (sname, sl) in enumerate(strata):
+            d = g[g["stratum"] == sname]
+            N = np.zeros((40, 40))
+            K = np.zeros((40, 40))
+            for r in d.itertuples():
+                N[int(round(r.child_lo / 2.5)), int(round(r.parent_lo / 2.5))] = r.n
+                K[int(round(r.child_lo / 2.5)), int(round(r.parent_lo / 2.5))] = r.k
+            Nc = N.reshape(B, 40 // B, B, 40 // B).sum(axis=(1, 3))
+            Kc = K.reshape(B, 40 // B, B, 40 // B).sum(axis=(1, 3))
+            with np.errstate(divide="ignore", invalid="ignore"):
+                R = np.where(Nc > 0, 100 * Kc / Nc, np.nan)
+            ax = axes[0, j]
+            vmax = max(6.0, np.nanmax(R) if np.isfinite(R).any() else 6.0)
+            ax.pcolormesh(np.arange(B + 1) * 12.5, np.arange(B + 1) * 12.5, R.T, cmap="magma_r", vmin=0, vmax=vmax, rasterized=True)
+            for i in range(B):
+                for k in range(B):
+                    if Nc[i, k] > 0:
+                        ax.text((i + 0.5) * 12.5, (k + 0.5) * 12.5, f"{int(Kc[i, k])}/{int(Nc[i, k])}", ha="center", va="center", fontsize=3.3,
+                                color="white" if (np.isfinite(R[i, k]) and R[i, k] > 0.55 * vmax) else "black")
+            ax.set_title(f"{sl}\n{int(N.sum())} records, {int(K.sum())} mismatches (k/n per cell)", loc="left", fontsize=5.6)
+            ax.set_xlabel("child (percentile)")
+            if j == 0:
+                ax.set_ylabel("parent (percentile)")
+            ax2 = axes[1, j]
+            for which, col, lab_ in ((0, "#3C5488", "by the child's percentile"), (1, "#E64B35", "by the parent's percentile")):
+                n1 = N.sum(axis=1 - which).reshape(10, 4).sum(axis=1)
+                k1 = K.sum(axis=1 - which).reshape(10, 4).sum(axis=1)
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    rate = 100 * k1 / n1
+                    z = 1.96
+                    ph = k1 / n1
+                    den = 1 + z * z / n1
+                    cen = (ph + z * z / (2 * n1)) / den
+                    half = z * np.sqrt(ph * (1 - ph) / n1 + z * z / (4 * n1 * n1)) / den
+                x = np.arange(10) * 10 + 5
+                ax2.errorbar(x + (which - 0.5) * 1.5, rate, yerr=[np.clip(rate - 100 * (cen - half), 0, None), np.clip(100 * (cen + half) - rate, 0, None)],
+                             fmt="o-", ms=2.2, lw=0.6, color=col, capsize=0.8, label=lab_)
+            ax2.set_ylim(bottom=0)
+            ax2.set_xlabel("percentile of the call's metric (100 = worst)")
+            if j == 0:
+                ax2.set_ylabel("mismatch (%)")
+                ax2.legend(fontsize=4.8, **V.LEGEND_KW)
+        V.save_fig(fig, os.path.join(out, f"fig_trio_pc_grid_{metric}"))
+
+
 GENE_ORDER = ["A", "C", "B", "MICA", "C4A", "DRA", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1", "TAP1"]
 
 
@@ -721,6 +831,8 @@ def main(argv=None):
         "complete_strata": lambda: fig_complete_strata(a.results, a.out),
         "tail_models": lambda: fig_tail_models(a.results, a.out),
         "dropout": lambda: fig_dropout(a.results, a.out),
+        "call_status": lambda: fig_call_status(a.results, a.out),
+        "trio_pc_grid": lambda: [fig_trio_pc_grid(a.results, a.out, m_, l_) for m_, l_ in (("rel_ars", "groove-exon depth"), ("rel_cds", "CDS depth"), ("cds_share_lt10", "share of CDS bases under 10x"))],
     }
     want = a.only.split(",") if a.only else list(jobs)
     for k in want:
