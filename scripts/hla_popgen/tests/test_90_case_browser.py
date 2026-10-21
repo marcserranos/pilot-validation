@@ -159,6 +159,10 @@ class TestClassify(unittest.TestCase):
         self.assertEqual(cb.sr_verdict(0, 30, 0, het=True), "not seen in short reads")
         self.assertEqual(cb.sr_verdict(22, 8, 0, het=True), "skewed")
         self.assertEqual(cb.sr_verdict(3, 2, 0, het=True), "low depth")
+        self.assertEqual(cb.sr_verdict(15, 15, 0, het=False), "half the reads (other haplotype may differ)")
+        self.assertEqual(cb.sr_verdict(25, 5, 0, het=False), "weak")
+        self.assertEqual(cb.sr_verdict(15, 0, 15, het=None), "supported")
+        self.assertEqual(cb.sr_verdict(0, 0, 30, het=None), "not seen in short reads")
 
 
 class TestMisc(unittest.TestCase):

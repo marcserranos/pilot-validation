@@ -235,7 +235,7 @@ def evaluate_case(core, case, call, called_cds, other_cds, hapA_contig_seq, sam_
             sites.append({"ev": i, "het": False, "other_base": "", "obs": 0, "alt": 0, "oth": 0, "verdict": "error: " + str(e)[:40], "window": None})
             continue
         sites.append({"ev": i, "het": bool(het), "other_base": ob, "obs": obs, "alt": alt, "oth": oth,
-                      "verdict": core.sr_verdict(obs, alt, oth, het), "window": win})
+                      "verdict": core.sr_verdict(obs, alt, oth, het if omap else None), "window": win})
     span = max(1, ref_end - ref_start + 1)
     depth = sum(min(r.end, ref_end) - max(r.start, ref_start) + 1 for r in reads) / float(span)
     return {"sample": "srWGS", "sites": sites, "depth_sr": round(depth, 1), "n_reads": len(reads),

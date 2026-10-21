@@ -20,3 +20,13 @@
   `extract --exhaustive-snv CAP` (every novel call with no indel), edit-type / protein-altering filters, show-substitutions-only,
   Statistics tab, depth panel, short-read panel (UI + verdict rule `sr_verdict`; extraction not yet written, needs VM go-ahead).
   Exhaustiveness so far: the 316 cases are stratified EXAMPLES (<=3 per gene x distance bucket; KIR from 300 people), not all novel calls.
+- [10-21] RESULT (VM run, whole cohort + 762 cases) — stats pass: 8,015 novel HLA calls with a CDS alignment (137 not rebuildable from cs). Novel-protein
+  (7,635): 86% indel-only, 8% indels+substitutions, 6% substitution-only (449); 8% carry a protein-altering substitution; 93% have a frameshift;
+  at 1 edit 91% are indel-only (72% of those in homopolymers/tandem runs). Novel-synonymous (227): 100% substitution-only. Novel-beyond-CDS (153): CDS identical.
+  Substitution-only novel calls are 682 (F 145, G 211 capped at 60 each in the viewer, everything else complete).
+- [10-21] RESULT (short reads, 567 cases, 1,097 sites; srWGS realigned to the called haplotype, ~1.5 s/case) — indels: 79% "not seen in short reads" and 8% contradicted
+  (only 4% supported); protein-altering substitutions: 60% supported, 13% half-the-reads (other haplotype call may differ), 18% not seen; synonymous 68% supported.
+  Of 439 substitution-only novel cases with short reads, 281 have every checked site supported (189 with a protein-altering substitution).
+  Caveat: DRB3/DRB4 have no primary-assembly locus (not checked); verdicts are recomputed at build time from stored counts.
+- [10-21] OPS — VM cleaned (code clone, logs, HTML removed); kept ~/case_browser/{cases.json,sr.jsonl,cohort_stats.json,case_map.private.tsv}. Local copy in the
+  gitignored case_browser/ of the worktree.

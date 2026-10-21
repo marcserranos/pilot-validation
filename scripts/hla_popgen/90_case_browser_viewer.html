@@ -414,7 +414,7 @@ function depthPanel(c,a){
   }
   p.innerHTML=h; return p;
 }
-const SRCOL={supported:"var(--ok)","not seen in short reads":"var(--warn)",contradicted:"var(--warn)",skewed:"var(--snv)",weak:"var(--snv)","low depth":"var(--mute)"};
+const SRCOL={supported:"var(--ok)","half the reads (other haplotype may differ)":"var(--snv)","not seen in short reads":"var(--warn)",contradicted:"var(--warn)",skewed:"var(--snv)",weak:"var(--snv)","low depth":"var(--mute)"};
 function srCell(c,e){ const i=c.alignments[0].events.indexOf(e); const s=c.sr.sites.find(x=>x.ev===i); return s?`<span style="color:${SRCOL[s.verdict]||"inherit"};font-weight:600">${esc(s.verdict)}</span>`:"<span class='mute'>–</span>"; }
 function srPanel(c,a){
   if(!c.sr||a!==c.alignments[0]) return null;

@@ -419,14 +419,19 @@ def replay_from_ref(ref, cs):
 
 def sr_verdict(obs, alt, other, het, min_depth=8):
     """Does short-read evidence support a long-read variant? obs/alt/other = reads carrying the called base, the
-    other haplotype's base, or any third base at the site; het = the two haplotypes differ at the site.
-    Homozygous site: nearly every read should carry the called base. Heterozygous: roughly half should."""
+    other haplotype's base, or any third base at the site. het: True = the two haplotypes differ at the site,
+    False = they agree, None = zygosity unknown (the other haplotype has no call).
+    Het site: roughly half the reads should carry the called base. Hom site: nearly all. A 'hom' site where only about
+    half the reads carry the called base means the person's reads disagree with their own other-haplotype call."""
     n = obs + alt + other
     if n < min_depth:
         return "low depth"
     f = obs / float(n)
+    if het is None:
+        return "supported" if f >= 0.3 else "not seen in short reads" if f < 0.1 else "contradicted"
     if not het:
-        return "supported" if f >= 0.85 else "contradicted" if f <= 0.3 else "weak"
+        return ("supported" if f >= 0.85 else "contradicted" if f <= 0.3 else
+                "half the reads (other haplotype may differ)" if f <= 0.7 else "weak")
     if obs == 0 or f < 0.1:
         return "not seen in short reads"
     if 0.3 <= f <= 0.7 and alt / float(n) >= 0.25:
@@ -476,6 +481,10 @@ def merge_sr(cases, path):
     for c in cases:
         b = by.get(c.get("id"))
         if b:
+            unknown = (b.get("note") or "").startswith("Other haplotype has no call")
+            for st in b["sites"]:              # verdicts are recomputed here so the rule can change without rerunning the VM step
+                if st.get("window") is not None or "verdict" in st:
+                    st["verdict"] = sr_verdict(st["obs"], st["alt"], st["oth"], None if unknown else st["het"])
             c["sr"] = {"sample": b.get("sample"), "sites": b["sites"], "note": b.get("note", "")}
             c.setdefault("depth", {}).setdefault("sr", {})["gene_mean"] = b.get("depth_sr")
     return len(by)
