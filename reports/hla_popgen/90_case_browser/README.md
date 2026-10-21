@@ -9,9 +9,14 @@ A small, dependency-free viewer for looking at the *bases* behind HLA/KIR call-q
 | Mendelian | A child haplotype against the parent 57b assigned it to: child vs its reference, each parent haplotype vs its reference (all Immuannot), plus a direct child-vs-parent CDS alignment. |
 | Switches | Parent of origin along a child's haplotype contig at gene resolution (57b's existing k-mer assignment; no yak rerun). |
 
+| Statistics | Composition of novel calls: indels only / substitutions only / both, protein-altering substitutions, frameshifts, homopolymer-only indels; by novelty class, gene and distance. Whole-cohort (exhaustive) when `cohort_stats.json` is present (from `stats`), otherwise only the loaded sample. |
+
+Filters (ladder / novel tabs): *what the edits are* (substitutions only = no indel, any substitution, indels only, both), *protein-altering substitution*, and per-case *show: all / substitutions only / protein-changing*. Optional per-case panels: **depth** (`case.depth`) and **short-read check** (`case.sr`: reads realigned to the two haplotypes, base ratios vs what the other haplotype predicts, with a pileup).
+
 ```
 # VM (JupyterLab terminal), from a throwaway clone of this branch:
-python3 scripts/hla_popgen/90_case_browser.py extract --out-dir ~/case_browser
+python3 scripts/hla_popgen/90_case_browser.py stats   --out-dir ~/case_browser            # aggregate, whole cohort, no BAM
+python3 scripts/hla_popgen/90_case_browser.py extract --out-dir ~/case_browser --exhaustive-snv 60   # + every novel substitution-only call (cap per gene)
 python3 scripts/hla_popgen/90_case_browser.py build   --cases ~/case_browser/cases.json --out-dir ~/case_browser
 # open ~/case_browser/index.html from JupyterLab (right-click -> Open in New Browser Tab)
 

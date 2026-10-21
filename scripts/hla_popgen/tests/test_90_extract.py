@@ -121,7 +121,7 @@ class TestExtract(unittest.TestCase):
         args = type("A", (), dict(out_dir=d + "/out", hla_root=d + "/people", kir_root=d + "/nokir", refdata=d + "/ref",
                                   rich=d + "/rich.tsv", origin=d + "/none", relatedness=d + "/none", per_cell=3,
                                   kir_people=0, kir_per_cell=2, mendel=0, mendel_controls=0, switch=0,
-                                  switch_controls=0, seed=1))()
+                                  switch_controls=0, seed=1, exhaustive_snv=0))()
         cases = ex.run(args, cb)
         self.assertEqual(len(cases), 3)
         for c in cases:
@@ -176,7 +176,7 @@ class TestTrioAndSwitch(unittest.TestCase):
             f.write("i.s\tj.s\tkin\nkid\tparA\t0.25\nkid\tparB\t0.25\n")
         args = type("A", (), dict(out_dir=d + "/out", hla_root=d + "/people", kir_root=d + "/nokir", refdata=d + "/ref",
                                   rich=d + "/rich.tsv", origin=d + "/origin.tsv", relatedness=d + "/rel.tsv", per_cell=0,
-                                  kir_people=0, kir_per_cell=0, mendel=5, mendel_controls=0, switch=5, switch_controls=0, seed=1))()
+                                  kir_people=0, kir_per_cell=0, mendel=5, mendel_controls=0, switch=5, switch_controls=0, seed=1, exhaustive_snv=0))()
         cases = ex.run(args, cb)
         by = {c["tab"]: c for c in cases}
         m = by["mendel"]
@@ -190,6 +190,74 @@ class TestTrioAndSwitch(unittest.TestCase):
         self.assertEqual([t["gene"] for t in s["track"]], ["A", "B", "C", "DRB1", "DQB1"])
         self.assertEqual(s["switches"][0]["gap_kb"], 100.0)     # B (100 kb) -> C (200 kb); A starts the track at 1 kb
         self.assertNotIn("kid", open(d + "/out/cases.json").read())
+
+
+class TestStatsAndExhaustive(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def test_stats_classes_and_exhaustive_snv(self):
+        rng = random.Random(11)
+        d = self.d
+        gene, ref_name = "HLA-A", "HLA-A*01:01:01:01"
+        ref = mkseq(rng, 300)
+        write_gz(d + "/ref/CDSseq/HLA-A.fa.gz", ">%s x\n%s\n" % (ref_name, ref))
+
+        def sub(s, k, b):       # substitute base at k with a different base b-or-next
+            return s[:k] + (b if s[k] != b else "C" if b != "C" else "A") + s[k + 1:]
+
+        # codon 4 = ref[9:12]: pick a position whose change is missense vs synonymous by construction
+        def variants():
+            yield "indel", ref[:50] + ref[51:]
+            miss = None
+            for k in range(30, 270):
+                for b in "ACGT":
+                    if b != ref[k] and cb.translate(ref[3 * (k // 3):3 * (k // 3) + 3]) != cb.translate(
+                            ref[3 * (k // 3):k] + b + ref[k + 1:3 * (k // 3) + 3]):
+                        miss = ref[:k] + b + ref[k + 1:]
+                        break
+                if miss:
+                    break
+            yield "missense", miss
+            syn = None
+            for k in range(30, 270):
+                for b in "ACGT":
+                    if b != ref[k] and cb.translate(ref[3 * (k // 3):3 * (k // 3) + 3]) == cb.translate(
+                            ref[3 * (k // 3):k] + b + ref[k + 1:3 * (k // 3) + 3]):
+                        syn = ref[:k] + b + ref[k + 1:]
+                        break
+                if syn:
+                    break
+            yield "syn", syn
+            yield "mixed", sub(ref[:50] + ref[51:], 200, "T")
+
+        rows = []
+        for i, (kind, obs) in enumerate(variants()):
+            aref, aobs = cb.banded_align(ref, obs)
+            cs = cs_from(aref, aobs)
+            nm = sum(1 for x, y in zip(aref, aobs) if x != y)
+            rows.append(["p%d" % i, "hap1", "ctg%d" % i, gene, "1", "HLA-A*01:new", str(nm), "%s|%s|x" % (ref_name, cs), "9", "1000", "6000"])
+            person(d + "/people", "p%d" % i, gene, ref_name, ref, obs, "ctg%d" % i, 1000)
+        hdr = ["person_id", "hap", "contig", "gene", "copy_index", "consensus", "cds_distance", "cds_mut", "template_distance", "gene_start", "gene_end"]
+        with open(d + "/rich.tsv", "w") as f:
+            f.write("\t".join(hdr) + "\n" + "\n".join("\t".join(r) for r in rows) + "\n")
+        sargs = type("A", (), dict(out_dir=d + "/out", rich=d + "/rich.tsv", refdata=d + "/ref", all_calls=False, index=True))()
+        stx = load("cb90s", "90_case_browser_stats.py")
+        stx._CORE = cb
+        out = stx.run(sargs, cb)
+        tot = {k: sum(r[k] for r in out) for k in stx.FIELDS}
+        self.assertEqual((tot["n"], tot["indel_only"], tot["snv_only"], tot["mixed"]), (4, 1, 2, 1))
+        self.assertEqual((tot["protein_snv"], tot["syn_snv_only"], tot["hp_only_indel"] >= 0, tot["n_partial"]), (1, 1, True, 0))
+        # exhaustive extraction pulls both snv-only calls, none of the others
+        eargs = type("A", (), dict(out_dir=d + "/ex", hla_root=d + "/people", kir_root=d + "/nokir", refdata=d + "/ref", rich=d + "/rich.tsv",
+                                   origin=d + "/none", relatedness=d + "/none", per_cell=0, kir_people=0, kir_per_cell=0, mendel=0,
+                                   mendel_controls=0, switch=0, switch_controls=0, seed=1, exhaustive_snv=10))()
+        cases = ex.run(eargs, cb)
+        self.assertEqual(len(cases), 2)
+        self.assertTrue(all(c["alignments"][0]["stats"]["snv"] == 1 and c["alignments"][0]["problems"] == 0 for c in cases))
 
 
 if __name__ == "__main__":

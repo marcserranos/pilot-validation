@@ -83,16 +83,21 @@ const TABS = [
   {id:"ladder", label:"Distance ladder", hint:"Immuannot's own CDS alignment, grouped by how far the call is from its reference allele", pred:c=>c.tab==="ladder"},
   {id:"novel", label:"Novel vs known", hint:"Same alignments, split by what Immuannot called novel", pred:c=>c.tab==="ladder"},
   {id:"mendel", label:"Mendelian", hint:"A child haplotype against the parent it was assigned to", pred:c=>c.tab==="mendel"},
+  {id:"stats", label:"Statistics", hint:"How novel calls are made up: indels vs substitutions vs protein-altering substitutions", pred:c=>false},
   {id:"switch", label:"Switches", hint:"Parent of origin along a child's haplotype contig (gene resolution)", pred:c=>c.tab==="switch"},
 ];
 const fitWin = () => { const w=(document.querySelector("#detail")||document.body).clientWidth||900; return Math.max(30,Math.min(240,Math.floor((w-260)/7.9/6)*6)); };
 const S = {tab:"ladder", species:"all", gene:"all", tier:"all", novelty:"all", sel:null, alt:0,
-           mode:"window", win:0, start:0, protOnly:false, dimSyn:false, cmp:new Set()};
+           mode:"window", win:0, start:0, show:"all", dimSyn:false, cmp:new Set(), edit:"all", prot:"all", sgene:"all", snov:"novel"};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const cases = DATA ? DATA.cases : [];
 const PROT = new Set(["missense","nonsense","frameshift","inframe indel","frameshifted"]);
 const isProt = e => PROT.has(e.effect);
+const nIndel = st => st.ins_events+st.del_events;
+const eclass = c => { const st=c.alignments[0].stats; return !st.snv&&!nIndel(st)?"identical":!st.snv?"indel-only":!nIndel(st)?"snv-only":"mixed"; };
+const protSnv = c => { const st=c.alignments[0].stats; return st.missense+st.nonsense>0; };
+const keepEv = e => S.show==="all" || (S.show==="snv"&&e.type==="snv") || (S.show==="prot"&&isProt(e));
 
 function visible(c){
   const t = TABS.find(t=>t.id===S.tab);
@@ -101,6 +106,11 @@ function visible(c){
   if(S.gene!=="all" && c.gene!==S.gene) return false;
   if(S.tier!=="all" && String(c.tier)!==S.tier) return false;
   if(S.tab==="novel" && S.novelty!=="all" && c.novelty!==S.novelty) return false;
+  if(c.tab==="ladder"){
+    if(S.edit==="has-snv"){ if(!c.alignments[0].stats.snv) return false; }
+    else if(S.edit!=="all" && eclass(c)!==S.edit) return false;
+    if(S.prot==="yes" && !protSnv(c)) return false;
+  }
   return true;
 }
 const pool = () => cases.filter(c=>TABS.find(t=>t.id===S.tab).pred(c));
@@ -114,6 +124,12 @@ function chip(label, pressed, on){
 /* ------------------------------------------------------------------ sidebar */
 function renderSide(){
   const side=$("#side"); side.innerHTML="";
+  if(S.tab==="stats"){
+    const g=uniq(cases.filter(c=>c.tab==="ladder").map(c=>c.gene)).sort();
+    side.innerHTML=`<label class="f">Gene (sample tables)</label><select id="sg"><option value="all">all genes</option>${g.map(x=>`<option ${S.sgene===x?"selected":""}>${esc(x)}</option>`).join("")}</select>
+      <p class="mute" style="font-size:12px">Whole-cohort tables are exhaustive for novel calls (every call, not examples). The sample tables only describe the cases loaded in this viewer, which are stratified examples, not rates.</p>`;
+    side.querySelector("#sg").onchange=e=>{S.sgene=e.target.value;renderDetail();}; return;
+  }
   const P=pool();
   const f=(name,vals,key,fmt)=>{
     const l=document.createElement("label"); l.className="f"; l.textContent=name; side.appendChild(l);
@@ -130,6 +146,14 @@ function renderSide(){
     f("Distance to reference (CDS edits, bucket)",uniq(P.map(c=>c.tier)).sort(tierSort),"tier",v=>"≈"+v);
   }
   if(S.tab==="novel") f("Immuannot novelty",uniq(P.map(c=>c.novelty)).sort(),"novelty");
+  if(S.tab==="ladder"||S.tab==="novel"){
+    const lab2=document.createElement("label"); lab2.className="f"; lab2.textContent="What the edits are"; side.appendChild(lab2);
+    const w2=document.createElement("div"); w2.className="chips"; side.appendChild(w2);
+    [["all","all"],["snv-only","substitutions only (no indel)"],["has-snv","any substitution"],["indel-only","indels only"],["mixed","both"]].forEach(([k,l])=>
+      w2.appendChild(chip(l,S.edit===k,()=>{S.edit=k;S.sel=null;render();})));
+    const w3=document.createElement("div"); w3.className="chips"; w3.style.marginTop="6px"; side.appendChild(w3);
+    w3.appendChild(chip("protein-altering substitution",S.prot==="yes",()=>{S.prot=S.prot==="yes"?"all":"yes";S.sel=null;render();}));
+  }
   const V=cases.filter(visible);
   const h=document.createElement("div"); h.className="mute"; h.style.margin="12px 0 4px"; h.textContent=V.length+" cases"; side.appendChild(h);
   V.sort((a,b)=>(a.gene>b.gene?1:a.gene<b.gene?-1:0)||(a.tier-b.tier)||a.id.localeCompare(b.id));
@@ -160,7 +184,7 @@ function colEvents(a){
   a.events.forEach(e=>{for(let i=0;i<e.len;i++) m[e.col+i]=e;});
   return m;
 }
-function shown(a){ return a.events.filter(e=>!S.protOnly||isProt(e)); }
+function shown(a){ return a.events.filter(keepEv); }
 
 function summary(c,a){
   const s=a.stats; const el=document.createElement("div");
@@ -217,7 +241,7 @@ function alnRows(a,c0,c1,cev,ridx){
   const L=a.aref.length;
   for(let i=c0;i<c1&&i<L;i++){
     const e=cev[i]; const clip=i<a.clip5||i>=L-a.clip3;
-    let cls="c"; if(clip) cls+=" clip"; else if(e){cls+=" "+evClass(e); if(e.homopolymer||e.tandem) cls+=" hp"; if(S.dimSyn&&e.effect==="synonymous") cls+=" dim"; if(S.protOnly&&!isProt(e)) cls+=" dim";}
+    let cls="c"; if(clip) cls+=" clip"; else if(e){cls+=" "+evClass(e); if(e.homopolymer||e.tandem) cls+=" hp"; if(S.dimSyn&&e.effect==="synonymous") cls+=" dim"; if(!keepEv(e)) cls+=" dim";}
     const r=a.aref[i], o=a.aobs[i];
     seqR+=`<span class="${cls}">${r}</span>`; seqO+=`<span class="${cls}">${o}</span>`;
     mid+=`<span class="c" style="color:var(--mute)">${(r===o&&r!=="-")?"│":" "}</span>`;
@@ -241,7 +265,7 @@ function alignmentPanel(c,a){
   ctrl.innerHTML=`<span><label><input type="radio" name="mode" value="window" ${S.mode==="window"?"checked":""}> zoomed window</label> &nbsp; <label><input type="radio" name="mode" value="full" ${S.mode==="full"?"checked":""}> whole CDS</label></span>
    <span>window <input id="win" type="range" min="24" max="240" step="6" value="${S.win}"> <span id="winv">${S.win}</span> bp</span>
    <span><button class="sm" id="prev">◀ prev diff</button> <button class="sm" id="next">next diff ▶</button></span>
-   <label><input type="checkbox" id="prot" ${S.protOnly?"checked":""}> protein-changing only</label>
+   <label>show <select id="show" style="width:auto"><option value="all" ${S.show==="all"?"selected":""}>all differences</option><option value="snv" ${S.show==="snv"?"selected":""}>substitutions only (hide indels)</option><option value="prot" ${S.show==="prot"?"selected":""}>protein-changing only</option></select></label>
    <label><input type="checkbox" id="dim" ${S.dimSyn?"checked":""}> fade synonymous</label>`;
   wrap.appendChild(ctrl);
   wrap.appendChild(minimap(a));
@@ -253,7 +277,7 @@ function alignmentPanel(c,a){
   draw(); wrap.appendChild(box); wrap.insertAdjacentHTML("beforeend",legend());
   ctrl.querySelectorAll("input[name=mode]").forEach(r=>r.onchange=()=>{S.mode=r.value;renderDetail();});
   ctrl.querySelector("#win").oninput=e=>{S.win=+e.target.value;S.start=clampStart(S.start,L);renderDetail();};
-  ctrl.querySelector("#prot").onchange=e=>{S.protOnly=e.target.checked;renderDetail();};
+  ctrl.querySelector("#show").onchange=e=>{S.show=e.target.value;renderDetail();};
   ctrl.querySelector("#dim").onchange=e=>{S.dimSyn=e.target.checked;renderDetail();};
   const jump=dir=>{
     const ev=shown(a).slice().sort((p,q)=>p.col-q.col); if(!ev.length) return;
@@ -265,18 +289,18 @@ function alignmentPanel(c,a){
   return wrap;
 }
 
-function eventTable(a){
+function eventTable(a,c){
   const wrap=document.createElement("div"); wrap.className="panel";
   const ev=shown(a);
-  let h=`<h3>Differences (${ev.length}${S.protOnly?" protein-changing":""} of ${a.events.length}) — click a row to zoom to it</h3>`;
-  if(!ev.length){wrap.innerHTML=h+`<div class="mute">none${S.protOnly?" with a protein consequence":""}</div>`;return wrap;}
-  h+=`<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>type</th><th>ref pos</th><th>codon</th><th>ref → observed</th><th>amino acid</th><th title="'frameshifted' = a substitution downstream of an uncorrected indel, so its codon is out of register">consequence</th><th>exon</th><th>context</th></tr></thead><tbody>`;
+  let h=`<h3>Differences (${ev.length}${S.show==="snv"?" substitutions":S.show==="prot"?" protein-changing":""} of ${a.events.length}) — click a row to zoom to it</h3>`;
+  if(!ev.length){wrap.innerHTML=h+`<div class="mute">none${S.show==="snv"?" (this call has no substitutions)":S.show==="prot"?" with a protein consequence":""}</div>`;return wrap;}
+  h+=`<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>type</th><th>ref pos</th><th>codon</th><th>ref → observed</th><th>amino acid</th><th title="'frameshifted' = a substitution downstream of an uncorrected indel, so its codon is out of register">consequence</th><th>exon</th><th>context</th>${c&&c.sr?"<th>short reads</th>":""}</tr></thead><tbody>`;
   ev.forEach((e,i)=>{
     const ctx = e.type==="snv" ? "" : e.homopolymer ? `homopolymer run of ${e.run} ${esc(e.type==="ins"?e.obs[0]:e.ref[0])}` : e.tandem ? "tandem-repeat slip" : "non-repeat indel";
     const bases = e.type==="snv" ? `<mark class="d">${e.ref}</mark> → <mark class="d">${e.obs}</mark>` : e.type==="ins" ? `+<mark class="d">${esc(e.obs)}</mark>` : `−<mark class="d">${esc(e.ref)}</mark>`;
     const cod = e.cod_ref ? `${esc(e.cod_ref)} → ${esc(e.cod_obs)}` : "";
     const aa = e.aa_ref ? `${e.aa_ref}${e.codon}${e.aa_obs}` : "";
-    h+=`<tr class="ev" data-col="${e.col}"><td>${i+1}</td><td>${e.type}${e.len>1?" ×"+e.len:""}</td><td class="m">${e.refpos}</td><td class="m">${e.codon||""}</td><td class="m">${bases}${cod?"<br><span class='mute'>"+cod+"</span>":""}</td><td class="m">${aa}</td><td>${esc(e.effect)}</td><td>${e.exon==null?"":e.exon}${e.ars?" · groove":""}</td><td>${ctx}</td></tr>`;
+    h+=`<tr class="ev" data-col="${e.col}"><td>${i+1}</td><td>${e.type}${e.len>1?" ×"+e.len:""}</td><td class="m">${e.refpos}</td><td class="m">${e.codon||""}</td><td class="m">${bases}${cod?"<br><span class='mute'>"+cod+"</span>":""}</td><td class="m">${aa}</td><td>${esc(e.effect)}</td><td>${e.exon==null?"":e.exon}${e.ars?" · groove":""}</td><td>${ctx}</td>${c&&c.sr?`<td>${srCell(c,e)}</td>`:""}</tr>`;
   });
   wrap.innerHTML=h+"</tbody></table></div>";
   wrap.querySelectorAll("tr.ev").forEach(tr=>tr.onclick=()=>{S.mode="window";S.start=clampStart(+tr.dataset.col-S.win/2,a.aref.length);renderDetail();window.scrollTo({top:0,behavior:"smooth"});});
@@ -350,6 +374,7 @@ function mendelHeader(c){
 function renderDetail(){
   const d=$("#detail"); d.innerHTML="";
   const t=TABS.find(t=>t.id===S.tab);
+  if(S.tab==="stats"){ const hint=document.createElement("p"); hint.className="mute"; hint.textContent=t.hint; d.appendChild(hint); statsView(d); return; }
   const c=cases.find(x=>x.id===S.sel&&visible(x));
   const hint=document.createElement("p"); hint.className="mute"; hint.textContent=t.hint; d.appendChild(hint);
   const extras=()=>{ if(S.tab!=="ladder"&&S.tab!=="novel") return; const ln=lanes(); if(ln) d.appendChild(ln); const ts=tierSummary(); if(ts) d.appendChild(ts); };
@@ -366,12 +391,107 @@ function renderDetail(){
     const meta=document.createElement("p"); meta.className="mute";
     meta.textContent=`reference allele: ${a.ref_label} · template distance (whole gene): ${c.template_distance??"n/a"} · novelty: ${c.novelty}${c.warn?" · warnings: "+c.warn:""}`; d.appendChild(meta);
   } else if(a.note){ const meta=document.createElement("p"); meta.className="mute"; meta.textContent=a.note; d.appendChild(meta); }
-  d.appendChild(summary(c,a)); d.appendChild(alignmentPanel(c,a)); d.appendChild(eventTable(a)); extras();
+  d.appendChild(summary(c,a)); d.appendChild(alignmentPanel(c,a)); d.appendChild(depthPanel(c,a)||document.createComment("")); d.appendChild(srPanel(c,a)||document.createComment("")); d.appendChild(eventTable(a,c)); extras();
 }
+
+/* ------------------------------------------------------------------ depth + short reads */
+function depthPanel(c,a){
+  const D=c.depth; if(!D||a!==c.alignments[0]) return null;
+  const p=document.createElement("div"); p.className="panel";
+  const lr=D.lr||{}, sr=D.sr||{}, f=(v,d=1)=>v==null?"n/a":(+v).toFixed(d);
+  const chips=[["long-read gene depth",f(lr.gene_mean)],["long-read CDS mean",f(lr.cds_mean)],["CDS 10th percentile",f(lr.cds_p10)],["CDS bases <10×",lr.share_lt10==null?"n/a":Math.round(100*lr.share_lt10)+"%"],
+    ["vs genome mean",lr.genome_mean?f(lr.gene_mean/lr.genome_mean,2)+"×":"n/a"],["short-read gene depth",f(sr.gene_mean)],["short-read vs genome",sr.genome_mean?f(sr.gene_mean/sr.genome_mean,2)+"×":"n/a"]];
+  let h=`<h3>Sequencing depth of this call</h3><div class="chips2">${chips.map(([k,v])=>`<div class="stat"><b>${v}</b>${k}</div>`).join("")}</div>`;
+  if(D.track&&D.track.length){
+    const L=a.aref.length, W=1000, H=70, qi=[]; let q=0; for(let i=0;i<L;i++) qi.push(a.aobs[i]==="-"?-1:q++);
+    const mx=Math.max(...D.track,1), col2q={}; qi.forEach((v,i)=>{if(v>=0) col2q[i]=v;});
+    let path=""; for(let i=0;i<L;i++){ const v=col2q[i]; if(v==null||v>=D.track.length) continue; path+=(path?"L":"M")+(i/L*W).toFixed(1)+" "+(H-4-(D.track[v]/mx)*(H-12)).toFixed(1); }
+    let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Long-read depth along the CDS"><rect x="0" y="0" width="${W}" height="${H}" fill="var(--bg)" stroke="var(--line)"/>
+      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="1.6"/><text x="4" y="11" font-size="10" fill="var(--mute)">${Math.round(mx)}×</text>`;
+    shown(a).forEach(e=>{const x=(e.col+.5)/L*W; g+=`<line x1="${x}" x2="${x}" y1="0" y2="${H}" stroke="${e.homopolymer?"var(--hp)":e.type==="ins"?"var(--ins)":e.type==="del"?"var(--del)":"var(--snv)"}" stroke-width="1.5" opacity=".8"/>`;});
+    h+=g+`</svg><div class="legend"><span>blue line = long-read depth per CDS base; coloured ticks = the differences, so you can see whether they sit in thin coverage</span></div>`;
+  }
+  p.innerHTML=h; return p;
+}
+const SRCOL={supported:"var(--ok)","not seen in short reads":"var(--warn)",contradicted:"var(--warn)",skewed:"var(--snv)",weak:"var(--snv)","low depth":"var(--mute)"};
+function srCell(c,e){ const i=c.alignments[0].events.indexOf(e); const s=c.sr.sites.find(x=>x.ev===i); return s?`<span style="color:${SRCOL[s.verdict]||"inherit"};font-weight:600">${esc(s.verdict)}</span>`:"<span class='mute'>–</span>"; }
+function srPanel(c,a){
+  if(!c.sr||a!==c.alignments[0]) return null;
+  const p=document.createElement("div"); p.className="panel";
+  let h=`<h3>Short-read check (${esc(c.sr.sample||"srWGS")}) — do the reads show this base, and at the ratio the other haplotype predicts?</h3>
+   <p class="mute" style="margin:0 0 8px">${esc(c.sr.note||"Reads realigned to this person's two haplotype sequences. Homozygous site: almost all reads should carry the called base. Heterozygous site: about half. Counts: called base / other haplotype's base / any other base.")}</p>`;
+  if(!c.sr.sites.length){ p.innerHTML=h+'<div class="mute">no sites checked</div>'; return p; }
+  h+=`<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>difference</th><th>other haplotype</th><th>reads</th><th>called / other-hap / other</th><th style="min-width:160px">ratio</th><th>verdict</th><th></th></tr></thead><tbody>`;
+  c.sr.sites.forEach((x,k)=>{ const e=a.events[x.ev]; const n=x.obs+x.alt+x.oth||1;
+    const lab=e.type==="snv"?`${e.ref}→${e.obs}`:e.type==="ins"?`+${e.obs}`:`−${e.ref}`;
+    h+=`<tr><td>${k+1}</td><td class="m">${esc(lab)} @${e.refpos}</td><td>${x.het?"differs ("+esc(x.other_base||"")+")":"same base"}</td><td>${n}</td><td class="m">${x.obs} / ${x.alt} / ${x.oth}</td>
+      <td><div style="display:flex;height:12px;border:1px solid var(--line);border-radius:3px;overflow:hidden"><i style="width:${100*x.obs/n}%;background:var(--accent)"></i><i style="width:${100*x.alt/n}%;background:var(--mat)"></i><i style="width:${100*x.oth/n}%;background:var(--amb)"></i></div></td>
+      <td style="color:${SRCOL[x.verdict]||"inherit"};font-weight:600">${esc(x.verdict)}</td><td><button class="sm" data-k="${k}">reads</button></td></tr>
+      <tr class="pile" id="pile${k}" style="display:none"><td colspan="8"></td></tr>`; });
+  h+=`</tbody></table></div><div class="legend"><span><i style="background:var(--accent)"></i>called base</span><span><i style="background:var(--mat)"></i>other haplotype's base</span><span><i style="background:var(--amb)"></i>other</span></div>`;
+  p.innerHTML=h;
+  p.querySelectorAll("button[data-k]").forEach(b=>b.onclick=()=>{
+    const k=+b.dataset.k, row=p.querySelector("#pile"+k), x=c.sr.sites[k], w=x.window;
+    if(row.style.display==="none"){ row.style.display=""; row.firstChild.innerHTML=pileup(w,a.events[x.ev]); } else row.style.display="none"; });
+  return p;
+}
+function pileup(w,e){
+  const cl=(ch,ref,alt)=>ch===" "?"":ch===ref?"":ch===alt?"alt":"oth";
+  const row=(label,seq,ref,alt)=>`<span class="row"><span class="lab">${esc(label)}</span>`+[...seq].map((ch,i)=>{const r=ref?ref[i]:null,a2=alt?alt[i]:null; const k=ref?(ch===" "?"":ch===r?"":ch===a2?"alt":"oth"):"";
+     return `<span class="c ${k==="alt"?"del":k==="oth"?"snv":""}${i===w.focus?" hp":""}">${ch}</span>`;}).join("")+"</span>";
+  let h=`<div class="aln" style="padding:6px 0">`+row("called haplotype",w.obs)+row("other haplotype",w.other,w.obs,null);
+  h+=`<span class="row"><span class="lab"></span></span>`;
+  (w.reads||[]).forEach(r=>{ h+=row((r.a==="obs"?"● ":r.a==="alt"?"○ ":"· ")+r.st+" mq"+r.mq,r.s,w.obs,w.other); });
+  return h+`</div><div class="mute" style="font-size:12px">Reads over a window of the called haplotype's columns (underlined column = the difference). Orange = the other haplotype's base, red = a third base; reads matching the called base are unmarked.</div>`;
+}
+
+/* ------------------------------------------------------------------ statistics tab */
+const FIELDS=["n","indel_only","snv_only","mixed","protein_snv","syn_snv_only","frameshift","hp_only_indel","n_partial"];
+function sampleRows(){
+  const rows=[]; cases.filter(c=>c.tab==="ladder"&&c.species==="HLA"&&(S.sgene==="all"||c.gene===S.sgene)).forEach(c=>{
+    const a=c.alignments[0], st=a.stats, k=eclass(c), ind=a.events.filter(e=>e.type!=="snv");
+    rows.push({gene:c.gene,novelty:c.novelty,bin:String(c.tier),n:1,indel_only:+(k==="indel-only"),snv_only:+(k==="snv-only"),mixed:+(k==="mixed"),
+      protein_snv:+protSnv(c),syn_snv_only:+(k==="snv-only"&&!protSnv(c)),frameshift:+(st.frameshifts>0),hp_only_indel:+(k==="indel-only"&&ind.every(e=>e.homopolymer||e.tandem)),n_partial:0});});
+  return rows;
+}
+function agg(rows,key){ const m={}; rows.forEach(r=>{const k=key(r); const o=m[k]=m[k]||Object.fromEntries(FIELDS.map(f=>[f,0])); FIELDS.forEach(f=>o[f]+=(+r[f]||0));}); return m; }
+const pc=(n,d)=>d?(100*n/d).toFixed(n/d>=.995||n===0?0:1)+"%":"–";
+function bar(o){ const d=(o.indel_only+o.snv_only+o.mixed)||1;
+  return `<div style="display:flex;height:14px;min-width:150px;border:1px solid var(--line);border-radius:3px;overflow:hidden" title="indel-only / substitution-only / both"><i style="width:${100*o.indel_only/d}%;background:var(--del)"></i><i style="width:${100*o.mixed/d}%;background:var(--hp)"></i><i style="width:${100*o.snv_only/d}%;background:var(--snv)"></i></div>`; }
+function statTable(title,m,order,labelHead){
+  const keys=order||Object.keys(m).sort();
+  let h=`<h3>${title}</h3><div style="overflow-x:auto"><table><thead><tr><th>${labelHead}</th><th>calls</th><th>composition</th><th>indels only</th><th>substitutions only</th><th>both</th><th>with a protein-altering substitution</th><th>substitution-only, all synonymous</th><th>with a frameshift</th><th>all indels in homopolymer/tandem runs</th></tr></thead><tbody>`;
+  keys.forEach(k=>{const o=m[k]; if(!o) return; const t=o.n-o.n_partial;
+    h+=`<tr><td><b>${esc(k)}</b></td><td>${o.n}${o.n_partial?` <span class="mute">(${o.n_partial} not rebuildable)</span>`:""}</td><td>${bar(o)}</td><td>${o.indel_only} (${pc(o.indel_only,t)})</td><td>${o.snv_only} (${pc(o.snv_only,t)})</td><td>${o.mixed} (${pc(o.mixed,t)})</td><td>${o.protein_snv} (${pc(o.protein_snv,t)})</td><td>${o.syn_snv_only} (${pc(o.syn_snv_only,t)})</td><td>${o.frameshift} (${pc(o.frameshift,t)})</td><td>${o.hp_only_indel} (${pc(o.hp_only_indel,t)}${o.indel_only?" of indel-only: "+pc(o.hp_only_indel,o.indel_only):""})</td></tr>`;});
+  return h+`</tbody></table></div><div class="legend"><span><i style="background:var(--del)"></i>indels only</span><span><i style="background:var(--hp)"></i>both</span><span><i style="background:var(--snv)"></i>substitutions only</span></div>`;
+}
+function statsBlock(d,title,sub,rows,binOrder){
+  const p=document.createElement("div"); p.className="panel"; p.innerHTML=`<h2 style="font-size:15px">${title}</h2><p class="mute">${sub}</p>`;
+  const novel=rows.filter(r=>r.novelty!=="known");
+  const nov=["novel-protein","novel-synonymous","novel-beyond-CDS"];
+  p.insertAdjacentHTML("beforeend",statTable("By Immuannot novelty class",agg(rows,r=>r.novelty),nov.concat(["known"]).filter(k=>rows.some(r=>r.novelty===k)),"novelty"));
+  const sel=document.createElement("div"); sel.className="ctrl"; sel.style.marginTop="14px";
+  const cls=uniq(rows.map(r=>r.novelty)).sort(); const cur=cls.includes(S.snov)?S.snov:(S.snov==="novel"?"novel":cls[0]);
+  sel.innerHTML=`<label>restrict the tables below to <select style="width:auto" id="sn${title.length}"><option value="novel" ${cur==="novel"?"selected":""}>all novel</option>${cls.map(k=>`<option ${cur===k?"selected":""}>${esc(k)}</option>`).join("")}</select></label>`;
+  p.appendChild(sel);
+  const sub2=cur==="novel"?novel:rows.filter(r=>r.novelty===cur);
+  const holder=document.createElement("div"); p.appendChild(holder);
+  holder.innerHTML=statTable("By gene",agg(sub2,r=>r.gene),null,"gene")+"<div style='height:14px'></div>"+statTable("By distance to reference (CDS edits)",agg(sub2,r=>r.bin),binOrder(sub2),"edits");
+  sel.querySelector("select").onchange=e=>{S.snov=e.target.value;renderDetail();};
+  d.appendChild(p);
+}
+function statsView(d){
+  const CS=(DATA.meta||{}).cohort_stats;
+  const ord=rows=>uniq(rows.map(r=>r.bin)).sort((a,b)=>(parseFloat(String(a).replace(">",""))||0)-(parseFloat(String(b).replace(">",""))||0));
+  if(CS) statsBlock(d,"Whole cohort — every call",`${esc(CS.meta.scope)}. Unit: ${esc(CS.meta.unit)}. ${CS.meta.n_calls} calls, ${CS.meta.n_partial} could not be rebuilt from the cs string alone (clipped alignments). ${esc(CS.meta.note||"")}`,CS.rows,ord);
+  else { const e=document.createElement("div"); e.className="panel mute"; e.textContent="No whole-cohort statistics embedded yet (run the stats step on the VM and rebuild). The tables below describe only the cases in this viewer."; d.appendChild(e); }
+  statsBlock(d,"This viewer's cases (sample)",`Stratified examples chosen per gene and distance bucket, plus all novel substitution-only calls if that extraction was run. Not exhaustive and not rates${S.sgene==="all"?"":" — gene "+esc(S.sgene)}.`,sampleRows(),ord);
+}
+
 function render(){
   const tabs=$("#tabs"); tabs.innerHTML="";
   TABS.forEach(t=>{const b=document.createElement("button"); b.textContent=t.label; b.setAttribute("role","tab"); b.setAttribute("aria-selected",S.tab===t.id);
-    b.onclick=()=>{S.tab=t.id;S.species="all";S.gene="all";S.tier="all";S.novelty="all";S.sel=null;S.alt=0;render();}; tabs.appendChild(b);});
+    b.onclick=()=>{S.tab=t.id;S.species="all";S.gene="all";S.tier="all";S.novelty="all";S.edit="all";S.prot="all";S.sel=null;S.alt=0;render();}; tabs.appendChild(b);});
   renderSide(); renderDetail();
 }
 document.addEventListener("keydown",e=>{

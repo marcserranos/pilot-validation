@@ -16,3 +16,7 @@
   ~/cb_code may remain (rm -rf); ~/case_browser holds cases.json, index.html, private id map.
 - [10-21] RENUMBER — moved from 80 to the 90 series (`90_case_browser*`, `reports/hla_popgen/90_case_browser/`) so S06's 70-75+ never collides;
   76-89 left free as grace. Stale `80_*` copies still sit in S06 commits c97667a/1b936ef (not mine to rewrite).
+- [10-21] ADDED (local, tested on synthetic data) — `stats` (cohort-wide composition of novel calls from hla_calls_rich + public IPD CDS; no BAM),
+  `extract --exhaustive-snv CAP` (every novel call with no indel), edit-type / protein-altering filters, show-substitutions-only,
+  Statistics tab, depth panel, short-read panel (UI + verdict rule `sr_verdict`; extraction not yet written, needs VM go-ahead).
+  Exhaustiveness so far: the 316 cases are stratified EXAMPLES (<=3 per gene x distance bucket; KIR from 300 people), not all novel calls.

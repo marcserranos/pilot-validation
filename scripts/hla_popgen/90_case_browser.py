@@ -23,6 +23,7 @@ here is committed (see .gitignore) and the repo holds code only.
 """
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -369,6 +370,70 @@ def describe_alignment(a):
     return "%d edit%s: %s" % (st["nm"], "" if st["nm"] == 1 else "s", "; ".join(parts))
 
 
+def cs_edit_class(cs):
+    """'identical' | 'indel-only' | 'snv-only' | 'mixed' from a cs string alone (no sequences needed)."""
+    ops = parse_cs(cs)
+    snv = any(o == "*" for o, _ in ops)
+    ind = any(o in "+-" for o, _ in ops)
+    return "identical" if not (snv or ind) else "indel-only" if not snv else "snv-only" if not ind else "mixed"
+
+
+def edit_class(stats):
+    """'identical' | 'indel-only' | 'snv-only' | 'mixed' from an alignment's stats."""
+    snv, ind = stats["snv"], stats["ins_events"] + stats["del_events"]
+    return "identical" if not (snv or ind) else "indel-only" if not snv else "snv-only" if not ind else "mixed"
+
+
+def replay_from_ref(ref, cs):
+    """Rebuild both gapped rows from the reference allele CDS and an Immuannot cs string alone (the observed
+    bases are all in the cs or equal to the reference). Returns (aref, aobs) for a full-length alignment, or None
+    when the cs does not span the whole reference (clipped end) or disagrees with it."""
+    ref = ref.upper()
+    qi, R, O = 0, [], []
+    for op, p in parse_cs(cs):
+        if op == "=":
+            n = p if isinstance(p, int) else len(p)
+            seg = ref[qi:qi + n]
+            if len(seg) != n:
+                return None
+            R.append(seg)
+            O.append(seg)
+            qi += n
+        elif op == "*":
+            if ref[qi:qi + 1] != p[1]:
+                return None
+            R.append(p[1])
+            O.append(p[0])
+            qi += 1
+        elif op == "+":
+            if ref[qi:qi + len(p)] != p:
+                return None
+            R.append(p)
+            O.append("-" * len(p))
+            qi += len(p)
+        else:
+            R.append("-" * len(p))
+            O.append(p)
+    return ("".join(R), "".join(O)) if qi == len(ref) else None
+
+
+def sr_verdict(obs, alt, other, het, min_depth=8):
+    """Does short-read evidence support a long-read variant? obs/alt/other = reads carrying the called base, the
+    other haplotype's base, or any third base at the site; het = the two haplotypes differ at the site.
+    Homozygous site: nearly every read should carry the called base. Heterozygous: roughly half should."""
+    n = obs + alt + other
+    if n < min_depth:
+        return "low depth"
+    f = obs / float(n)
+    if not het:
+        return "supported" if f >= 0.85 else "contradicted" if f <= 0.3 else "weak"
+    if obs == 0 or f < 0.1:
+        return "not seen in short reads"
+    if 0.3 <= f <= 0.7 and alt / float(n) >= 0.25:
+        return "supported"
+    return "skewed"
+
+
 def normalise_cases(cases):
     """Idempotent touch-ups so a cases.json written by an older extract renders the same as a new one:
     fill unmapped exon numbers from their neighbours, and give Mendelian cases the descriptive summary."""
@@ -453,7 +518,45 @@ def cmd_demo(a):
         "n_switch": 2, "switches": [{"i": 9.5, "gap_kb": 16.2}, {"i": 10.5, "gap_kb": 219.2}],
         "track": [{"gene": g, "pos_kb": 30000 + 400 * i, "origin": o, "pat_k": 3 if o != "pat" else 90, "mat_k": 80 if o == "mat" else 2, "allele": g + "*01:01"}
                   for i, (g, o) in enumerate(zip(genes, ori))]})
-    out = build_html(cases, a.out_dir, {"title": "SYNTHETIC DEMO — no real data", "synthetic": True})
+    for c in cases:
+        if c["tab"] != "ladder":
+            continue
+        al = c["alignments"][0]
+        n = al["stats"]["obs_len"]
+        c["depth"] = {"lr": {"gene_mean": 31.0 + rng.random() * 6, "cds_mean": 29.0, "cds_p10": 17.0, "share_lt10": 0.04, "genome_mean": 30.0},
+                      "sr": {"gene_mean": 38.0, "genome_mean": 32.0},
+                      "track": [max(2, int(30 + 9 * math.sin(i / 70.0) + rng.randint(-4, 4) - (18 if 300 < i < 330 else 0))) for i in range(n)]}
+        if len(al["events"]) >= 3 and "sr" not in c:
+            sites = []
+            for k, e in enumerate(al["events"][:4]):
+                c0 = max(0, e["col"] - 15)
+                win_obs, win_ref = al["aobs"][c0:c0 + 31], al["aref"][c0:c0 + 31]
+                het = k % 2 == 0
+                tot = 34
+                obs_n = int(tot * (0.5 if het else 0.95)) if k != 3 else 1
+                alt_n = (tot - obs_n) if het else 0
+                oth_n = tot - obs_n - alt_n
+                reads = []
+                for j in range(14):
+                    from_obs = j < int(14 * obs_n / tot)
+                    reads.append({"s": win_obs if from_obs else win_ref, "st": "+-"[j % 2], "mq": 60, "a": "obs" if from_obs else "alt"})
+                sites.append({"ev": k, "het": het, "other_base": (e["ref"] or "-")[:1], "obs": obs_n, "alt": alt_n, "oth": oth_n,
+                              "verdict": sr_verdict(obs_n, alt_n, oth_n, het),
+                              "window": {"obs": win_obs, "other": win_ref, "reads": reads, "focus": e["col"] - c0}})
+            c["sr"] = {"sample": "srWGS (synthetic)", "sites": sites}
+    rows = []
+    for g in ("DEMO-A", "DEMO-B"):
+        for nov, base in (("novel-protein", 160), ("novel-synonymous", 60), ("novel-beyond-CDS", 25)):
+            for b, w in (("1", 3), ("2", 3), ("3-5", 2), ("6-10", 2), ("11-30", 1), ("31-100", 1)):
+                n = base * w
+                ind = int(n * (0.78 if nov == "novel-protein" and w >= 2 else 0.1))
+                snv = int(n * (0.08 if nov == "novel-protein" and w >= 2 else 0.8))
+                rows.append({"gene": g, "novelty": nov, "bin": b, "n": n, "indel_only": ind, "snv_only": snv, "mixed": n - ind - snv,
+                             "protein_snv": int(snv * 0.6), "syn_snv_only": int(snv * 0.4), "frameshift": int(ind * 0.95),
+                             "hp_only_indel": int(ind * 0.45), "n_partial": 0})
+    meta = {"title": "SYNTHETIC DEMO — no real data", "synthetic": True,
+            "cohort_stats": {"meta": {"scope": "SYNTHETIC numbers", "unit": "calls", "n_calls": sum(r["n"] for r in rows), "n_partial": 0}, "rows": rows}}
+    out = build_html(cases, a.out_dir, meta)
     print("wrote", out)
 
 
@@ -466,11 +569,12 @@ def main(argv=None):
     d = sub.add_parser("demo")
     d.add_argument("--out-dir", required=True)
     import importlib.util as iu
-    spec = iu.spec_from_file_location("cb_extract", os.path.join(HERE, "90_case_browser_extract.py"))
-    ext = iu.module_from_spec(spec)
-    spec.loader.exec_module(ext)
-    ext._CORE = sys.modules[__name__]
-    ext.register(sub)
+    for fn in ("90_case_browser_extract.py", "90_case_browser_stats.py"):
+        spec = iu.spec_from_file_location(fn[:-3], os.path.join(HERE, fn))
+        mod = iu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod._CORE = sys.modules[__name__]
+        mod.register(sub)
     a = ap.parse_args(argv)
     if a.cmd == "build":
         cmd_build(a)

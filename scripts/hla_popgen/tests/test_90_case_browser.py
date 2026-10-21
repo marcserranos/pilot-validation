@@ -138,6 +138,29 @@ class TestNormalise(unittest.TestCase):
         self.assertEqual(json.dumps(c), before)
 
 
+class TestClassify(unittest.TestCase):
+    def test_edit_classes_and_cs_only_classification(self):
+        self.assertEqual(cb.cs_edit_class(":10*ga:20"), "snv-only")
+        self.assertEqual(cb.cs_edit_class(":10+a:20"), "indel-only")
+        self.assertEqual(cb.cs_edit_class(":10*ga:5-c:20"), "mixed")
+        self.assertEqual(cb.cs_edit_class(":30"), "identical")
+
+    def test_replay_from_reference_alone(self):
+        obs = REF[:13] + "G" + REF[14:]
+        aref, aobs = cb.replay_from_ref(REF, ":13*ga:22")
+        self.assertEqual((aref, aobs), (REF, obs))
+        self.assertIsNone(cb.replay_from_ref(REF, ":13*ga:10"), "a clipped alignment cannot be rebuilt")
+        self.assertIsNone(cb.replay_from_ref(REF, ":13*gc:22"), "reference disagreement is refused")
+
+    def test_short_read_verdicts(self):
+        self.assertEqual(cb.sr_verdict(30, 1, 0, het=False), "supported")
+        self.assertEqual(cb.sr_verdict(2, 28, 0, het=False), "contradicted")
+        self.assertEqual(cb.sr_verdict(14, 16, 0, het=True), "supported")
+        self.assertEqual(cb.sr_verdict(0, 30, 0, het=True), "not seen in short reads")
+        self.assertEqual(cb.sr_verdict(22, 8, 0, het=True), "skewed")
+        self.assertEqual(cb.sr_verdict(3, 2, 0, het=True), "low depth")
+
+
 class TestMisc(unittest.TestCase):
     def test_novelty_class(self):
         self.assertEqual(cb.novelty_class("HLA-A*01:01:01:01"), "known")

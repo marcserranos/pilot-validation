@@ -296,6 +296,43 @@ def build_ladder(core, store, rows, per_cell, rng, species, report):
     return cases
 
 
+def build_exhaustive_snv(core, store, rows, cap, rng, report):
+    """EVERY novel HLA call whose CDS differs from its reference by substitutions only (no indel), capped per gene.
+    Tier = nearest nominal distance bucket, so the cases sit in the same filters as the sampled ladder."""
+    by = defaultdict(list)
+    for r in rows:
+        if not r["cds_mut"] or core.novelty_class(r["consensus"]) == "known":
+            continue
+        try:
+            first = r["cds_mut"].split(",")[0].split("|")[1]
+            if core.cs_edit_class(first) == "snv-only":
+                by[r["gene"]].append(r)
+        except Exception:
+            report["errors:exhaustive_cs"] += 1
+    cases = []
+    for gene, rs in sorted(by.items()):
+        report["exhaustive_snv_total:" + gene] = len(rs)
+        rng.shuffle(rs)
+        for r in rs[:cap]:
+            try:
+                person, hap = r["person"], hap_no(r["hap"])
+                call = store.calls("HLA", person, hap).get(("HLA-" + gene, r["copy"]))
+                if call is None:
+                    report["no_gtf_call"] += 1
+                    continue
+                a, _ = immuannot_alignment(core, store, "HLA", person, hap, call, core.ars_for(gene))
+                a["title"] = "Immuannot alignment"
+                nm = a["stats"]["nm"]
+                cases.append(({"tab": "ladder", "species": "HLA", "gene": gene, "tier": min(TIERS, key=lambda t: abs(math.log(t) - math.log(max(nm, 1)))),
+                               "novelty": core.novelty_class(r["consensus"]), "consensus": r["consensus"],
+                               "template_distance": r["template_distance"], "cds_distance": r["cds_distance"], "warn": call["warn"],
+                               "alignments": [a], "set": "all-novel-snv"},
+                              {"person": person, "hap": hap, "contig": r["contig"], "gene": gene, "copy": r["copy"]}))
+            except Exception as e:
+                report["errors:exhaustive:" + where(e)] += 1
+    return cases
+
+
 def kir_rows(store, root, n_people, rng, report):
     people = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d, "immuannot_output")))
     rng.shuffle(people)
@@ -463,6 +500,8 @@ def run(a, core):
     rich = load_rich(os.path.expanduser(a.rich), HLA_GENES + SWITCH_EXTRA)
     log("rich rows: %d" % len(rich))
     allc += build_ladder(core, store, [r for r in rich if r["gene"] in HLA_GENES], a.per_cell, rng, "HLA", report)
+    if a.exhaustive_snv:
+        allc += build_exhaustive_snv(core, store, [r for r in rich if r["gene"] in HLA_GENES], a.exhaustive_snv, rng, report)
     if a.kir_people:
         krows = kir_rows(store, os.path.expanduser(a.kir_root), a.kir_people, rng, report)
         log("KIR rows with CDS differences: %d" % len(krows))
@@ -525,6 +564,8 @@ def register(sub):
     p.add_argument("--mendel-controls", type=int, default=6)
     p.add_argument("--switch", type=int, default=25)
     p.add_argument("--switch-controls", type=int, default=6)
+    p.add_argument("--exhaustive-snv", type=int, default=0, metavar="CAP",
+                   help="also extract every novel call with substitutions only (no indel), up to CAP per gene")
     p.add_argument("--seed", type=int, default=1)
     p.set_defaults(func=lambda a: run(a, _CORE))
 
