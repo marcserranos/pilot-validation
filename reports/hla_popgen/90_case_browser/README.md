@@ -16,6 +16,7 @@ Filters (ladder / novel tabs): *what the edits are* (substitutions only = no ind
 ```
 # VM (JupyterLab terminal), from a throwaway clone of this branch:
 python3 scripts/hla_popgen/90_case_browser.py stats   --out-dir ~/case_browser            # aggregate, whole cohort, no BAM
+python3 scripts/hla_popgen/90_case_browser.py sr      --out-dir ~/case_browser --max-minutes 25   # short-read support, resumable (sr.jsonl)
 python3 scripts/hla_popgen/90_case_browser.py extract --out-dir ~/case_browser --exhaustive-snv 60   # + every novel substitution-only call (cap per gene)
 python3 scripts/hla_popgen/90_case_browser.py build   --cases ~/case_browser/cases.json --out-dir ~/case_browser
 # open ~/case_browser/index.html from JupyterLab (right-click -> Open in New Browser Tab)
@@ -24,6 +25,12 @@ python3 scripts/hla_popgen/90_case_browser.py build   --cases ~/case_browser/cas
 python3 scripts/hla_popgen/90_case_browser.py demo --out-dir /tmp/cb_demo
 python3 -m pytest scripts/hla_popgen/tests/test_90_case_browser.py scripts/hla_popgen/tests/test_90_extract.py -q
 ```
+
+Depth: `extract` joins S06 70's long-read depth (gene / exons / CDS percentiles, MAPQ 20) and S05 58's genome depth on the VM. Short reads: `sr`
+realigns the person's srWGS reads over the gene to the *called haplotype's own* gene sequence (`minimap2 -ax sr`, single-end) and counts, at each
+difference, reads with the called base / the other haplotype's base / anything else; indels are judged anywhere in the equivalent-placement zone
+(homopolymers), so a different CIGAR placement is not read as lack of support. Verdicts: supported, skewed, not seen in short reads,
+contradicted, weak, low depth. `build` merges `sr.jsonl` and `cohort_stats.json` automatically when they sit next to `cases.json`.
 
 Local viewing of a downloaded `cases.json` (put it in the gitignored `case_browser/` folder, then):
 
