@@ -121,6 +121,18 @@ class TestSites(unittest.TestCase):
         call = {"strand": "+", "cds": [(100, 104), (200, 204)]}
         self.assertEqual(sr.cds_contig_positions(call, 13), [100, 101, 102, 103, 104, 200, 201, 202, 203, 204, 205, 206, 207])
 
+    def test_gencode_fallback_loci(self):
+        import gzip, tempfile
+        d = tempfile.mkdtemp()
+        g = d + "/g.gtf.gz"
+        with gzip.open(g, "wt") as f:
+            f.write("#c\nchr6\tH\tgene\t100\t900\t.\t+\t.\tgene_id \"X\"; gene_name \"HLA-G\";\n"
+                    "chr6_alt\tH\tgene\t1\t9\t.\t+\t.\tgene_name \"HLA-DRB3\";\n")
+        loci = sr.add_gencode_loci({"A": ("chr6", 1, 2)}, g)
+        self.assertEqual(loci["G"], ("chr6", 100, 900))
+        self.assertNotIn("DRB3", loci)
+        self.assertEqual(loci["A"], ("chr6", 1, 2))
+
     def test_sam_parser_skips_secondary_and_parses_cigar(self):
         self.assertIsNone(sr.parse_sam_line(sam("ACGT", 5, flag=256), 1))
         r = sr.parse_sam_line(sam("ACGTACGT", 5, cigar="2M1D3M2I1M"), 1000)

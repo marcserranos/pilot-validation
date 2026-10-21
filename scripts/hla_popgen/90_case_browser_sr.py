@@ -273,6 +273,25 @@ def load_gene_loci(path):
     return loci
 
 
+def add_gencode_loci(loci, gtf_path, genes=("E", "F", "G", "DRB3", "DRB4", "DRB5")):
+    """Fill hg38 gene loci that S06's table lacks (HLA-E/F/G...) from GENCODE; genes absent from the primary
+    assembly (DRB3/DRB4 live on alt haplotypes) simply stay missing."""
+    want = {"HLA-" + g: g for g in genes if g not in loci}
+    if not want or not os.path.exists(gtf_path):
+        return loci
+    with gzip.open(gtf_path, "rt") as f:
+        for ln in f:
+            if ln.startswith("#"):
+                continue
+            x = ln.split("\t", 8)
+            if len(x) < 9 or x[2] != "gene":
+                continue
+            m = re.search(r'gene_name "([^"]+)"', x[8])
+            if m and m.group(1) in want and x[0].startswith("chr") and "_" not in x[0]:
+                loci[want[m.group(1)]] = (x[0], int(x[3]), int(x[4]))
+    return loci
+
+
 def cram_paths(manifest, persons):
     out = {}
     with open(manifest) as f:
@@ -299,7 +318,7 @@ def run(a, core):
     cand.sort(key=lambda c: (c.get("set") != "all-novel-snv", c["alignments"][0]["stats"]["nm"] > 10, c["id"]))
     cand = [c for c in cand if c["id"] not in done][: max(0, a.max_cases - len(done))]
     store = ext.Store(os.path.expanduser(a.hla_root), "", os.path.expanduser(a.refdata))
-    loci = load_gene_loci(os.path.expanduser(a.features))
+    loci = add_gencode_loci(load_gene_loci(os.path.expanduser(a.features)), os.path.expanduser(a.gencode))
     crams = cram_paths(os.path.expanduser(a.manifest), {priv[c["id"]]["person"] for c in cand})
     tmp = tempfile.mkdtemp(prefix="cb_sr_")
     t0, ok, fail = time.time(), 0, defaultdict(int)
@@ -354,6 +373,7 @@ def register(sub):
     p.add_argument("--hla-root", default="~/pipeline_outputs/people")
     p.add_argument("--refdata", default="~/tools/Immuannot_refdata")
     p.add_argument("--features", default="~/s06/results/70/features.tsv", help="hg38 gene loci (S06 70)")
+    p.add_argument("--gencode", default="~/ref/gencode.v46.basic.annotation.gtf.gz", help="fills loci S06 70 lacks (HLA-E/F/G)")
     p.add_argument("--manifest", default=MOUNT + "v9/wgs/cram/manifest.csv")
     p.add_argument("--hg38", default="~/ref/hg38_ucsc.fa")
     p.add_argument("--samtools", default="~/envs/yak/bin/samtools")
