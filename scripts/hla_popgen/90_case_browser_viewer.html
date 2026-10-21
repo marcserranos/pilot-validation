@@ -400,8 +400,9 @@ function depthPanel(c,a){
   const p=document.createElement("div"); p.className="panel";
   const lr=D.lr||{}, sr=D.sr||{}, f=(v,d=1)=>v==null?"n/a":(+v).toFixed(d);
   const chips=[["long-read gene depth",f(lr.gene_mean)],["long-read CDS mean",f(lr.cds_mean)],["CDS 10th percentile",f(lr.cds_p10)],["CDS bases <10×",lr.share_lt10==null?"n/a":Math.round(100*lr.share_lt10)+"%"],
-    ["vs genome mean",lr.genome_mean?f(lr.gene_mean/lr.genome_mean,2)+"×":"n/a"],["short-read gene depth",f(sr.gene_mean)],["short-read vs genome",sr.genome_mean?f(sr.gene_mean/sr.genome_mean,2)+"×":"n/a"]];
+    ["vs genome mean",lr.genome_mean?f(lr.gene_mean/lr.genome_mean,2)+"×":"n/a"],["groove (ARS) mean",f(lr.ars_mean)],["gene depth, all reads",f(lr.gene_mean_mapq0)]].concat(sr.gene_mean==null?[]:[["short-read gene depth",f(sr.gene_mean)],["short-read vs genome",sr.genome_mean?f(sr.gene_mean/sr.genome_mean,2)+"×":"n/a"]]);
   let h=`<h3>Sequencing depth of this call</h3><div class="chips2">${chips.map(([k,v])=>`<div class="stat"><b>${v}</b>${k}</div>`).join("")}</div>`;
+  if(lr.exons&&lr.exons.length) h+=`<p class="mute" style="margin:6px 0">exon mean depth (long reads, MAPQ≥20): ${lr.exons.map(e=>`exon ${e.n}: <b>${f(e.mean)}</b>`).join(" · ")}</p>`;
   if(D.track&&D.track.length){
     const L=a.aref.length, W=1000, H=70, qi=[]; let q=0; for(let i=0;i<L;i++) qi.push(a.aobs[i]==="-"?-1:q++);
     const mx=Math.max(...D.track,1), col2q={}; qi.forEach((v,i)=>{if(v>=0) col2q[i]=v;});

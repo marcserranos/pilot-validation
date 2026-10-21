@@ -489,6 +489,87 @@ def build_switch(origin, rich_by, n_sw, n_ok, rng, report):
     return cases
 
 
+# ------------------------------------------------------------------ long-read depth (S06 70 outputs, joined on the VM)
+def _rows(path):
+    with open(path) as f:
+        hdr = None
+        for ln in f:
+            if ln.startswith("#"):
+                continue
+            x = ln.rstrip("\n").split("\t")
+            if hdr is None:
+                hdr = x
+                continue
+            yield hdr, x
+
+
+def attach_depth(allc, depth_dir, genome_file, report):
+    """Add case['depth'] = {'lr': {...}} from S06 70's feature_depth / cds_perbase and S05 58's per-person genome depth.
+    Person-level depth, keyed on the person and gene of each case; long-read only (short-read depth is added with the
+    short-read step). Missing inputs are skipped and counted, never fatal."""
+    need = defaultdict(set)
+    for c, priv in allc:
+        if c.get("tab") in ("ladder", "mendel") and c.get("species") == "HLA" and priv.get("gene"):
+            need[priv["person"]].add(priv["gene"])
+    fd, cp = os.path.join(depth_dir, "feature_depth.tsv"), os.path.join(depth_dir, "cds_perbase.tsv")
+    if not (os.path.exists(fd) and os.path.exists(cp)):
+        report["depth:inputs_missing"] += 1
+        return
+    genes, exons, cds = {}, defaultdict(list), {}
+    with open(fd) as f:
+        hdr = None
+        for ln in f:
+            if ln.startswith("#"):
+                continue
+            pid = ln.split("\t", 1)[0]
+            if hdr is None:
+                hdr = ln.rstrip("\n").split("\t")
+                continue
+            if pid not in need:
+                continue
+            x = dict(zip(hdr, ln.rstrip("\n").split("\t")))
+            g, _, kind = x["feature"].partition("|")
+            if g not in need[pid]:
+                continue
+            q = x["mapq"]
+            if kind == "gene":
+                genes[(pid, g, q)] = float(x["mean_depth"])
+            elif kind.startswith("exons"):
+                exons[(pid, g, q)].append((int(kind[5:]), float(x["mean_depth"])))
+    for h, x in _rows(cp):
+        r = dict(zip(h, x))
+        if r["person_id"] in need and r["gene"] in need[r["person_id"]]:
+            cds[(r["person_id"], r["gene"], r["mapq"])] = r
+    genome = {}
+    if genome_file and os.path.exists(genome_file):
+        for h, x in _rows(genome_file):
+            r = dict(zip(h, x))
+            col = next((k for k in ("genome_mean", "genome_depth", "mean_depth", "depth_mean", "mean") if k in r), None)
+            if col is None:
+                col = next((k for k in h if k != "person_id" and re.match(r"^-?[\d.]+$", r[k] or "")), None)
+            if col and r.get("person_id") in need:
+                try:
+                    genome[r["person_id"]] = float(r[col])
+                except ValueError:
+                    pass
+        report["depth:genome_column_used"] += 0
+    f_ = lambda v: None if v in (None, "", "NA", "nan") else float(v)
+    for c, priv in allc:
+        pid, g = priv.get("person"), priv.get("gene")
+        if (pid, g, "20") not in genes and (pid, g, "0") not in genes:
+            if c.get("tab") in ("ladder", "mendel"):
+                report["depth:no_row"] += 1
+            continue
+        d, k = {}, cds.get((pid, g, "20")) or {}
+        d["gene_mean"] = genes.get((pid, g, "20"))
+        d["gene_mean_mapq0"] = genes.get((pid, g, "0"))
+        d["cds_mean"], d["cds_p10"] = f_(k.get("cds_mean")), f_(k.get("cds_p10"))
+        d["share_lt10"], d["ars_mean"] = f_(k.get("cds_share_lt10")), f_(k.get("ars_mean"))
+        d["genome_mean"] = genome.get(pid)
+        d["exons"] = [{"n": n, "mean": m} for n, m in sorted(exons.get((pid, g, "20"), []))]
+        c["depth"] = {"lr": d}
+
+
 # ------------------------------------------------------------------ driver
 def run(a, core):
     rng = random.Random(a.seed)
@@ -523,6 +604,7 @@ def run(a, core):
                 log("relatedness file not found (bucket unmounted? ENVIRONMENT quirks #14/#35): skipping Mendelian cases")
         if a.switch:
             allc += build_switch(origin, by, a.switch, a.switch_controls, rng, report)
+    attach_depth(allc, os.path.expanduser(a.depth_dir), os.path.expanduser(a.genome_depth), report)
     cases, private = [], []
     for k, (c, priv) in enumerate(allc, 1):
         c["id"] = "c%03d" % k
@@ -566,6 +648,8 @@ def register(sub):
     p.add_argument("--switch-controls", type=int, default=6)
     p.add_argument("--exhaustive-snv", type=int, default=0, metavar="CAP",
                    help="also extract every novel call with substitutions only (no indel), up to CAP per gene")
+    p.add_argument("--depth-dir", default="~/s06/internal/70", help="S06 70 outputs (feature_depth.tsv, cds_perbase.tsv)")
+    p.add_argument("--genome-depth", default="~/s05/internal/58/per_person_depth.tsv")
     p.add_argument("--seed", type=int, default=1)
     p.set_defaults(func=lambda a: run(a, _CORE))
 

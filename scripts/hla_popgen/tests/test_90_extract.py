@@ -121,7 +121,7 @@ class TestExtract(unittest.TestCase):
         args = type("A", (), dict(out_dir=d + "/out", hla_root=d + "/people", kir_root=d + "/nokir", refdata=d + "/ref",
                                   rich=d + "/rich.tsv", origin=d + "/none", relatedness=d + "/none", per_cell=3,
                                   kir_people=0, kir_per_cell=2, mendel=0, mendel_controls=0, switch=0,
-                                  switch_controls=0, seed=1, exhaustive_snv=0))()
+                                  switch_controls=0, seed=1, exhaustive_snv=0, depth_dir="/nonexistent", genome_depth=""))()
         cases = ex.run(args, cb)
         self.assertEqual(len(cases), 3)
         for c in cases:
@@ -176,7 +176,7 @@ class TestTrioAndSwitch(unittest.TestCase):
             f.write("i.s\tj.s\tkin\nkid\tparA\t0.25\nkid\tparB\t0.25\n")
         args = type("A", (), dict(out_dir=d + "/out", hla_root=d + "/people", kir_root=d + "/nokir", refdata=d + "/ref",
                                   rich=d + "/rich.tsv", origin=d + "/origin.tsv", relatedness=d + "/rel.tsv", per_cell=0,
-                                  kir_people=0, kir_per_cell=0, mendel=5, mendel_controls=0, switch=5, switch_controls=0, seed=1, exhaustive_snv=0))()
+                                  kir_people=0, kir_per_cell=0, mendel=5, mendel_controls=0, switch=5, switch_controls=0, seed=1, exhaustive_snv=0, depth_dir="/nonexistent", genome_depth=""))()
         cases = ex.run(args, cb)
         by = {c["tab"]: c for c in cases}
         m = by["mendel"]
@@ -254,10 +254,37 @@ class TestStatsAndExhaustive(unittest.TestCase):
         # exhaustive extraction pulls both snv-only calls, none of the others
         eargs = type("A", (), dict(out_dir=d + "/ex", hla_root=d + "/people", kir_root=d + "/nokir", refdata=d + "/ref", rich=d + "/rich.tsv",
                                    origin=d + "/none", relatedness=d + "/none", per_cell=0, kir_people=0, kir_per_cell=0, mendel=0,
-                                   mendel_controls=0, switch=0, switch_controls=0, seed=1, exhaustive_snv=10))()
+                                   mendel_controls=0, switch=0, switch_controls=0, seed=1, exhaustive_snv=10, depth_dir="/nonexistent", genome_depth=""))()
         cases = ex.run(eargs, cb)
         self.assertEqual(len(cases), 2)
         self.assertTrue(all(c["alignments"][0]["stats"]["snv"] == 1 and c["alignments"][0]["problems"] == 0 for c in cases))
+
+
+class TestDepth(unittest.TestCase):
+    def test_depth_join(self):
+        d = tempfile.mkdtemp()
+        try:
+            with open(d + "/feature_depth.tsv", "w") as f:
+                f.write("# INTERNAL\nperson_id\tfeature\tmapq\tsum_depth\tmean_depth\n")
+                for pid, g, q, m in (("pX", "A", "20", 30.5), ("pX", "A", "0", 33.0), ("pY", "A", "20", 99.0)):
+                    f.write("%s\t%s|gene\t%s\t1\t%s\n" % (pid, g, q, m))
+                f.write("pX\tA|exons2\t20\t1\t28.0\npX\tA|exons1\t20\t1\t31.0\n")
+            with open(d + "/cds_perbase.tsv", "w") as f:
+                f.write("# INTERNAL\nperson_id\tgene\tmapq\tcds_mean\tcds_p10\tcds_share_lt10\tars_mean\n"
+                        "pX\tA\t20\t29.0\t17\t0.04\t27.5\n")
+            with open(d + "/genome.tsv", "w") as f:
+                f.write("# c\nperson_id\tmean_depth\npX\t31.2\n")
+            allc = [({"tab": "ladder", "species": "HLA"}, {"person": "pX", "gene": "A"}),
+                    ({"tab": "ladder", "species": "HLA"}, {"person": "pZ", "gene": "A"})]
+            rep = ex.defaultdict(int)
+            ex.attach_depth(allc, d, d + "/genome.tsv", rep)
+            lr = allc[0][0]["depth"]["lr"]
+            self.assertEqual((lr["gene_mean"], lr["gene_mean_mapq0"], lr["cds_mean"], lr["genome_mean"]), (30.5, 33.0, 29.0, 31.2))
+            self.assertEqual([e["n"] for e in lr["exons"]], [1, 2])
+            self.assertNotIn("depth", allc[1][0])
+            self.assertEqual(rep["depth:no_row"], 1)
+        finally:
+            shutil.rmtree(d)
 
 
 if __name__ == "__main__":
