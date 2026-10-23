@@ -57,3 +57,8 @@
   (AFR/EAS/MID about 1.5x EUR/AMR/SAS). Novel calls per person overall (incl. synonymous/beyond-CDS) AFR > EAS ~ SAS ~ MID > AMR > EUR, as expected for a EUR-biased reference.
   Caveats: person-level relatedness available for LR persons is sparse; ancestry labels are AoU predictions; the burden table was read on the VM (not committed); pub-style tables with <20 suppression sit on the VM (~/s08/*_pub.tsv) pending Marc's go-ahead to commit.
   OPEN: (1) rebuild shortlist vs IPD 3.66 so 'novel' means novel today; (2) F T237I/P205T genomic coords + gnomAD/ALFA frequency; (3) transmission via 57b trios; (4) EHR path still unprobed.
+- [10-23] RESULT (IPD-IMGT 3.66 hla_nuc.fasta, 47,419 CDS; local 93 on the 337-case shortlist, VM 91 --ipd-nuc on the cohort) — shortlist: 58 now exact matches to a named allele, 9 contain a partial entry, 270 still novel;
+  after also dropping suffix-flagged reference alleles, >15-edit calls and non-tier-A short-read support, 98 remain (HLA-F 36, E 15, DQA1 12; 28 in the groove). Cohort: of 441 substitution-only signatures 54 are exact and
+  8 partial matches to 3.66 (of the 49 seen in >= 2 people: 15 exact, 1 partial). Names: the large EAS HLA-G synonymous cluster = G*01:01:33; F Y106C = F*01:25; E K195R = E*01:152; DQB1 A57D = DQB1*02:180:02; G D130H = G*01:58;
+  G G107S = G*01:64; G K170E = G*01:66. STILL UNNAMED + recurrent: HLA-F T237I and P205T (exact CDS in no 3.66 allele), plus small clusters (G A235V, G E190A [EUR; ref is a Q-suffix allele], F T279I, F synonymous).
+  So: 'novel vs 3.55' overstated discovery; the defensible novelty set is the 3.66-unmatched, tier-A, non-suffix-reference calls. VM: clone and the IPD file removed again, outputs in ~/s08/r366 (raw files mode 600).
