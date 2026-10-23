@@ -165,6 +165,27 @@ class TestClassify(unittest.TestCase):
         self.assertEqual(cb.sr_verdict(0, 0, 30, het=None), "not seen in short reads")
 
 
+class TestShortlist(unittest.TestCase):
+    def test_only_novel_substitution_only_with_protein_change(self):
+        miss = None
+        for k in range(30, 270):
+            for b in "ACGT":
+                cod = REF[3 * (k // 3):3 * (k // 3) + 3]
+                new = REF[3 * (k // 3):k] + b + REF[k + 1:3 * (k // 3) + 3]
+                if b != REF[k] and cb.translate(cod) != cb.translate(new):
+                    miss = REF[:k] + b + REF[k + 1:]
+                    break
+            if miss:
+                break
+        mk = lambda i, obs, nov: {"id": i, "tab": "ladder", "species": "HLA", "gene": "A", "consensus": "HLA-A*01:new", "novelty": nov,
+                                  "alignments": [cb.make_alignment("r", "o", *cb.banded_align(REF, obs), "immuannot-paf")]}
+        cases = [mk("c1", miss, "novel-protein"), mk("c2", REF[:8] + REF[9:], "novel-protein"), mk("c3", miss, "known")]
+        sr = {"c1": {"sites": [{"verdict": "supported"}], "depth_sr": 40}}
+        rows = cb.shortlist(cases, sr)
+        self.assertEqual([(r["case"], r["sr_tier"]) for r in rows], [("c1", "A")])
+        self.assertRegex(rows[0]["protein_changes"], r"^[A-Z*]\d+[A-Z*]$")
+
+
 class TestMisc(unittest.TestCase):
     def test_novelty_class(self):
         self.assertEqual(cb.novelty_class("HLA-A*01:01:01:01"), "known")

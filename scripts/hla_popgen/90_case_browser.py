@@ -439,6 +439,54 @@ def sr_verdict(obs, alt, other, het, min_depth=8):
     return "skewed"
 
 
+def shortlist(cases, sr_by_id):
+    """Candidate real novel alleles: Immuannot-novel, substitutions only (no indel), at least one protein-altering substitution.
+    Tier A = every short-read-checked site supported; B = some supported and none contradicted / not seen; C = the rest.
+    Returns TSV rows (anonymised case ids only)."""
+    out = []
+    for c in cases:
+        if c.get("tab") != "ladder" or c.get("species") != "HLA" or c.get("novelty") == "known":
+            continue
+        a = c["alignments"][0]
+        st = a["stats"]
+        if edit_class(st) != "snv-only" or st["missense"] + st["nonsense"] == 0:
+            continue
+        sr = sr_by_id.get(c["id"])
+        v = [sit["verdict"] for sit in sr["sites"]] if sr else []
+        tier = ("A" if v and all(x == "supported" for x in v) else
+                "B" if v and "supported" in v and not any(x in ("contradicted", "not seen in short reads") for x in v) else
+                "C" if v else "no-short-reads")
+        prot = ";".join(dict.fromkeys("%s%d%s" % (e["aa_ref"], e["codon"], e["aa_obs"]) for e in a["events"] if e.get("effect") in ("missense", "nonsense")))
+        d = (c.get("depth") or {}).get("lr") or {}
+        out.append({"case": c["id"], "gene": c["gene"], "consensus": c["consensus"], "novelty": c["novelty"], "edits": st["nm"], "protein_changes": prot,
+                    "in_groove": int(st["in_ars"] > 0), "sr_tier": tier, "sr_verdicts": ",".join(v),
+                    "sr_depth": (sr or {}).get("depth_sr", ""), "lr_cds_mean": d.get("cds_mean", ""), "template_warning": c.get("warn") or ""})
+    out.sort(key=lambda r: ({"A": 0, "B": 1, "C": 2}.get(r["sr_tier"], 3), -r["in_groove"], r["gene"], r["case"]))
+    return out
+
+
+def cmd_shortlist(a):
+    with open(a.cases) as f:
+        cases = json.load(f)["cases"]
+    sr = {}
+    path = a.sr or os.path.join(os.path.dirname(os.path.abspath(a.cases)), "sr.jsonl")
+    if os.path.exists(path):
+        with open(path) as f:
+            sr = {b["id"]: b for b in map(json.loads, (l for l in f if l.strip()))}
+        for c in cases:                                  # same zygosity-aware verdicts as the viewer
+            b = sr.get(c.get("id"))
+            if b:
+                unknown = (b.get("note") or "").startswith("Other haplotype has no call")
+                for st in b["sites"]:
+                    st["verdict"] = sr_verdict(st["obs"], st["alt"], st["oth"], None if unknown else st["het"])
+    rows = shortlist(cases, sr)
+    cols = list(rows[0]) if rows else []
+    with open(a.out, "w") as f:
+        f.write("\t".join(cols) + "\n" + "\n".join("\t".join(str(r[k]) for k in cols) for r in rows) + "\n")
+    from collections import Counter
+    print("wrote %s: %d candidates %s" % (a.out, len(rows), dict(Counter(r["sr_tier"] for r in rows))))
+
+
 def normalise_cases(cases):
     """Idempotent touch-ups so a cases.json written by an older extract renders the same as a new one:
     fill unmapped exon numbers from their neighbours, and give Mendelian cases the descriptive summary."""
@@ -603,6 +651,10 @@ def main(argv=None):
     b.add_argument("--out-dir", required=True)
     b.add_argument("--sr", help="sr.jsonl from the short-read step (optional)")
     b.add_argument("--stats", help="cohort_stats.json from the stats step (optional)")
+    sl = sub.add_parser("shortlist")
+    sl.add_argument("--cases", required=True)
+    sl.add_argument("--sr")
+    sl.add_argument("--out", required=True)
     d = sub.add_parser("demo")
     d.add_argument("--out-dir", required=True)
     import importlib.util as iu
@@ -617,6 +669,8 @@ def main(argv=None):
         cmd_build(a)
     elif a.cmd == "demo":
         cmd_demo(a)
+    elif a.cmd == "shortlist":
+        cmd_shortlist(a)
     else:
         a.func(a)
 
