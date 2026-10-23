@@ -12,7 +12,7 @@ Inputs (aggregate_tables/<folder>/*.tsv; whichever exists is used):
   78   KIR depth aggregates                                  78b  KIR pruning evidence
 
 Output: <out>/S06_FINAL_REPORT.html (single file, figures embedded as base64) and <out>/figs/*.png|pdf (layout-linted by `save_fig`).
-The section id="think-tank" is left empty on purpose.
+The section id="think-tank" is filled from <out>/think_tank.html when that file exists.
 
     python3 scripts/hla_popgen/79_s06_final_report.py \
         --tables reports/hla_popgen/79_s06_final/aggregate_tables --out reports/hla_popgen/79_s06_final
@@ -1319,7 +1319,8 @@ def build(T, figs, out_dir):
       "<li>Small-cell disclosure decision (open in DECISIONS.md) before anything leaves the private folder.</li></ul>")
 
     # (7) think tank
-    A("<h2 id='think-tank-section'>7. Think tank</h2><div id='think-tank'></div>")
+    _tt = os.path.join(out_dir, "think_tank.html")
+    A("<h2 id='think-tank-section'>7. Think tank</h2><div id='think-tank'>" + (open(_tt).read() if os.path.exists(_tt) else "") + "</div>")
     A("</main></body></html>")
     return "\n".join(parts)
 
