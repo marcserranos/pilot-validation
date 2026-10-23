@@ -138,21 +138,22 @@ def run(a):
     for r in raw:
         if r["gene"] == "F" and r["protein"] in ("T237I", "P205T"):
             fcar[r["protein"]] |= carriers[(r["gene"], r["ref_allele"], r["cds_events"])]
-    ancs = sorted({anc[p] for p in persons} - {"EUR"})
 
     def score(p, genes):
         v = [tpm[p].get(g) for g in genes]
         return [x for x in v if x is not None]
 
     def build(plist, predictor, outcome):
-        """design matrix with intercept, ancestry dummies, composition covariates (unless outcome is a lineage score) and predictor LAST."""
+        """design matrix with intercept, ancestry dummies (only groups with >= 20 people in THIS test), composition covariates and predictor LAST."""
+        ac = Counter(anc[p] for p in plist)
+        use = sorted(k for k, n in ac.items() if n >= 20 and k != "EUR")
         X, y = [], []
         for p in plist:
             xv = predictor(p)
             yv = outcome(p)
-            if xv is None or yv is None:
+            if xv is None or yv is None or anc[p] not in ac:
                 continue
-            row = [1.0] + [1.0 if anc[p] == k else 0.0 for k in ancs]
+            row = [1.0] + [1.0 if anc[p] == k else 0.0 for k in use]
             row += a_cov(p)
             X.append(row + [xv])
             y.append(yv)
@@ -171,17 +172,21 @@ def run(a):
     def test(name, plist, predictor, outcome, group_fn=None, cov=True):
         covmode["on"] = cov
         groups = Counter(group_fn(p) for p in plist) if group_fn else None
+        note = ""
         if groups is not None:
-            small = [g for g, n in groups.items() if g != 0 and 0 < n < 20]
-            if small or sum(1 for g in groups if g != 0 and groups[g] >= 20) == 0:
-                rows.append({"test": name, "n": len(plist), "groups": dict(groups), "beta": None, "se": None, "p": None, "note": "a non-reference group has <20 people"})
+            keep = {g for g, n in groups.items() if n >= 20}           # drop dosage tail groups with < 20 people (never estimated, never shown)
+            dropped = sum(n for g, n in groups.items() if n < 20)
+            if len(keep) < 2:
+                rows.append({"test": name, "n": len(plist), "groups": dict(groups), "beta": None, "se": None, "p": None, "note": "fewer than two groups with >= 20 people"})
                 return
+            plist = [p for p in plist if group_fn(p) in keep]
+            note = "tail groups <20 people dropped (%d people)" % dropped if dropped else ""
         X, y = build(plist, predictor, outcome)
         if len(y) < 40 or np.linalg.matrix_rank(X) < X.shape[1]:
-            rows.append({"test": name, "n": len(y), "groups": dict(groups) if groups else None, "beta": None, "se": None, "p": None, "note": "insufficient/rank deficient"})
+            rows.append({"test": name, "n": len(y), "groups": dict(groups) if groups else None, "beta": None, "se": None, "p": None, "note": "insufficient/rank deficient or outcome gene absent from the panel"})
             return
         b, se, pv = ols(y, X)
-        rows.append({"test": name, "n": len(y), "groups": dict(groups) if groups else None, "beta": b, "se": se, "p": pv, "note": ""})
+        rows.append({"test": name, "n": len(y), "groups": dict(groups) if groups else None, "beta": b, "se": se, "p": pv, "note": note})
 
     kp = sorted(kir)
     for g in a.kir_controls.split(","):
