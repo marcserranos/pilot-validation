@@ -597,14 +597,18 @@ def fig_cv(T, sub, figdir, name):
         return None
     views = list(dict.fromkeys(cv["view"]))
     with style():
-        fig, axs = plt.subplots(1, len(views), figsize=(V.mm(183), V.mm(80)), squeeze=False, constrained_layout=True)
-        for ax, v, L in zip(axs.ravel(), views, "abcdefgh"):
-            d = cv[cv["view"] == v].sort_values("enrichment")
+        fig, axs = plt.subplots(1, len(views), figsize=(V.mm(183), V.mm(80)), squeeze=False, sharey=True, constrained_layout=True)
+        order = list(cv.groupby("metric")["enrichment"].mean().sort_values().index)
+        for i, (ax, v, L) in enumerate(zip(axs.ravel(), views, "abcdefgh")):
+            d = cv[cv["view"] == v].set_index("metric").reindex(order).reset_index()
             y = np.arange(len(d))
             dotci(ax, y, d["enrichment"], d["enrichment_lo"], d["enrichment_hi"], C_BLUE)
             ax.axvline(1, color=C_GREY, lw=0.6, ls="--")
             ax.set_yticks(y)
-            ax.set_yticklabels([m.replace("_", " ") for m in d["metric"]], fontsize=5)
+            if i == 0:
+                ax.set_yticklabels([m.replace("_", " ") for m in order], fontsize=5)
+            else:
+                ax.tick_params(labelleft=False)
             ax.set_title(v.replace("_", " "), fontsize=6.5)
             ax.set_xlabel("held-out enrichment")
             V.panel_letter(ax, L)
