@@ -40,3 +40,8 @@
   DRB1 R262T: 3 different refs, all SR-skewed -> artefact. Many-edit recurrent B/C substitutions all sit on S/Q/N-suffixed or truncated ref templates (B*56:01:01:05S, B*44:02:01:02S, C*07:402, DRB5*01:131N,
   B*27:197) -> wrong-template artefact, NOT novelty; shortlist should drop suffix-ref and >~15-edit calls. Stop-gains: all upstream of last exon (NMD expected); only a handful (F, tier A,
   SR-supported) look clean; E/G/B/C/DRB5 nonsense are mostly SR 'contradicted/not seen'. Caveat: shortlist has no person-level zygosity; agent used SR het flag.
+- [10-23] RESULT (public IPD-IMGT 3.66.0 protein alignments F_prot/E_prot, parsed directly; our codon numbering = file position +30, ref residues verified at every site) —
+  recurrent shortlist signatures vs CURRENT IPD: HLA-F Y106C = F*01:25 (single substitution, KNOWN); HLA-E K195R on the E*01:03 background = E*01:152 (R128G+K195R, KNOWN);
+  HLA-F T237I and P205T are in NO allele of the 3.66 alignment (140 F alleles) -> the only recurrent signatures still unnamed (exon 4, alpha3, outside the groove); caveat: '*' = unsequenced
+  positions in partial entries not resolved. DQB1 A57D = DQB1*02:180 (per literature agent, not yet re-derived here). Net: of the recurrent single-edit leads, most "novelty" is the 3.55 snapshot being
+  11 releases old; rerun Immuannot-equivalent matching against 3.66 (or mask by 3.66 CDS) before any novelty count. Literature agent: Immuannot paper reports ~41% of assemblies' HLA/KIR seqs novel vs v3.52 (concentrated in non-classical genes/pseudogenes) -> precedent. Submission standard: IPD requires phased full exons 2-3 (class I) / exon 2 (II), isolated from the other allele; names assigned by WHO committee.
