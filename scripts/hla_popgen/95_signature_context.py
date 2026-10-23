@@ -83,10 +83,6 @@ def build(a, fmt):
             g = r["gene"][4:] if r["gene"].startswith("HLA-") else r["gene"]
             if g in ("A", "G", "F") and r["person_id"] in lr:
                 hapinfo[(r["person_id"], r["hap"], r["contig"])][g] = r["consensus"]
-    f_haps = defaultdict(list)   # person -> [(hap, contig, F consensus)]
-    for (p, h, c), d in hapinfo.items():
-        if "F" in d:
-            f_haps[p].append((h, c, d["F"], two(d.get("A")), two(d.get("G"))))
     lines = []
     for sel in CHOSEN:
         gene, prot = sel[0], sel[1]
@@ -103,36 +99,37 @@ def build(a, fmt):
             fmt(sum(1 for p in cs if p in rna)), fmt(sum(1 for p in cs if first.get(p))),
             fmt(sum(1 for p in cs if any(q in carriers for q in first.get(p, ()))))))
         # platform / centre skew vs ancestry-matched expectation
-        by_anc = defaultdict(Counter)
-        for p in lr:
-            by_anc[anc.get(p, "NA")][plat.get(p, "NA")] += 1
-        exp = Counter()
-        for p in cs:
-            tot = sum(by_anc[anc.get(p, "NA")].values())
-            for pl, n in by_anc[anc.get(p, "NA")].items():
-                exp[pl] += n / tot
-        obs = Counter(plat.get(p, "NA") for p in cs)
-        lines.append("platform observed/expected: " + ", ".join("%s=%s/%.1f" % (pl, fmt(obs.get(pl, 0)), exp[pl]) for pl in sorted(exp)))
-        lines.append("centres (carriers): " + ", ".join("%s=%s" % (k, fmt(v)) for k, v in sorted(Counter(centre.get(p, "NA") for p in cs).items())))
-        # flanking background
+        for label, attr in (("platform", plat), ("centre", centre)):
+            by_anc = defaultdict(Counter)
+            for q in lr:
+                by_anc[anc.get(q, "NA")][attr.get(q, "NA")] += 1
+            exp = Counter()
+            for q in cs:
+                tot = sum(by_anc[anc.get(q, "NA")].values())
+                for k, n in by_anc[anc.get(q, "NA")].items():
+                    exp[k] += n / tot
+            obs = Counter(attr.get(q, "NA") for q in cs)
+            lines.append("%s observed/expected: " % label + ", ".join("%s=%s/%.1f" % (k, fmt(obs.get(k, 0)), exp[k]) for k in sorted(exp)))
+        # flanking background: HLA-A plus the other of F/G on the same contig as the carrier gene call
+        other = "G" if gene == "F" else "F"
         cb, ctl_pool = [], []
-        ancs = {anc.get(p) for p in cs}
+        ancs = {anc.get(q) for q in cs}
         lineage = two(r["ref_allele"] if r["ref_allele"].startswith("HLA-") else "HLA-" + r["ref_allele"])
-        for p, hl in f_haps.items():
-            for h, c, fc, a2, g2 in hl:
-                if a2 is None or g2 is None:
-                    continue
-                if p in carriers and "new" in (fc or "") and h in carriers[p]:
-                    cb.append((a2, g2))
-                elif p not in carriers and anc.get(p) in ancs and two(fc) == lineage:
-                    ctl_pool.append((a2, g2))
+        for (q, h, c), d in hapinfo.items():
+            bg = (two(d.get("A")), two(d.get(other)))
+            if None in bg or gene not in d:
+                continue
+            if q in carriers and h in carriers[q] and "new" in d[gene]:
+                cb.append(bg)
+            elif q not in carriers and anc.get(q) in ancs and two(d[gene]) == lineage:
+                ctl_pool.append(bg)
         if len(cb) >= 2 and len(ctl_pool) >= len(cb):
             rnd = random.Random(7)
             obs_eff = eff_number(cb)
             draws = sorted(eff_number(rnd.sample(ctl_pool, len(cb))) for _ in range(500))
-            pct = sum(1 for d in draws if d <= obs_eff) / len(draws)
-            lines.append("flanking A+G backgrounds: carrier haplotypes %s, distinct %d, effective number %.2f; matched controls (same F lineage+ancestry) median %.2f; carriers sit at percentile %.0f%% of control draws" % (
-                fmt(len(cb)), len(set(cb)), obs_eff, draws[len(draws) // 2], 100 * pct))
+            pct = sum(1 for d_ in draws if d_ <= obs_eff) / len(draws)
+            lines.append("flanking A+%s backgrounds: carrier haplotypes %s, distinct %d, effective number %.2f; matched controls (same %s lineage+ancestry) median %.2f; carriers at percentile %.0f%% of control draws" % (
+                other, fmt(len(cb)), len(set(cb)), obs_eff, gene, draws[len(draws) // 2], 100 * pct))
         else:
             lines.append("flanking background: too few haplotypes (%s carriers, %d controls)" % (fmt(len(cb)), len(ctl_pool)))
         lines.append("")
