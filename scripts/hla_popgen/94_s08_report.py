@@ -18,6 +18,14 @@ SEQ2E_SNV = [.037, .024, .008, .017, .000, .021]
 ALL_SNV = [.022, .013, .019, .013, .020, .014]
 ALL_NOVEL = [3.42, 2.86, 3.52, 2.50, 3.06, 3.31]
 PERSONS = [3108, 2777, 1494, 3078, 495, 1258]
+# 95: effective number of flanking HLA-A + (G or F) backgrounds among carrier haplotypes vs median of 500 matched non-carrier draws
+HAP_NAMES = ["F T237I", "F P205T", "F Y106C\n(= F*01:25, known)", "G syn.\n(= G*01:01:33, known)"]
+HAP_CARRIER = [1.12, 1.41, 1.60, 1.00]
+HAP_CONTROL = [8.26, 7.20, 5.33, 7.45]
+# 95: mean substitution-only novel signatures per person by template-distance tercile (distance from the reference), within ancestry
+TD_LOW = [.0331, .0326, .0599, .0184, .0301, .0307]
+TD_MID = [.0545, .0344, .1135, .0210, .0663, .0570]
+TD_HIGH = [.0912, .0717, .1556, .0530, .0798, .0652]
 
 CSS = """
 :root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#666a73;--card:#fff;--line:#e2e0d8;--a:#2f6f8f;--b:#c8693a;--c:#6a8f3a;--d:#8a5aa8;--warn:#b3402a}
@@ -105,6 +113,25 @@ def flow():
     return "".join(out)
 
 
+def experiments_html(ase):
+    hap = grouped([HAP_CARRIER, HAP_CONTROL], [n.split("\n")[0] for n in HAP_NAMES], [("carrier haplotypes", "--b"), ("matched non-carriers (median)", "--a")],
+                  "Effective number of flanking backgrounds (HLA-A + HLA-G/F) - lower = fewer origins", ymax=12, height=280, fmt="{:.0f}")
+    td = grouped([TD_LOW, TD_MID, TD_HIGH], ANC, [("low divergence", "--a"), ("middle", "--c"), ("high divergence", "--b")],
+                 "Substitution-only novel signatures per person by divergence-from-reference tercile", ymax=0.17, height=280, fmt="{:.2f}")
+    ase_html = ("<p>%s</p>" % esc(ase)) if ase else "<p class='sub'>RNA-seq allele-specific expression is running on the VM (personal two-haplotype reference, bias-controlled); result pending.</p>"
+    return """
+<p>The think tank’s consensus order was run as far as the data allow without new sequencing. Each test includes <b>known alleles as positive controls</b> (F*01:25 and G*01:01:33 have the same recurrence pattern but are named in IPD), so “the two unnamed alleles look like a real allele” can be judged against alleles we <i>know</i> are real.</p>
+<h3>A. One haplotype origin or many?</h3>
+<figure>%s<figcaption>A recurrent <i>mutation</i> or a recurrent <i>artefact</i> would appear on many different backgrounds; an inherited allele sits on one. Both unnamed HLA-F signatures are on essentially a single flanking haplotype (2 and 3 distinct backgrounds among carrier haplotypes), exactly like the two known controls, whereas matched non-carrier haplotypes of the same HLA-F lineage and ancestry carry 5–8 effective backgrounds (carriers fall below every one of 500 control draws).</figcaption></figure>
+<h3>B. Hidden batch effects: platform and sequencing centre</h3>
+<p>Observed carriers per platform and per centre match the ancestry-matched expectation for all four signatures (e.g. Revio 22 observed vs 22.1 expected for HLA-F T237I; the Broad centre 86 vs 85.7 for the G control). No platform- or centre-specific pattern, so the run-fingerprint concern is not supported for these alleles. (One centre is mildly above expectation for T237I; not significant at these counts.)</p>
+<h3>C. Do relatives agree?</h3>
+<p>Only a few carriers have a relative in the long-read cohort (counts &lt;20 are withheld), but wherever one exists the relative carries the same signature in almost every case — for the HLA-F T237I and the G control alike. Consistent with inheritance, too few for a formal transmission rate. Carriers with blood RNA-seq: fewer than 20 for each HLA-F signature (exact counts withheld).</p>
+<h3>D. Reference-bias proxy (inconclusive by design)</h3>
+<figure>%s<figcaption>Within every ancestry, the novel-substitution burden rises with how far a person’s HLA haplotypes sit from the reference templates. That is expected if novel alleles live on poorly-represented haplotypes — but it is <i>also</i> what a mapping artefact would do, so this proxy cannot separate them. The real discriminator is the simulated-read null (reads simulated from planted alleles through the same pipeline), still to do.</figcaption></figure>
+<h3>E. RNA-seq allele-specific expression</h3>%s""" % (hap, td, ase_html)
+
+
 def thinktank_html(tt):
     if not tt:
         return "<p class='sub'>No think-tank output attached.</p>"
@@ -120,7 +147,7 @@ def thinktank_html(tt):
     return "".join(out)
 
 
-def build(tt):
+def build(tt, ase=None):
     funnel = hbars([
         ("Novel HLA calls (vs IPD 3.55)", 8015, "--a"),
         ("  novel-protein", 7635, "--a"),
@@ -192,22 +219,25 @@ def build(tt):
 <li>No phenotype comparison yet: the EHR/condition query path is unprobed, and rare alleles have little power.</li>
 <li>Platform effects were tested only for classical genes; DRB3/4/5 have no short-read check.</li></ul>
 
-<h2>8. Think tank</h2>%s
+<h2>8. Think-tank experiments, run</h2>%s
 
-<h2>9. Reproduce</h2>
-<p><code>91_novel_recurrence.py</code> (VM, <code>--ipd-nuc hla_nuc.fasta</code>), <code>92_novel_burden.py</code> (VM), <code>93_shortlist_ipd_release.py</code> (local), <code>94_s08_report.py</code> (this page) on branch <code>s08-case-browser</code>. VM runs: one core, <code>nice -n 10</code>, throwaway clone, removed afterwards; raw tables and carrier lists are mode 600 on the VM and are not in the repo.</p>
-</main></body></html>""" % (CSS, flow(), funnel, short, plat, anc, trs, thinktank_html(tt))
+<h2>9. Think tank</h2>%s
+
+<h2>10. Reproduce</h2>
+<p><code>91_novel_recurrence.py</code> (VM, <code>--ipd-nuc hla_nuc.fasta</code>), <code>92_novel_burden.py</code> (VM), <code>93_shortlist_ipd_release.py</code> (local), <code>95_signature_context.py</code> and <code>96_f_signature_ase.py</code> (VM), <code>94_s08_report.py</code> (this page) on branch <code>s08-case-browser</code>. VM runs: one core, <code>nice -n 10</code>, throwaway clone, removed afterwards; raw tables and carrier lists are mode 600 on the VM and are not in the repo.</p>
+</main></body></html>""" % (CSS, flow(), funnel, short, plat, anc, trs, experiments_html(ase), thinktank_html(tt))
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", required=True)
     ap.add_argument("--thinktank", default=None)
+    ap.add_argument("--ase", default=None, help="text file with the public ASE summary (optional)")
     a = ap.parse_args(argv)
     tt = json.load(open(a.thinktank)) if a.thinktank and os.path.exists(a.thinktank) else None
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     with open(a.out, "w") as f:
-        f.write(build(tt))
+        f.write(build(tt, open(a.ase).read() if a.ase and os.path.exists(a.ase) else None))
     print("wrote", a.out)
 
 
