@@ -30,3 +30,13 @@
   Caveat: DRB3/DRB4 have no primary-assembly locus (not checked); verdicts are recomputed at build time from stored counts.
 - [10-21] OPS — VM cleaned (code clone, logs, HTML removed); kept ~/case_browser/{cases.json,sr.jsonl,cohort_stats.json,case_map.private.tsv}. Local copy in the
   gitignored case_browser/ of the worktree.
+- [10-23] THREAD — recurrent "novel" DQB1*02 A57D (codon 89 incl. signal peptide; <20 shortlist calls vs DQB1*02:02:01:01): literature subagent reports IPD-IMGT lists
+  DQB1*02:180:01 (protein = 02:02:01:01 except D57; named "DQB1*02:180" since release 3.43, so present in 3.55). Likely a KNOWN allele, not novel; open question is why Immuannot
+  (3.55 reference set) did not match it (partial/CDS-only entry for 02:180?). Needs: align carrier CDS+genomic to HLA29352 before any "novel" wording. Subagent claims are
+  unverified secondary-source (agent did not open all pages); also lists Asp57 biology (T1D-protective, P9 pocket) as speculation. Other recurrent F/E signatures still to be checked the same way.
+- [10-23] QC (local, shortlist+sr.jsonl; counts <20 withheld) — single-edit recurrent signatures in HLA-F (T237I, P205T, Y106C) and HLA-E (K195R): each always vs ONE ref label, balanced strands,
+  MAPQ ~60, no CpG, mostly SR-supported; F/E alleles are absent from the only local IPD FASTA (3.38), so cross-allele check NOT possible -> must be checked against current IPD (hla_nuc) for
+  named alleles before any novelty claim. DQB1 A57D: 8/9-like mostly homozygous, clean; but see IPD 02:180 above. DPB1 T16M: CpG transition, base already in IPD 3.38 (DPB1*296:01) -> known/hypermutable.
+  DRB1 R262T: 3 different refs, all SR-skewed -> artefact. Many-edit recurrent B/C substitutions all sit on S/Q/N-suffixed or truncated ref templates (B*56:01:01:05S, B*44:02:01:02S, C*07:402, DRB5*01:131N,
+  B*27:197) -> wrong-template artefact, NOT novelty; shortlist should drop suffix-ref and >~15-edit calls. Stop-gains: all upstream of last exon (NMD expected); only a handful (F, tier A,
+  SR-supported) look clean; E/G/B/C/DRB5 nonsense are mostly SR 'contradicted/not seen'. Caveat: shortlist has no person-level zygosity; agent used SR het flag.
