@@ -33,5 +33,18 @@ class T(unittest.TestCase):
         self.assertEqual(n100.td_stratum([0, 0], True), "warned")
 
 
+    def test_gmap(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+            f.write("# header\nDQA1*;05:01:01:01/05:05:01:01;05:01:01G\nDQA1*;03:01:01:01;03:01:01G\n")
+        pm = n100.load_gmap(f.name)
+        self.assertEqual(pm["DQA1*05:05"], {"DQA1*05:01:01G"})
+        self.assertTrue(n100.compare_g(("DQA1*05:01:01", "DQA1*03:01:01"), ("DQA1*03:01:01:01", "DQA1*05:05:01:01"), pm))
+        self.assertFalse(n100.compare_g(("DQA1*03:01:01", "DQA1*03:01:01"), ("DQA1*03:01:01:01", "DQA1*05:05:01:01"), pm))
+        self.assertIsNone(n100.compare_g((None, "DQA1*03:01:01"), ("DQA1*03:01:01:01", "DQA1*05:05:01:01"), pm))
+        self.assertEqual(n100.full_name("HLA-A*02:01:01:01"), "A*02:01:01:01")
+        self.assertIsNone(n100.full_name("HLA-F*01:new"))
+
+
 if __name__ == "__main__":
     unittest.main()

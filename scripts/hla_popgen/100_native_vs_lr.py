@@ -56,6 +56,43 @@ def compare(native, lr):
     return out
 
 
+def load_gmap(path):
+    """IPD hla_nom_g.txt -> {name-prefix: set(G group)} for every allele name at 2, 3 and full resolution ('A*02:01', 'A*02:01:01', 'A*02:01:01:01').
+    G group = alleles identical over the exons that encode the peptide-binding domain (exons 2+3 class I, exon 2 class II) - the resolution
+    exon-based short-read typers can deliver. Alleles without a G group are their own group."""
+    pm = defaultdict(set)
+    with open(path) as f:
+        for ln in f:
+            if ln.startswith("#") or ln.count(";") < 2:
+                continue
+            gene, alleles, grp = ln.rstrip("\n").split(";")
+            for a in alleles.split("/"):
+                f_ = a.split(":")
+                grp_name = (gene + (grp or a))
+                for k in range(2, len(f_) + 1):
+                    pm[gene + ":".join(f_[:k])].add(grp_name)
+    return pm
+
+
+def compare_g(native, lr, pm):
+    """Genotype match at G-group level; names may be 2-4 field. None if either side uncallable."""
+    na = [pm.get(x) if x else None for x in native]
+    lb = [pm.get(x) if x else None for x in lr]
+    if None in na or None in lb or not all(na) or not all(lb):
+        return None
+    return bool((na[0] & lb[0] and na[1] & lb[1]) or (na[0] & lb[1] and na[1] & lb[0]))
+
+
+def full_name(a):
+    """'HLA-A*02:01:01:01' / 'A*02:01:01' -> 'A*02:01:01:01' form without the HLA- prefix; None if novel/uncallable."""
+    if a is None:
+        return None
+    a = str(a).strip()
+    if a == "" or a.lower() in {"na", "nan", "none", "-", "."} or "new" in a or "undetermined" in a or "*" not in a:
+        return None
+    return a[4:] if a.startswith("HLA-") else a
+
+
 def td_stratum(tds, warn):
     if warn:
         return "warned"
@@ -87,7 +124,8 @@ def run(a):
             except (ValueError, KeyError):
                 td = 99
             w = r.get("template_warning", "") not in ("", "NA", "nan")
-            lr[r["person_id"]][g][r["hap"]] = (two(r["consensus"]), td, w)
+            lr[r["person_id"]][g][r["hap"]] = (two(r["consensus"]), td, w, full_name(r["consensus"]))
+    pm = load_gmap(os.path.expanduser(a.gfile)) if a.gfile else None
     rows = defaultdict(Counter)       # (gene, ancestry, stratum) -> counters
     conf = defaultdict(Counter)       # gene -> (native, lr) counts (td0 only)
     n_native = 0
@@ -109,21 +147,26 @@ def run(a):
                     c["n"] += 1
                     c[res["kind"]] += 1
                     c["alleles_ok"] += res["alleles_ok"]
+                    if pm is not None:
+                        gm = compare_g((full_name(r.get(g + "_1")), full_name(r.get(g + "_2"))), (haps[0][3], haps[1][3]), pm)
+                        if gm is not None:
+                            c["g_n"] += 1
+                            c["g_ok"] += gm
                 if st == "td0":
                     for x in res.get("conf", []) if res["kind"] == "allele_swap" else []:
                         conf[g][x] += 1
-    cols = ["n", "concordant", "allele_swap", "lr_hom_native_het", "lr_het_native_hom", "uncallable", "alleles_ok"]
+    cols = ["n", "concordant", "allele_swap", "lr_hom_native_het", "lr_het_native_hom", "uncallable", "alleles_ok", "g_n", "g_ok"]
     for suffix, fm in (("pub", supp), ("raw.private", str)):
         p = os.path.join(out, "native_vs_lr_%s.tsv" % suffix)
         with open(p, "w") as f:
-            f.write("gene\tancestry\ttier\t" + "\t".join(cols) + "\tgenotype_concordance\tallele_concordance\n")
+            f.write("gene\tancestry\ttier\t" + "\t".join(cols) + "\tgenotype_concordance\tallele_concordance\tG_group_concordance\n")
             for (g, an, st), c in sorted(rows.items()):
                 if c["n"] < 20 and fm is supp:
                     f.write("%s\t%s\t%s\t<20\n" % (g, an, st))
                     continue
                 cc = c["n"] - c["uncallable"]
-                f.write("%s\t%s\t%s\t%s\t%.4f\t%.4f\n" % (g, an, st, "\t".join(fm(c[k]) for k in cols),
-                                                          c["concordant"] / max(1, cc), c["alleles_ok"] / max(1, 2 * cc)))
+                f.write("%s\t%s\t%s\t%s\t%.4f\t%.4f\t%.4f\n" % (g, an, st, "\t".join(fm(c[k]) for k in cols),
+                                                          c["concordant"] / max(1, cc), c["alleles_ok"] / max(1, 2 * cc), c["g_ok"] / max(1, c["g_n"])))
         if suffix != "pub":
             os.chmod(p, 0o600)
     with open(os.path.join(out, "native_confusions_pub.tsv"), "w") as f:
@@ -141,6 +184,7 @@ def main(argv=None):
     p.add_argument("--rich", default="~/pipeline_outputs/hla_calls_rich.tsv")
     p.add_argument("--membership", default="~/pipeline_outputs/cohort_membership.tsv")
     p.add_argument("--native", default=base + "/hla_variants/hla_genotypes.tsv")
+    p.add_argument("--gfile", default=None, help="IPD hla_nom_g.txt: also score concordance at G-group level (exon-resolvable)")
     p.add_argument("--out-dir", default="~/s09")
     run(p.parse_args(argv))
 
