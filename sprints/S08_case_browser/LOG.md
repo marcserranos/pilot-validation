@@ -45,3 +45,15 @@
   HLA-F T237I and P205T are in NO allele of the 3.66 alignment (140 F alleles) -> the only recurrent signatures still unnamed (exon 4, alpha3, outside the groove); caveat: '*' = unsequenced
   positions in partial entries not resolved. DQB1 A57D = DQB1*02:180 (per literature agent, not yet re-derived here). Net: of the recurrent single-edit leads, most "novelty" is the 3.55 snapshot being
   11 releases old; rerun Immuannot-equivalent matching against 3.66 (or mask by 3.66 CDS) before any novelty count. Literature agent: Immuannot paper reports ~41% of assemblies' HLA/KIR seqs novel vs v3.52 (concentrated in non-classical genes/pseudogenes) -> precedent. Submission standard: IPD requires phased full exons 2-3 (class I) / exon 2 (II), isolated from the other allele; names assigned by WHO committee.
+- [10-23] VM (91 recurrence, 92 burden; one core, nice 10, <1 min each; outputs in ~/s08 on the VM, clone removed, raw/carrier files mode 600, nothing copied out) —
+  RESULT 91: of 8,015 novel calls, 675 are substitution-only and rebuildable -> 441 distinct (gene, ref allele, substitution set) signatures; only 49 are seen in >= 2 people, the rest are singletons.
+  The recurrent ones are strongly ANCESTRY-STRUCTURED among unrelated carriers (independent of any read-level evidence): HLA-G synonymous on G*01:01:03:01 is overwhelmingly EAS (the only
+  signature with >= 20 persons besides HLA-F T237I; F T237I is mostly AFR with some AMR); F P205T mostly AFR; F Y106C (= F*01:25, known) entirely AMR; DQB1 A57D (=02:180?) AFR+AMR; E K195R (=E*01:152) AFR+AMR;
+  G D130H AFR+AMR. Every recurrent key sits on ONE reference allele. Trio transmission test is nearly unusable: only 827 of 12,233 LR persons have a relative in the LR cohort, so carrier children with two
+  LR parents are <20 per signature (transmission evidence must come from S06's 57b trio tables or a wider kin source). Interpretation: these are real germline variants carried by ancestry groups that IPD under-represents,
+  so 'novel vs 3.55' mostly measures reference bias, not discovery.
+  RESULT 92 (novel-call burden by platform x ancestry, 12,233 persons): indel-bearing novel-protein calls per person in classical genes are ~2x higher on Sequel II/IIe than on Revio at every ancestry
+  (platform artefact -> consistent with indel 'novelty' being consensus error), whereas substitution-only novel-protein calls per person are roughly platform-flat and differ by ancestry
+  (AFR/EAS/MID about 1.5x EUR/AMR/SAS). Novel calls per person overall (incl. synonymous/beyond-CDS) AFR > EAS ~ SAS ~ MID > AMR > EUR, as expected for a EUR-biased reference.
+  Caveats: person-level relatedness available for LR persons is sparse; ancestry labels are AoU predictions; the burden table was read on the VM (not committed); pub-style tables with <20 suppression sit on the VM (~/s08/*_pub.tsv) pending Marc's go-ahead to commit.
+  OPEN: (1) rebuild shortlist vs IPD 3.66 so 'novel' means novel today; (2) F T237I/P205T genomic coords + gnomAD/ALFA frequency; (3) transmission via 57b trios; (4) EHR path still unprobed.
