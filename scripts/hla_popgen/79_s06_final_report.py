@@ -353,25 +353,21 @@ def fig_missing_auc(T, figdir):
 
 
 def fig_parent_status(T, figdir):
-    ps = T.rd("71f", "trio_parent_status.tsv")
+    ps = T.rd("71f", "trio_parent_status_v4.tsv")
     if ps is None:
         return None
-    ps = ps[ps["child_call_named"].astype(str).str.lower() == "true"]
+    ps = ps.sort_values(["parent_calls_at_gene", "child_calls_at_gene"])
     with style():
-        fig, ax = plt.subplots(figsize=(V.mm(89), V.mm(65)), constrained_layout=True)
-        for k, (sc, col) in enumerate((("CLASSICAL8", C_BLUE), ("ALL", C_RED))):
-            d = ps[ps["scope"] == sc].sort_values("parent_calls_at_gene")
-            x = np.arange(len(d)) + (k - 0.5) * 0.38
-            ax.bar(x, d["missing_pct"], width=0.36, color=col, label=sc.lower())
-            for xi, (p, n, kk) in zip(x, zip(d["missing_pct"], d["child_calls"], d["child_allele_missing_from_parent"])):
-                ax.text(xi, p + 1, "%d/%d" % (kk, n), ha="center", fontsize=5.2)
-        ticks = sorted(ps["parent_calls_at_gene"].unique())
-        ax.set_xticks(range(len(ticks)))
-        ax.set_xticklabels([("%d call(s)" % t) for t in ticks])
-        ax.set_xlabel("transmitting parent's calls at the gene")
+        fig, ax = plt.subplots(figsize=(V.mm(110), V.mm(65)), constrained_layout=True)
+        x = np.arange(len(ps))
+        pct = 100 * ps["n_child_allele_absent_from_parent"].to_numpy(float) / ps["n_records"].to_numpy(float)
+        ax.bar(x, pct, width=0.6, color=[C_RED if p == 1 else C_BLUE for p in ps["parent_calls_at_gene"]])
+        for xi, p_, k, n_ in zip(x, pct, ps["n_child_allele_absent_from_parent"], ps["n_records"]):
+            ax.text(xi, p_ + 1, "%d/%d" % (k, n_), ha="center", fontsize=5.2)
+        ax.set_xticks(x)
+        ax.set_xticklabels(["parent %d call%s\nchild %d call%s" % (p, "" if p == 1 else "s", c, "" if c == 1 else "s") for p, c in zip(ps["parent_calls_at_gene"], ps["child_calls_at_gene"])], fontsize=5.5)
         ax.set_ylabel("child allele absent from parent (%)")
-        ax.set_ylim(0, 112)
-        ax.legend(frameon=False, loc="upper right")
+        ax.set_ylim(0, 60)
         return save(fig, figdir, "fig_parent_status")
 
 
@@ -511,7 +507,7 @@ def fig_prune(T, sub, figdir, name, views_wanted):
     nr = int(np.ceil(len(views) / nc))
     with style():
         fig, axs = plt.subplots(nr, nc, figsize=(V.mm(183), V.mm(62 * nr)), squeeze=False, constrained_layout=True)
-        for ax, v, L in zip(axs.ravel(), views, "abcdefgh"):
+        for ax, v, L in zip(axs.ravel(), views, "abcdefghijkl"):
             ms = top_metrics(auc, v, 5)
             first = True
             for k, m in enumerate(ms):
@@ -548,7 +544,7 @@ def fig_prune_residual(T, sub, figdir, name, views_wanted):
     nr = int(np.ceil(len(views) / nc))
     with style():
         fig, axs = plt.subplots(nr, nc, figsize=(V.mm(183), V.mm(62 * nr)), squeeze=False, constrained_layout=True)
-        for ax, v, L in zip(axs.ravel(), views, "abcdefgh"):
+        for ax, v, L in zip(axs.ravel(), views, "abcdefghijkl"):
             ms = top_metrics(auc, v, 1)
             if not ms:
                 continue
@@ -576,7 +572,7 @@ def fig_auc_views(T, sub, figdir, name):
     nr = int(np.ceil(len(views) / nc))
     with style():
         fig, axs = plt.subplots(nr, nc, figsize=(V.mm(183), V.mm(max(55, 8 + 3.2 * len(auc["metric"].unique())) * nr)), squeeze=False, constrained_layout=True)
-        for ax, v, L in zip(axs.ravel(), views, "abcdefgh"):
+        for ax, v, L in zip(axs.ravel(), views, "abcdefghijkl"):
             d = auc[auc["view"] == v].dropna(subset=["auc"]).sort_values("auc")
             y = np.arange(len(d))
             dotci(ax, y, d["auc"], d["auc_lo"].fillna(d["auc"]), d["auc_hi"].fillna(d["auc"]), C_BLUE)
@@ -599,7 +595,7 @@ def fig_cv(T, sub, figdir, name):
     with style():
         fig, axs = plt.subplots(1, len(views), figsize=(V.mm(183), V.mm(80)), squeeze=False, sharey=True, constrained_layout=True)
         order = list(cv.groupby("metric")["enrichment"].mean().sort_values().index)
-        for i, (ax, v, L) in enumerate(zip(axs.ravel(), views, "abcdefgh")):
+        for i, (ax, v, L) in enumerate(zip(axs.ravel(), views, "abcdefghijkl")):
             d = cv[cv["view"] == v].set_index("metric").reindex(order).reset_index()
             y = np.arange(len(d))
             dotci(ax, y, d["enrichment"], d["enrichment_lo"], d["enrichment_hi"], C_BLUE)
@@ -723,6 +719,31 @@ def fig_kir_trio(T, figdir):
         return save(fig, figdir, "fig_kir_trio_pair")
 
 
+def fig_kir_instability(T, figdir):
+    d = T.rd("77c", "kir_label_instability.tsv")
+    if d is None or d.empty:
+        return None
+    titles = [("tx_unnamed", "parent unnamed call", {"1": "yes", "0": "no"}),
+              ("tx_n_calls", "parent calls at locus", {}),
+              ("child_tier", "child novelty tier", {})]
+    with style():
+        fig, axs = plt.subplots(3, 1, figsize=(V.mm(120), V.mm(110)), sharex=True, constrained_layout=True)
+        for ax, (st, ttl, lab), L in zip(axs, titles, "abc"):
+            q = d[d["stratum"].astype(str) == st]
+            y = np.arange(len(q))
+            k, nn = q["n_neither"].to_numpy(float), q["n_records"].to_numpy(float)
+            ci = [wilson(a, b) for a, b in zip(k, nn)]
+            dotci(ax, y, 100 * k / nn, [c[0] for c in ci], [c[1] for c in ci], C_RED)
+            ax.set_yticks(y)
+            ax.set_yticklabels(["%s (%s/%s)" % (lab.get(str(v), str(v).replace("_", " ")), fmt_n(a), fmt_n(b)) for v, a, b in zip(q["value"], k, nn)], fontsize=5)
+            ax.invert_yaxis()
+            ax.set_xlim(left=0)
+            ax.set_ylabel(ttl, fontsize=5, labelpad=2)
+            V.panel_letter(ax, L)
+        axs[-1].set_xlabel("neither-parent rate (%)")
+        return save(fig, figdir, "fig_kir_label_instability")
+
+
 # ---------------------------------------------------------------------------
 # computed numbers for the prose
 # ---------------------------------------------------------------------------
@@ -756,13 +777,16 @@ class N:
             d = cc[(cc["trio_set"] == "primary") & (cc["scope"] == "classical8") & (cc["origin_subset"] == "default") & (cc["gene"] == "ALL")]
             if len(d):
                 self.b = d.iloc[0]
-        ps = T.rd("71f", "trio_parent_status.tsv")
+        ps = T.rd("71f", "trio_parent_status_v4.tsv")
         self.p1 = self.p2 = None
         if ps is not None:
-            d = ps[(ps["scope"] == "CLASSICAL8") & (ps["child_call_named"].astype(str).str.lower() == "true")].set_index("parent_calls_at_gene")
-            if 1 in d.index and 2 in d.index:
-                self.p1 = (d.loc[1, "child_allele_missing_from_parent"], d.loc[1, "child_calls"], d.loc[1, "missing_pct"])
-                self.p2 = (d.loc[2, "child_allele_missing_from_parent"], d.loc[2, "child_calls"], d.loc[2, "missing_pct"])
+            def agg(pc):
+                d = ps[ps["parent_calls_at_gene"] == pc]
+                k, n_ = d["n_child_allele_absent_from_parent"].sum(), d["n_records"].sum()
+                return (k, n_, 100 * k / n_) if n_ else None
+            self.p1, self.p2 = agg(1), agg(2)
+            if self.p1 is None or self.p2 is None:
+                self.p1 = self.p2 = None
 
     def sentence_missing(self):
         if self.miss_pct is None:
@@ -785,11 +809,125 @@ class N:
 
     def sentence_parent(self):
         if self.p1 is None:
-            return pending("trio mismatch by parent completeness", "71f/trio_parent_status.tsv")
+            return pending("trio mismatch by parent completeness", "71f/trio_parent_status_v4.tsv")
         return ("<p>The same child calls look very different depending on how many calls the transmitting parent has at the gene: with one call the child's allele is absent "
                 "from the parent in %s/%s records (%s); with two calls in %s/%s (%s). A parent with one call simply cannot show the allele the child received from the "
                 "missing haplotype, so the old pooled mismatch rate measured missing calls, not wrong alleles.</p>" % (
                     fmt_n(self.p1[0]), fmt_n(self.p1[1]), fmt_p(self.p1[2]), fmt_n(self.p2[0]), fmt_n(self.p2[1]), fmt_p(self.p2[2])))
+
+    # ---- numbers for the pruning / KIR parts of the summary -------------------------------
+    def _num(self, v):
+        return pd.to_numeric(pd.Series([v]), errors="coerce").iloc[0]
+
+    def best(self, sub, view, k=1, by="auc"):
+        """Top-k rows of prune_summary for a view by AUC (numeric only)."""
+        s = self.T.rd(sub, "prune_summary.tsv")
+        if s is None or "view" not in s:
+            return None
+        d = s[s["view"] == view].copy()
+        if by not in d:
+            au = self.T.rd(sub, "auc.tsv")
+            if au is None or by not in au:
+                return None
+            d = d.merge(au[["view", "metric", by]], on=["view", "metric"], how="left")
+        d[by] = pd.to_numeric(d[by], errors="coerce")
+        d = d.dropna(subset=[by]).sort_values(by, ascending=False).head(k)
+        return d if len(d) else None
+
+    def power_row(self, sub, view):
+        pw = self.T.rd(sub, "power.tsv")
+        if pw is None or "view" not in pw:
+            return None
+        d = pw[pw["view"] == view]
+        return d.iloc[0] if len(d) else None
+
+    def sentence_power(self):
+        r = self.power_row("76b", "B_child")
+        if r is None:
+            return pending("power of the wrong-allele pruning test", "76b/power.tsv")
+        return ("<p>With only %s such events among %s units, the smallest AUC that could be detected (one-sided 5%%, power 0.8, treating units as independent, which overstates power) is %.2f. "
+                "Every metric stays below that, so for wrong alleles the honest statement is <b>not detectable</b>, not 'the metrics do not predict it'.</p>" % (
+                    fmt_n(self._num(r["n_errors"])), fmt_n(self._num(r["n_units"])), self._num(r["auc_min_detectable"])))
+
+    def sentence_prune(self):
+        a = self.best("76b", "A_classical8", 2)
+        pr = self.best("76b", "pair_all", 1)
+        if a is None:
+            return pending("what pruning removes (missing calls)", "76b/prune_summary.tsv")
+        bits = []
+        for _, r in a.iterrows():
+            bits.append("<b>%s</b> (AUC %.2f, %.1f&times; enrichment; the worst 5%% of units hold %s of the missing calls, the worst 20%% hold %s)" % (
+                esc(str(r["metric"]).replace("_", " ")), r["auc"], self._at("A_classical8", r["metric"], 5, "enrichment"), fmt_p(self._at("A_classical8", r["metric"], 5, "captured_pct"), 0),
+                fmt_p(self._at("A_classical8", r["metric"], 20, "captured_pct"), 0)))
+        s = "<p>Missing calls are what pruning can find: for classical-8 person-genes the best metrics are " + " and ".join(bits) + "."
+        if pr is not None:
+            r = pr.iloc[0]
+            s += " First-degree pairs behave like missing-call detection: best metric <b>%s</b>, AUC %.2f, learned cut-off about %s%% (the earlier pair-only gain was this, not wrong alleles)." % (
+                esc(str(r["metric"]).replace("_", " ")), r["auc"], fmt_n(self._num(r["x_opt"])))
+        return s + "</p>"
+
+    def _at(self, view, metric, x, col):
+        """Value of a prune_curves column at prune_pct == x (nearest grid point)."""
+        c = self.T.rd("76b", "prune_curves.tsv")
+        if c is None:
+            return np.nan
+        d = c[(c["view"] == view) & (c["metric"] == metric)]
+        d = d.assign(x=pd.to_numeric(d["prune_pct"], errors="coerce")).dropna(subset=["x"])
+        if d.empty:
+            return np.nan
+        return pd.to_numeric(pd.Series([d.iloc[(d["x"] - x).abs().argmin()][col]]), errors="coerce").iloc[0]
+
+    def kir_children_txt(self):
+        g = self.T.rd("77b", "gene_origin_summary_kir.tsv")
+        if g is not None and (g["gene"] == "ALL").any():
+            return fmt_n(self._num(g[g["gene"] == "ALL"].iloc[0]["n_children"]))
+        return "about 170"
+
+    def kir_prune_notes(self):
+        out = []
+        pc, pa = self.power_row("78b", "B_child"), self.power_row("78b", "B_child_anytx")
+        if pc is not None and pa is not None:
+            out.append("The child-call view (B_child; transmitting parent haplotype-complete) has %s events in %s units and cannot detect an AUC below %.2f; relaxing the parent-completeness condition (B_child_anytx) gives %s events "
+                       "(the same effect as in HLA: incomplete parents manufacture 'errors'), still below power for any AUC under %.2f. The counts differ between views because each metric is only defined on the units where it can be measured "
+                       "(depth exists for 10 of 18 genes, so depth-metric rows have fewer units than Immuannot-metric rows)." % (
+                           fmt_n(self._num(pc["n_errors"])), fmt_n(self._num(pc["n_units"])), self._num(pc["auc_min_detectable"]), fmt_n(self._num(pa["n_errors"])), self._num(pa["auc_min_detectable"])))
+        h = self.best("78b", "H_hap", 1)
+        if h is not None:
+            r = h.iloc[0]
+            out.append("The structural outcome (haplotype is not complete, H_hap) is predictable: best metric <b>%s</b>, AUC %.2f. Depth metrics exist only for the 10 of 18 KIR genes on GRCh38 chr19 (NA, never 0, for 2DL2, 2DL5A/B, "
+                       "2DS1/2/3/5 and 3DS1) and carry the segmental-duplication mismapping caveat; MAPQ0 fraction is the mismapping indicator." % (esc(str(r["metric"]).replace("_", " ")), r["auc"]))
+        pp = self.best("78b", "P_pair_all", 1)
+        if pp is not None:
+            r = pp.iloc[0]
+            out.append("First-degree pairs: best metric %s, AUC %.2f; pairs carry paralog and presence/absence effects, so this is a weaker label than a trio." % (esc(str(r["metric"]).replace("_", " ")), r["auc"]))
+        return "<p>" + " ".join(out) + "</p>" if out else ""
+
+    def sentence_kir(self):
+        tg = self.T.rd("77c", "trio_classes_group.tsv")
+        ins = self.T.rd("77c", "kir_label_instability.tsv")
+        if tg is None:
+            return pending("KIR summary", "77c/trio_classes_group.tsv")
+        d = tg[(tg["gene"] == "ALL") & (tg["variant"] == "all")]
+        s = "<p><b>KIR.</b> "
+        if len(d):
+            r = d.iloc[0]
+            s += "At the protein field %s of %s informative KIR trio records have a child label in neither parent (%s). " % (fmt_n(self._num(r["neither_n"])), fmt_n(self._num(r["n_informative"])), fmt_p(self._num(r["neither_pct"]), 2))
+        if ins is not None and len(ins):
+            u = ins[ins["stratum"].astype(str) == "tx_unnamed"].set_index("value")
+            if {"1", "0"} <= set(u.index.astype(str)):
+                u.index = u.index.astype(str)
+                k1, n1, k0, n0 = [self._num(u.loc[a, b]) for a, b in (("1", "n_neither"), ("1", "n_records"), ("0", "n_neither"), ("0", "n_records"))]
+                lo, hi = wilson(k0, n0)
+                s += ("Most of that is <b>label instability, not typing error</b>: when the transmitting parent carries an unnamed (novel or protein-unresolved) call at the locus, %s of %s records (%s) are 'neither', "
+                      "against %s of %s (%s, Wilson %s-%s) when the parent's calls are all named; %s of the %s events sit on parents with an unnamed call. "
+                      "The ~%s KIR typing-error estimate to quote is therefore the named-parent rate, from only %s events, so it is power-limited. ") % (
+                    fmt_n(k1), fmt_n(n1), fmt_p(100 * k1 / n1), fmt_n(k0), fmt_n(n0), fmt_p(100 * k0 / n0, 2), fmt_p(lo, 2), fmt_p(hi, 2), fmt_n(k1), fmt_n(k1 + k0), fmt_p(100 * k0 / n0, 1), fmt_n(k0))
+        w = self.best("78b", "B_worst", 1)
+        if w is not None:
+            r = w.iloc[0]
+            s += ("The pruning view that mixes in the parent's calls (B_worst) gives a striking AUC of %.2f for %s, but because the child-only view is flat and the events concentrate on unnamed parental calls, "
+                  "this is a label artefact and <b>no KIR pruning threshold is recommended from it</b>.") % (r["auc"], esc(str(r["metric"]).replace("_", " ")))
+        return s + "</p>"
 
 
 # ---------------------------------------------------------------------------
@@ -862,9 +1000,58 @@ def decision_table(T, sub, views, top=3):
     return pd.DataFrame(rows) if rows else None
 
 
-# ---------------------------------------------------------------------------
-# report
-# ---------------------------------------------------------------------------
+GUIDE = [  # (label, sub, view, what would change the recommendation, forced evidence text or None)
+    ("HLA missing call (classical 8)", "76b", "A_classical8",
+     "Short-read data showing the gene is present on the missing haplotypes (then recall, do not prune); a metric that beats the assembly-context metric on held-out families; a different cost ratio.", None),
+    ("HLA missing call (all genes incl. DRB3/4/5)", "76b", "A_all",
+     "DRB3/4/5 absence is mostly biology, so this view mixes biology with dropout: treat it as supporting evidence only.", None),
+    ("HLA wrong allele among fully called genotypes", "76b", "B_child",
+     "More families or more events (the minimal detectable AUC falls with the square root of the event count), or a sequence-level (CDS) label that finds more genuine errors.", None),
+    ("HLA pairs (first-degree)", "76b", "pair_all",
+     "A pair label that excludes DRB3/4/5 biology and one-call people; pairs are not independent of the trios, so they add no new evidence.", None),
+    ("KIR wrong allele (protein level, named parent)", "78b", "B_child",
+     "A CDS-sequence-level label with novel calls excluded; the protein-level label is unstable around unnamed parental calls (see section 4.3).", None),
+    ("KIR parent-mixed view (B_worst)", "78b", "B_worst",
+     "Nothing: this AUC is a label artefact of unnamed parental calls and is not a recommendation; rerun after the sequence-level relabelling.",
+     "artefact suspected (label instability), not usable"),
+    ("KIR incomplete haplotype (structural)", "78b", "H_hap",
+     "Depth on the child's own haplotype contigs for the genes absent from GRCh38; ancestry-stratified rates (the 991 sequel2 people are missing).", None),
+]
+
+
+def guide_table(T, cost=25, scan_limit=20.0):
+    rows = []
+    for label, sub, view, change, forced in GUIDE:
+        cur, auc = T.rd(sub, "prune_curves.tsv"), T.rd(sub, "auc.tsv")
+        if cur is None or auc is None or view not in set(auc["view"]):
+            rows.append({"endpoint": label, "recommended metric": "pending", "what would change it": change})
+            continue
+        top = decision_table(T, sub, [view], top=2 if view == "A_classical8" else 1)
+        if top is None or top.empty:
+            continue
+        pw = T.rd(sub, "power.tsv")
+        prow = pw[pw["view"] == view].iloc[0] if pw is not None and view in set(pw["view"]) else None
+        for k, (_, r) in enumerate(top.iterrows()):
+            ev = r["events"]
+            if not np.isfinite(pd.to_numeric(pd.Series([ev]), errors="coerce").iloc[0]) and prow is not None:
+                ev = pd.to_numeric(pd.Series([prow["n_errors"]]), errors="coerce").iloc[0]     # per-metric count is masked (<20); the view-level count is not
+            d = dict([("endpoint", label + (" (2nd metric)" if k else "")), ("recommended metric", str(r["metric"]).replace("_", " ")), ("AUC", r["AUC"]), ("events", ev)])
+            evidence = forced or r["evidence"]
+            if prow is not None and not forced and np.isfinite(pd.to_numeric(pd.Series([prow["auc_min_detectable"]]), errors="coerce").iloc[0]):
+                amin = float(prow["auc_min_detectable"])
+                if r["AUC"] < amin and (not np.isfinite(ev) or ev < 30):
+                    evidence = "underpowered (AUC below the minimal detectable %.2f, %s events)" % (amin, fmt_n(ev))
+            blank = forced or evidence.startswith(("underpowered", "none"))
+            for c in COST_RATIOS:
+                x = np.nan if blank else r["x%% @%d" % c]
+                d["%% to prune @%d" % c] = (">=%d (scan limit)" % scan_limit) if (np.isfinite(x) and x >= scan_limit - 1e-9) else x
+            d["captured %% @%d" % cost] = np.nan if blank else r["captured%% @%d" % cost]
+            d["evidence"] = evidence
+            d["what would change it"] = change
+            rows.append(d)
+    return pd.DataFrame(rows)
+
+
 TABLE_DOC = {
     "76/A_missing_by_gene.tsv": "stream A: share of person-haplotype slots with no gene annotation, per gene (Wilson 95%)",
     "76/A_missing_by_hap_class.tsv": "stream A: missing rate by where the gene lies relative to the assembly contigs",
@@ -883,7 +1070,8 @@ TABLE_DOC = {
     "76/C_novel_vs_incomplete.tsv": "stream C: novel calls versus incomplete genotypes",
     "76/C_twin_concordance.tsv": "stream C: twin concordance with and without a novel call",
     "76/definition_card.tsv": "definitions and denominators of every label used",
-    "71f/trio_parent_status.tsv": "child allele absent from the transmitting parent, by the parent's number of calls",
+    "71f/trio_parent_status.tsv": "STALE first-pass table (v2 depth subset, before the first-candidate-trio fix): not used for any number in this report",
+    "71f/trio_parent_status_v4.tsv": "classical-8 trio records of the full-cohort v4 table: child allele absent from the parent, by parent and child number of calls (counts computed on the VM)",
     "71f/call_status_taxonomy.tsv": "what each person-gene's two haplotype slots look like (valid / no gene row / no haplotype)",
     "71f/trio_candidates.tsv": "children with more than one candidate trio",
     "77/hap_class_counts.tsv": "KIR haplotypes by completeness class",
@@ -928,7 +1116,7 @@ def build(T, figs, out_dir):
     A = parts.append
     A("<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
       "<title>S06 call quality final report</title><style>%s</style><script>%s</script></head><body>" % (CSS, JS))
-    A("<nav>" + "".join('<a href="#%s">%s</a>' % (i, t) for i, t in (("sum", "Summary"), ("mech", "Mechanics"), ("hla", "HLA results"), ("prune", "Pruning"), ("kir", "KIR"),
+    A("<nav>" + "".join('<a href="#%s">%s</a>' % (i, t) for i, t in (("sum", "Summary"), ("mech", "Mechanics"), ("hla", "HLA results"), ("prune", "Pruning"), ("kir", "KIR"), ("guide", "Decision guide"),
                                                                       ("raw", "Raw evidence"), ("next", "Open questions"), ("think-tank-section", "Think tank"))) + "</nav><main>")
     A("<h1>Call-quality metrics and pruning: HLA and KIR</h1><p class='sub'>Sprint S06. Built from aggregate tables only; every number below is computed from them. "
       "Cells below 20 are masked upstream.</p>")
@@ -938,23 +1126,25 @@ def build(T, figs, out_dir):
       "context) replace the subjective 0-7 score, and if we remove the worst x% of calls by a metric, which percent and which metric remove the most error for the least loss, "
       "in a way that holds on other families and other kinds of relatives?</div>")
     A("<h3>What we found</h3>")
-    A("<ol><li><b>Most of what looked like typing error is missing calls.</b></li></ol>")
+    A("<p><b>1. Most of what looked like typing error is missing calls.</b></p>")
     A(n.sentence_missing())
     A(n.sentence_parent())
+    A("<p><b>2. Genuine wrong alleles are rare and cannot be studied with pruning here.</b></p>")
     A(n.sentence_b())
-    A("<p>So there are two different problems that were mixed in the old label: a call that is absent (common, structural, predicted by assembly context) and a call that is present "
-      "but wrong (rare, tens of events, so only rates and pre-specified tail tests are defensible).</p>")
-    summ_dec = None
+    A(n.sentence_power())
+    A("<p>So there are two different problems that were mixed in the old label: a call that is absent (common, structural, predicted by assembly context and depth) and a call that is present "
+      "but wrong (rare: a handful of events, so only rates and pre-specified tail tests are defensible, and 'no metric predicts it' means 'not detectable', not 'does not predict').</p>")
+    A("<p><b>3. What pruning can do.</b></p>")
+    A(n.sentence_prune())
+    A(n.sentence_kir())
     if T.rd("76b", "prune_curves.tsv") is not None:
-        summ_dec = decision_table(T, "76b", ["A_classical8", "B_child", "B_worst", "pair_complete"], top=1)
-    if summ_dec is not None and len(summ_dec):
-        A("<h3>What to choose (HLA)</h3><p>Best single metric per view with the percent where marginal cost exceeds the stated cost ratio; the full table, all cost ratios and the raw curves are in section 3.</p>")
-        A(table_html(summ_dec, fmt={c: (lambda v: "" if (isinstance(v, float) and np.isnan(v)) else (("%.3g" % v) if isinstance(v, (float, np.floating)) else v)) for c in summ_dec.columns}))
+        A("<p>The per-endpoint choice (metric, percent, cost-ratio sensitivity, evidence strength and what would change it) is the <a href='#guide'>Decision guide</a>; "
+          "all curves and held-out results are in section 3 (HLA) and section 4 (KIR).</p>")
     else:
         A(pending("the pruning recommendation (percent and metric, with evidence strength)", "76b/prune_curves.tsv, auc.tsv, prune_summary.tsv, cv_by_metric.tsv"))
     A("<h3>Caveats</h3><ul><li>Parent of origin is decided per gene call (gene +-10 kb), not per haplotype; windows of close genes overlap, so neighbouring genes share evidence. "
       "Switches along a contig are allowed but not checked at haplotype level; the 'no switch suspect' subset is the check.</li>"
-      "<li>The trio set is small (about 170 children); events are clustered by family; power is stated next to every curve.</li>"
+      "<li>The trio set is small (%s children in the KIR run, a similar number for HLA); events are clustered by family; power is stated next to every curve.</li>" % n.kir_children_txt() +
       "<li>Depth is measured on GRCh38-aligned reads, reference-biased at divergent exons (DRB1 exon 2 about 0.65 of other exons); KIR genes absent from GRCh38 have no depth metric.</li></ul>")
 
     # (1) mechanics
@@ -971,7 +1161,7 @@ def build(T, figs, out_dir):
         ["unit", "child haplotype call with a resolved parent of origin", "person pair x gene"],
         ["error means", "child allele absent from the transmitting parent", "no shared 2-field allele between the two people"],
         ["a missing call in...", "...the parent: scored as an error; the child's own missing call: no record", "...either person: scored as an error"],
-        ["biology scored as error", "rarely", "DRB3/4/5 presence differences, 33 of the earlier 142 pair errors"],
+        ["biology scored as error", "rarely (DRB3/4/5 are excluded from the classical-8 scope)", "DRB3/4/5 presence differences (33 of 142 pair errors in the first-pass analysis, reported at the time)"],
         ["therefore", "the pruning metric of the child's own call barely matters; the parent's completeness does", "any missing call anywhere in the pair matters, so n_called predicts it well"],
     ], columns=["", "trios", "first-degree pairs"])))
     A("<h3>1.4 The three outcome streams</h3>")
@@ -1010,8 +1200,8 @@ def build(T, figs, out_dir):
             A("<p class='read'>%s</p>%s" % (esc(why), table_html(d)))
     A("<h3>2.4 Why trios and pairs behave so differently, reconciled</h3>")
     A(n.sentence_parent())
-    A(img_tag(figs.get("parent_status"), "parent status", "Child allele absent from the transmitting parent, by the parent's number of calls at the gene (labels: events/records).") if figs.get("parent_status")
-      else pending("parent-completeness figure", "71f/trio_parent_status.tsv"))
+    A(img_tag(figs.get("parent_status"), "parent status", "Classical-8 trio records (full-cohort v4 table): child allele absent from the transmitting parent, by the number of calls the parent and the child have at the gene (labels: events/records).") if figs.get("parent_status")
+      else pending("parent-completeness figure", "71f/trio_parent_status_v4.tsv"))
     A(img_tag(figs.get("status_gene"), "call status by gene", "What the two haplotype slots of every person-gene look like, per gene.") if figs.get("status_gene") else "")
 
     # (3) pruning
@@ -1019,7 +1209,7 @@ def build(T, figs, out_dir):
     if T.rd("76b", "prune_curves.tsv") is None:
         A(pending("all HLA pruning evidence", "76b/prune_curves.tsv, prune_summary.tsv, auc.tsv, cv_by_metric.tsv, cv_selected.tsv, transfer.tsv, power.tsv, threshold_stability.tsv"))
     else:
-        views = ["A_classical8", "A_all", "B_child", "B_worst", "B_child_all", "combined_child", "pair_complete", "pair_all"]
+        views = HLA_VIEWS
         A("<h3>3.1 Errors removed against units removed</h3>")
         A(img_tag(figs.get("prune76"), "pruning curves", "Top five metrics per view by AUC; dashed = random expectation, gray = random 95% band."))
         A(img_tag(figs.get("prune76_res"), "residual error", "Error rate among the units that remain after pruning by the best metric (bootstrap 95% band)."))
@@ -1055,13 +1245,17 @@ def build(T, figs, out_dir):
         if d is not None:
             A("<p class='read'>%s</p>%s" % (esc(why), table_html(d, max_rows=40)))
     A("<h3>4.3 KIR trio and pair classes</h3>")
+    A(n.sentence_kir())
     tg = T.rd("77c", "trio_classes_group.tsv")
     if tg is not None:
-        d = tg[(tg["gene"] == "ALL") & (tg["variant"] == "all")]
-        if len(d):
-            r = d.iloc[0]
-            A("<p>At the protein field, %s of %s informative KIR trio records have a child label in neither parent (%s, %s-%s). Restricting to records whose transmitting parent's own label is named "
-              "(not novel) changes this, as the figure shows: unnamed labels are not comparable.</p>" % (fmt_n(r["neither_n"]), fmt_n(r["n_informative"]), fmt_p(r["neither_pct"], 2), fmt_p(r["lo"], 2), fmt_p(r["hi"], 2)))
+        d = tg[tg["gene"] == "ALL"][[c for c in ("variant", "n_records", "n_informative", "neither_n", "neither_pct", "lo", "hi", "n_match") if c in tg]]
+        A("<p class='read'>Neither-parent rate under the restrictions built into 77c (tx_named = transmitting parent's own labels are named; complete_only = complete haplotypes):</p>" + table_html(d))
+    A("<h4>Why the KIR protein-level 'neither' rate cannot be read as typing error</h4>")
+    A(img_tag(figs.get("kir_instab"), "KIR label instability", "Neither-parent rate (Wilson 95%) by a, whether the transmitting parent has an unnamed call at the locus; b, the number of calls it has; c, the child's novelty tier. Counts as events/records.")
+      if figs.get("kir_instab") else pending("KIR label-instability figure", "77c/kir_label_instability.tsv (aggregate counts computed from the internal 77c named-stream trio records)"))
+    A("<p class='read'>Leading explanation: a novel allele gets the name of its closest known neighbour; when the parent's call is unnamed or protein-distant, the child's name for the same sequence can differ (a different closest neighbour or a tie), "
+      "so the protein-level labels disagree although the sequences are the same. Evidence for it is the cross-tab above (and the flat child-only pruning view below). <b>Not proven</b>: the definitive test is to compare child and parent at the CDS "
+      "sequence level, and to repeat the count excluding every record in which either call is novel (tier above 0).</p>")
     A(img_tag(figs.get("kir_trio"), "KIR trio and pair", "a, neither-parent rate by variant; b, share of first-degree pairs with no shared label per locus.") if figs.get("kir_trio") else pending("KIR trio figure", "77c/trio_classes_group.tsv"))
     A(mind("In KIR the 'neither' rate mixes wrong alleles with novel-name instability and with presence/absence of paralogs; if the rate collapses when only named labels or only complete haplotypes are used, "
            "the signal is naming, not typing error."))
@@ -1069,10 +1263,11 @@ def build(T, figs, out_dir):
     if T.rd("78b", "prune_curves.tsv") is None:
         A(pending("KIR pruning evidence", "78b/prune_curves.tsv, auc.tsv, power.tsv, per_stratum_auc.tsv, definition_card_kir.tsv, depth_metric_coverage.tsv"))
     else:
-        kv = ["B_child", "B_child_strong", "B_worst", "H_hap", "P_pair", "P_pair_complete"]
-        A(img_tag(figs.get("prune78"), "KIR pruning", "Errors removed against units removed for the top metrics per KIR view."))
+        kv = KIR_VIEWS
+        A(img_tag(figs.get("prune78"), "KIR pruning", "Errors removed against units removed for the top metrics per KIR view. Panel c (B worst) is a label artefact of unnamed parental calls (section 4.3), not evidence for KIR pruning; event counts differ by metric because each metric is only defined where it can be measured."))
         A(img_tag(figs.get("prune78_res"), "KIR residual", "Residual error after pruning by the best metric."))
         A(img_tag(figs.get("auc78"), "KIR AUC", "AUC per KIR view and metric."))
+        A(n.kir_prune_notes())
         dt = decision_table(T, "78b", kv, top=3)
         A(table_html(dt, searchable="dectab78") if dt is not None else "")
         for nm in ("per_stratum_auc.tsv", "power.tsv", "definition_card_kir.tsv", "depth_metric_coverage.tsv"):
@@ -1083,6 +1278,17 @@ def build(T, figs, out_dir):
     if d is not None:
         A("<h3>4.5 KIR depth coverage by gene</h3>" + table_html(d, max_rows=40))
 
+    # (4b) decision guide
+    A("<h2 id='guide'>Decision guide</h2><div class='box'><b>How to read.</b> One row per endpoint: the best single metric by AUC (not a model), the percent to prune where the marginal cost "
+      "first exceeds each cost ratio (calls pruned per error removed: 10, 25, 50, 100), the share of errors captured at ratio 25, and how strong the evidence is. Evidence is <i>strong</i> only if the "
+      "random-pruning p-value at 5% is below 0.001 and the enrichment exceeds 1 in at least 90% of held-out family splits. A blank percent means no recommendation; &ge;20 (scan limit) means the marginal yield was still above the cost ratio at the end of the tested range (0-20%), so the true optimum may be larger. "
+      "Cut-offs are learned on the same data the curve is drawn from; the held-out numbers in section 3.4 are the honest transfer check.</div>")
+    gt = guide_table(T)
+    A(table_html(gt, fmt={c: (lambda v: "" if (isinstance(v, float) and np.isnan(v)) else (("%.3g" % v) if isinstance(v, (float, np.floating)) else v)) for c in gt.columns}) if len(gt)
+      else pending("decision guide", "76b and 78b pruning tables"))
+    A("<p class='read'>Practical reading for HLA today: prune or flag the person-gene units with the worst assembly context / low coding-base depth to remove missing calls; do not expect pruning to remove wrong alleles "
+      "(too few events to detect) and do not prune on KIR protein-level labels until the sequence-level test is done.</p>")
+
     # (5) raw evidence
     A("<h2 id='raw'>5. Raw evidence</h2><h3>5.1 Tables in this report</h3>")
     inv = []
@@ -1092,7 +1298,7 @@ def build(T, figs, out_dir):
                         what=TABLE_DOC.get("%s/%s" % (sub, f), "see the producing script's docstring")))
     A(table_html(pd.DataFrame(inv), searchable="inv") if inv else pending("table inventory", "any aggregate table"))
     A("<h3>5.2 Key tables, searchable</h3>")
-    for sub, nm in (("76", "B_class_counts.tsv"), ("76", "A_missing_by_gene.tsv"), ("71f", "trio_parent_status.tsv"), ("77c", "trio_classes_group.tsv"), ("77b", "gene_origin_summary_kir.tsv")):
+    for sub, nm in (("76", "B_class_counts.tsv"), ("76", "A_missing_by_gene.tsv"), ("71f", "trio_parent_status_v4.tsv"), ("77c", "trio_classes_group.tsv"), ("77b", "gene_origin_summary_kir.tsv")):
         d = T.rd(sub, nm)
         if d is not None and len(d) <= 300:
             A("<details><summary>%s/%s (%d rows)</summary>%s</details>" % (sub, nm, len(d), table_html(d, searchable=("t%s%s" % (sub, nm)).replace(".tsv", "").replace("_", ""))))
@@ -1120,22 +1326,23 @@ def build(T, figs, out_dir):
 
 FIGS = [("missing", fig_missing), ("missing_features", fig_missing_features), ("missing_auc", fig_missing_auc), ("parent_status", fig_parent_status),
         ("status_gene", fig_status_by_gene), ("stream_b", fig_stream_b), ("stream_b_support", fig_stream_b_support), ("stream_c", fig_stream_c),
-        ("kir_struct", fig_kir_structure), ("kir_origin", fig_kir_origin), ("kir_trio", fig_kir_trio)]
-HLA_VIEWS = ["A_classical8", "A_all", "B_child", "B_worst", "B_child_all", "combined_child", "pair_complete", "pair_all"]
-KIR_VIEWS = ["B_child", "B_child_strong", "B_worst", "H_hap", "P_pair", "P_pair_complete"]
+        ("kir_struct", fig_kir_structure), ("kir_origin", fig_kir_origin), ("kir_trio", fig_kir_trio), ("kir_instab", None)]
+HLA_VIEWS = ["A_classical8", "A_all", "B_child", "B_worst", "B_all_child", "B_all_worst", "combined_child", "pair_complete", "pair_all"]
+KIR_VIEWS = ["B_child", "B_child_anytx", "B_worst", "H_hap", "P_pair_all", "P_pair_complete"]
 
 
 def make_figures(T, figdir):
     os.makedirs(figdir, exist_ok=True)
     out = {}
-    jobs = list(FIGS) + [
+    jobs = [j for j in FIGS if j[1] is not None] + [
         ("prune76", lambda T, d: fig_prune(T, "76b", d, "fig_prune_hla", HLA_VIEWS)),
         ("prune76_res", lambda T, d: fig_prune_residual(T, "76b", d, "fig_prune_hla_residual", HLA_VIEWS)),
         ("auc76", lambda T, d: fig_auc_views(T, "76b", d, "fig_auc_hla")),
         ("cv76", lambda T, d: fig_cv(T, "76b", d, "fig_cv_hla")),
         ("prune78", lambda T, d: fig_prune(T, "78b", d, "fig_prune_kir", KIR_VIEWS)),
         ("prune78_res", lambda T, d: fig_prune_residual(T, "78b", d, "fig_prune_kir_residual", KIR_VIEWS)),
-        ("auc78", lambda T, d: fig_auc_views(T, "78b", d, "fig_auc_kir"))]
+        ("auc78", lambda T, d: fig_auc_views(T, "78b", d, "fig_auc_kir")),
+        ("kir_instab", fig_kir_instability)]
     for key, fn in jobs:
         try:
             out[key] = fn(T, figdir)
@@ -1158,7 +1365,7 @@ def main(argv=None):
         figs = {}
         for k, nm in (("missing", "fig_missing_overview"), ("missing_features", "fig_missing_by_feature"), ("missing_auc", "fig_missing_auc"), ("parent_status", "fig_parent_status"),
                       ("status_gene", "fig_call_status_by_gene"), ("stream_b", "fig_stream_b"), ("stream_b_support", "fig_stream_b_support"), ("stream_c", "fig_stream_c"),
-                      ("kir_struct", "fig_kir_structure"), ("kir_origin", "fig_kir_origin"), ("kir_trio", "fig_kir_trio_pair"), ("prune76", "fig_prune_hla"),
+                      ("kir_struct", "fig_kir_structure"), ("kir_origin", "fig_kir_origin"), ("kir_trio", "fig_kir_trio_pair"), ("kir_instab", "fig_kir_label_instability"), ("prune76", "fig_prune_hla"),
                       ("prune76_res", "fig_prune_hla_residual"), ("auc76", "fig_auc_hla"), ("cv76", "fig_cv_hla"), ("prune78", "fig_prune_kir"),
                       ("prune78_res", "fig_prune_kir_residual"), ("auc78", "fig_auc_kir")):
             p = os.path.join(figdir, nm + ".png")

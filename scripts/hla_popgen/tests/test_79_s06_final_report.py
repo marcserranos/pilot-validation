@@ -72,6 +72,13 @@ def make_tables(root, with_prune=True):
         dict(scope="CLASSICAL8", parent_calls_at_gene=2, child_call_named=True, child_calls=2161, child_allele_missing_from_parent=36, missing_but_in_other_parent=4, missing_pct=1.67),
         dict(scope="ALL", parent_calls_at_gene=1, child_call_named=True, child_calls=261, child_allele_missing_from_parent=46, missing_but_in_other_parent=5, missing_pct=17.6),
         dict(scope="ALL", parent_calls_at_gene=2, child_call_named=True, child_calls=3247, child_allele_missing_from_parent=54, missing_but_in_other_parent=9, missing_pct=1.66)]))
+    w(root, "71f", "trio_parent_status_v4.tsv", pd.DataFrame([
+        dict(scope="CLASSICAL8", parent_calls_at_gene=1, child_calls_at_gene=1, n_records=3, n_child_allele_absent_from_parent=1, pct=33.3),
+        dict(scope="CLASSICAL8", parent_calls_at_gene=1, child_calls_at_gene=2, n_records=71, n_child_allele_absent_from_parent=29, pct=40.8),
+        dict(scope="CLASSICAL8", parent_calls_at_gene=2, child_calls_at_gene=1, n_records=59, n_child_allele_absent_from_parent=0, pct=0.0),
+        dict(scope="CLASSICAL8", parent_calls_at_gene=2, child_calls_at_gene=2, n_records=2025, n_child_allele_absent_from_parent=8, pct=0.4)]))
+    w(root, "77c", "kir_label_instability.tsv", pd.DataFrame([dict(stratum="tx_unnamed", value="1", n_records=314, n_neither=85, rate=0.27), dict(stratum="tx_unnamed", value="0", n_records=4572, n_neither=43, rate=0.0094),
+                                                              dict(stratum="tx_n_calls", value="1", n_records=866, n_neither=56, rate=0.065), dict(stratum="tx_n_calls", value="2", n_records=3827, n_neither=70, rate=0.018)]))
     w(root, "71f", "call_status_taxonomy.tsv", pd.DataFrame([dict(scope="gene", gene=g, status_pair=s, n_person_genes=100, pct=p) for g in G8
                                                               for s, p in (("valid + valid", 92.0), ("valid + no_gene_row", 7.0), ("no_gene_row + no_gene_row", 1.0))]))
     genes = ["KIR2DL1", "KIR3DL3", "KIR2DS4"]
@@ -147,8 +154,8 @@ class T79(unittest.TestCase):
         tabs = os.path.join(self.d, "agg")
         make_tables(tabs, False)
         n = M.N(M.Tables(tabs))
-        self.assertAlmostEqual(n.p1[2], 42.1)
-        self.assertIn("32/76", n.sentence_parent())
+        self.assertAlmostEqual(n.p1[2], 100 * 30 / 74)
+        self.assertIn("30/74", n.sentence_parent())
         self.assertIn("7 carry an allele found in neither parent", n.sentence_b())
 
     def test_masked_cells_stay_nan(self):
