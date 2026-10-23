@@ -35,7 +35,15 @@ class T(unittest.TestCase):
         self.assertIsNotNone(s)
         self.assertEqual(s[0], "REF*01")
         self.assertEqual(s[1], ("21:A>G",))
+        self.assertEqual(s[3], ref[:20] + "G" + ref[21:])
         self.assertIsNone(r91.signature(core, ref, "REF*01|:20+a:4|"))  # indel -> None
+
+
+    def test_ipd_match(self):
+        nuc = {"X": {"01:01": "AAAACCCC", "01:02": "AAAGCCCC", "02:01": "CCCC"}}
+        self.assertEqual(r91.ipd_match(nuc, "X", "AAAGCCCC"), ("exact", ["01:02"]))
+        self.assertEqual(r91.ipd_match(nuc, "X", "TTAAAACCCCTT"), ("partial", ["01:01", "02:01"]))
+        self.assertEqual(r91.ipd_match(nuc, "X", "TTTTTTTT")[0], "none")
 
 
 if __name__ == "__main__":
