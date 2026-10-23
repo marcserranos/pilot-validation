@@ -952,3 +952,9 @@ recorded as having no notes in `sprints/_calls/README.md`.
   points shown (>= 100 effective records). Thinner relative at 0.5 of typical depth ~13% disagreement, 0.6 ~8-9%, 0.75 ~4-6%,
   0.9 ~2-3%, both > 1.1 < 1%; partner depth changes little. Point scatter drawn on the VM only
   (~/s05/internal/67b/pair_scatter.INTERNAL.png) for Marc.
+
+- **S06 76/76b/77/77b/77c/78/78b/79** (VM big_run 2026-10-23, code on s06-call-quality; outputs ~/s06/results/{76,76b,77,77b,77c,78,78b}, internal ~/s06/internal):
+  HLA outcomes split into missing call / wrong allele / novel; pruning evidence with family-grouped CV. HLA wrong-allele rate among fully called ~0.3-0.4%
+  (5-8 events, undetectable); missing-call AUC ~0.72, 5% prune captures ~23% (4.7x). KIR: 77b 174 trios 3,274 windows (21.3% ambiguous, 87.6% strong of resolved);
+  77c 128 'neither' of 4,886 named, 66% on parents with unnamed calls; 78 751 people depth (4-5 s/person). Run times: 77 ~15 min, 77b ~40 min, 76 ~12 min, 76b ~35 min, 78b ~10 min.
+  VM lessons: bash `~` is not expanded inside quoted nohup paths (use $HOME); ps grep unreliable under pixi (check load/logs); 76b crashed once on empty CV frames (fixed c06a175).
