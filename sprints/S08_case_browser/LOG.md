@@ -62,3 +62,7 @@
   8 partial matches to 3.66 (of the 49 seen in >= 2 people: 15 exact, 1 partial). Names: the large EAS HLA-G synonymous cluster = G*01:01:33; F Y106C = F*01:25; E K195R = E*01:152; DQB1 A57D = DQB1*02:180:02; G D130H = G*01:58;
   G G107S = G*01:64; G K170E = G*01:66. STILL UNNAMED + recurrent: HLA-F T237I and P205T (exact CDS in no 3.66 allele), plus small clusters (G A235V, G E190A [EUR; ref is a Q-suffix allele], F T279I, F synonymous).
   So: 'novel vs 3.55' overstated discovery; the defensible novelty set is the 3.66-unmatched, tier-A, non-suffix-reference calls. VM: clone and the IPD file removed again, outputs in ~/s08/r366 (raw files mode 600).
+- [10-23] REPORT + THINK TANK — `94_s08_report.py` builds reports/hla_popgen/91_novel_recurrence/S08_report.html (uncommitted by design: Marc decides on committing result tables). Five Haiku personas (evolution, immunology, ML, skeptic, wildcard)
+  proposed ideas, then critiqued each other. Consensus order: (1) transmission oracle (but across platforms — child long-read vs parental short-read — since same-pipeline errors transmit), (2) simulated reference-bias null, (3) RNA-seq ASE with
+  personalised reference, (4) primate outgroup (can only confirm antiquity), (5) per-run error barcode for hidden batch effects, (6) mark-recapture per-platform error. G*01:01:33 is a known allele; only its soluble/membrane isoform question remains.
+  Check trio x carrier x RNA-seq overlap before committing to any of them (power may be near zero for HLA-F T237I/P205T).
