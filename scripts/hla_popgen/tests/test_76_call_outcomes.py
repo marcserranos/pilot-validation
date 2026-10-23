@@ -280,6 +280,34 @@ class Pruning(unittest.TestCase):
             cc = cur[(cur["view"] == "combined_child") & (cur["metric"] == "cds_share_lt10")]
             self.assertIn("captured_pct_missing", cc.columns)
 
+    def test_small_event_views_do_not_crash(self):
+        """Regression: with <5 training events per split cv_run produced empty frames and `groupby("metric")` raised KeyError."""
+        rng = np.random.default_rng(2)
+        n = 400
+        def view(k_events):
+            d = pd.DataFrame(dict(person=["p%d" % i for i in range(n)], gene="A", family=np.arange(n) % 50,
+                                  bad=np.r_[np.ones(k_events, int), np.zeros(n - k_events, int)][rng.permutation(n)]))
+            for k in Q.KEYS:
+                d["o_" + k] = rng.normal(size=n)
+            return d
+        with tempfile.TemporaryDirectory() as d:
+            i, o = os.path.join(d, "i"), os.path.join(d, "o")
+            os.makedirs(i)
+            for name, k in (("units_B", 6), ("units_B_all", 2)):
+                x = view(k)
+                for pre in ("c", "w"):
+                    x = pd.concat([x, pd.DataFrame({pre + "_" + q: x["o_" + q] for q in Q.KEYS})], axis=1)
+                x.to_csv(os.path.join(i, name + ".INTERNAL.tsv"), sep="\t", index=False)
+            a = view(30)
+            a["scope_classical8"] = True
+            a.to_csv(os.path.join(i, "units_A.INTERNAL.tsv"), sep="\t", index=False)
+            b.run(i, o, grid_max=5.0, boot=20, folds=5, reps=2)
+            s = pd.read_csv(os.path.join(o, "prune_summary.tsv"), sep="\t")
+            self.assertIn("B_child", set(s["view"]))
+            self.assertNotIn("B_all_child", set(s["view"]))      # 2 events: skipped, logged, no crash
+            pw = pd.read_csv(os.path.join(o, "power.tsv"), sep="\t")
+            self.assertIn("B_all_child", set(pw["view"]))
+
 
 if __name__ == "__main__":
     unittest.main()

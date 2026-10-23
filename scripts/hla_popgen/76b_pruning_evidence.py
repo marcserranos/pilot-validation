@@ -271,6 +271,7 @@ def cv_run(d, metrics, grid, cost, window, folds, reps, seed, select_by="auc"):
     y = d["bad"].to_numpy(int)
     O = {k: d["o_" + k].to_numpy(float) for k in metrics}
     per_metric, sel_rows, thr_rows = [], [], []
+    skipped = 0
     for r in range(reps):
         rng = np.random.default_rng(seed + r)
         perm = rng.permutation(ug)
@@ -282,6 +283,7 @@ def cv_run(d, metrics, grid, cost, window, folds, reps, seed, select_by="auc"):
         for fo in range(folds):
             tr, te = f != fo, f == fo
             if y[tr].sum() < 5 or y[te].sum() < 1:
+                skipped += 1
                 continue
             aucs = {}
             for k in metrics:
@@ -297,6 +299,7 @@ def cv_run(d, metrics, grid, cost, window, folds, reps, seed, select_by="auc"):
             best = max((k for k in metrics if np.isfinite(aucs[k])), key=lambda k: aucs[k], default=None)
             if best is not None:
                 thr_b = [t for t in thr_rows[-len(metrics):] if t["metric"] == best][0]["thr"]
+                thr_b = thr_b if np.isfinite(thr_b) else np.inf
                 res = apply_threshold(O[best][te], y[te], thr_b)
                 sacc += [res["n"], res["n_errors"], res["n_pruned"], res["errors_removed"]]
                 chosen.append(best)
@@ -304,7 +307,7 @@ def cv_run(d, metrics, grid, cost, window, folds, reps, seed, select_by="auc"):
             n, K, m, e = acc[k]
             per_metric.append(dict(rep=r, metric=k, test_units=n, test_errors=K, pruned=m, errors_removed=e))
         sel_rows.append(dict(rep=r, test_units=sacc[0], test_errors=sacc[1], pruned=sacc[2], errors_removed=sacc[3], chosen=";".join(chosen).replace(";", ",")))
-    pm = pd.DataFrame(per_metric)
+    pm = pd.DataFrame(per_metric, columns=["rep", "metric", "test_units", "test_errors", "pruned", "errors_removed"])
     by = []
     for k, g in pm.groupby("metric"):
         g = g[g["test_errors"] > 0]
@@ -316,7 +319,7 @@ def cv_run(d, metrics, grid, cost, window, folds, reps, seed, select_by="auc"):
         by.append(dict(metric=k, reps=len(g), pruned_pct=100 * pr.mean(), captured_pct=100 * cp.mean(), captured_pct_lo=100 * cp.quantile(0.025),
                        captured_pct_hi=100 * cp.quantile(0.975), enrichment=enr.mean(), enrichment_lo=enr.quantile(0.025),
                        enrichment_hi=enr.quantile(0.975), share_reps_enrichment_gt1=float((enr > 1).mean())))
-    sel = pd.DataFrame(sel_rows)
+    sel = pd.DataFrame(sel_rows, columns=["rep", "test_units", "test_errors", "pruned", "errors_removed", "chosen"])
     sel = sel[sel["test_errors"] > 0]
     sel_out = pd.DataFrame()
     if len(sel):
@@ -327,7 +330,9 @@ def cv_run(d, metrics, grid, cost, window, folds, reps, seed, select_by="auc"):
         sel_out = pd.DataFrame([dict(reps=len(sel), pruned_pct=100 * pr.mean(), captured_pct=100 * cp.mean(), captured_pct_lo=100 * cp.quantile(0.025),
                                      captured_pct_hi=100 * cp.quantile(0.975), enrichment=enr.mean(), enrichment_lo=enr.quantile(0.025),
                                      enrichment_hi=enr.quantile(0.975), top_chosen_metrics=",".join("%s:%d" % (a, b) for a, b in freq.head(5).items()))])
-    th = pd.DataFrame(thr_rows)
+    th = pd.DataFrame(thr_rows, columns=["rep", "fold", "metric", "x_opt", "thr"])
+    if th.empty:
+        log("cv: no usable training fold (too few events per split); no CV tables for this view")
     stab = []
     for k, g in th.groupby("metric"):
         t = g["thr"].replace(np.inf, np.nan).dropna()
@@ -336,6 +341,8 @@ def cv_run(d, metrics, grid, cost, window, folds, reps, seed, select_by="auc"):
                          x_opt_iqr_lo=x.quantile(0.25) if len(x) else np.nan, x_opt_iqr_hi=x.quantile(0.75) if len(x) else np.nan,
                          thr_median=t.median() if len(t) else np.nan, thr_iqr_lo=t.quantile(0.25) if len(t) else np.nan,
                          thr_iqr_hi=t.quantile(0.75) if len(t) else np.nan))
+    if skipped:
+        log("cv: %d of %d splits skipped (<5 training events or no test event)" % (skipped, folds * reps))
     return pd.DataFrame(by), sel_out, pd.DataFrame(stab)
 
 
@@ -347,62 +354,78 @@ def run(internal_dir, out_dir, grid_max=20.0, step=0.25, cost=25.0, window=2.0, 
     if views:
         V = {k: d for k, d in V.items() if k in views}
     curves, summ, aucs, power, cvm, cvs, stab = [], [], [], [], [], [], []
+
+    def flush():
+        """Rewrite the cumulative tables after every finished view, so a later crash keeps the earlier output."""
+        for lst, name in ((curves, "prune_curves.tsv"), (summ, "prune_summary.tsv"), (aucs, "auc.tsv"), (power, "power.tsv")):
+            if lst:
+                w(pd.DataFrame(lst), name)
+        for lst, name in ((cvm, "cv_by_metric.tsv"), (cvs, "cv_selected.tsv"), (stab, "threshold_stability.tsv")):
+            if lst:
+                w(pd.concat(lst, ignore_index=True), name)
+
     for vn, d in V.items():
         d = d.reset_index(drop=True)
         y = d["bad"].to_numpy(int)
         power.append(power_row(vn, len(d), int(y.sum())))
         if y.sum() < 3:
-            log("%s: %d events, skipped" % (vn, int(y.sum())))
+            log("%s: %d events (<3), curves/CV skipped" % (vn, int(y.sum())))
+            flush()
             continue
-        metrics = usable_metrics(d)
-        labels = ["bad"] + [c for c in ("missing", "wrong") if c in d]
-        Y = d[labels].to_numpy(float)
-        for k in metrics:
-            o = d["o_" + k].to_numpy(float)
-            cv = curves_for(o, Y, d["group"].to_numpy(), grid, cost, window, boot, seed)
-            curves += curve_rows(vn, k, cv, grid, window, labels)
-            a = S.auc_score(o, y)
-            lo, hi = S.cluster_boot_auc(o, y, d["group"].to_numpy(), B=boot) if np.isfinite(a) else (np.nan, np.nan)
-            aucs.append(dict(view=vn, metric=k, n_units=int(np.isfinite(o).sum()), n_errors=int(y[np.isfinite(o)].sum()), auc=a, auc_lo=lo, auc_hi=hi))
-            xo = x_opt_from(cv["nr"], cv["er"][:, 0], grid, cost, window)
-            row = dict(view=vn, metric=k, n_units=cv["n"], n_errors=int(cv["K"][0]), auc=a, auc_lo=lo, auc_hi=hi, x_opt=xo)
-            if "xopt_boot" in cv:
-                xb = cv["xopt_boot"]
-                row.update(x_opt_boot_median=float(np.median(xb)), x_opt_boot_q25=float(np.percentile(xb, 25)), x_opt_boot_q75=float(np.percentile(xb, 75)))
-            for x in FIXED_X:
-                i = int(np.argmin(np.abs(grid - x)))
-                if x <= grid_max:
-                    e = cv["er"][i, 0]
-                    row["captured_pct_at_%g" % x] = 100 * e / cv["K"][0]
-                    row["enrichment_at_%g" % x] = (e / cv["K"][0]) / (cv["nr"][i] / cv["n"]) if cv["nr"][i] > 0 else np.nan
-                    m = int(round(cv["nr"][i]))
-                    row["p_tail_at_%g" % x] = float(stats.hypergeom.sf(int(round(e)) - 1, cv["n"], int(cv["K"][0]), m)) if 0 < m < cv["n"] else np.nan
-            i = int(np.argmin(np.abs(grid - xo)))
-            row["captured_pct_at_xopt"] = 100 * cv["er"][i, 0] / cv["K"][0]
-            row["residual_error_pct_at_xopt"] = 100 * (cv["K"][0] - cv["er"][i, 0]) / (cv["n"] - cv["nr"][i])
-            summ.append(row)
-        by, sel, st = cv_run(d, metrics, grid, cost, window, folds, reps, seed)
-        for df, lst in ((by, cvm), (sel, cvs), (st, stab)):
-            if len(df):
-                df.insert(0, "view", vn)
-                lst.append(df)
-        log("%s: %d units, %d events, %d metrics" % (vn, len(d), int(y.sum()), len(metrics)))
-    w(pd.DataFrame(curves), "prune_curves.tsv")
-    w(pd.DataFrame(summ), "prune_summary.tsv")
-    w(pd.DataFrame(aucs), "auc.tsv")
-    w(pd.DataFrame(power), "power.tsv")
-    if cvm:
-        w(pd.concat(cvm, ignore_index=True), "cv_by_metric.tsv")
-    if cvs:
-        w(pd.concat(cvs, ignore_index=True), "cv_selected.tsv")
-    if stab:
-        w(pd.concat(stab, ignore_index=True), "threshold_stability.tsv")
+        try:
+            metrics = usable_metrics(d)
+            if not metrics:
+                log("%s: no metric with enough finite values, skipped" % vn)
+                flush()
+                continue
+            labels = ["bad"] + [c for c in ("missing", "wrong") if c in d]
+            Y = d[labels].to_numpy(float)
+            vc, vs, va = [], [], []
+            for k in metrics:
+                o = d["o_" + k].to_numpy(float)
+                cv = curves_for(o, Y, d["group"].to_numpy(), grid, cost, window, boot, seed)
+                vc += curve_rows(vn, k, cv, grid, window, labels)
+                a = S.auc_score(o, y)
+                lo, hi = S.cluster_boot_auc(o, y, d["group"].to_numpy(), B=boot) if np.isfinite(a) else (np.nan, np.nan)
+                va.append(dict(view=vn, metric=k, n_units=int(np.isfinite(o).sum()), n_errors=int(y[np.isfinite(o)].sum()), auc=a, auc_lo=lo, auc_hi=hi))
+                xo = x_opt_from(cv["nr"], cv["er"][:, 0], grid, cost, window)
+                row = dict(view=vn, metric=k, n_units=cv["n"], n_errors=int(cv["K"][0]), auc=a, auc_lo=lo, auc_hi=hi, x_opt=xo)
+                if "xopt_boot" in cv:
+                    xb = cv["xopt_boot"]
+                    row.update(x_opt_boot_median=float(np.median(xb)), x_opt_boot_q25=float(np.percentile(xb, 25)), x_opt_boot_q75=float(np.percentile(xb, 75)))
+                for x in FIXED_X:
+                    i = int(np.argmin(np.abs(grid - x)))
+                    if x <= grid_max:
+                        e = cv["er"][i, 0]
+                        row["captured_pct_at_%g" % x] = 100 * e / cv["K"][0]
+                        row["enrichment_at_%g" % x] = (e / cv["K"][0]) / (cv["nr"][i] / cv["n"]) if cv["nr"][i] > 0 else np.nan
+                        m = int(round(cv["nr"][i]))
+                        row["p_tail_at_%g" % x] = float(stats.hypergeom.sf(int(round(e)) - 1, cv["n"], int(cv["K"][0]), m)) if 0 < m < cv["n"] else np.nan
+                i = int(np.argmin(np.abs(grid - xo)))
+                row["captured_pct_at_xopt"] = 100 * cv["er"][i, 0] / cv["K"][0]
+                row["residual_error_pct_at_xopt"] = 100 * (cv["K"][0] - cv["er"][i, 0]) / (cv["n"] - cv["nr"][i])
+                vs.append(row)
+            by, sel, st = cv_run(d, metrics, grid, cost, window, folds, reps, seed)
+            for df, lst in ((by, cvm), (sel, cvs), (st, stab)):
+                if len(df):
+                    df.insert(0, "view", vn)
+                    lst.append(df)
+            curves += vc
+            summ += vs
+            aucs += va
+            log("%s: %d units, %d events, %d metrics" % (vn, len(d), int(y.sum()), len(metrics)))
+        except Exception as ex:      # one view failing must not lose the others
+            log("%s: FAILED (%s: %s); earlier views are kept" % (vn, type(ex).__name__, ex))
+        flush()
     # transfer: threshold learned on the source view (x_opt rule and a fixed 5%), applied to the target view
     tr = []
     for src, dst in TRANSFERS:
         if src not in V or dst not in V:
             continue
         ds, dd = V[src], V[dst]
+        if ds["bad"].sum() < 5 or dd["bad"].sum() < 3:
+            log("transfer %s -> %s skipped: %d source / %d target events" % (src, dst, int(ds["bad"].sum()), int(dd["bad"].sum())))
+            continue
         for k in sorted(set(usable_metrics(ds)) & set(usable_metrics(dd))):
             os_, ys = ds["o_" + k].to_numpy(float), ds["bad"].to_numpy(int)
             if ys.sum() < 5 or dd["bad"].sum() < 3:
