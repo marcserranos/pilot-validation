@@ -22,3 +22,9 @@ can discover. New scripts take numbers **100+**.
 - Think-tank outputs are Haiku proposals, not evidence; literature claims need the critic's web check.
 
 Files: `LEDGER.md` (hypothesis ledger), `ROUNDS.md` (think-tank digests), `LOG.md` (append-only run log).
+
+## Red-team checklist (adversarial reviewer, 2026-10-24) — every experiment must pass before we believe it
+1 positive control recovered at the same power; 2 negative control / permuted labels null; 3 chance-level baseline reported beside every concordance (e.g. modal-G-group predictor);
+4 one-per-kinship-group recount; 5 within-ancestry tests with interaction test before pooled claims; 6 platform/centre/depth strata; 7 read-level support for novel calls (MAPQ, strand, homopolymer, phase);
+8 an independent non-IPD truth on a subset (HPRC / second annotator); 9 pre-registered family + LD/ancestry-preserving permutation null; 10 kill criterion + power statement, underpowered cells '<20' never zero.
+Open follow-ups from the review: modal-baseline for the G-group metric (S09-01); second annotator on ~200 people; ordered-haplotype scoring; compare native allele frequencies in the 12k vs 535k; unique-MAPQ read support at HLA-F T237I/P205T sites.
