@@ -15,3 +15,11 @@ per-run error barcode, mark-recapture error estimate. Self-corrections: trans-sp
 - **Naive looks (10):** template-distance histograms by gene/platform; homozygosity per person; KIR gene-count outliers; novel burden vs divergence per ancestry; C4 CN vs DR/DQ; concordance heatmap; DRB1 vs DRB3/4/5 co-occurrence; warning rate vs sequencing date; related-pair sharing vs IBD; haplotype block-length distribution.
 
 Next: critic + literature review (stronger model, web search) -> portfolio -> MVPs (ledger rows first).
+
+## Critic + literature (Sonnet, web search; items marked [mem] unverified) — portfolio
+Secure: S1 LR-truth benchmark of native calls (no AoU LR-vs-SR concordance paper found); S2 trio Mendelian error per gene; S3 IPD submission of F T237I/P205T (>=3 unrelated carriers, raw-read check, independent trio).
+Exploratory: E1 personal-reference ASE at HLA-F carriers (Aguiar 2019 did GEUVADIS); E2 T237I x KIR3DS1 with KIR2DS4 control (KIR3DS1 LD with 3DL1 structure, few carriers); E3 divergence-scaled heterozygote advantage (Chowell 2018 — low novelty).
+Moonshots: M1 non-coding/UTR burden -> ASE ('invisible eQTL'); M2 expression-weighted KIR-ligand 'frustration index'. Automated: A1 PheWAS (>=50 negative-control phenotypes; any negative-control hit = miscalibrated); A2 haplotype-window scan recovering the two known controls.
+Cut: hallucinated-deletion claims (subset of S1), C4 CN, naive looks as standalone claims (keep as QC plots).
+Traps: (1) circularity/ancestry — F alleles on one haplotype = haplotype tag until conditioned; (2) multiple testing — permutation not Bonferroni, suppressed != zero; (3) short-read error is allele/ancestry-differential, LR truth is not perfect (report trio LR-vs-LR as ceiling).
+Papers: Garcia-Beltran 2016 + Burian 2016 (HLA-F/KIR3DS1), Aguiar 2019 (HLA ASE), Immuannot 2024, HLA*LA 2019, UKB HLA PheWAS 2020 [mem], Chowell 2018 [mem], Emerson 2017 [mem], Martin 2002 (KIR3DL1/Bw4/HIV) [mem].
