@@ -249,20 +249,20 @@ def run(a):
         thr = float(np.percentile(mx, 95)) if mx else float("nan")
         lam_lines.append("%s: permutation 95%% max|z| threshold (FWER 0.05) = %.2f (%d perms)" % (sname, thr, len(mx)))
         fdr = bh(pv.ravel()).reshape(pv.shape)
-        flat = sorted(((abs(zz[j, k]), j, k) for j in range(zz.shape[0]) for k in range(zz.shape[1])), reverse=True)
+        flat = sorted(((abs(zz[j, k]), j, k) for j in range(zz.shape[0]) for k in range(zz.shape[1]) if I[j, k] > 0.5), reverse=True)
         with open(os.path.join(out, "phewas_hits_%s.tsv" % sname), "w") as f:
             f.write("exposure\toutcome_icd10_3\tcarriers\tcases\tapprox_OR\tz\tp\tFDR\tpasses_perm_FWER\tnegative_control_chapter\n")
             for az, j, k in flat[:300]:
                 carriers = int((Xs[:, j] > 0).sum())
                 cases = int(Ys[:, k].sum())
-                beta = U[j, k] / max(I[j, k], 1e-12)
+                beta = float(np.clip(U[j, k] / max(I[j, k], 1e-12), -20, 20))
                 f.write("%s\t%s\t%d\t%d\t%.3f\t%.2f\t%.3g\t%.3g\t%s\t%s\n" % (nm[j], cats_s[k], carriers, cases, math.exp(beta), zz[j, k], pv[j, k], fdr[j, k],
                                                                            "yes" if az >= thr else "no", "yes" if cats_s[k][0] in NEG_CHAPTERS else "no"))
         with open(os.path.join(out, "phewas_controls_%s.txt" % sname), "w") as f:
             for ex, oc in POSITIVE:
                 if ex in nm and oc in cats_s:
                     j, k = nm.index(ex), cats_s.index(oc)
-                    f.write("POS %s -> %s: z=%.2f, approx OR %.2f, carriers %d, cases %d\n" % (ex, oc, zz[j, k], math.exp(U[j, k] / max(I[j, k], 1e-12)), int((Xs[:, j] > 0).sum()), int(Ys[:, k].sum())))
+                    f.write("POS %s -> %s: z=%.2f, approx OR %.2f, carriers %d, cases %d\n" % (ex, oc, zz[j, k], math.exp(float(np.clip(U[j, k] / max(I[j, k], 1e-12), -20, 20))), int((Xs[:, j] > 0).sum()), int(Ys[:, k].sum())))
             f.write("NEG-chapter outcomes with FDR<0.05: %d of %d tests\n" % (int(((fdr < 0.05) & neg[None, :]).sum()), int(neg.sum() * zz.shape[0])))
     with open(os.path.join(out, "phewas_lambda.txt"), "w") as f:
         f.write("\n".join(lam_lines) + "\n")
@@ -314,7 +314,7 @@ def main(argv=None):
     p.add_argument("--kir-root", default="~/pipeline_outputs_kir")
     p.add_argument("--min-carriers", type=int, default=60)
     p.add_argument("--min-cases", type=int, default=30)
-    p.add_argument("--perms", type=int, default=20)
+    p.add_argument("--perms", type=int, default=10)
     run(p.parse_args(argv))
 
 
