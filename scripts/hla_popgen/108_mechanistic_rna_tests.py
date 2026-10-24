@@ -206,6 +206,32 @@ def run(a):
         test("S3 107G heterozygote vs 0 -> KLRC1 [age+sex+age2]", [p for p in p2 if e107g(p) < 2], het, "KLRC1", extra=cov)
         test("S3 107G homozygote vs 0 -> KLRC1 [age+sex+age2]", [p for p in p2 if e107g(p) != 1], hom, "KLRC1", extra=cov)
         test("S3 NEG HLA-DQB1 107-neighbour control: B*27 dose -> KLRC1 [age+sex+age2]", p2, d27, "KLRC1", extra=cov, group_fn=d27)
+        # S4: fully adjusted model for HLA-E 107G -> KLRC1 (NK abundance, interferon tone, CD8/gamma-delta T content, KLRC2 / adaptive-NK proxy, HLA-B/A/C/G leader -21M load)
+        ISG = ["ISG15", "IFI44L", "IFI44", "MX1", "MX2", "IFIT1", "IFIT3", "OAS1", "OAS3", "RSAD2"]
+        isg = {p: v for p, v in zip(p2, mean_z(ISG, p2))}
+        cd8 = {p: v for p, v in zip(p2, mean_z(["CD8A", "CD8B", "TRDC"], p2))}
+        k2 = {p: (tpm[p].get("KLRC2") or 0.0) for p in p2}
+        cov_full = lambda p: [info[p][0], ag(p), ag(p) ** 2, nkidx[p], isg[p], cd8[p], k2[p], load21(p)]
+        for lab, only in (("all ancestries", None), ("EUR", "EUR"), ("AFR", "AFR"), ("AMR", "AMR"), ("EAS", "EAS"), ("SAS", "SAS")):
+            test("S4 107G -> KLRC1 FULL ADJ [NK+IFN+CD8/gdT+KLRC2+leader+age/sex; %s]" % lab, p2, e107g, "KLRC1", extra=cov_full, only=only)
+        bs = [(r[2], r[3], r[1]) for r in rows if r[0].startswith("S4 107G -> KLRC1 FULL ADJ") and r[2] is not None and "all ancestries" not in r[0]]
+        if len(bs) >= 2:
+            w = [1 / se ** 2 for _, se, _ in bs]
+            bm = sum(wi * b for wi, (b, _, _) in zip(w, bs)) / sum(w)
+            sem = 1 / math.sqrt(sum(w))
+            het = sum(wi * (b - bm) ** 2 for wi, (b, _, _) in zip(w, bs))
+            rows.append(("S4 META over %d ancestries: 107G -> KLRC1 FULL ADJ; heterogeneity Q=%.2f)" % (len(bs), het), sum(n for _, _, n in bs), bm, sem, math.erfc(abs(bm / sem) / math.sqrt(2)), ""))
+            for loo in ("EUR", "AFR", "AMR", "EAS", "SAS"):
+                bl = [(r[2], r[3]) for r in rows if r[0].startswith("S4 107G -> KLRC1 FULL ADJ") and r[2] is not None and "all ancestries" not in r[0] and ("; %s]" % loo) not in r[0]]
+                if len(bl) >= 2:
+                    wl = [1 / se_ ** 2 for _, se_ in bl]
+                    bml = sum(wi * b for wi, (b, _) in zip(wl, bl)) / sum(wl)
+                    seml = 1 / math.sqrt(sum(wl))
+                    rows.append(("S4 leave-out %s: 107G -> KLRC1 FULL ADJ meta" % loo, 0, bml, seml, math.erfc(abs(bml / seml) / math.sqrt(2)), ""))
+        hlae = {p: (tpm[p].get("HLA-E") or 0.0) for p in p2}
+        cov_med = lambda p: [info[p][0], ag(p), ag(p) ** 2, nkidx[p], isg[p], cd8[p], k2[p], load21(p), hlae[p]]
+        test("S4 MEDIATION: 107G -> KLRC1 FULL ADJ + HLA-E TPM as covariate [all ancestries]", p2, e107g, "KLRC1", extra=cov_med)
+        test("S4 IFN score: 107G -> ISG score [age+sex]", p2, e107g, np.array([isg[p] for p in p2]), extra=cov)
         test("R2 leader -21M load -> KLRC1 [age+sex+age2 + E107G]", p2, load21, "KLRC1", extra=cov_e)
         for g_ in ("A", "B", "C", "G"):
             fx = lambda p, g_=g_: sum(1 for al in calls[p][g_] if m21.get(al) is True)
