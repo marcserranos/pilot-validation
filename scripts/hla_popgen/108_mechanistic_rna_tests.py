@@ -196,6 +196,16 @@ def run(a):
                     sem = 1 / math.sqrt(sum(w))
                     het = sum(wi * (b - bm) ** 2 for wi, (b, _, _) in zip(w, bs))
                     rows.append(("R2 META over %d ancestries: %s %s heterogeneity Q=%.2f)" % (len(bs), xl, kind, het), sum(n for _, _, n in bs), bm, sem, math.erfc(abs(bm / sem) / math.sqrt(2)), ""))
+        # specificity of the HLA-E 107G -> KLRC1 association: partner, activating paralogue, other NK receptors, dose groups
+        for og in ("KLRD1", "KLRC2", "KLRK1", "NCR1", "KLRB1", "KIR-free NK marker NCAM1", "IFNG"):
+            gname = og.split()[-1]
+            test("S3 E*01:03 (107G) dose -> %s [age+sex+age2; all ancestries]" % gname, p2, e107g, gname, extra=cov)
+        test("S3 E*01:03 (107G) dose -> KLRC1 - KLRC2 (NKG2A:NKG2C) [age+sex+age2]", p2, e107g, nkgr2, extra=cov)
+        het = lambda p: 1.0 if e107g(p) == 1 else 0.0
+        hom = lambda p: 1.0 if e107g(p) == 2 else 0.0
+        test("S3 107G heterozygote vs 0 -> KLRC1 [age+sex+age2]", [p for p in p2 if e107g(p) < 2], het, "KLRC1", extra=cov)
+        test("S3 107G homozygote vs 0 -> KLRC1 [age+sex+age2]", [p for p in p2 if e107g(p) != 1], hom, "KLRC1", extra=cov)
+        test("S3 NEG HLA-DQB1 107-neighbour control: B*27 dose -> KLRC1 [age+sex+age2]", p2, d27, "KLRC1", extra=cov, group_fn=d27)
         test("R2 leader -21M load -> KLRC1 [age+sex+age2 + E107G]", p2, load21, "KLRC1", extra=cov_e)
         for g_ in ("A", "B", "C", "G"):
             fx = lambda p, g_=g_: sum(1 for al in calls[p][g_] if m21.get(al) is True)
