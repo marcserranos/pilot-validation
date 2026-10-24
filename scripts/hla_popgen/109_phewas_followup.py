@@ -46,6 +46,10 @@ def run(a):
     util = np.log1p(np.array([len(ehr["cats"].get(p, ())) for p in persons], float))
     util = (util - util.mean()) / util.std()
     ancv = np.array([anc[p] for p in persons])
+    pcs = read_pcs(os.path.expanduser(a.ancestry_preds), persons, a.n_pcs)
+    if pcs is not None:
+        lines.append("ancestry PCs available for %d persons (first %d used)" % (int(pcs[1].sum()), a.n_pcs))
+        pcs = pcs[0]
     ancs = sorted(set(ancv))
     A = np.array([[1.0 if anc[p] == k else 0.0 for k in ancs if k != "EUR"] for p in persons])
     lines = ["n unrelated persons with EHR: %d" % len(persons)]
@@ -82,17 +86,20 @@ def run(a):
             variants = [("pooled (ancestry+sex+age)", base), ("+ utilisation", np.column_stack([base, util]))]
             if partner:
                 variants.append(("+ utilisation + partner %s" % partner, np.column_stack([base, util, expo(partner)])))
+            if pcs is not None:
+                variants.append(("+ utilisation + %d PCs (pooled)" % a.n_pcs, np.column_stack([base, util, pcs])))
             if exp_name.startswith("C4A"):
                 variants.append(("+ utilisation + C4B copies", np.column_stack([base, util, c4b_arr(persons, c4b)])))
             for nm, Z in variants:
                 U, I = e.score_tests(x[:, None], y[:, None], Z)
                 lines.append("  %-38s z %6.2f  (beta approx %.3f)" % (nm, U[0, 0] / np.sqrt(max(I[0, 0], 1e-12)), U[0, 0] / max(I[0, 0], 1e-12)))
-            Us, Is = [], []
+            Us, Is, Ups, Ips = [], [], [], []
             for k in ancs:
                 m = ancv == k
                 if m.sum() < 200:
                     continue
                 Zk = np.column_stack([np.ones(m.sum()), sex[m], age[m], age[m] ** 2, util[m]])
+                Zp = np.column_stack([Zk, pcs[m]]) if pcs is not None else None
                 car = int((x[m] > 0).sum())
                 cs = int(y[m].sum())
                 cc = int(((x[m] > 0) & (y[m] > 0)).sum())
@@ -102,17 +109,43 @@ def run(a):
                 U, I = e.score_tests(x[m][:, None], y[m][:, None], Zk)
                 Us.append(U[0, 0])
                 Is.append(I[0, 0])
+                if Zp is not None:
+                    Up, Ip = e.score_tests(x[m][:, None], y[m][:, None], Zp)
+                    Ups.append(Up[0, 0])
+                    Ips.append(Ip[0, 0])
+                    lines.append("       with %d within-ancestry PCs: z %6.2f" % (a.n_pcs, Up[0, 0] / np.sqrt(max(Ip[0, 0], 1e-12))))
                 lines.append("  %-4s n %5d carriers %5s cases %5s carrier-cases %5s  z %6.2f  beta %.3f" % (k, m.sum(), r91.supp(car), r91.supp(cs), r91.supp(cc), U[0, 0] / np.sqrt(max(I[0, 0], 1e-12)), U[0, 0] / max(I[0, 0], 1e-12)))
             if Us:
                 lines.append("  within-ancestry score meta (utilisation-adjusted): z %.2f over %d ancestries" % (meta_score(Us, Is), len(Us)))
+                if Ups:
+                    lines.append("  within-ancestry score meta with PCs: z %.2f" % meta_score(Ups, Ips))
                 if len(Us) > 1:
                     zs = [u / np.sqrt(max(i, 1e-12)) for u, i in zip(Us, Is)]
                     for j in range(len(Us)):
                         keep = [t for t in range(len(Us)) if t != j]
                         lines.append("    leave-out #%d: z %.2f" % (j + 1, meta_score([Us[t] for t in keep], [Is[t] for t in keep])))
-    with open(os.path.join(out, "followup_pub.txt"), "w") as f:
+    with open(os.path.join(out, a.out_name + "_pub.txt"), "w") as f:
         f.write("\n".join(lines) + "\n")
     print("\n".join(lines))
+
+
+def read_pcs(path, persons, k):
+    """First k ancestry PCs (AoU ancestry_preds.tsv pca_features), standardised; returns (matrix, has_pc mask) or None."""
+    import ast
+    if not os.path.exists(path):
+        return None
+    d = {}
+    with open(path) as f:
+        hdr = f.readline().rstrip("\n").split("\t")
+        ci, cj = hdr.index("research_id"), hdr.index("pca_features")
+        for ln in f:
+            x = ln.rstrip("\n").split("\t")
+            d[x[ci]] = ast.literal_eval(x[cj])[:k]
+    has = np.array([p in d for p in persons])
+    M = np.array([d.get(p, [0.0] * k) for p in persons], float)
+    mu, sd = M[has].mean(0), M[has].std(0)
+    M = np.where(has[:, None], (M - mu) / np.where(sd > 0, sd, 1), 0.0)
+    return M, has
 
 
 def c4b_arr(persons, c4b):
@@ -127,6 +160,9 @@ def main(argv=None):
     p.add_argument("--membership", default="~/pipeline_outputs/cohort_membership.tsv")
     p.add_argument("--relatedness", default=base + "/relatedness/samples_relatedness.tsv")
     p.add_argument("--kir-root", default="~/pipeline_outputs_kir")
+    p.add_argument("--ancestry-preds", default=base + "/ancestry/ancestry_preds.tsv")
+    p.add_argument("--n-pcs", type=int, default=10)
+    p.add_argument("--out-name", default="followup_pcs")
     p.add_argument("--pairs", default="DQA1*05:03:E87+K72+K70+A41,C4A copies:I77,B*27:05:H20")
     run(p.parse_args(argv))
 
