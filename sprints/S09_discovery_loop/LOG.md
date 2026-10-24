@@ -31,3 +31,7 @@
 - [10-24] RESULT S09-14b (109 within-ancestry follow-up, utilisation-adjusted): DQA1*05:03 -> E87/K72/K70/A41 is AMR-only (234/304 carriers in AMR; E87 z 6.45 in AMR, z<1 elsewhere; leave-AMR-out meta ~0), survives utilisation adjustment and the DQB1*03:01 LD partner -> not an across-ancestry artefact but plausibly within-AMR admixture; PC test running.
   C4A copies -> I77: same sign in all six ancestries (betas 0.07-0.57) but only EUR significant (z 4.38); utilisation-adjusted score-meta z 3.91 (< 4.07), leave-EUR-out 1.27 -> lead, not a finding.
   B*27:05 -> H20 RETRACTED as a 'recovery': EUR 125 carriers with zero carrier-cases (z -0.8), signal from AMR and a 21-carrier SAS stratum (z 9.9, sparse artefact).
+- [10-24] RESULT S09-14c (109 with 10 within-ancestry PCs, ancestry_preds.tsv): DQA1*05:03 -> E87/K72/K70/A41 COLLAPSES within AMR once PCs are added (E87 z 6.45 -> 2.00; K72 1.0, K70 1.3, A41 1.8; meta z 1.8) => within-AMR admixture marker, RETIRED.
+  C4A copies -> I77 SURVIVES: EUR z 4.38 -> 4.32 with PCs; PC+utilisation meta z 4.14 over 6 ancestries (threshold 4.07); other ancestries same sign, small. Lead (single outcome code, EUR-dominated), needs replication.
+  B*27:05 -> H20: AFR 2.3 / AMR 4.1 with PCs on <20 carrier-cases each; EUR 0 carrier-cases of 125; SAS sparse -> inconclusive.
+  Process notes: raw.githubusercontent serves a cached copy for ~5 min after a push (deploy by commit-hash URL); a first deploy used the stale file; one UnboundLocalError found only on the VM -> run a local synthetic dry run before shipping.
