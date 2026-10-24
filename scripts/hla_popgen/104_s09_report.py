@@ -85,7 +85,7 @@ LEDGER = [
     ("S09-12", "unnamed alleles are supported by raw long reads", "passed", "18/26 supported in all carriers, 0/8 controls; five HLA-F loss-of-function alleles real; E/G stop-gains are artefacts"),
     ("S09-13", "HLA-E/F/G diversity landscape", "done", "E balanced, F nearly monomorphic, G null haplotypes 4-5x higher in AFR"),
     ("S09-15", "B*27 -> UPR signature in blood", "null", "beta -0.016 +/- 0.024, n=5,642; controls flat"),
-    ("S09-16", "HLA-E 107G lowers NKG2A per NK cell", "passed", "meta beta -0.091, p 3.6e-8, 5/5 ancestries, specific to KLRC1; survives 10 ancestry PCs (meta -0.085, p 2.6e-7) and 3 independent KLRC1-region cis variants (meta -0.073, p 7e-7)"),
+    ("S09-16", "HLA-E 107G lowers NKG2A per NK cell", "passed", "meta beta -0.091, p 3.6e-8, 5/5 ancestries, specific to KLRC1; survives 10 ancestry PCs (meta -0.085, p 2.6e-7) and 3 independent KLRC1-region cis variants (meta -0.073, p 7e-7); NOT seen in plasma Olink KLRC1 (n=2,709, p 0.4; soluble fraction, so inconclusive)"),
     ("S09-17", "HLA-F LoF lowers its own transcript", "weak signal", "R294* haplotype 26% of reads; one carrier each"),
     ("S09-03", "HLA-F T237I/P205T x KIR3DS1 vs viral EHR codes", "proposed", "needs a power check first (carriers <50)"),
     ("S09-04", "HLA-A deletion shifts KIR content", "proposed", "carriers likely <20"),
