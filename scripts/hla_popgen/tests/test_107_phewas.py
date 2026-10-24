@@ -29,6 +29,16 @@ class T(unittest.TestCase):
         self.assertAlmostEqual(U[0, 0] / I[0, 0], 0.9, delta=0.2)
         self.assertLess(np.abs(z[:, 1]).max(), 4.5)
 
+    def test_near_constant_exposure_stays_calibrated(self):
+        rng = np.random.default_rng(9)
+        n = 6000
+        Z = np.column_stack([np.ones(n), rng.normal(size=n)])
+        X = np.column_stack([2.0 - rng.binomial(1, 0.01, n), rng.binomial(2, 0.3, n).astype(float)])   # first: allele at 99% frequency
+        Y = rng.binomial(1, 0.01, size=(n, 40)).astype(float)
+        z = p.zmat(*p.score_tests(X, Y, Z))
+        self.assertLess(np.abs(z).max(), 5.0)
+        self.assertLess(abs(np.median(z ** 2) / 0.4549 - 1), 0.5)
+
     def test_bh_monotone(self):
         q = p.bh(np.array([0.001, 0.01, 0.04, 0.5]))
         self.assertTrue(all(q[i] <= q[i + 1] for i in range(3)))

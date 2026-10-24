@@ -64,6 +64,7 @@ def null_logistic(y, Z, iters=25):
 
 def score_tests(X, Y, Z):
     """X: n x J exposures, Y: n x K binary outcomes, Z: n x q null covariates (with intercept). Returns U, I (J x K)."""
+    X = X - X.mean(axis=0, keepdims=True)           # centre: avoids cancellation when an exposure is nearly constant (common alleles)
     n, J = X.shape
     K = Y.shape[1]
     U = np.zeros((J, K))
@@ -224,6 +225,9 @@ def run(a):
     lam_lines = []
     for sname, spec in sets.items():
         nm, X = spec[0], spec[1]
+        sd = X.std(axis=0)
+        okc = sd > 0.15
+        nm, X = [n_ for n_, o in zip(nm, okc) if o], X[:, okc]
         rows = np.arange(len(persons)) if len(spec) == 2 else spec[2]
         Xs, Ys, Zs, ss = X, Y[rows], Z[rows], strata[rows]
         keep = Ys.sum(0) >= a.min_cases
@@ -245,7 +249,9 @@ def run(a):
                 idx = np.where(ss == s)[0]
                 Xp[idx] = Xs[rnd.permutation(idx)]
             Up, Ip = score_tests(Xp, Ys, Zs)
-            mx.append(np.abs(zmat(Up, Ip)).max())
+            zp = np.abs(zmat(Up, Ip))
+            zp[Ip <= 0.5] = 0.0
+            mx.append(zp.max())
         thr = float(np.percentile(mx, 95)) if mx else float("nan")
         lam_lines.append("%s: permutation 95%% max|z| threshold (FWER 0.05) = %.2f (%d perms)" % (sname, thr, len(mx)))
         fdr = bh(pv.ravel()).reshape(pv.shape)
