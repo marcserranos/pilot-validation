@@ -116,7 +116,7 @@ def run(a):
             ok &= np.array([anc[p] == only for p in plist])
         pl = [p for p, o in zip(plist, ok) if o]
         ac = Counter(anc[p] for p in pl)
-        use = sorted(k for k, n in ac.items() if n >= 20 and k != "EUR")
+        use = [] if only else sorted(k for k, n in ac.items() if n >= 20 and k != "EUR")
         comp = np.array([[np.mean([tpm[p][g] for g in S if tpm[p].get(g) is not None] or [0.0]) for S in (T_SET, B_SET, MYE_SET)] for p in pl])
         cols = [np.ones(len(pl)), np.array([[1.0 if anc[p] == k else 0.0 for k in use] for p in pl]).reshape(len(pl), -1), comp]
         if extra:
@@ -180,9 +180,22 @@ def run(a):
         cov_e = lambda p: [info[p][0], ag(p), ag(p) ** 2, e107g(p)]
         nkgr2 = np.array([(tpm[p].get("KLRC1") or 0) - (tpm[p].get("KLRC2") or 0) for p in p2])
         nk3 = mean_z(NK, p2)
-        for lab, only in (("all ancestries", None), ("EUR only", "EUR"), ("AFR only", "AFR"), ("AMR only", "AMR")):
+        nkidx = {p: v for p, v in zip(p2, nk3)}
+        cov_nk = lambda p: [info[p][0], ag(p), ag(p) ** 2, nkidx[p]]
+        per = {}
+        for lab, only in (("all ancestries", None), ("EUR", "EUR"), ("AFR", "AFR"), ("AMR", "AMR"), ("EAS", "EAS"), ("SAS", "SAS")):
             test("R2 leader -21M load -> KLRC1 [age+sex+age2; %s]" % lab, p2, load21, "KLRC1", extra=cov, only=only)
             test("R2 leader -21M load -> NK score [age+sex+age2; %s]" % lab, p2, load21, nk3, extra=cov, only=only)
+            test("R2 leader -21M load -> KLRC1 given NK score [age+sex+age2+NK; %s]" % lab, p2, load21, "KLRC1", extra=cov_nk, only=only)
+        # inverse-variance fixed-effect meta over ancestries with a stable estimate
+        for kind in ("-> KLRC1 [age+sex+age2;", "-> NK score [age+sex+age2;", "-> KLRC1 given NK score ["):
+            bs = [(r[2], r[3], r[1]) for r in rows if r[0].startswith("R2 leader -21M load " + kind) and r[2] is not None and not r[0].endswith("all ancestries]")]
+            if len(bs) >= 2:
+                w = [1 / se ** 2 for _, se, _ in bs]
+                bm = sum(wi * b for wi, (b, _, _) in zip(w, bs)) / sum(w)
+                sem = 1 / math.sqrt(sum(w))
+                het = sum(wi * (b - bm) ** 2 for wi, (b, _, _) in zip(w, bs))
+                rows.append(("R2 META over %d ancestries: leader -21M load %s heterogeneity Q=%.2f)" % (len(bs), kind, het), sum(n for _, _, n in bs), bm, sem, math.erfc(abs(bm / sem) / math.sqrt(2)), ""))
         test("R2 leader -21M load -> KLRC1 [age+sex+age2 + E107G]", p2, load21, "KLRC1", extra=cov_e)
         test("R2 E*01:03 (107G) dose -> KLRC1 [age+sex+age2]", p2, e107g, "KLRC1", extra=cov)
         for g_ in ("A", "B", "C", "G"):
