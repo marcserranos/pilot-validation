@@ -32,6 +32,10 @@ FOREST = [
     ("TEST C4 copies -> interferon score", -0.0208, 0.0106, "test"),
     ("TEST 1 vs 2 HLA-A calls -> HLA-A", 0.0245, 0.0147, "test"),
 ]
+HLAE_ANC = [("EUR (n=1,038)", -0.0860, 0.0265, "pos"), ("AFR (n=466)", -0.1013, 0.0413, "pos"), ("AMR (n=595)", -0.0657, 0.0366, "pos"), ("EAS (n=428)", -0.0982, 0.0474, "pos"),
+            ("SAS (n=448)", -0.1212, 0.0447, "pos"), ("META, 5 ancestries (n=2,975)", -0.0906, 0.0164, "test")]
+HLAE_SPEC = [("HLA-E TPM (positive control)", -0.0659, 0.0068, "pos"), ("KLRC1 (NKG2A)", -0.0818, 0.0180, "test"), ("KLRD1 (CD94)", 0.0007, 0.0132, "neg"), ("KLRC2 (NKG2C)", 0.0052, 0.0197, "neg"),
+             ("KLRK1 (NKG2D)", -0.0100, 0.0108, "neg"), ("NCR1", 0.0102, 0.0111, "neg"), ("KLRB1", 0.0022, 0.0153, "neg"), ("NCAM1 (CD56)", 0.0158, 0.0090, "neg"), ("IFNG", -0.0062, 0.0119, "neg")]
 COL = {"pos": "--c", "rev": "--warn", "neg": "--mut", "test": "--b"}
 
 
@@ -78,12 +82,18 @@ LEDGER = [
     ("S09-10a", "KIR content shifts NK transcripts", "null", "n=5,120 people; p=0.79 / 0.22; negative control null"),
     ("S09-10b", "C4 copy number tunes interferon tone", "null", "nominal p=0.049 only; positive/negative controls behave"),
     ("S09-11", "non-peptide-binding variation changes class II expression", "weak signal", "0.2-0.6% of variance (perm p 0.002-0.024); mapping bias not excluded"),
+    ("S09-12", "unnamed alleles are supported by raw long reads", "passed", "18/26 supported in all carriers, 0/8 controls; five HLA-F loss-of-function alleles real; E/G stop-gains are artefacts"),
+    ("S09-13", "HLA-E/F/G diversity landscape", "done", "E balanced, F nearly monomorphic, G null haplotypes 4-5x higher in AFR"),
+    ("S09-15", "B*27 -> UPR signature in blood", "null", "beta -0.016 +/- 0.024, n=5,642; controls flat"),
+    ("S09-16", "HLA-E 107G lowers NKG2A per NK cell", "passed", "meta beta -0.091, p 3.6e-8, 5/5 ancestries, specific to KLRC1"),
+    ("S09-17", "HLA-F LoF lowers its own transcript", "weak signal", "R294* haplotype 26% of reads; one carrier each"),
     ("S09-03", "HLA-F T237I/P205T x KIR3DS1 vs viral EHR codes", "proposed", "needs a power check first (carriers <50)"),
     ("S09-04", "HLA-A deletion shifts KIR content", "proposed", "carriers likely <20"),
     ("S09-05", "allele x phecode PheWAS with >= 50 negative controls", "proposed", "native 535k, HLA-prior phecodes first"),
     ("S09-07", "parent-of-origin effect on HLA ASE", "proposed", "check trio x RNA overlap"),
 ]
-TAG = {"passed": "known", "killed": "art", "null": "art", "weak signal": "new", "proposed": "new"}
+PHEWAS_TEXT = "The HLA / KIR / C4 x ICD-10 phenome scan (594 outcome categories with at least 30 cases in 11,856 unrelated long-read people; score tests with ancestry, sex and age; negative-control outcome chapters; permutation thresholds) first failed its own calibration check because of a numerical problem with near-constant common alleles; the corrected rerun is described below if finished."
+TAG = {"done": "known", "passed": "known", "killed": "art", "null": "art", "weak signal": "new", "proposed": "new"}
 
 
 def build():
@@ -113,28 +123,45 @@ def build():
 <tr><td>HLA-A, B, DPB1, DRB1</td><td>23%, 6%, 12%, —</td><td colspan="2">untestable: no G group with ≥2 allele classes of ≥20 homozygous people</td></tr></table>
 <div class="note"><b>Guard.</b> RNA is mapped to GRCh38, so haplotypes that diverge from the reference may look lower for mapping reasons, and ancestry is only coarsely adjusted. Next step: re-quantify these class II groups on personal two-haplotype references (the S05/S08 machinery) before calling it regulatory.</div>
 
-<h2>5. Ledger</h2><table><tr><th>ID</th><th>Hypothesis</th><th>Status</th><th>Evidence / note</th></tr>@@LEDGER@@</table>
+<h2>5. Second wave: raw reads, landscape, mechanisms</h2>
+<h3>5a. Raw long-read evidence for the unnamed alleles</h3>
+<p>For 26 candidate unnamed signatures we located the exact GRCh38 position from the GENCODE CDS model (checked against the assembly bases) and piled up the raw AoU long-read alignments, independent of the assembly the call came from, in up to 8 carriers and 8 matched non-carriers. <b>18 of 26 are supported in every examined carrier and in 0 of 8 controls</b>: HLA-F T237I and P205T, T279I, G128R, G37S, V309I, A322T, M119I, Q247R, three recurrent synonymous signatures, and <b>five HLA-F loss-of-function alleles (stop-gains E70*, Q75*, W265*, R294*; start-loss M1V; each in fewer than 20 unrelated people)</b>. The HLA-E (Y28*, G321*) and HLA-G (R181*, Y142*) stop-gain calls and DPA1 E210G have no raw-read support: assembly artefacts. Three “supported” signatures (HLA-C and HLA-G synonymous, DRB1 S29A) are uninformative because the alt base is in every control. So <b>HLA-F, not E or G, is where real protein-truncating variation sits</b>.</p>
+<h3>5b. Do the HLA-F loss-of-function alleles lower their own transcript?</h3>
+<p>One heterozygous carrier per allele on a personal two-haplotype reference: the stop-gain <b>R294*</b> haplotype carries only 26% of informative HLA-F reads (bias-corrected log2 −1.23, ≈2.3× lower; consistent with nonsense-mediated decay), the start-loss <b>M1V</b> 40% (transcript persists, translation lost), and the missense variants 35–50%. Single-carrier evidence only.</p>
+<h3>5c. HLA-E, F and G: diversity landscape by ancestry</h3>
+<p>At equal sample size (400 unrelated people per ancestry): <b>HLA-E is balanced</b> (expected heterozygosity 0.50–0.52 in all six ancestries — the stable R107G polymorphism); <b>HLA-F is nearly monomorphic and ancestry-structured</b> (top allele 96% in EAS, 80% in AFR); <b>HLA-G carries 4–5× more null/questionable-suffix haplotypes in AFR (6.7%) than in SAS or EUR (1.4–1.6%)</b>. For scale, HLA-B has 56–86 distinct 2-field alleles.</p>
+<h3>5d. A mechanism that failed, and one that did not</h3>
+<p><b>HLA-B*27 does not induce an unfolded-protein-response signature in blood RNA</b> (UPR module β = −0.016 ± 0.024, p = 0.49, n = 5,642; ERAP1/2, IL23A, BiP, XBP1 all null; B*07, B*57, housekeeping and T-cell controls flat): a well-powered human test of the 1999 misfolding hypothesis in whole blood, informative as a null.</p>
+<p><b>HLA-E R107G (E*01:03) lowers NKG2A (KLRC1) expression per NK cell.</b> The effect is specific to KLRC1, independent of NK abundance, interferon tone, CD8/γδ T-cell content, KLRC2 (adaptive-NK proxy) and the HLA leader peptides, has the same sign in all five ancestries, is not mediated by HLA-E mRNA, and is near-dominant (heterozygote β −0.144, homozygote −0.159). No prior report was found (closest: ~100–200 donors, no effect on NKG2A frequency); novelty is unverified.</p>
+<figure>@@A1@@<figcaption>Fully adjusted effect of HLA-E 107G dose on KLRC1 (log2 TPM per allele, 95% CI) by ancestry and fixed-effect meta-analysis (Q = 1.05 for 4 d.f., leave-one-ancestry-out meta p between 8e-6 and 1e-7).</figcaption></figure>
+<figure>@@A2@@<figcaption>Specificity (age, sex, ancestry, composition adjusted): the positive control (HLA-E mRNA, p = 2e-20) and KLRC1 move; the CD94 partner (KLRD1), the activating paralogue (KLRC2), and other NK receptors do not.</figcaption></figure>
+<div class="note"><b>Not yet excluded.</b> KLRC1 cis SNPs and KLRC2 deletion (need genotypes), CMV serostatus (adaptive NK), and bulk-RNA cell-type attribution. The leader −21M peptide-supply hypothesis is only nominal (meta p ≈ 0.02, attenuated by NK abundance).</div>
+<h3>5e. Hypothesis-free association scan</h3>
+<p>@@PHEWAS@@</p>
 
-<h2>6. What the think tanks produced (themes, not claims)</h2>
+<h2>6. Ledger</h2><table><tr><th>ID</th><th>Hypothesis</th><th>Status</th><th>Evidence / note</th></tr>@@LEDGER@@</table>
+
+<h2>7. What the think tanks produced (themes, not claims)</h2>
 <ul><li><b>Moonshots:</b> HLA-F × KIR3DS1 epistasis; HLA-A deletion as NK-ligand compensation; parent-of-origin HLA expression; balancing-selection halos; MICA intron-5 STR as an expression switch; C4 as an interferon dial (tested: null).</li>
 <li><b>Secure claims:</b> native-vs-long-read benchmark (done: it is a resolution paper); phased MHC haplotype atlas; trio Mendelian error per gene; KIR gene-content atlas with a measured short-read false-negative rate; IPD submission of the validated HLA-F alleles.</li>
 <li><b>Naive looks:</b> ten 10-minute tables and plots (template-distance histograms, KIR gene-count outliers, DRB3/4/5 co-occurrence gaps, warning rate by sequencing date, block lengths).</li>
 <li><b>Automated search:</b> allele × phecode PheWAS with permutation nulls and ≥50 negative-control phenotypes; residue-level scan; haplotype-window scan; anomaly detection on per-person divergence.</li>
 <li><b>Power-aware disease designs:</b> residue/pocket burden two-stage (535k → 12k), blood counts and labs before disease, drug-hypersensitivity positive controls (abacavir/B*57:01, carbamazepine/B*15:02), COVID severity from predicted epitope load with a negative-control proteome.</li></ul>
 
-<h2>7. Lessons that now run the project</h2>
+<h2>8. Lessons that now run the project</h2>
 <ul><li>A concordance number without a resolution definition is not an error rate (DQA1 0.52 vs 0.99).</li><li>"Novel" without a reference-release date is database age (S08).</li>
 <li>Gene-level TPM validates some KIR genes and not others; controls decide which tests are allowed.</li><li>Quantitative traits (RNA) have power that binary EHR labels (&lt;20 carriers) do not.</li></ul>
 
-<h2>8. Decisions for Marc</h2>
+<h2>9. Decisions for Marc</h2>
 <ol><li>Commit the S08/S09 report HTMLs and suppressed tables? (open small-cell disclosure item.)</li>
 <li>Next experiment: personal-reference quantification of the class II within-G effect (mapping-bias test), or the parent-of-origin ASE test (needs trio × RNA overlap check), or the PheWAS engine with negative controls.</li>
 <li>IPD submission path for HLA-F T237I/P205T (needs ≥3 unrelated carriers confirmed in raw reads plus an independent trio).</li></ol>
 
-<h2>9. Reproduce</h2><p><code>100_native_vs_lr.py</code>, <code>101_rna_panel_extract.py</code>, <code>102_expression_dosage_tests.py</code>, <code>103_expression_within_g_group.py</code>, <code>104_s09_report.py</code> on branch <code>s09-discovery-loop</code>; ledger in <code>sprints/S09_discovery_loop/</code>. VM runs: one core, nice 10, throwaway clones, private tables mode 600 on the VM only.</p>
+<h2>10. Reproduce</h2><p><code>100_native_vs_lr.py</code>, <code>101_rna_panel_extract.py</code>, <code>102_expression_dosage_tests.py</code>, <code>103_expression_within_g_group.py</code>, <code>104_s09_report.py</code> on branch <code>s09-discovery-loop</code>; ledger in <code>sprints/S09_discovery_loop/</code>. VM runs: one core, nice 10, throwaway clones, private tables mode 600 on the VM only.</p>
 </main></body></html>"""
     bars = grouped([TWO_FIELD, G_LEVEL], GENES, [("2-field name", "--b"), ("G-group level", "--c")], "Genotype concordance, native vs long-read truth (up to 12,208 people per gene)", ymax=1.1, height=290, fmt="{:.1f}")
-    for k, v in (("@@CSS@@", CSS), ("@@LOOP@@", loop()), ("@@BARS@@", bars), ("@@FOREST@@", forest(FOREST)), ("@@LEDGER@@", ledger)):
+    tpl = tpl.replace("@@A1@@", forest(HLAE_ANC, lim=0.2, label_w=260)).replace("@@A2@@", forest(HLAE_SPEC, lim=0.2, label_w=260))
+    for k, v in (("@@CSS@@", CSS), ("@@LOOP@@", loop()), ("@@BARS@@", bars), ("@@FOREST@@", forest(FOREST)), ("@@LEDGER@@", ledger), ("@@PHEWAS@@", PHEWAS_TEXT)):
         tpl = tpl.replace(k, v)
     return tpl
 
