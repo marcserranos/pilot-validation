@@ -26,7 +26,12 @@ PANEL = (
     # interferon-stimulated genes
     + ["ISG15", "IFI44L", "IFI44", "MX1", "MX2", "IFIT1", "IFIT3", "OAS1", "OAS3", "RSAD2", "STAT1"]
     # housekeeping / negative controls
-    + ["ACTB", "GAPDH", "TBP", "B2M"]
+    + ["ACTB", "GAPDH", "TBP", "B2M", "PPIA", "RPL13A", "HPRT1", "UBC", "GUSB", "PGK1", "RPLP0", "TFRC", "RPS18", "YWHAZ"]
+    # unfolded-protein-response / ER-associated degradation / antigen-processing / IL-23 axis (HLA-B*27 misfolding hypothesis)
+    + ["HSPA5", "DDIT3", "XBP1", "ATF6", "ATF4", "EIF2AK3", "ERN1", "SEL1L", "SYVN1", "HERPUD1", "EDEM1", "DNAJB9", "PDIA4", "PDIA6", "CALR", "CANX",
+       "ERAP1", "ERAP2", "TAPBP", "IL23A", "IL23R", "IL17A", "TNF", "IFNG"]
+    # NK receptors for the HLA-E / NKG2A tone hypothesis
+    + ["KLRC2", "KLRB1", "NCR1", "NCR3", "IL7R", "CD2", "TRDC"]
 )
 
 
