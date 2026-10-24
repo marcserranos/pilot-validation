@@ -46,21 +46,18 @@ def build_matrix(path, out_path):
                 rows.append([float(v) if v != "" else np.nan for v in x[1:]])
         return persons, assays, np.array(rows, float)
     import pandas as pd
-    s, c = defaultdict(float), defaultdict(int)
+    parts = []
     cols = ["ResearchID", "Assay", "NPX", "SampleType", "SampleQC", "AssayQC"]
     for ch in pd.read_csv(path, sep="\t", usecols=cols, chunksize=2_000_000, dtype=str):
         ch = ch[(ch.SampleType == "SAMPLE") & (ch.SampleQC == "PASS") & (ch.AssayQC == "PASS") & (ch.NPX.notna()) & (ch.NPX != "NA")]
         ch = ch.assign(NPX=ch.NPX.astype(float))
-        g = ch.groupby(["ResearchID", "Assay"]).NPX.agg(["sum", "count"])
-        for (p, a), r in g.iterrows():
-            s[(p, a)] += r["sum"]
-            c[(p, a)] += r["count"]
-    persons = sorted({p for p, _ in s})
-    assays = sorted({a for _, a in s})
-    pi, ai = {p: i for i, p in enumerate(persons)}, {a: i for i, a in enumerate(assays)}
-    M = np.full((len(persons), len(assays)), np.nan)
-    for (p, a), v in s.items():
-        M[pi[p], ai[a]] = v / c[(p, a)]
+        parts.append(ch.groupby(["ResearchID", "Assay"]).NPX.agg(["sum", "count"]))
+        log("read chunk, %d (person, assay) cells so far" % sum(len(x) for x in parts))
+    g = pd.concat(parts).groupby(level=[0, 1]).sum()
+    mean = (g["sum"] / g["count"]).unstack("Assay")
+    persons = [str(x) for x in mean.index]
+    assays = list(mean.columns)
+    M = mean.to_numpy(float)
     with gzip.open(out_path, "wt") as f:
         f.write("person_id\t" + "\t".join(assays) + "\n")
         for p, row in zip(persons, M):
