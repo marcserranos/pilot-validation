@@ -263,6 +263,75 @@ def run(a):
                 het = sum(wi * (b - bm) ** 2 for wi, (b, _, _) in zip(w, bs))
                 rows.append(("S5 META over %d ancestries: 107G -> KLRC1 FULL ADJ + PCs; heterogeneity Q=%.2f)" % (len(bs), het), sum(n for _, _, n in bs), bm, sem, math.erfc(abs(bm / sem) / math.sqrt(2)), ""))
             test("S5 B*27 dose -> KLRC1 NEG + PCs [all ancestries]", p2, d27, "KLRC1", extra=cov_pc, group_fn=d27)
+        # S6: KLRC1 cis-eQTL control. Scan plink2 --export A dosages across the KLRC1/KLRC2/KLRD1 region (chr12:10.2-10.7 Mb), then ask whether the
+        # HLA-E 107G -> KLRC1 effect survives conditioning on the lead cis variants and whether 107G is correlated with them (it can only be via structure).
+        if a.cis_geno and os.path.exists(os.path.expanduser(a.cis_geno)):
+            gp = os.path.expanduser(a.cis_geno)
+            with open(gp) as f:
+                hdr = f.readline().split()
+                vnames = hdr[6:]
+                G = {}
+                for ln in f:
+                    x_ = ln.split()
+                    G[x_[1]] = np.array([np.nan if v == "NA" else float(v) for v in x_[6:]])
+            pg = [p for p in p2 if p in G]
+            log("S6: persons with RNA, EHR and chr12 genotypes: %d, variants %d" % (len(pg), len(vnames)))
+            S = np.array([G[p] for p in pg])
+            S = np.where(np.isnan(S), np.nanmean(S, axis=0, keepdims=True), S)
+            keepv = (S.std(0) > 0) & (np.minimum(S.mean(0), 2 - S.mean(0)) / 2 >= 0.02)
+            S, vn = S[:, keepv], [v for v, k in zip(vnames, keepv) if k]
+            y = np.array([tpm[p].get("KLRC1") if tpm[p].get("KLRC1") is not None else np.nan for p in pg], float)
+            okp = ~np.isnan(y)
+            ancl = [anc[p] for p in pg]
+            use = sorted(k for k, n in Counter(ancl).items() if n >= 20 and k != "EUR")
+            pcz = [0.0] * a.n_pcs
+            C = np.column_stack([np.ones(len(pg)), np.array([[1.0 if q == k else 0.0 for k in use] for q in ancl]), np.array([cov(p) + [nkidx[p]] + (pcmap.get(p, pcz) if pcmap else []) for p in pg], float)])
+            C, S2, y2 = C[okp], S[okp], y[okp]
+            Q, _ = np.linalg.qr(C)
+            Sr = S2 - Q @ (Q.T @ S2)
+            yr = y2 - Q @ (Q.T @ y2)
+            bt = (Sr * yr[:, None]).sum(0) / np.maximum((Sr ** 2).sum(0), 1e-12)
+            res = yr[:, None] - Sr * bt
+            se_ = np.sqrt((res ** 2).sum(0) / (len(y2) - C.shape[1] - 1) / np.maximum((Sr ** 2).sum(0), 1e-12))
+            zc = bt / np.maximum(se_, 1e-12)
+            order = np.argsort(-np.abs(zc))
+            rows.append(("S6 cis scan: variants tested (MAF>=2%%) / max |z| for KLRC1 / lead %s" % vn[order[0]].rsplit("_", 1)[0][:40], len(vn), float(bt[order[0]]), float(se_[order[0]]), math.erfc(abs(zc[order[0]]) / math.sqrt(2)), "n=%d" % len(y2)))
+            e_ = np.array([e107g(p) for p in pg], float)[okp]
+            # greedy forward selection of up to 3 independent lead variants
+            sel, Ccur = [], C.copy()
+            for _ in range(3):
+                Qc, _ = np.linalg.qr(Ccur)
+                Sx = S2 - Qc @ (Qc.T @ S2)
+                yx = y2 - Qc @ (Qc.T @ y2)
+                bx = (Sx * yx[:, None]).sum(0) / np.maximum((Sx ** 2).sum(0), 1e-12)
+                rx = yx[:, None] - Sx * bx
+                sx = np.sqrt((rx ** 2).sum(0) / max(1, len(y2) - Ccur.shape[1] - 1) / np.maximum((Sx ** 2).sum(0), 1e-12))
+                zx = np.abs(bx / np.maximum(sx, 1e-12))
+                j = int(np.argmax(zx))
+                if zx[j] < 4.0:
+                    break
+                sel.append(j)
+                Ccur = np.column_stack([Ccur, S2[:, j]])
+            rows.append(("S6 independent cis lead variants selected (|z|>=4)", len(sel), None, None, None, ""))
+            pgi = {p: i for i, p in enumerate(pg)}
+            if sel:
+                for j in sel:
+                    r_all = float(np.corrcoef(e_, S2[:, j])[0, 1])
+                    rows.append(("S6 correlation of E*01:03 dose with cis lead %s (pooled r)" % vn[j].rsplit("_", 1)[0][:30], len(y2), r_all, None, None, ""))
+                cis_extra = lambda p: cov_full(p) + (pcmap.get(p, pcz) if pcmap else []) + [S[pgi[p], j] for j in sel]
+            else:
+                cis_extra = lambda p: cov_full(p) + (pcmap.get(p, pcz) if pcmap else [])
+            cov_pcg = lambda p: cov_full(p) + (pcmap.get(p, pcz) if pcmap else [])
+            test("S6 BASELINE (same persons) 107G -> KLRC1 FULL ADJ + PCs [all ancestries]", pg, e107g, "KLRC1", extra=cov_pcg)
+            test("S6 107G -> KLRC1 FULL ADJ + PCs + %d cis lead variants [all ancestries]" % len(sel), pg, e107g, "KLRC1", extra=cis_extra)
+            for lab, only in (("EUR", "EUR"), ("AFR", "AFR"), ("AMR", "AMR"), ("EAS", "EAS"), ("SAS", "SAS")):
+                test("S6 107G -> KLRC1 FULL ADJ + PCs + cis leads [%s]" % lab, pg, e107g, "KLRC1", extra=cis_extra, only=only)
+            bs = [(r[2], r[3], r[1]) for r in rows if r[0].startswith("S6 107G -> KLRC1 FULL ADJ + PCs + cis leads") and r[2] is not None]
+            if len(bs) >= 2:
+                w = [1 / se ** 2 for _, se, _ in bs]
+                bm = sum(wi * b for wi, (b, _, _) in zip(w, bs)) / sum(w)
+                sem = 1 / math.sqrt(sum(w))
+                rows.append(("S6 META over %d ancestries: 107G -> KLRC1 + PCs + cis leads" % len(bs), sum(n for _, _, n in bs), bm, sem, math.erfc(abs(bm / sem) / math.sqrt(2)), ""))
         test("S4 IFN score: 107G -> ISG score [age+sex]", p2, e107g, np.array([isg[p] for p in p2]), extra=cov)
         test("R2 leader -21M load -> KLRC1 [age+sex+age2 + E107G]", p2, load21, "KLRC1", extra=cov_e)
         for g_ in ("A", "B", "C", "G"):
@@ -289,6 +358,7 @@ def main(argv=None):
     p.add_argument("--relatedness", default=base + "/relatedness/samples_relatedness.tsv")
     p.add_argument("--ancestry-preds", default=base + "/ancestry/ancestry_preds.tsv")
     p.add_argument("--n-pcs", type=int, default=10)
+    p.add_argument("--cis-geno", default="~/s09/klrc1/geno.raw", help="plink2 --export A file for the KLRC1 region (S6); skipped if absent")
     run(p.parse_args(argv))
 
 
