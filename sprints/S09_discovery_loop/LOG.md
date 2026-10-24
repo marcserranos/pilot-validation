@@ -18,3 +18,6 @@
 - [10-24] RESULTS S09-15/16/17 (108, 96) — (1) B*27 does NOT induce a UPR/ERAP/IL23 signature in whole-blood RNA (n=5,642; null with controls clean): a well-powered human test of the 1999 misfolding hypothesis in blood;
   (2) leader -21M load and E*01:03 (107G) are associated with LOWER KLRC1/NK-score transcripts (p 0.005/0.007 and 1e-5), HLA-E expression itself unaffected by leader load; positive control intact; robustness (age, sex, within-ancestry, per-gene leaders) running;
   (3) HLA-F stop-gain R294* haplotype is reduced to ~26% of HLA-F transcripts in its (single) carrier — consistent with NMD; start-loss M1V 40%.
+- [10-24] RESULT S09-16 robustness (108; n=3,141 RNA persons; per-ancestry + inverse-variance meta over EUR/AFR/AMR/EAS/SAS): HLA-E 107G dosage lowers KLRC1/NKG2A transcript (meta beta -0.082, p 5.6e-6, no heterogeneity) and the effect GROWS after adjusting for NK abundance
+  (beta -0.090, p 4e-8) while NK abundance itself is unchanged (p 0.29) => NKG2A per NK cell, not NK number; HLA-E mRNA is lower with 107G (p 2e-20). The leader -21M supply hypothesis is weak/nominal (meta p ~0.02, attenuated by NK abundance, effect from B and C leaders; HLA-E expression unaffected).
+  Specificity (KLRD1, KLRC2, KLRK1, NCR1, KLRB1, dose groups, B*27 negative control) running; literature novelty check launched.
