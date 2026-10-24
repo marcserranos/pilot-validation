@@ -61,6 +61,23 @@ def leader_m21_map(prot_dir):
     return out
 
 
+def read_pcs(path, k):
+    """person -> first k ancestry PCs (AoU ancestry_preds.tsv), standardised; None if the file is absent."""
+    import ast
+    if not os.path.exists(path):
+        return None
+    d = {}
+    with open(path) as f:
+        hdr = f.readline().rstrip("\n").split("\t")
+        ci, cj = hdr.index("research_id"), hdr.index("pca_features")
+        for ln in f:
+            x = ln.rstrip("\n").split("\t")
+            d[x[ci]] = ast.literal_eval(x[cj])[:k]
+    M = np.array(list(d.values()), float)
+    mu, sd = M.mean(0), np.where(M.std(0) > 0, M.std(0), 1)
+    return {p: list((np.array(v, float) - mu) / sd) for p, v in d.items()}
+
+
 def run(a):
     r91 = load("r91", "91_novel_recurrence.py")
     e102 = load("e102", "102_expression_dosage_tests.py")
@@ -231,6 +248,21 @@ def run(a):
         hlae = {p: (tpm[p].get("HLA-E") or 0.0) for p in p2}
         cov_med = lambda p: [info[p][0], ag(p), ag(p) ** 2, nkidx[p], isg[p], cd8[p], k2[p], load21(p), hlae[p]]
         test("S4 MEDIATION: 107G -> KLRC1 FULL ADJ + HLA-E TPM as covariate [all ancestries]", p2, e107g, "KLRC1", extra=cov_med)
+        # S5: genetic-ancestry PCs (AoU ancestry_preds) added to the full model, pooled and within each ancestry, plus a meta: tests whether admixture explains the association
+        pcmap = read_pcs(os.path.expanduser(a.ancestry_preds), a.n_pcs)
+        if pcmap is not None:
+            zero = [0.0] * a.n_pcs
+            cov_pc = lambda p: cov_full(p) + pcmap.get(p, zero)
+            for lab, only in (("all ancestries", None), ("EUR", "EUR"), ("AFR", "AFR"), ("AMR", "AMR"), ("EAS", "EAS"), ("SAS", "SAS")):
+                test("S5 107G -> KLRC1 FULL ADJ + %d PCs [%s]" % (a.n_pcs, lab), p2, e107g, "KLRC1", extra=cov_pc, only=only)
+            bs = [(r[2], r[3], r[1]) for r in rows if r[0].startswith("S5 107G -> KLRC1") and r[2] is not None and "all ancestries" not in r[0]]
+            if len(bs) >= 2:
+                w = [1 / se ** 2 for _, se, _ in bs]
+                bm = sum(wi * b for wi, (b, _, _) in zip(w, bs)) / sum(w)
+                sem = 1 / math.sqrt(sum(w))
+                het = sum(wi * (b - bm) ** 2 for wi, (b, _, _) in zip(w, bs))
+                rows.append(("S5 META over %d ancestries: 107G -> KLRC1 FULL ADJ + PCs; heterogeneity Q=%.2f)" % (len(bs), het), sum(n for _, _, n in bs), bm, sem, math.erfc(abs(bm / sem) / math.sqrt(2)), ""))
+            test("S5 B*27 dose -> KLRC1 NEG + PCs [all ancestries]", p2, d27, "KLRC1", extra=cov_pc, group_fn=d27)
         test("S4 IFN score: 107G -> ISG score [age+sex]", p2, e107g, np.array([isg[p] for p in p2]), extra=cov)
         test("R2 leader -21M load -> KLRC1 [age+sex+age2 + E107G]", p2, load21, "KLRC1", extra=cov_e)
         for g_ in ("A", "B", "C", "G"):
@@ -255,6 +287,8 @@ def main(argv=None):
     p.add_argument("--rich", default="~/pipeline_outputs/hla_calls_rich.tsv")
     p.add_argument("--membership", default="~/pipeline_outputs/cohort_membership.tsv")
     p.add_argument("--relatedness", default=base + "/relatedness/samples_relatedness.tsv")
+    p.add_argument("--ancestry-preds", default=base + "/ancestry/ancestry_preds.tsv")
+    p.add_argument("--n-pcs", type=int, default=10)
     run(p.parse_args(argv))
 
 
