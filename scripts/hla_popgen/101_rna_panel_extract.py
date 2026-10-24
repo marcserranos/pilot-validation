@@ -49,7 +49,8 @@ def run(a):
     with open(os.path.expanduser(a.manifest)) as f:
         for r in csv.DictReader(f, delimiter="\t"):
             sample2person.setdefault(r["sampleid"], r["research_id"])
-    want = set(PANEL)
+    panel = [g for g in a.genes.split(",") if g] if a.genes else PANEL
+    want = set(panel)
     rows = {}
     for path in files:
         with gzip.open(path, "rt") as f:
@@ -68,8 +69,8 @@ def run(a):
             if p is None:
                 continue
             rows[p] = {g: v[j] for g, v in got.items()}
-    genes = [g for g in dict.fromkeys(PANEL)]
-    pth = os.path.join(out, "rna_panel_tpm.private.tsv")
+    genes = [g for g in dict.fromkeys(panel)]
+    pth = os.path.join(out, a.out_name)
     with open(pth, "w") as f:
         f.write("person_id\t" + "\t".join(genes) + "\n")
         for p, d in rows.items():
@@ -84,6 +85,8 @@ def main(argv=None):
     p.add_argument("--rna-root", default=base)
     p.add_argument("--manifest", default=base + "/manifest.tsv")
     p.add_argument("--out-dir", default="~/s09")
+    p.add_argument("--genes", default="", help="comma-separated gene symbols overriding the built-in PANEL")
+    p.add_argument("--out-name", default="rna_panel_tpm.private.tsv")
     run(p.parse_args(argv))
 
 
