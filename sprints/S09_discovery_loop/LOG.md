@@ -15,3 +15,6 @@
   (assembly/annotation artefacts), so HLA-F — not E or G — is where real protein-truncating variation sits in this cohort. Three 'supported' signatures are uninformative (alt base is in all controls). Next: RNA NMD test for the F-LoF carriers (96, running),
   frequency of F-LoF by ancestry (106), phenome-wide scan (107, running).
 - [10-24] RESULT S09-13 (script 106) — non-classical landscape at equal sample size (400 unrelated people/ancestry): HLA-E is balanced (het ~0.5, same in every ancestry), HLA-F is nearly monomorphic and ancestry-structured (top allele 0.96 EAS -> 0.80 AFR), HLA-G carries 4-5x more null/questionable-suffix haplotypes in AFR (6.7%) than in SAS/EUR (1.4-1.6%).
+- [10-24] RESULTS S09-15/16/17 (108, 96) — (1) B*27 does NOT induce a UPR/ERAP/IL23 signature in whole-blood RNA (n=5,642; null with controls clean): a well-powered human test of the 1999 misfolding hypothesis in blood;
+  (2) leader -21M load and E*01:03 (107G) are associated with LOWER KLRC1/NK-score transcripts (p 0.005/0.007 and 1e-5), HLA-E expression itself unaffected by leader load; positive control intact; robustness (age, sex, within-ancestry, per-gene leaders) running;
+  (3) HLA-F stop-gain R294* haplotype is reduced to ~26% of HLA-F transcripts in its (single) carrier — consistent with NMD; start-loss M1V 40%.

@@ -99,7 +99,7 @@ def run(a):
 
     rows = []
 
-    def test(name, plist, xfun, yarr_or_gene, group_fn=None):
+    def test(name, plist, xfun, yarr_or_gene, group_fn=None, extra=None, only=None):
         if isinstance(yarr_or_gene, str):
             y = np.array([tpm[p].get(yarr_or_gene) if tpm[p].get(yarr_or_gene) is not None else np.nan for p in plist], float)
         else:
@@ -112,11 +112,16 @@ def run(a):
                 rows.append((name, int(ok.sum()), None, None, None, "carrier group < 20")); return
             small = {g_ for g_, n in gc.items() if n < 20}
             ok &= np.array([group_fn(p) not in small for p in plist])
+        if only:
+            ok &= np.array([anc[p] == only for p in plist])
         pl = [p for p, o in zip(plist, ok) if o]
         ac = Counter(anc[p] for p in pl)
         use = sorted(k for k, n in ac.items() if n >= 20 and k != "EUR")
         comp = np.array([[np.mean([tpm[p][g] for g in S if tpm[p].get(g) is not None] or [0.0]) for S in (T_SET, B_SET, MYE_SET)] for p in pl])
-        X = np.column_stack([np.ones(len(pl)), np.array([[1.0 if anc[p] == k else 0.0 for k in use] for p in pl]).reshape(len(pl), -1), comp, x[ok]])
+        cols = [np.ones(len(pl)), np.array([[1.0 if anc[p] == k else 0.0 for k in use] for p in pl]).reshape(len(pl), -1), comp]
+        if extra:
+            cols.append(np.array([extra(p) for p in pl], float).reshape(len(pl), -1))
+        X = np.column_stack(cols + [x[ok]])
         if len(pl) < 60 or np.linalg.matrix_rank(X) < X.shape[1]:
             rows.append((name, len(pl), None, None, None, "insufficient/rank deficient")); return
         b, se, pv = e102.ols(y[ok], X)
@@ -159,6 +164,31 @@ def run(a):
     test("M2 E*01:03 (107G) dose -> KLRC1", pers2, e107g, "KLRC1", e107g)
     test("M2 NEG leader -21M load -> GAPDH", pers2, load21, "GAPDH")
     test("M2 NEG leader -21M load -> T-cell score", pers2, load21, mean_z(T_SET, pers2))
+    # M2 robustness: age + sex (+age^2), within-ancestry, per-gene leaders, E107 adjustment
+    info = {}
+    ep = os.path.join(out, "phewas", "ehr_icd3.private.tsv")
+    if os.path.exists(ep):
+        for ln in open(ep):
+            x_ = ln.rstrip("\n").split("\t")
+            if x_[0] == "P":
+                info[x_[1]] = (float(x_[2]), float(x_[3]))
+    p2 = [p for p in pers2 if p in info]
+    if len(p2) > 500:
+        am = np.mean([info[p][1] for p in p2]); asd = np.std([info[p][1] for p in p2])
+        ag = lambda p: ((info[p][1] - am) / asd)
+        cov = lambda p: [info[p][0], ag(p), ag(p) ** 2]
+        cov_e = lambda p: [info[p][0], ag(p), ag(p) ** 2, e107g(p)]
+        nkgr2 = np.array([(tpm[p].get("KLRC1") or 0) - (tpm[p].get("KLRC2") or 0) for p in p2])
+        nk3 = mean_z(NK, p2)
+        for lab, only in (("all ancestries", None), ("EUR only", "EUR"), ("AFR only", "AFR"), ("AMR only", "AMR")):
+            test("R2 leader -21M load -> KLRC1 [age+sex+age2; %s]" % lab, p2, load21, "KLRC1", extra=cov, only=only)
+            test("R2 leader -21M load -> NK score [age+sex+age2; %s]" % lab, p2, load21, nk3, extra=cov, only=only)
+        test("R2 leader -21M load -> KLRC1 [age+sex+age2 + E107G]", p2, load21, "KLRC1", extra=cov_e)
+        test("R2 E*01:03 (107G) dose -> KLRC1 [age+sex+age2]", p2, e107g, "KLRC1", extra=cov)
+        for g_ in ("A", "B", "C", "G"):
+            fx = lambda p, g_=g_: sum(1 for al in calls[p][g_] if m21.get(al) is True)
+            test("R2 leader -21M load (%s only) -> KLRC1 [age+sex+age2]" % g_, p2, fx, "KLRC1", extra=cov)
+        test("R2 NEG leader -21M load -> NCAM1-independent T-cell score [age+sex+age2]", p2, load21, mean_z(T_SET, p2), extra=cov)
     for suffix, pub in (("pub", True), ("raw.private", False)):
         pth = os.path.join(out, "mechanistic_tests_%s.tsv" % suffix)
         with open(pth, "w") as f:
