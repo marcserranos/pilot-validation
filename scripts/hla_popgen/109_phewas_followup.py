@@ -46,13 +46,13 @@ def run(a):
     util = np.log1p(np.array([len(ehr["cats"].get(p, ())) for p in persons], float))
     util = (util - util.mean()) / util.std()
     ancv = np.array([anc[p] for p in persons])
+    lines = ["n unrelated persons with EHR: %d" % len(persons)]
     pcs = read_pcs(os.path.expanduser(a.ancestry_preds), persons, a.n_pcs)
     if pcs is not None:
         lines.append("ancestry PCs available for %d persons (first %d used)" % (int(pcs[1].sum()), a.n_pcs))
         pcs = pcs[0]
     ancs = sorted(set(ancv))
     A = np.array([[1.0 if anc[p] == k else 0.0 for k in ancs if k != "EUR"] for p in persons])
-    lines = ["n unrelated persons with EHR: %d" % len(persons)]
 
     def expo(name):
         if name.startswith("C4"):
