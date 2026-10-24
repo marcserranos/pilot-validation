@@ -10,3 +10,7 @@
 - [10-24] RESULT S09-11 (script 103, VM) — alleles identical over the peptide-binding exons still differ slightly in blood RNA level in class II: 3-field identity within a G group explains 0.2-0.6% of DQA1/DQB1/DPA1 expression variance (perm p 0.002/0.024/0.002), nothing for HLA-C (p 0.48);
   between-G-group identity explains 75-80% (DQA1/DQB1). Class I and DPB1/DRB1 lack power (few G-homozygous people with >=20 per class). Interpretation guard: RNA mapped to GRCh38 (haplotype divergence can lower mapped reads), ancestry only coarsely adjusted.
   Next decision points: personal-reference quantification for the class II G groups (reuse 53/96 machinery) to separate mapping bias from regulatory effects; or more power via 535k-native RNA-free proxies (not available).
+- [10-24] RESULT S09-12 (script 105, VM): raw long-read pileups (AoU grch38 BAMs; independent of the assembly) support 18 of 26 candidate unnamed signatures in every examined carrier and in 0/8 matched non-carriers, including
+  HLA-F T237I/P205T and FIVE distinct HLA-F loss-of-function alleles (stop-gains E70*, Q75*, W265*, R294*; start-loss M1V; each in <20 unrelated people). The HLA-E and HLA-G stop-gain calls and DPA1 E210G have NO raw-read support
+  (assembly/annotation artefacts), so HLA-F — not E or G — is where real protein-truncating variation sits in this cohort. Three 'supported' signatures are uninformative (alt base is in all controls). Next: RNA NMD test for the F-LoF carriers (96, running),
+  frequency of F-LoF by ancestry (106), phenome-wide scan (107, running).
