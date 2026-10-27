@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case browser</title>
+<style>
+:root{
+  --bg:#fafaf9; --panel:#ffffff; --ink:#1c1b19; --mute:#6b6862; --line:#e3e0da; --accent:#2f5d8a;
+  --snv:#e69f00; --snv-syn:#f2cf80; --ins:#0072b2; --del:#d55e00; --hp:#7b3fa0; --clip:#cfcac2; --ok:#2e7d4f; --warn:#b3261e;
+  --pat:#3b78c4; --mat:#d9822b; --amb:#9a958c; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161514; --panel:#1e1d1b; --ink:#ecebe8; --mute:#a09b92; --line:#34312d; --accent:#7fb0e0;
+  --snv:#e6a817; --snv-syn:#6d5a1f; --ins:#56b4e9; --del:#f08a4b; --hp:#c08be0; --clip:#45413b; --ok:#6cc48f; --warn:#ff8a80;
+  --pat:#6aa4e8; --mat:#f0a050; --amb:#7d786f;}}
+:root[data-theme="dark"]{
+  --bg:#161514; --panel:#1e1d1b; --ink:#ecebe8; --mute:#a09b92; --line:#34312d; --accent:#7fb0e0;
+  --snv:#e6a817; --snv-syn:#6d5a1f; --ins:#56b4e9; --del:#f08a4b; --hp:#c08be0; --clip:#45413b; --ok:#6cc48f; --warn:#ff8a80;
+  --pat:#6aa4e8; --mat:#f0a050; --amb:#7d786f;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header h1{font-size:15px;margin:0;font-weight:650}
+.badge{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+.badge.syn{border-color:var(--warn);color:var(--warn)}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav button,.chip,button.sm{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:4px 11px;border-radius:7px;cursor:pointer}
+nav button[aria-selected=true],.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{display:grid;grid-template-columns:300px minmax(0,1fr);gap:0;min-height:calc(100vh - 52px)}
+aside{border-right:1px solid var(--line);padding:12px;background:var(--panel);overflow:auto;max-height:calc(100vh - 52px);position:sticky;top:0}
+section.detail{padding:16px 20px;min-width:0}
+label.f{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);margin:10px 0 4px}
+select{width:100%;font:inherit;padding:4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{padding:2px 9px;font-size:12px}
+.card{border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin:5px 0;cursor:pointer;background:var(--bg);display:flex;gap:8px;align-items:center}
+.card[aria-current=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.card .t{flex:1;min-width:0}.card .t b{font-weight:600}.card .t small{display:block;color:var(--mute);font-size:11.5px}
+.card input{margin:0}
+.mute{color:var(--mute)}
+h2{font-size:16px;margin:0 0 4px}
+.chips2{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:var(--panel);font-size:12.5px}
+.stat b{font-size:15px;display:block;line-height:1.2}
+.stat.ok b{color:var(--ok)}.stat.bad b{color:var(--warn)}
+.panel{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px;margin:12px 0}
+.panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);margin:0 0 8px;font-weight:600}
+.ctrl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px;margin-bottom:8px}
+.ctrl input[type=range]{width:150px}
+svg text{font-family:system-ui,sans-serif}
+.aln{font-family:var(--mono);font-size:13px;white-space:pre;overflow-x:auto;padding-bottom:4px}
+.row{display:block;height:1.35em;line-height:1.35em}
+.lab{display:inline-block;width:9em;color:var(--mute);font-size:11px;overflow:hidden;text-overflow:ellipsis;vertical-align:top}
+.row span.c{display:inline-block;width:1ch}
+.c.snv{background:var(--snv);color:#111}.c.snv-syn{background:var(--snv-syn)}.c.ins{background:var(--ins);color:#fff}.c.del{background:var(--del);color:#fff}
+.c.hp{box-shadow:inset 0 -3px 0 var(--hp)}.c.clip{background:var(--clip);color:var(--mute)}.c.dim{opacity:.35}
+.c.aa{color:var(--accent);font-weight:600}.c.rule{color:var(--mute);font-size:10px}
+.block{margin-bottom:10px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td.m{font-family:var(--mono)}
+tr.ev{cursor:pointer}tr.ev:hover{background:var(--bg)}
+mark.d{background:var(--snv);color:#111;border-radius:2px;padding:0 1px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.empty{color:var(--mute);padding:40px;text-align:center}
+@media(max-width:820px){main{grid-template-columns:1fr}aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>HLA / KIR case browser</h1><span class="badge" id="meta"></span>
+  <nav id="tabs" role="tablist"></nav>
+</header>
+<main><aside id="side"></aside><section class="detail" id="detail"></section></main>
+<script>
+"use strict";
+const DATA = /*__DATA__*/null;
+const TABS = [
+  {id:"ladder", label:"Distance ladder", hint:"Immuannot's own CDS alignment, grouped by how far the call is from its reference allele", pred:c=>c.tab==="ladder"},
+  {id:"novel", label:"Novel vs known", hint:"Same alignments, split by what Immuannot called novel", pred:c=>c.tab==="ladder"},
+  {id:"mendel", label:"Mendelian", hint:"A child haplotype against the parent it was assigned to", pred:c=>c.tab==="mendel"},
+  {id:"switch", label:"Switches", hint:"Parent of origin along a child's haplotype contig (gene resolution)", pred:c=>c.tab==="switch"},
+];
+const fitWin = () => { const w=(document.querySelector("#detail")||document.body).clientWidth||900; return Math.max(30,Math.min(240,Math.floor((w-260)/7.9/6)*6)); };
+const S = {tab:"ladder", species:"all", gene:"all", tier:"all", novelty:"all", sel:null, alt:0,
+           mode:"window", win:0, start:0, protOnly:false, dimSyn:false, cmp:new Set()};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const cases = DATA ? DATA.cases : [];
+const PROT = new Set(["missense","nonsense","frameshift","inframe indel","frameshifted"]);
+const isProt = e => PROT.has(e.effect);
+
+function visible(c){
+  const t = TABS.find(t=>t.id===S.tab);
+  if(!t.pred(c)) return false;
+  if(S.species!=="all" && c.species!==S.species) return false;
+  if(S.gene!=="all" && c.gene!==S.gene) return false;
+  if(S.tier!=="all" && String(c.tier)!==S.tier) return false;
+  if(S.tab==="novel" && S.novelty!=="all" && c.novelty!==S.novelty) return false;
+  return true;
+}
+const pool = () => cases.filter(c=>TABS.find(t=>t.id===S.tab).pred(c));
+const uniq = a => [...new Set(a)];
+const tierSort = (a,b)=>(+a)-(+b);
+
+function chip(label, pressed, on){
+  const b=document.createElement("button"); b.className="chip"; b.textContent=label; b.setAttribute("aria-pressed",pressed); b.onclick=on; return b;
+}
+
+/* ------------------------------------------------------------------ sidebar */
+function renderSide(){
+  const side=$("#side"); side.innerHTML="";
+  const P=pool();
+  const f=(name,vals,key,fmt)=>{
+    const l=document.createElement("label"); l.className="f"; l.textContent=name; side.appendChild(l);
+    const wrap=document.createElement("div"); wrap.className="chips"; side.appendChild(wrap);
+    wrap.appendChild(chip("all",S[key]==="all",()=>{S[key]="all";S.sel=null;render();}));
+    vals.forEach(v=>wrap.appendChild(chip(fmt?fmt(v):v,S[key]===String(v),()=>{S[key]=String(v);S.sel=null;render();})));
+  };
+  const sp=uniq(P.map(c=>c.species)); if(sp.length>1) f("Gene family",sp,"species");
+  const genes=uniq(P.filter(c=>S.species==="all"||c.species===S.species).map(c=>c.gene)).sort();
+  const l=document.createElement("label"); l.className="f"; l.textContent="Gene"; side.appendChild(l);
+  const sel=document.createElement("select"); sel.innerHTML='<option value="all">all genes</option>'+genes.map(g=>`<option ${S.gene===g?"selected":""}>${esc(g)}</option>`).join("");
+  sel.onchange=()=>{S.gene=sel.value;S.sel=null;render();}; side.appendChild(sel);
+  if(S.tab==="ladder"||S.tab==="novel"){
+    f("Distance to reference (CDS edits, bucket)",uniq(P.map(c=>c.tier)).sort(tierSort),"tier",v=>"≈"+v);
+  }
+  if(S.tab==="novel") f("Immuannot novelty",uniq(P.map(c=>c.novelty)).sort(),"novelty");
+  const V=cases.filter(visible);
+  const h=document.createElement("div"); h.className="mute"; h.style.margin="12px 0 4px"; h.textContent=V.length+" cases"; side.appendChild(h);
+  V.sort((a,b)=>(a.gene>b.gene?1:a.gene<b.gene?-1:0)||(a.tier-b.tier)||a.id.localeCompare(b.id));
+  V.forEach(c=>{
+    const d=document.createElement("div"); d.className="card"; d.tabIndex=0;
+    if(c.id===S.sel) d.setAttribute("aria-current","true");
+    const a=c.alignments&&c.alignments[0];
+    const sub = c.tab==="ladder" ? `${a?a.stats.nm:"?"} edits · ${a?a.stats.pct_cds:"?"}% CDS · ${c.novelty}`
+              : c.tab==="mendel" ? `${esc(c.verdict||"")}` : `${c.n_switch} switch${c.n_switch===1?"":"es"} · ${c.track.length} genes`;
+    d.innerHTML=`<div class="t"><b>${esc(c.id)}</b> ${esc(c.gene||"contig")}<small>${sub}</small></div>`;
+    if(c.tab==="ladder"){
+      const cb=document.createElement("input"); cb.type="checkbox"; cb.title="add to compare lanes"; cb.checked=S.cmp.has(c.id);
+      cb.onclick=e=>{e.stopPropagation(); cb.checked?S.cmp.add(c.id):S.cmp.delete(c.id); renderDetail();}; d.appendChild(cb);
+    }
+    const go=()=>{S.sel=c.id;S.alt=0;S.start=0;render();};
+    d.onclick=go; d.onkeydown=e=>{if(e.key==="Enter")go();};
+    side.appendChild(d);
+  });
+}
+
+/* ------------------------------------------------------------------ detail pieces */
+function evClass(e){
+  if(e.type==="ins") return "ins"; if(e.type==="del") return "del";
+  return e.effect==="synonymous" ? "snv snv-syn" : "snv";
+}
+function colEvents(a){
+  const m=new Array(a.aref.length).fill(null);
+  a.events.forEach(e=>{for(let i=0;i<e.len;i++) m[e.col+i]=e;});
+  return m;
+}
+function shown(a){ return a.events.filter(e=>!S.protOnly||isProt(e)); }
+
+function summary(c,a){
+  const s=a.stats; const el=document.createElement("div");
+  const chips=[["edits (NM)",s.nm],["% of CDS",s.pct_cds],["SNV",s.snv],["ins",`${s.ins_events} (${s.ins_bases} bp)`],["del",`${s.del_events} (${s.del_bases} bp)`],
+    ["homopolymer indels",s.homopolymer_indels],["tandem-repeat indels",s.tandem_indels],["frameshifts",s.frameshifts],
+    ["missense",s.missense],["synonymous",s.synonymous],["nonsense",s.nonsense],["in groove (ARS)",s.in_ars]];
+  let html=`<div class="chips2">`+chips.map(([k,v])=>`<div class="stat"><b>${v}</b>${k}</div>`).join("");
+  if(a.source==="immuannot-paf"){
+    const okR = a.problems===0;
+    html+=`<div class="stat ${okR?"ok":"bad"}"><b>${okR?"exact":a.problems+" issues"}</b>replay of Immuannot's cs</div>`;
+    if(c.cds_distance!=null && c.cds_distance!=="") html+=`<div class="stat ${+c.cds_distance===s.nm?"ok":"bad"}"><b>${esc(c.cds_distance)}</b>Immuannot cds_distance${+c.cds_distance===s.nm?" = NM":" ≠ NM "+s.nm}</div>`;
+  } else html+=`<div class="stat"><b>direct</b>banded alignment (not Immuannot's)</div>`;
+  if(s.clip5||s.clip3) html+=`<div class="stat"><b>${s.clip5}+${s.clip3}</b>unaligned end bases (grey)</div>`;
+  el.innerHTML=html+"</div>"; return el;
+}
+
+function minimap(a){
+  const L=a.aref.length, W=1000, H=84, x=c=>c/L*W; const ev=shown(a);
+  let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Minimap of differences along the CDS">`;
+  g+=`<rect x="0" y="26" width="${W}" height="22" fill="var(--bg)" stroke="var(--line)"/>`;
+  a.exon_cols.forEach((e,i)=>{
+    g+=`<rect x="${x(e.c0)}" y="26" width="${x(e.c1)-x(e.c0)}" height="22" fill="${i%2?"var(--line)":"transparent"}" opacity=".7"/>`;
+    g+=`<text x="${(x(e.c0)+x(e.c1))/2}" y="41" font-size="10" text-anchor="middle" fill="var(--mute)">${e.n}</text>`;
+    if(e.ars) g+=`<rect x="${x(e.c0)}" y="50" width="${x(e.c1)-x(e.c0)}" height="4" fill="var(--accent)"/>`;
+  });
+  if(a.exon_cols.some(e=>e.ars)) g+=`<text x="2" y="66" font-size="10" fill="var(--accent)">peptide-binding groove exons</text>`;
+  ev.forEach(e=>{
+    const cx=x(e.col)+ (x(1)/2), col=e.homopolymer?"var(--hp)":e.type==="ins"?"var(--ins)":e.type==="del"?"var(--del)":(e.effect==="synonymous"?"var(--snv-syn)":"var(--snv)");
+    g+=`<line x1="${cx}" x2="${cx}" y1="${e.type==="snv"?12:6}" y2="26" stroke="${col}" stroke-width="2"/>`;
+    g+=e.type==="ins"?`<path d="M${cx-4} 10 L${cx+4} 10 L${cx} 3Z" fill="${col}"/>`:e.type==="del"?`<path d="M${cx-4} 3 L${cx+4} 3 L${cx} 10Z" fill="${col}"/>`:`<circle cx="${cx}" cy="9" r="3" fill="${col}"/>`;
+  });
+  if(S.mode==="window"){
+    g+=`<rect id="vp" x="${x(S.start)}" y="22" width="${Math.max(3,x(S.win))}" height="30" fill="none" stroke="var(--accent)" stroke-width="2" rx="3"/>`;
+  }
+  g+=`</svg>`;
+  const d=document.createElement("div"); d.innerHTML=g;
+  const svg=d.firstChild;
+  svg.style.cursor="pointer";
+  svg.onclick=e=>{const r=svg.getBoundingClientRect(); const c=Math.round((e.clientX-r.left)/r.width*L); S.mode="window"; S.start=clampStart(c-S.win/2,L); renderDetail();};
+  return d;
+}
+const clampStart=(s,L)=>Math.max(0,Math.min(Math.round(s),Math.max(0,L-S.win)));
+
+function legend(){
+  return `<div class="legend"><span><i style="background:var(--snv)"></i>substitution (protein-changing)</span><span><i style="background:var(--snv-syn)"></i>synonymous</span>
+  <span><i style="background:var(--ins)"></i>insertion in observed</span><span><i style="background:var(--del)"></i>deletion in observed</span>
+  <span><i style="background:var(--hp)"></i>homopolymer / tandem-repeat indel (underline)</span><span><i style="background:var(--clip)"></i>not aligned</span></div>`;
+}
+
+function alnRows(a,c0,c1,cev,ridx){
+  const R=[["ref aa",""],["reference",""],["",""],["observed",""],["obs aa",""]];
+  const out=[]; const lab=t=>`<span class="lab">${esc(t)}</span>`;
+  let rule="", aaR="", seqR="", mid="", seqO="", aaO="";
+  const L=a.aref.length;
+  for(let i=c0;i<c1&&i<L;i++){
+    const e=cev[i]; const clip=i<a.clip5||i>=L-a.clip3;
+    let cls="c"; if(clip) cls+=" clip"; else if(e){cls+=" "+evClass(e); if(e.homopolymer||e.tandem) cls+=" hp"; if(S.dimSyn&&e.effect==="synonymous") cls+=" dim"; if(S.protOnly&&!isProt(e)) cls+=" dim";}
+    const r=a.aref[i], o=a.aobs[i];
+    seqR+=`<span class="${cls}">${r}</span>`; seqO+=`<span class="${cls}">${o}</span>`;
+    mid+=`<span class="c" style="color:var(--mute)">${(r===o&&r!=="-")?"│":" "}</span>`;
+    aaR+=`<span class="c aa">${a.aa_ref[i]===" "?" ":a.aa_ref[i]}</span>`; aaO+=`<span class="c aa">${a.aa_obs[i]===" "?" ":a.aa_obs[i]}</span>`;
+  }
+  const rc=new Array(Math.max(0,Math.min(c1,L)-c0)).fill(" ");
+  for(let i=c0;i<c1&&i<L;i++){
+    const rp=ridx[i]; if(rp<0||(rp+1)%10) continue;
+    if((rp+1)%30===0){const t=String(rp+1); for(let k=0;k<t.length;k++){const j=i-c0-t.length+1+k; if(j>=0) rc[j]=t[k];}}
+    else if(rc[i-c0]===" ") rc[i-c0]="·";
+  }
+  rule=rc.map(ch=>`<span class="c rule">${ch}</span>`).join("");
+  return `<span class="row">${lab("")}${rule}</span><span class="row">${lab("ref aa")}${aaR}</span><span class="row">${lab(a.ref_label)}${seqR}</span><span class="row">${lab("")}${mid}</span><span class="row">${lab(a.obs_label)}${seqO}</span><span class="row">${lab("obs aa")}${aaO}</span>`;
+}
+function refIndex(a){let r=0;return [...a.aref].map(ch=>ch==="-"?-1:r++);}
+
+function alignmentPanel(c,a){
+  const wrap=document.createElement("div"); wrap.className="panel";
+  const L=a.aref.length, cev=colEvents(a), ridx=refIndex(a);
+  const ctrl=document.createElement("div"); ctrl.className="ctrl";
+  ctrl.innerHTML=`<span><label><input type="radio" name="mode" value="window" ${S.mode==="window"?"checked":""}> zoomed window</label> &nbsp; <label><input type="radio" name="mode" value="full" ${S.mode==="full"?"checked":""}> whole CDS</label></span>
+   <span>window <input id="win" type="range" min="24" max="240" step="6" value="${S.win}"> <span id="winv">${S.win}</span> bp</span>
+   <span><button class="sm" id="prev">◀ prev diff</button> <button class="sm" id="next">next diff ▶</button></span>
+   <label><input type="checkbox" id="prot" ${S.protOnly?"checked":""}> protein-changing only</label>
+   <label><input type="checkbox" id="dim" ${S.dimSyn?"checked":""}> fade synonymous</label>`;
+  wrap.appendChild(ctrl);
+  wrap.appendChild(minimap(a));
+  const box=document.createElement("div"); box.className="aln"; box.id="aln";
+  const draw=()=>{
+    if(S.mode==="window"){ box.innerHTML=`<div class="block">${alnRows(a,S.start,S.start+S.win,cev,ridx)}</div>`; }
+    else { let h=""; for(let s=0;s<L;s+=90) h+=`<div class="block">${alnRows(a,s,s+90,cev,ridx)}</div>`; box.innerHTML=h; }
+  };
+  draw(); wrap.appendChild(box); wrap.insertAdjacentHTML("beforeend",legend());
+  ctrl.querySelectorAll("input[name=mode]").forEach(r=>r.onchange=()=>{S.mode=r.value;renderDetail();});
+  ctrl.querySelector("#win").oninput=e=>{S.win=+e.target.value;S.start=clampStart(S.start,L);renderDetail();};
+  ctrl.querySelector("#prot").onchange=e=>{S.protOnly=e.target.checked;renderDetail();};
+  ctrl.querySelector("#dim").onchange=e=>{S.dimSyn=e.target.checked;renderDetail();};
+  const jump=dir=>{
+    const ev=shown(a).slice().sort((p,q)=>p.col-q.col); if(!ev.length) return;
+    const mid=S.start+S.win/2; let t= dir>0 ? ev.find(e=>e.col>mid+1) : [...ev].reverse().find(e=>e.col<mid-1);
+    if(!t) t= dir>0 ? ev[0] : ev[ev.length-1];
+    S.mode="window"; S.start=clampStart(t.col-S.win/2,L); renderDetail();
+  };
+  ctrl.querySelector("#prev").onclick=()=>jump(-1); ctrl.querySelector("#next").onclick=()=>jump(1);
+  return wrap;
+}
+
+function eventTable(a){
+  const wrap=document.createElement("div"); wrap.className="panel";
+  const ev=shown(a);
+  let h=`<h3>Differences (${ev.length}${S.protOnly?" protein-changing":""} of ${a.events.length}) — click a row to zoom to it</h3>`;
+  if(!ev.length){wrap.innerHTML=h+`<div class="mute">none${S.protOnly?" with a protein consequence":""}</div>`;return wrap;}
+  h+=`<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>type</th><th>ref pos</th><th>codon</th><th>ref → observed</th><th>amino acid</th><th title="'frameshifted' = a substitution downstream of an uncorrected indel, so its codon is out of register">consequence</th><th>exon</th><th>context</th></tr></thead><tbody>`;
+  ev.forEach((e,i)=>{
+    const ctx = e.type==="snv" ? "" : e.homopolymer ? `homopolymer run of ${e.run} ${esc(e.type==="ins"?e.obs[0]:e.ref[0])}` : e.tandem ? "tandem-repeat slip" : "non-repeat indel";
+    const bases = e.type==="snv" ? `<mark class="d">${e.ref}</mark> → <mark class="d">${e.obs}</mark>` : e.type==="ins" ? `+<mark class="d">${esc(e.obs)}</mark>` : `−<mark class="d">${esc(e.ref)}</mark>`;
+    const cod = e.cod_ref ? `${esc(e.cod_ref)} → ${esc(e.cod_obs)}` : "";
+    const aa = e.aa_ref ? `${e.aa_ref}${e.codon}${e.aa_obs}` : "";
+    h+=`<tr class="ev" data-col="${e.col}"><td>${i+1}</td><td>${e.type}${e.len>1?" ×"+e.len:""}</td><td class="m">${e.refpos}</td><td class="m">${e.codon||""}</td><td class="m">${bases}${cod?"<br><span class='mute'>"+cod+"</span>":""}</td><td class="m">${aa}</td><td>${esc(e.effect)}</td><td>${e.exon==null?"":e.exon}${e.ars?" · groove":""}</td><td>${ctx}</td></tr>`;
+  });
+  wrap.innerHTML=h+"</tbody></table></div>";
+  wrap.querySelectorAll("tr.ev").forEach(tr=>tr.onclick=()=>{S.mode="window";S.start=clampStart(+tr.dataset.col-S.win/2,a.aref.length);renderDetail();window.scrollTo({top:0,behavior:"smooth"});});
+  return wrap;
+}
+
+/* ------------------------------------------------------------------ compare lanes + tier summary */
+function lanes(){
+  const picked=cases.filter(c=>S.cmp.has(c.id)); if(!picked.length) return null;
+  const wrap=document.createElement("div"); wrap.className="panel";
+  const W=1000, lh=34; let g=`<svg viewBox="0 0 ${W} ${picked.length*lh+8}" width="100%">`;
+  picked.forEach((c,k)=>{
+    const a=c.alignments[0], L=a.aref.length, y=k*lh+6, x=v=>70+v/L*(W-80);
+    g+=`<text x="0" y="${y+16}" font-size="11" fill="var(--ink)">${esc(c.id)} ≈${c.tier}</text>`;
+    g+=`<rect x="70" y="${y+6}" width="${W-80}" height="16" fill="var(--bg)" stroke="var(--line)"/>`;
+    a.exon_cols.forEach((e,i)=>{ if(i%2) g+=`<rect x="${x(e.c0)}" y="${y+6}" width="${x(e.c1)-x(e.c0)}" height="16" fill="var(--line)" opacity=".7"/>`; });
+    a.events.forEach(e=>{const col=e.homopolymer?"var(--hp)":e.type==="ins"?"var(--ins)":e.type==="del"?"var(--del)":e.effect==="synonymous"?"var(--snv-syn)":"var(--snv)";
+      g+=`<line x1="${x(e.col)}" x2="${x(e.col)}" y1="${y+2}" y2="${y+26}" stroke="${col}" stroke-width="1.6"/>`;});
+  });
+  wrap.innerHTML=`<h3>Side by side (${picked.length}) — same axis = position along each CDS. Tick the boxes in the list to add or remove.</h3>`+g+"</svg>"+legend();
+  const clr=document.createElement("button"); clr.className="sm"; clr.textContent="clear"; clr.onclick=()=>{S.cmp.clear();render();}; wrap.appendChild(clr);
+  return wrap;
+}
+function median(a){const s=[...a].sort((x,y)=>x-y);return s.length?s[Math.floor(s.length/2)]:0;}
+function tierSummary(){
+  const base=pool().filter(c=>(S.species==="all"||c.species===S.species)&&(S.gene==="all"||c.gene===S.gene));
+  const by={}; base.forEach(c=>{(by[c.tier]=by[c.tier]||[]).push(c);});
+  const tiers=Object.keys(by).sort(tierSort); if(!tiers.length) return null;
+  const wrap=document.createElement("div"); wrap.className="panel";
+  let h=`<h3>Where the edits sit, by distance bucket (${S.gene==="all"?"all genes":esc(S.gene)}; ${base.length} cases)</h3><div style="overflow-x:auto"><table><thead><tr><th>bucket</th><th>cases</th><th>median edits</th><th>% of CDS (median)</th><th>SNV</th><th>indel events</th><th>of which homopolymer</th><th>of which tandem</th><th>frameshift cases</th><th>synonymous / SNV</th><th>in groove</th></tr></thead><tbody>`;
+  tiers.forEach(t=>{
+    const A=by[t].map(c=>c.alignments[0]); const sum=k=>A.reduce((n,a)=>n+a.stats[k],0);
+    const indel=sum("ins_events")+sum("del_events"), snv=sum("snv"), ev=sum("snv")+indel, hp=sum("homopolymer_indels"), td=sum("tandem_indels");
+    const pc=(n,d)=>d?Math.round(100*n/d)+"%":"–";
+    h+=`<tr><td>≈${t}</td><td>${A.length}</td><td>${median(A.map(a=>a.stats.nm))}</td><td>${median(A.map(a=>a.stats.pct_cds))}</td><td>${snv}</td><td>${indel}</td><td>${hp} (${pc(hp,indel)})</td><td>${td} (${pc(td,indel)})</td><td>${A.filter(a=>a.stats.frameshifts>0).length}</td><td>${pc(sum("synonymous"),snv)}</td><td>${sum("in_ars")} (${pc(sum("in_ars"),ev)})</td></tr>`;
+  });
+  wrap.innerHTML=h+"</tbody></table></div>"; return wrap;
+}
+
+/* ------------------------------------------------------------------ switch + mendelian */
+function switchView(c){
+  const T=c.track, n=T.length, W=1000, step=(W-60)/Math.max(1,n-1);
+  const col=o=>o==="pat"?"var(--pat)":o==="mat"?"var(--mat)":"var(--amb)";
+  let g=`<svg viewBox="0 0 ${W} 150" width="100%" role="img" aria-label="Parent of origin along the contig">`;
+  g+=`<line x1="30" x2="${W-30}" y1="62" y2="62" stroke="var(--line)" stroke-width="3"/>`;
+  T.forEach((t,i)=>{
+    const x=30+i*step; g+=`<rect x="${x-26}" y="42" width="52" height="40" rx="6" fill="${col(t.origin)}"/>`;
+    g+=`<text x="${x}" y="60" font-size="12" text-anchor="middle" fill="#fff" font-weight="600">${esc(t.gene)}</text>`;
+    g+=`<text x="${x}" y="75" font-size="10" text-anchor="middle" fill="#fff">${t.origin==="amb"?"unresolved":t.origin==="pat"?"father":"mother"}</text>`;
+    g+=`<text x="${x}" y="100" font-size="10" text-anchor="middle" fill="var(--mute)">${esc(t.pos_kb)} kb</text>`;
+    g+=`<text x="${x}" y="114" font-size="10" text-anchor="middle" fill="var(--mute)">pat ${t.pat_k} · mat ${t.mat_k}</text>`;
+    g+=`<text x="${x}" y="128" font-size="10" text-anchor="middle" fill="var(--mute)">${esc(t.allele||"")}</text>`;
+  });
+  (c.switches||[]).forEach(s=>{const x=30+(s.i+.5)*step; g+=`<line x1="${x}" x2="${x}" y1="28" y2="96" stroke="var(--warn)" stroke-width="3" stroke-dasharray="4 3"/><text x="${x}" y="22" font-size="11" text-anchor="middle" fill="var(--warn)">switch (${esc(s.gap_kb)} kb gap)</text>`;});
+  g+=`</svg>`;
+  const p=document.createElement("div"); p.className="panel";
+  p.innerHTML=`<h3>Parent of origin along one haplotype contig (gene resolution; genes in contig order, not to scale)</h3>${g}
+   <div class="legend"><span><i style="background:var(--pat)"></i>paternal k-mers dominate</span><span><i style="background:var(--mat)"></i>maternal</span><span><i style="background:var(--amb)"></i>unresolved</span></div>
+   <p class="mute">Origin is the existing 57b assignment (≥5 parent-specific k-mers and ≥3× the other parent in the gene ±10 kb). A switch is a change of resolved origin between neighbouring genes; the true breakpoint lies somewhere in the gap shown, not at a base.</p>`;
+  return p;
+}
+function mendelHeader(c){
+  const p=document.createElement("div"); p.className="panel";
+  p.innerHTML=`<h3>Case</h3><div class="chips2">${(c.facts||[]).map(([k,v])=>`<div class="stat"><b>${esc(v)}</b>${esc(k)}</div>`).join("")}</div><p class="mute">${esc(c.note||"")}</p>`;
+  return p;
+}
+
+/* ------------------------------------------------------------------ main render */
+function renderDetail(){
+  const d=$("#detail"); d.innerHTML="";
+  const t=TABS.find(t=>t.id===S.tab);
+  const c=cases.find(x=>x.id===S.sel&&visible(x));
+  const hint=document.createElement("p"); hint.className="mute"; hint.textContent=t.hint; d.appendChild(hint);
+  const extras=()=>{ if(S.tab!=="ladder"&&S.tab!=="novel") return; const ln=lanes(); if(ln) d.appendChild(ln); const ts=tierSummary(); if(ts) d.appendChild(ts); };
+  if(!c){ extras(); const e=document.createElement("div"); e.className="empty"; e.textContent=cases.some(visible)?"Pick a case on the left.":"No cases for this selection."; d.appendChild(e); return; }
+  const h=document.createElement("h2"); h.textContent=`${c.id} · ${c.gene||"contig"}${c.consensus?" · "+c.consensus:""}`; d.appendChild(h);
+  if(c.tab==="switch"){ d.appendChild(switchView(c)); return; }
+  if(c.tab==="mendel") d.appendChild(mendelHeader(c));
+  const A=c.alignments; if(S.alt>=A.length) S.alt=0;
+  if(A.length>1){
+    const tb=document.createElement("div"); tb.className="chips"; A.forEach((a,i)=>tb.appendChild(chip(a.title||("alignment "+(i+1)),S.alt===i,()=>{S.alt=i;S.start=0;renderDetail();}))); d.appendChild(tb);
+  }
+  const a=A[S.alt];
+  if(c.tab==="ladder"){
+    const meta=document.createElement("p"); meta.className="mute";
+    meta.textContent=`reference allele: ${a.ref_label} · template distance (whole gene): ${c.template_distance??"n/a"} · novelty: ${c.novelty}${c.warn?" · warnings: "+c.warn:""}`; d.appendChild(meta);
+  } else if(a.note){ const meta=document.createElement("p"); meta.className="mute"; meta.textContent=a.note; d.appendChild(meta); }
+  d.appendChild(summary(c,a)); d.appendChild(alignmentPanel(c,a)); d.appendChild(eventTable(a)); extras();
+}
+function render(){
+  const tabs=$("#tabs"); tabs.innerHTML="";
+  TABS.forEach(t=>{const b=document.createElement("button"); b.textContent=t.label; b.setAttribute("role","tab"); b.setAttribute("aria-selected",S.tab===t.id);
+    b.onclick=()=>{S.tab=t.id;S.species="all";S.gene="all";S.tier="all";S.novelty="all";S.sel=null;S.alt=0;render();}; tabs.appendChild(b);});
+  renderSide(); renderDetail();
+}
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
+  const b=e.key==="ArrowRight"?"#next":e.key==="ArrowLeft"?"#prev":null; if(b){const el=$(b); if(el) el.click();}
+});
+if(!DATA){ $("#detail").innerHTML='<div class="empty">No data embedded. Build with 80_case_browser.py.</div>'; }
+else {
+  S.win=fitWin();
+  const m=DATA.meta||{}; $("#meta").textContent=m.title||"real data — keep inside the Workbench"; if(m.synthetic) $("#meta").classList.add("syn");
+  if(m.title) document.title=m.title;
+  render();
+}
+</script>
+</body>
+</html>

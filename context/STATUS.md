@@ -4,6 +4,12 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-10-24 ~00:50 — S06 call-quality sprint essentially complete (branch s06-call-quality)
+
+Final report (local, git-excluded): `reports/hla_popgen/79_s06_final/S06_FINAL_REPORT.html` (build: `python3 scripts/hla_popgen/79_s06_final_report.py --tables reports/hla_popgen/79_s06_final/aggregate_tables --out reports/hla_popgen/79_s06_final`).
+Log: `sprints/S06_call_quality_metrics/LOG.md`. VM idle; aggregates in `~/s06/results/*`, person-level only in `~/s06/internal`. Small-cell masking pass still open before anything is committed.
+Open: sequence-level CDS comparison for KIR/HLA labels; haplotype-level yak origin check; think-tank ideas appended at the report end.
+
 ## As of 2026-10-13 ~13:30 UTC — S05 closed; report extended with Marc's 10-13 asks
 
 **Report:** `sprints/S05_qc_phasing_kir_trb/S05_REPORT.html` (built from `report/src/*.html` by `report/build_report.py`),
