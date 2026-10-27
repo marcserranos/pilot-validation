@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""S08 80: base-level case browser for HLA/KIR call errors (Immuannot alignment, Mendelian, switches).
+"""S08 90: base-level case browser for HLA/KIR call errors (Immuannot alignment, Mendelian, switches).
 
 A deliberately small, dependency-free (stdlib, Python >= 3.8) pair of steps:
 
   extract  (VM only)   read already-computed outputs, write ONE anonymised JSON of cases
                        (observed CDS + Immuannot's own minimap2 cs string, trio haplotypes, origin tracks).
                        Read-only on shared paths; writes only under --out-dir. Never runs yak.
-  build    (anywhere)  turn that JSON into one self-contained index.html (80_case_browser_viewer.html).
+  build    (anywhere)  turn that JSON into one self-contained index.html (90_case_browser_viewer.html).
   demo     (laptop)    synthetic cases -> index.html, to try the viewer without any data.
 
 The alignment shown for the "Immuannot" tabs is NOT recomputed: it is replayed from the `cds_mut` cs
@@ -18,17 +18,18 @@ Disclosure: the JSON/HTML hold participant-derived sequence. They stay in the Wo
 from JupyterLab); case ids are `c001`-style, the id->person map is a separate *.private.tsv. Nothing
 here is committed (see .gitignore) and the repo holds code only.
 
-    python3 80_case_browser.py demo --out-dir /tmp/cb_demo
-    python3 80_case_browser.py build --cases ~/case_browser/cases.json --out-dir ~/case_browser
+    python3 90_case_browser.py demo --out-dir /tmp/cb_demo
+    python3 90_case_browser.py build --cases ~/case_browser/cases.json --out-dir ~/case_browser
 """
 import argparse
 import json
+import math
 import os
 import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VIEWER = os.path.join(HERE, "80_case_browser_viewer.html")
+VIEWER = os.path.join(HERE, "90_case_browser_viewer.html")
 
 # ---------------------------------------------------------------------------------------- genetics
 _BASES = "TCAG"
@@ -322,10 +323,12 @@ def analyse(aref, aobs, clip5=0, clip3=0, exons=None, ars_exons=()):
             "exon_cols": exon_cols}
 
 
-def make_alignment(label_ref, label_obs, aref, aobs, source, clip5=0, clip3=0, exons=None, ars_exons=(), note=""):
+def make_alignment(label_ref, label_obs, aref, aobs, source, clip5=0, clip3=0, exons=None, ars_exons=(), note="",
+                   problems=0):
+    """One viewer alignment. `problems` = disagreements found while replaying Immuannot's cs (0 = exact)."""
     a = analyse(aref, aobs, clip5, clip3, exons, ars_exons)
     return {"source": source, "ref_label": label_ref, "obs_label": label_obs, "aref": aref, "aobs": aobs,
-            "clip5": clip5, "clip3": clip3, "note": note, **a}
+            "clip5": clip5, "clip3": clip3, "note": note, "problems": problems, **a}
 
 
 def novelty_class(consensus):
@@ -350,8 +353,160 @@ def ars_for(gene):
     return ()
 
 
+def describe_alignment(a):
+    """One-line summary of an alignment: edit count and what kind (for the Mendelian case header)."""
+    st, ev = a["stats"], a["events"]
+    if not st["nm"]:
+        return "identical CDS"
+    parts = []
+    if st["snv"]:
+        parts.append("%d substitution%s (%d missense, %d synonymous)" % (
+            st["snv"], "" if st["snv"] == 1 else "s", st["missense"], st["synonymous"]))
+    ind = [e for e in ev if e["type"] != "snv"]
+    if ind:
+        parts.append("%d indel%s (%d in homopolymers, %d frameshifting)" % (
+            len(ind), "" if len(ind) == 1 else "s", sum(1 for e in ind if e.get("homopolymer")),
+            sum(1 for e in ind if not e.get("inframe"))))
+    return "%d edit%s: %s" % (st["nm"], "" if st["nm"] == 1 else "s", "; ".join(parts))
+
+
+def cs_edit_class(cs):
+    """'identical' | 'indel-only' | 'snv-only' | 'mixed' from a cs string alone (no sequences needed)."""
+    ops = parse_cs(cs)
+    snv = any(o == "*" for o, _ in ops)
+    ind = any(o in "+-" for o, _ in ops)
+    return "identical" if not (snv or ind) else "indel-only" if not snv else "snv-only" if not ind else "mixed"
+
+
+def edit_class(stats):
+    """'identical' | 'indel-only' | 'snv-only' | 'mixed' from an alignment's stats."""
+    snv, ind = stats["snv"], stats["ins_events"] + stats["del_events"]
+    return "identical" if not (snv or ind) else "indel-only" if not snv else "snv-only" if not ind else "mixed"
+
+
+def replay_from_ref(ref, cs):
+    """Rebuild both gapped rows from the reference allele CDS and an Immuannot cs string alone (the observed
+    bases are all in the cs or equal to the reference). Returns (aref, aobs) for a full-length alignment, or None
+    when the cs does not span the whole reference (clipped end) or disagrees with it."""
+    ref = ref.upper()
+    qi, R, O = 0, [], []
+    for op, p in parse_cs(cs):
+        if op == "=":
+            n = p if isinstance(p, int) else len(p)
+            seg = ref[qi:qi + n]
+            if len(seg) != n:
+                return None
+            R.append(seg)
+            O.append(seg)
+            qi += n
+        elif op == "*":
+            if ref[qi:qi + 1] != p[1]:
+                return None
+            R.append(p[1])
+            O.append(p[0])
+            qi += 1
+        elif op == "+":
+            if ref[qi:qi + len(p)] != p:
+                return None
+            R.append(p)
+            O.append("-" * len(p))
+            qi += len(p)
+        else:
+            R.append("-" * len(p))
+            O.append(p)
+    return ("".join(R), "".join(O)) if qi == len(ref) else None
+
+
+def sr_verdict(obs, alt, other, het, min_depth=8):
+    """Does short-read evidence support a long-read variant? obs/alt/other = reads carrying the called base, the
+    other haplotype's base, or any third base at the site. het: True = the two haplotypes differ at the site,
+    False = they agree, None = zygosity unknown (the other haplotype has no call).
+    Het site: roughly half the reads should carry the called base. Hom site: nearly all. A 'hom' site where only about
+    half the reads carry the called base means the person's reads disagree with their own other-haplotype call."""
+    n = obs + alt + other
+    if n < min_depth:
+        return "low depth"
+    f = obs / float(n)
+    if het is None:
+        return "supported" if f >= 0.3 else "not seen in short reads" if f < 0.1 else "contradicted"
+    if not het:
+        return ("supported" if f >= 0.85 else "contradicted" if f <= 0.3 else
+                "half the reads (other haplotype may differ)" if f <= 0.7 else "weak")
+    if obs == 0 or f < 0.1:
+        return "not seen in short reads"
+    if 0.3 <= f <= 0.7 and alt / float(n) >= 0.25:
+        return "supported"
+    return "skewed"
+
+
+def shortlist(cases, sr_by_id):
+    """Candidate real novel alleles: Immuannot-novel, substitutions only (no indel), at least one protein-altering substitution.
+    Tier A = every short-read-checked site supported; B = some supported and none contradicted / not seen; C = the rest.
+    Returns TSV rows (anonymised case ids only)."""
+    out = []
+    for c in cases:
+        if c.get("tab") != "ladder" or c.get("species") != "HLA" or c.get("novelty") == "known":
+            continue
+        a = c["alignments"][0]
+        st = a["stats"]
+        if edit_class(st) != "snv-only" or st["missense"] + st["nonsense"] == 0:
+            continue
+        sr = sr_by_id.get(c["id"])
+        v = [sit["verdict"] for sit in sr["sites"]] if sr else []
+        tier = ("A" if v and all(x == "supported" for x in v) else
+                "B" if v and "supported" in v and not any(x in ("contradicted", "not seen in short reads") for x in v) else
+                "C" if v else "no-short-reads")
+        prot = ";".join(dict.fromkeys("%s%d%s" % (e["aa_ref"], e["codon"], e["aa_obs"]) for e in a["events"] if e.get("effect") in ("missense", "nonsense")))
+        d = (c.get("depth") or {}).get("lr") or {}
+        out.append({"case": c["id"], "gene": c["gene"], "consensus": c["consensus"], "novelty": c["novelty"], "edits": st["nm"], "protein_changes": prot,
+                    "in_groove": int(st["in_ars"] > 0), "sr_tier": tier, "sr_verdicts": ",".join(v),
+                    "sr_depth": (sr or {}).get("depth_sr", ""), "lr_cds_mean": d.get("cds_mean", ""), "template_warning": c.get("warn") or ""})
+    out.sort(key=lambda r: ({"A": 0, "B": 1, "C": 2}.get(r["sr_tier"], 3), -r["in_groove"], r["gene"], r["case"]))
+    return out
+
+
+def cmd_shortlist(a):
+    with open(a.cases) as f:
+        cases = json.load(f)["cases"]
+    sr = {}
+    path = a.sr or os.path.join(os.path.dirname(os.path.abspath(a.cases)), "sr.jsonl")
+    if os.path.exists(path):
+        with open(path) as f:
+            sr = {b["id"]: b for b in map(json.loads, (l for l in f if l.strip()))}
+        for c in cases:                                  # same zygosity-aware verdicts as the viewer
+            b = sr.get(c.get("id"))
+            if b:
+                unknown = (b.get("note") or "").startswith("Other haplotype has no call")
+                for st in b["sites"]:
+                    st["verdict"] = sr_verdict(st["obs"], st["alt"], st["oth"], None if unknown else st["het"])
+    rows = shortlist(cases, sr)
+    cols = list(rows[0]) if rows else []
+    with open(a.out, "w") as f:
+        f.write("\t".join(cols) + "\n" + "\n".join("\t".join(str(r[k]) for k in cols) for r in rows) + "\n")
+    from collections import Counter
+    print("wrote %s: %d candidates %s" % (a.out, len(rows), dict(Counter(r["sr_tier"] for r in rows))))
+
+
+def normalise_cases(cases):
+    """Idempotent touch-ups so a cases.json written by an older extract renders the same as a new one:
+    fill unmapped exon numbers from their neighbours, and give Mendelian cases the descriptive summary."""
+    for c in cases:
+        for a in c.get("alignments", []):
+            ex = a.get("exon_cols") or []
+            for i, e in enumerate(ex):
+                if e.get("n") is None:
+                    e["n"] = ex[i - 1]["n"] + 1 if i and ex[i - 1]["n"] else i + 1
+        if c.get("tab") == "mendel":
+            direct = [a for a in c["alignments"] if a["source"] == "direct"]
+            if direct:
+                best = describe_alignment(min(direct, key=lambda a: a["stats"]["nm"]))
+                c["facts"] = [[k, best if k == "closest parent haplotype" else v] for k, v in c.get("facts", [])]
+    return cases
+
+
 # ---------------------------------------------------------------------------------------- build / demo
 def build_html(cases, out_dir, meta=None):
+    cases = normalise_cases(cases)
     os.makedirs(out_dir, exist_ok=True)
     with open(VIEWER) as f:
         tpl = f.read()
@@ -363,10 +518,40 @@ def build_html(cases, out_dir, meta=None):
     return out
 
 
+def merge_sr(cases, path):
+    """Attach sr.jsonl blocks (one JSON per line, keyed by case id) to their cases; also the short-read gene depth."""
+    by = {}
+    with open(path) as f:
+        for ln in f:
+            if ln.strip():
+                b = json.loads(ln)
+                by[b["id"]] = b
+    for c in cases:
+        b = by.get(c.get("id"))
+        if b:
+            unknown = (b.get("note") or "").startswith("Other haplotype has no call")
+            for st in b["sites"]:              # verdicts are recomputed here so the rule can change without rerunning the VM step
+                if st.get("window") is not None or "verdict" in st:
+                    st["verdict"] = sr_verdict(st["obs"], st["alt"], st["oth"], None if unknown else st["het"])
+            c["sr"] = {"sample": b.get("sample"), "sites": b["sites"], "note": b.get("note", "")}
+            c.setdefault("depth", {}).setdefault("sr", {})["gene_mean"] = b.get("depth_sr")
+    return len(by)
+
+
 def cmd_build(a):
+    base = os.path.dirname(os.path.abspath(a.cases))
     with open(a.cases) as f:
         d = json.load(f)
-    out = build_html(d["cases"], a.out_dir, d.get("meta"))
+    sr = a.sr or os.path.join(base, "sr.jsonl")
+    if os.path.exists(sr):
+        print("merged short-read blocks for %d cases" % merge_sr(d["cases"], sr))
+    meta = dict(d.get("meta") or {})
+    st = a.stats or os.path.join(base, "cohort_stats.json")
+    if os.path.exists(st):
+        with open(st) as f:
+            meta["cohort_stats"] = json.load(f)
+        print("embedded whole-cohort statistics (%d rows)" % len(meta["cohort_stats"]["rows"]))
+    out = build_html(d["cases"], a.out_dir, meta)
     print("wrote %s (%d cases, %.1f KB)" % (out, len(d["cases"]), os.path.getsize(out) / 1024.0))
 
 
@@ -405,18 +590,56 @@ def cmd_demo(a):
     cases.append({
         "id": "c%03d" % (len(cases) + 1), "tab": "mendel", "species": "DEMO", "gene": "DEMO-B", "tier": "-", "novelty": "known",
         "verdict": "child allele absent from assigned parent", "consensus": "DEMO-B*07:02",
-        "facts": [["child call", "B*07:02"], ["assigned parent", "mother (k-mers 41 vs 2)"], ["parent calls", "B*07:03 / B*15:01"]],
+        "facts": [["child call", "B*07:02"], ["assigned parent", "Parent B (k-mers 41 vs 2)"], ["parent calls", "B*07:03 / B*15:01"]],
         "note": "SYNTHETIC: one substitution against parent hap 1, one 1-bp deletion against hap 2.",
         "alignments": [dict(mk(("parent hap1", "child"), ref, child), title="child vs parent hap 1"),
                        dict(mk(("parent hap2", "child"), other, child), title="child vs parent hap 2")]})
-    genes = ["B", "C", "A", "DRB1", "DQB1", "DQA1"]
-    ori = ["mat", "mat", "pat", "pat", "amb", "mat"]
+    genes = ["A", "C", "B", "MICA", "DRB3", "DRB1", "DQA1", "DQB1", "DQA2", "TAP2", "TAP1", "DPA1", "DPB1"]
+    ori = ["pat"] * 10 + ["mat", "pat", "amb"]
     cases.append({
         "id": "c%03d" % (len(cases) + 1), "tab": "switch", "species": "DEMO", "gene": None, "tier": "-", "novelty": "known",
-        "n_switch": 2, "switches": [{"i": 1, "gap_kb": 410}, {"i": 4, "gap_kb": 1200}],
+        "n_switch": 2, "switches": [{"i": 9.5, "gap_kb": 16.2}, {"i": 10.5, "gap_kb": 219.2}],
         "track": [{"gene": g, "pos_kb": 30000 + 400 * i, "origin": o, "pat_k": 3 if o != "pat" else 90, "mat_k": 80 if o == "mat" else 2, "allele": g + "*01:01"}
                   for i, (g, o) in enumerate(zip(genes, ori))]})
-    out = build_html(cases, a.out_dir, {"title": "SYNTHETIC DEMO — no real data", "synthetic": True})
+    for c in cases:
+        if c["tab"] != "ladder":
+            continue
+        al = c["alignments"][0]
+        n = al["stats"]["obs_len"]
+        c["depth"] = {"lr": {"gene_mean": 31.0 + rng.random() * 6, "cds_mean": 29.0, "cds_p10": 17.0, "share_lt10": 0.04, "genome_mean": 30.0},
+                      "sr": {"gene_mean": 38.0, "genome_mean": 32.0},
+                      "track": [max(2, int(30 + 9 * math.sin(i / 70.0) + rng.randint(-4, 4) - (18 if 300 < i < 330 else 0))) for i in range(n)]}
+        if len(al["events"]) >= 3 and "sr" not in c:
+            sites = []
+            for k, e in enumerate(al["events"][:4]):
+                c0 = max(0, e["col"] - 15)
+                win_obs, win_ref = al["aobs"][c0:c0 + 31], al["aref"][c0:c0 + 31]
+                het = k % 2 == 0
+                tot = 34
+                obs_n = int(tot * (0.5 if het else 0.95)) if k != 3 else 1
+                alt_n = (tot - obs_n) if het else 0
+                oth_n = tot - obs_n - alt_n
+                reads = []
+                for j in range(14):
+                    from_obs = j < int(14 * obs_n / tot)
+                    reads.append({"s": win_obs if from_obs else win_ref, "st": "+-"[j % 2], "mq": 60, "a": "obs" if from_obs else "alt"})
+                sites.append({"ev": k, "het": het, "other_base": (e["ref"] or "-")[:1], "obs": obs_n, "alt": alt_n, "oth": oth_n,
+                              "verdict": sr_verdict(obs_n, alt_n, oth_n, het),
+                              "window": {"obs": win_obs, "other": win_ref, "reads": reads, "focus": e["col"] - c0}})
+            c["sr"] = {"sample": "srWGS (synthetic)", "sites": sites}
+    rows = []
+    for g in ("DEMO-A", "DEMO-B"):
+        for nov, base in (("novel-protein", 160), ("novel-synonymous", 60), ("novel-beyond-CDS", 25)):
+            for b, w in (("1", 3), ("2", 3), ("3-5", 2), ("6-10", 2), ("11-30", 1), ("31-100", 1)):
+                n = base * w
+                ind = int(n * (0.78 if nov == "novel-protein" and w >= 2 else 0.1))
+                snv = int(n * (0.08 if nov == "novel-protein" and w >= 2 else 0.8))
+                rows.append({"gene": g, "novelty": nov, "bin": b, "n": n, "indel_only": ind, "snv_only": snv, "mixed": n - ind - snv,
+                             "protein_snv": int(snv * 0.6), "syn_snv_only": int(snv * 0.4), "frameshift": int(ind * 0.95),
+                             "hp_only_indel": int(ind * 0.45), "n_partial": 0})
+    meta = {"title": "SYNTHETIC DEMO — no real data", "synthetic": True,
+            "cohort_stats": {"meta": {"scope": "SYNTHETIC numbers", "unit": "calls", "n_calls": sum(r["n"] for r in rows), "n_partial": 0}, "rows": rows}}
+    out = build_html(cases, a.out_dir, meta)
     print("wrote", out)
 
 
@@ -426,24 +649,28 @@ def main(argv=None):
     b = sub.add_parser("build")
     b.add_argument("--cases", required=True)
     b.add_argument("--out-dir", required=True)
+    b.add_argument("--sr", help="sr.jsonl from the short-read step (optional)")
+    b.add_argument("--stats", help="cohort_stats.json from the stats step (optional)")
+    sl = sub.add_parser("shortlist")
+    sl.add_argument("--cases", required=True)
+    sl.add_argument("--sr")
+    sl.add_argument("--out", required=True)
     d = sub.add_parser("demo")
     d.add_argument("--out-dir", required=True)
-    try:
-        from importlib import import_module  # noqa: F401
-        import importlib.util as iu
-        p = os.path.join(HERE, "80_case_browser_extract.py")
-        if os.path.exists(p):
-            spec = iu.spec_from_file_location("cb_extract", p)
-            mod = iu.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            mod.register(sub)
-    except ImportError:
-        pass
+    import importlib.util as iu
+    for fn in ("90_case_browser_extract.py", "90_case_browser_stats.py", "90_case_browser_sr.py"):
+        spec = iu.spec_from_file_location(fn[:-3], os.path.join(HERE, fn))
+        mod = iu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod._CORE = sys.modules[__name__]
+        mod.register(sub)
     a = ap.parse_args(argv)
     if a.cmd == "build":
         cmd_build(a)
     elif a.cmd == "demo":
         cmd_demo(a)
+    elif a.cmd == "shortlist":
+        cmd_shortlist(a)
     else:
         a.func(a)
 

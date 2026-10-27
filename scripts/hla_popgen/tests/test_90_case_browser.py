@@ -1,11 +1,12 @@
-"""Tests for 80_case_browser core: Immuannot cs replay, event classification, direct aligner."""
+"""Tests for 90_case_browser core: Immuannot cs replay, event classification, direct aligner."""
 import importlib.util
+import json
 import os
 import random
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-spec = importlib.util.spec_from_file_location("cb80", os.path.join(HERE, "..", "80_case_browser.py"))
+spec = importlib.util.spec_from_file_location("cb80", os.path.join(HERE, "..", "90_case_browser.py"))
 cb = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cb)
 
@@ -122,6 +123,67 @@ class TestAligner(unittest.TestCase):
         self.assertEqual(cb.banded_align("ACGTAAAAGT", "ACGTAAAGT")[1].count("-"), 1)
         ra, rb = cb.banded_align(REF, REF[:20] + "A" + REF[21:])
         self.assertEqual(sum(1 for x, y in zip(ra, rb) if x != y), 1 if REF[20] != "A" else 0)
+
+
+class TestNormalise(unittest.TestCase):
+    def test_exon_fill_and_mendel_summary_are_idempotent(self):
+        direct = cb.make_alignment("p", "c", *cb.banded_align(REF, REF[:8] + REF[9:]), "direct")
+        c = {"tab": "mendel", "facts": [["closest parent haplotype", "1 edits"]], "alignments": [direct]}
+        direct["exon_cols"] = [{"n": None, "c0": 0, "c1": 10, "ars": False}, {"n": 2, "c0": 10, "c1": 30, "ars": False}]
+        cb.normalise_cases([c])
+        self.assertEqual(direct["exon_cols"][0]["n"], 1)
+        self.assertIn("1 edit: 1 indel (1 in homopolymers, 1 frameshifting)", c["facts"][0][1])
+        before = json.dumps(c)
+        cb.normalise_cases([c])
+        self.assertEqual(json.dumps(c), before)
+
+
+class TestClassify(unittest.TestCase):
+    def test_edit_classes_and_cs_only_classification(self):
+        self.assertEqual(cb.cs_edit_class(":10*ga:20"), "snv-only")
+        self.assertEqual(cb.cs_edit_class(":10+a:20"), "indel-only")
+        self.assertEqual(cb.cs_edit_class(":10*ga:5-c:20"), "mixed")
+        self.assertEqual(cb.cs_edit_class(":30"), "identical")
+
+    def test_replay_from_reference_alone(self):
+        obs = REF[:13] + "G" + REF[14:]
+        aref, aobs = cb.replay_from_ref(REF, ":13*ga:22")
+        self.assertEqual((aref, aobs), (REF, obs))
+        self.assertIsNone(cb.replay_from_ref(REF, ":13*ga:10"), "a clipped alignment cannot be rebuilt")
+        self.assertIsNone(cb.replay_from_ref(REF, ":13*gc:22"), "reference disagreement is refused")
+
+    def test_short_read_verdicts(self):
+        self.assertEqual(cb.sr_verdict(30, 1, 0, het=False), "supported")
+        self.assertEqual(cb.sr_verdict(2, 28, 0, het=False), "contradicted")
+        self.assertEqual(cb.sr_verdict(14, 16, 0, het=True), "supported")
+        self.assertEqual(cb.sr_verdict(0, 30, 0, het=True), "not seen in short reads")
+        self.assertEqual(cb.sr_verdict(22, 8, 0, het=True), "skewed")
+        self.assertEqual(cb.sr_verdict(3, 2, 0, het=True), "low depth")
+        self.assertEqual(cb.sr_verdict(15, 15, 0, het=False), "half the reads (other haplotype may differ)")
+        self.assertEqual(cb.sr_verdict(25, 5, 0, het=False), "weak")
+        self.assertEqual(cb.sr_verdict(15, 0, 15, het=None), "supported")
+        self.assertEqual(cb.sr_verdict(0, 0, 30, het=None), "not seen in short reads")
+
+
+class TestShortlist(unittest.TestCase):
+    def test_only_novel_substitution_only_with_protein_change(self):
+        miss = None
+        for k in range(30, 270):
+            for b in "ACGT":
+                cod = REF[3 * (k // 3):3 * (k // 3) + 3]
+                new = REF[3 * (k // 3):k] + b + REF[k + 1:3 * (k // 3) + 3]
+                if b != REF[k] and cb.translate(cod) != cb.translate(new):
+                    miss = REF[:k] + b + REF[k + 1:]
+                    break
+            if miss:
+                break
+        mk = lambda i, obs, nov: {"id": i, "tab": "ladder", "species": "HLA", "gene": "A", "consensus": "HLA-A*01:new", "novelty": nov,
+                                  "alignments": [cb.make_alignment("r", "o", *cb.banded_align(REF, obs), "immuannot-paf")]}
+        cases = [mk("c1", miss, "novel-protein"), mk("c2", REF[:8] + REF[9:], "novel-protein"), mk("c3", miss, "known")]
+        sr = {"c1": {"sites": [{"verdict": "supported"}], "depth_sr": 40}}
+        rows = cb.shortlist(cases, sr)
+        self.assertEqual([(r["case"], r["sr_tier"]) for r in rows], [("c1", "A")])
+        self.assertRegex(rows[0]["protein_changes"], r"^[A-Z*]\d+[A-Z*]$")
 
 
 class TestMisc(unittest.TestCase):
