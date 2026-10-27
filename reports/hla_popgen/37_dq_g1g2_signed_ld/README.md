@@ -169,7 +169,7 @@ only happens in the pooled reconstruction -- see below).*
   **AFR 4146, AMR 2913, EAS 2377, EUR 2383, MID 563, SAS 2147** (sum 14,529).
 - **Layout redesigned S04 WS-C phase 2 (2026-09-25)**, replacing the version above after Marc
   rejected the first style pass ("I am not seeing nearly any difference"; overlapping text
-  "clearly inadmissible" -- see `sprints/S04_kir_recurrence_style_share/CRITIC_WSC.md`). The old
+  "clearly inadmissible" -- see `sprints/S04_kir_recurrence_style_share/critics/CRITIC_WSC.md`). The old
   layout had independently-sized marginal axes that didn't line up with the heatmap's own
   columns/rows, a colourbar floating far to the right with large empty gaps, and G1/G2 labels
   pushed to a large negative-axes-fraction offset well outside the panel. Fix: one `GridSpec` with

@@ -8,7 +8,7 @@
 
 The production run called HLA on ~12,000 All of Us participants from phased long-read assemblies.
 The first round of post-processing (`scripts/production_analysis/`, results in
-`reports/full_immuannot_lr_calling/`) answered "did the pipeline work, and does HLA structure track
+`reports/pre_sprint/full_immuannot_lr_calling/`) answered "did the pipeline work, and does HLA structure track
 ancestry." It did that on **8 classical genes, discrete ancestry labels, one cohort, and a single
 string per gene**.
 
@@ -104,6 +104,47 @@ a duplicate is not (see COMPREHENSIVE_REPORT.md for the narrative these map onto
 **Figure 1 drafts** (23 — laptop-only, reads committed aggregates)
 ```
 23_fig1_draft_panels.py     → novel rate by ancestry x gene + SFS known vs novel, split CDS/non-coding/artifact
+```
+
+**S01–S04 (2026-09-16 → 09-28) — novelty/QC, supervisor items, Figure 1, KIR** (sprint folders `sprints/S01_…` to `S04_…`; not listed above before the 2026-10-27 cleanup)
+```
+24_novelty_by_field.py            → Novelty re-defined by nomenclature field, with per-call artifact labels, a sequence-level truth check against the IPD-IMGT CDS snapshot Immuannot ship
+25_noncoding_novelty_paf.py       → Split depth-4 ("beyond_cds") novelty into distinct non-coding sequences, using the cs difference string between each person's contig and the call's te
+26_qc_relatives_v2.py             → Non-circular QC of the long-read (Immuannot) HLA calls using real relative pairs -- the replacement for 16/17's circular, denominator-free version, pe
+27_allele_space_coverage.py       → How much of the HLA allele space have we seen, and what would it take to see more? Spec: sprints/S01_novelty_qc_coverage/WS3_allele_space_coverage.md
+28_figure1_compose.py             → Figure 1 for the long-read HLA paper, composed from committed aggregate results.
+29_hla_ld_by_ancestry.py          → Linkage disequilibrium between HLA alleles at physically-phased cis gene pairs, within ancestry.
+30_hla_structural_variation.py    → Gene deletions, duplications and copy number across the MHC, from phased long-read assemblies.
+31_aa_diversity_selection.py      → Amino-acid diversity along the HLA protein, groove vs non-groove, and allele-level differentiation between ancestries.
+32_novel_allele_callouts.py       → The main-text callout list: novel HLA alleles that are common in a population and absent from IPD-IMGT/HLA.
+33_figure1_v3_compose.py          → Figure 1 v3 — the panel set the supervisors asked for on 2026-09-17.
+34_novel_protein_recurrence.py    → Novel protein-altering alleles by recurrence, broken down by gene.
+35_figure1_assemble.py            → SUPERSEDED by 36_figure1_native.py — kept only for provenance.
+36_figure1_native.py              → Figure 1, drawn natively from data as a single figure.
+37_dq_g1g2_signed_ld.py           → Signed phased D' between DQA1 and DQB1, the Petersdorf (2022) G1/G2 "predicted incompatible" cross-quadrant, and the transplant-genetics question: are
+37b_ld_supplement_table.py        → LD supplement table + heatmap -- re-rendered from the COMMITTED 29_hla_ld tables only.
+37c_dq_g1g2_from_committed.py     → DQ G1/G2 signed-D' figure, purge statistic (O/E), and bimodality check, computed ENTIRELY from the already-committed `reports/hla_popgen/29_hla_ld/ld_
+37d_mask_rephase_em.py            → WS1 deliverable 3 (S03 call #8, DQ G1/G2): the mask-and-rephase experiment.
+37e_unrelated_fix_kfold_em.py     → S03 critic #1 fix (blocker #2 + major #3): rerun 37's O/E and mask-and-rephase EM restricted to the CORRECT unrelated cohort (matching scripts 29/38's
+38_hla_a_deletion_validation.py   → HLA-A 'deletion' validation (WS2, S03 call #8).
+38b_deletion_supplement_fig.py    → Deletion supplement figure -- re-rendered from the COMMITTED 30_hla_sv tables only.
+39_saturation_by_ancestry.py      → Per-ancestry allele discovery / saturation curves (Pakistan Genome Resource, Nature 2026, Fig 3e style).
+40_figure1_v5.py                  → Figure 1 v5 -- the introductory figure of the paper, redrawn to 2026-09-22 panel-by-panel supervisor feedback and then to the orchestrator's 2026-09-2
+40a_admixture_bins.py             → Panel (a) source data for 40_figure1_v5.py -- binned, disclosure-safe admixture strip.
+40b_novelty_rate_export.py        → Panel (c) source data for 40_figure1_v5.py -- gene x ancestry novelty TOTALS, exported once, suppressed once. MUST run on the VM (recomputes from Tabl
+41_kir_pilot.py                   → WS5 (Sprint S03, call #8 summary section 7) -- KIR scoping + pilot.
+42_repertoire_baseline.py         → WS6 — BenchRep-T-style repertoire-only disease-classification baseline (VJ-kmer).
+43_kir_full_aggregate.py          → WS5 follow-on (S03 call #8 sect 7) -- aggregate the full-cohort KIR Immuannot run.
+43b_kir_full_figure.py            → S03 WS6 follow-on -- Nature-grade multi-panel figure for the full-cohort KIR run.
+44_kir_recurrence_saturation.py   → WS-A (Sprint S04) -- KIR recurrence + saturation, on the same footing as HLA (WS-B setup).
+45_kir_recurrence_figure.py       → WS-A (Sprint S04) -- figures for `44_kir_recurrence_saturation.py`'s aggregate TSVs.
+46_kir_vs_hla_catalogue.py        → WS-B (Sprint S04) -- KIR vs HLA reference-catalogue coverage, script 46.
+47_naive_ml_tests.py              → S04 WS-D -- naive ML / simple tests on allele-carriage feature matrices (HLA two-field + KIR gene presence), aggregate-only outputs.
+47b_naive_ml_figure.py            → WS-D (Sprint S04) -- figure for `47_naive_ml_tests.py`'s aggregate TSVs.
+48_kir_hla_ligand_cooccurrence.py → S04 WS-D -- KIR-HLA ligand co-occurrence by ancestry (seed-list item: ORCHESTRATOR_HANDOFF.md sect2 WS-D, "KIR-HLA ligand co-occurrence by ancestry").
+48b_ligand_figure.py              → WS-D (Sprint S04) -- figures for `48_kir_hla_ligand_cooccurrence.py`'s aggregate TSVs.
+49_cole_share_package.py          → Cole data-share package builder (S04 WS-E).
+58b_s05_result_figures.py         → Figures for the S05 VM results (58 regional depth, 64 novel-allele validation), drawn from the committed PUBLIC tables only (no VM, no participant dat
 ```
 
 **S05 (2026-10-06) — QC foundation, KIR structure, haplotype atlas, ASE pilot** (VM; read existing per-person outputs only)

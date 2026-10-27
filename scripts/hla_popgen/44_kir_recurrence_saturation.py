@@ -607,7 +607,7 @@ def script_md5():
 # per-person identity sets that _checkpoints/ hold, only how the final tables are rendered -- so a
 # checkpoint from a --disclosure public run is exactly as valid for a subsequent --disclosure
 # internal run (and vice versa), letting the VM re-export both versions without recomputation
-# (sprints/S04_kir_recurrence_style_share/VM_OPERATOR_HANDOFF.md's "44 INTERNAL re-export" plan).
+# (sprints/S04_kir_recurrence_style_share/ops/VM_OPERATOR_HANDOFF.md's "44 INTERNAL re-export" plan).
 _ARGS_EXCLUDED_FROM_FINGERPRINT = {"workers", "out_dir", "resume", "checkpoint_every", "disclosure"}
 
 

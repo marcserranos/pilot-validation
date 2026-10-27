@@ -6,7 +6,26 @@ lives. The standing narrative is [`COMPREHENSIVE_REPORT.md`](COMPREHENSIVE_REPOR
 research map is [`NEXT_STEPS_AND_RESEARCH_MAP.md`](NEXT_STEPS_AND_RESEARCH_MAP.md).
 
 Added 2026-10-11 as part of the repo harmonization pass. Folders were not moved or renamed, so
-every existing link and script output path still works.
+every existing link and script output path still works. (2026-10-27 cleanup: the seven July–August
+top-level report folders moved to [`../pre_sprint/`](../pre_sprint/); this folder stays put because ~40 scripts
+hard-code `reports/hla_popgen/NN_*` as their output path, and `_viz_common.py` is the single choke point.)
+
+## By era (which sprint produced each folder)
+
+Folders are numbered by script, not by date, so this table is the way to browse chronologically.
+Pre-sprint = before Sprint S01 opened (2026-09-16); see [`../pre_sprint/`](../pre_sprint/) for the July–August reports.
+
+| Era | Folders | Notes |
+|---|---|---|
+| Pre-sprint (09-05 → 09-14) | `03_`/`04_` reports, `05_figures_frequency`, `06_figures_structure`, `07_figures_crosscohort`, `08_embedding_compare`, `09_mutation_topology`, `10_allele_ancestry_geometry`, `11_relatedness_cohort_overlap`, `13_`–`17_`, `21_hla_manhattan`, and the loose top-level files | Exploratory; loose `*.tsv`/`*.png` at the top level are read by name by scripts 18, 19 and 25, so they stay here |
+| S01 (09-16) | `23_fig1_draft_panels`, `24_novelty_by_field`, `25_noncoding_novelty_paf`, `26_qc_relatives_v2`, `27_allele_space_coverage`, `28_figure1` | `23` and `28` superseded by `40` |
+| S02 (09-17) | `29_hla_ld`, `30_hla_sv`, `31_aa_diversity`, `32_novel_callouts`, `33_figure1_v3` | `33` superseded |
+| S03 (09-22) | `34_novel_recurrence`, `35_figure1`, `36_figure1`, `37_dq_g1g2_signed_ld`, `38_hla_a_deletion_validation`, `39_saturation_by_ancestry`, `40_figure1_v5`, `41_kir_scoping`, `42_repertoire_baseline`, `43_kir_full_cohort` | `35`/`36` superseded; `41` is written by `41_kir_pilot.py` |
+| S04 (09-25) | `44_kir_recurrence_saturation`, `46_kir_vs_hla_catalogue`, `47_naive_ml_tests`, `48_kir_hla_ligand_cooccurrence`, `49_cole_share_package`, `_briefs/` | Use v4b numbers for 44/46 |
+| S05 (10-11 →) | `50_qc_foundation`, `51_kir_structure_qc`, `52_mhc_haplotype_atlas`, `53_hla_ase_pilot`, `55_structure_expression`, `56_phasing_typing_benchmark`, `56d_…`, `57_yak_trioeval`, `57d_…`, `58_regional_depth`, `59_depth_outcome_join`, `61_kir_by_ancestry_panel`, `62_cole_haplotype_units`, `64_novel_allele_validation`, `65_trb_assembly_genotype`, `67_phasing_error_vs_coverage`, `68_rnaseq_composition` | Finished report: `sprints/S05_qc_phasing_kir_trb/S05_REPORT.html` |
+| S06 (10-20) | `72_call_quality`, `72_call_quality_named`, `79_s06_final` | Gitignored (local build output); scripts 70–79 |
+| S08 (10-20) | `90_case_browser/` (README only; generated cases are gitignored, participant-derived) | `91_novel_recurrence/S08_report.html` is referenced by S08/S09 docs but kept local by design |
+| S09 (10-24) | `S09_discovery_loop/S09_report.html` (built by script 104) | Aggregate only, counts <20 masked |
 
 ## Paper-facing results (current)
 

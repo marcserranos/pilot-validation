@@ -12,7 +12,7 @@ resolution, per gene), run against two different long-read truth sources:
 **Reading the two side by side**: DRB1's Field-2 concordance looks notably better against
 Immuannot-truth (89% AoU / 58% SpecHLA) than against SpecImmune-truth (77% / 52%) — likely
 **not** a real accuracy difference. Immuannot's own confidence signal (see
-`reports/confidence_matched_truth/`) shows DRB1 is by far its least-confident locus too, so
+`reports/pre_sprint/confidence_matched_truth/`) shows DRB1 is by far its least-confident locus too, so
 this is plausibly a selection effect in which DRB1 calls each tool manages to resolve, not
 evidence AoU/SpecHLA are actually more correct there. DQA1 is the one finding that holds up
 under **both** truth sources: AoU is the clear weak method there (59-64%), SpecHLA is not
@@ -20,4 +20,4 @@ under **both** truth sources: AoU is the clear weak method there (59-64%), SpecH
 
 The confidence-restricted, sample-size-matched follow-up (does the DRB1 gap survive once both
 truth sources are held to the same strict confidence bar?) is in
-**`reports/confidence_matched_truth/`** — not repeated here.
+**`reports/pre_sprint/confidence_matched_truth/`** — not repeated here.

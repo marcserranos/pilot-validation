@@ -9,6 +9,7 @@ scripts/monitoring/*.jsonl
 scripts/monitoring/client_state.json
 embedding_cache.pkl
 .ipynb_checkpoints/
+.pytest_cache/
 *.pyc
 
 # Call notes (briefs, summaries, handoffs) are private — only the README is public

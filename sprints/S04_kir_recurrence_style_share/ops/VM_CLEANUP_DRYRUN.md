@@ -6,7 +6,7 @@ are given as plain integers, never names). Hard-excluded paths (never proposed f
 per CLAUDE.md / ORCHESTRATOR_HANDOFF.md): `~/pipeline_outputs/*.tsv`, `~/pipeline_outputs_kir/`,
 `~/s04/results/`, `~/repos/`, `~/tools/`, `~/mnt/`, `~/workspace/`.
 
-Raw data: `sprints/S04_kir_recurrence_style_share/cleanup_dryrun.tsv`.
+Raw data: `sprints/S04_kir_recurrence_style_share/ops/cleanup_dryrun.tsv`.
 
 ## Candidates
 

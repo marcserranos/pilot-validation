@@ -11,9 +11,11 @@ pilot-validation/
 ├── context/            MUST be fully read at the start of every new session — see "Read order" below
 ├── scripts/            all pipeline code (.py / .sh) — nothing to read up front, used as needed
 ├── reference/          upstream tool docs + AoU data-access research — consult, don't ingest wholesale
-├── sprints/            active autonomous sprint boards — read sprints/README.md, then the active SPRINT.md only
-└── reports/            finished, delivery-ready writeups (e.g. for supervisors) — read on demand,
-                        pointed to from EXPERIMENTS.md, never read wholesale at session start
+├── sprints/            autonomous sprint boards S01–S09 (+ private `_calls/`, gitignored) — read sprints/README.md, then the active SPRINT.md only
+└── reports/            finished, delivery-ready writeups — read on demand, never wholesale at session start
+    ├── README.md       index of the three groups below
+    ├── pre_sprint/     July–August 2026 reports from before the numbered pipeline (Experiments A–D, pilot, census, validation)
+    └── hla_popgen/     numbered results for scripts NN, S01 → S09 (see its README for the by-era table)
 ```
 
 Four tiers, by how much attention each deserves in a fresh session:

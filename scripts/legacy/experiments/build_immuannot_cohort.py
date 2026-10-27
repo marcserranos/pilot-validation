@@ -12,7 +12,7 @@ fixed here:
      passed (e.g. for a quick smoke-test cohort); omitted, it enumerates the entire eligible
      population. Every eligible row/person is existence-checked, not just the first N encountered.
   2. **Platform filter widened to revio + sequel2e + sequel2** (BRIEF.md), not just revio.
-     revio/sequel2e carry the full assembly+alignment suite (reports/lr_data_census/README.md);
+     revio/sequel2e carry the full assembly+alignment suite (reports/pre_sprint/lr_data_census/README.md);
      sequel2 (991 people, ~95% AFR) has the assembly FASTA but NOT the aln-to-hg38 BAM/PAF that
      Tiers 1/2 need -- tracked separately below via the `trim_tier` column, not silently dropped
      and not silently included at full production-launch weight either (see "sequel2" section).
@@ -122,7 +122,7 @@ def main():
     ap.add_argument("--platforms", default=",".join(DEFAULT_PLATFORMS),
                     help=f"Comma-separated platform labels to consider (default "
                          f"{','.join(DEFAULT_PLATFORMS)}). ont-r10.4.1/ont-r9.4.1 have no assembly "
-                         f"data at all (reports/lr_data_census/README.md) and are never viable "
+                         f"data at all (reports/pre_sprint/lr_data_census/README.md) and are never viable "
                          f"for Immuannot regardless of this flag.")
     ap.add_argument("--force", action="store_true", help="Overwrite an existing --out.")
     ap.add_argument("--restart", action="store_true",

@@ -23,7 +23,7 @@ Design, exactly as specified:
      DRB1 being hit hardest is itself a finding), not something to correct for.
   5. Fields 3-4 dropped from this analysis per Marc's own suggestion (Field 4 "doesn't give
      us nearly any information"; Field 3 carries the same DB-version-confound risk already
-     logged in reports/immuannot_pilot/README.md). Field 1 is kept in the table for context;
+     logged in reports/pre_sprint/immuannot_pilot/README.md). Field 1 is kept in the table for context;
      Field 2 is the plotted headline metric, same as everywhere else in this project.
   6. THE MERGED PLOT: one figure, Field 2 concordance by gene, AoU-native and SpecHLA each
      get their own subplot, and within each subplot every gene gets 4 grouped bars --

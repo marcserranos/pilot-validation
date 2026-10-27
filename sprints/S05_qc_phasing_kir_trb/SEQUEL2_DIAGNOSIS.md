@@ -45,7 +45,7 @@ computed per manifest row and then the best tier is taken per person (`best_tier
 | 2 | `bam_whole_contig` | hap FASTA + `assembly_hap{1,2}_aln2_hg38_bam` | `samtools view` of the BAM on `--region` | whole contigs |
 | 3 | `self_align_needed` | hap FASTA only | self-align the FASTA with minimap2, opt-in via `--enable-self-align-fallback` | as Tier 1, from the synthetic PAF |
 
-Where the `sequel2` people fall: `reports/lr_data_census/README.md:34` lists `sequel2` as 991 rows
+Where the `sequel2` people fall: `reports/pre_sprint/lr_data_census/README.md:34` lists `sequel2` as 991 rows
 with "Partial (hap1/hap2/primary FASTA+GFA only; **no alignment-to-hg38 files**)". `row_trim_tier()`
 returns `self_align_needed` when both FASTAs resolve but neither the PAFs nor the BAMs do (l.95–100).
 So the whole platform lands in Tier 3. The other platforms (12,261 people in the production cohort,

@@ -607,7 +607,7 @@ copy he receives matches what was built.
 Draft `gsutil`/`gcloud` commands (text only, not run by this script or by any agent) are in this
 script's own module docstring (`scripts/hla_popgen/49_cole_share_package.py`). Upload requires
 Marc's explicit, in-chat consent naming the exact files and sizes -- see
-`sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md` S2 WS-E.
+`sprints/S04_kir_recurrence_style_share/ops/ORCHESTRATOR_HANDOFF.md` S2 WS-E.
 """
     with open(os.path.join(out_dir, "README.md"), "w") as f:
         f.write(readme)

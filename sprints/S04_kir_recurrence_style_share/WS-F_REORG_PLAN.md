@@ -176,7 +176,7 @@ required for anything to keep working. Included in the shell script in §6 as a 
 skip it under time pressure without functional consequence.
 
 **Reports (`reports/*/README.md`) also mention these scripts by path** (e.g.
-`reports/confidence_matched_truth/README.md:72`: `` `pixi run -e spechla -- python3
+`reports/pre_sprint/confidence_matched_truth/README.md:72`: `` `pixi run -e spechla -- python3
 scripts/analyze_confidence_matched_truth.py <cohort.tsv> ...` ``). These are finished,
 delivery-ready writeups (the `reports/` tier) describing how a past result was produced — same
 append-only-in-spirit reasoning as Category A applies; update the path if convenient (§6 covers
@@ -431,7 +431,7 @@ deviation:
   Left untouched, per the plan's own Category A/B reasoning: `context/EXPERIMENTS.md` and
   `context/DECISIONS.md` (append-only, one new entry added to each instead), and historical sprint
   narrative in `sprints/S03_call8_figures_kir_prediction/{SPRINT.md,LOG.md,CRITIC_1.md}` and
-  `sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md` (point-in-time records of what
+  `sprints/S04_kir_recurrence_style_share/ops/ORCHESTRATOR_HANDOFF.md` (point-in-time records of what
   was true when written).
 - **Also added**: `scripts/legacy/README.md`, `sprints/_calls/README.md`,
   `reports/hla_popgen/_briefs/README.md` (what's there, why, pre-convention/point-in-time status).

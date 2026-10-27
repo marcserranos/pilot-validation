@@ -14,7 +14,7 @@ Build the smallest, most informative, documented data package for Cole (the stat
 covering what he does not yet have: novel HLA calls (only common two-field alleles were shared
 before), all KIR calls (never shared), ancestry probabilities/labels, unrelated-set membership,
 and the DQ/DP cis-pair phasing-confidence flag. See
-`sprints/S04_kir_recurrence_style_share/ORCHESTRATOR_HANDOFF.md` §2 WS-E.
+`sprints/S04_kir_recurrence_style_share/ops/ORCHESTRATOR_HANDOFF.md` §2 WS-E.
 
 ## Method
 

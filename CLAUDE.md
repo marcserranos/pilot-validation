@@ -103,7 +103,7 @@ question in `context/DECISIONS.md` is resolved.
 
 Marc and Aleix work in siloed Workbench app instances in the same workspace (no conflict by
 construction — `context/ENVIRONMENT.md` quirk #8) and on separate git branches. Aleix's
-active workstream lives under `aleix/` (its own `README.md`/`ENVIRONMENT_LOCAL.md`/`README.md`
+active workstream lives under `aleix/` **on his branch `aleix/hla-resolve-phase1` only — it is not in `main`'s tree** (its own `README.md`/`ENVIRONMENT_LOCAL.md`/`README.md`
 mirroring this same doc-tier convention, scoped to his local WSL2 setup rather than the
 shared Workbench VM). Before starting work that might overlap — a cohort selection, a shared
 resource, a joint analysis referenced in `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` —

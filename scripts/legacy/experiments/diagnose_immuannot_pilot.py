@@ -28,7 +28,7 @@ the headline concordance metric here is FIELD 2 (protein-level, non-synonymous -
 priority), which is far more robust to renaming than fields 3/4.
 
 Aggregate-only output (counts/rates, no genotypes) -- keep raw inputs on the VM (egress caveat,
-DECISIONS.md); paste the markdown / bring it (+ figures) into reports/immuannot_pilot/.
+DECISIONS.md); paste the markdown / bring it (+ figures) into reports/pre_sprint/immuannot_pilot/.
 
 Also writes 3 PNG figures (Section 6) for the written report -- computed from the exact same
 numbers as the tables above, not retyped by hand from a chat transcript.
@@ -448,7 +448,7 @@ def main():
     parts += [
         f"- Attempted: {len(attempted)}. Produced >=1 call: {len(completed)}. "
         f"Absent from timing entirely (skipped before the hap loop -- almost certainly no assembly "
-        f"data / not revio, per reports/lr_data_census/README.md): {len(pre_loop_skipped)}.",
+        f"data / not revio, per reports/pre_sprint/lr_data_census/README.md): {len(pre_loop_skipped)}.",
         "",
         "### 1a. Where each haplotype attempt stopped (stage)", "",
         "| Stage reached | Count (hap attempts) |", "|---|---|",
@@ -710,7 +710,7 @@ def main():
               f"- `{f1}` -- Field 2 concordance by gene (the headline chart)",
               f"- `{f2}` -- each caller's own confidence when it resolves a gene, side by side",
               f"- `{f3}` -- per-person runtime distribution + where the time goes",
-              "", "Bring these three into `reports/immuannot_pilot/figures/` alongside the "
+              "", "Bring these three into `reports/pre_sprint/immuannot_pilot/figures/` alongside the "
               "written report."]
 
     md = "\n".join(parts) + "\n"

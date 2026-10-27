@@ -121,7 +121,7 @@ What Marc asked to see:
     CIs or a zero-based axis.
   - 43b panel c: the "3DP1 †" label collides with panel b's n= text.
   - Figure 1: panel b uses a 0.98 ancestry threshold, while panel c uses 0.9.
-  - The figure-editor critique in `sprints/S03_call8_figures_kir_prediction/CRITIC_2.md`.
+  - The figure-editor critique in `sprints/S03_call8_figures_kir_prediction/critics/CRITIC_2.md`.
 - **"Less AI-like"** usually means:
   - fewer panel titles that are sentences;
   - no redundant legends;

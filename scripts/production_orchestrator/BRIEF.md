@@ -80,7 +80,7 @@ For the full production run:
   CPU-bound, already checkpointed/resumable) rather than assuming a serial loop is fast enough at
   this scale. Verify by timing a real run, don't assume.
 - **Open, deliberate decision needed, not a silent default: what about `sequel2`'s 991 people?**
-  Per `reports/lr_data_census/README.md`, `sequel2` (the original AoU African-American-enriched
+  Per `reports/pre_sprint/lr_data_census/README.md`, `sequel2` (the original AoU African-American-enriched
   long-read pilot cohort, ~95% AFR) has the assembly FASTA files but genuinely lacks the
   `aln2_hg38_bam`/`.paf` files `run_immuannot_person.py` currently requires for its trim step —
   `build_immuannot_cohort.py`'s `platform == "revio"` filter excludes them entirely, and

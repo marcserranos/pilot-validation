@@ -14,26 +14,26 @@ The six lines (chronological):
   1. Experiment D field-cascade (2026-07-12, DECISIONS.md / EXPERIMENTS.md): SpecHLA's DRB1
      errors vs SpecImmune-LR truth are REAL wrong-allele-family errors (49% partial-miss + 6%
      full-miss = 55%), not near-misses -- unlike AoU-native's DQA1 errors, which are all near-misses.
-  2. AoU callset validation, Hardy-Weinberg proxy (2026-07-19, reports/aou_callset_validation/
+  2. AoU callset validation, Hardy-Weinberg proxy (2026-07-19, reports/pre_sprint/aou_callset_validation/
      README.md lines 67-69): DRB1 observed/expected homozygosity ratio is elevated everywhere --
      pooled 1.39, and within every single ancestry group (AMR 1.40, EAS 1.40, MID 1.70, SAS 1.30)
      -- vs. DPA1 (a locus with genuinely high but population-structure-explained homozygosity)
      staying ~1.0 in every group. A population-genetics signal, independent of any cross-tool
      comparison.
-  3. Experiment F cross-method concordance (2026-07-22, reports/immuannot_pilot/README.md):
+  3. Experiment F cross-method concordance (2026-07-22, reports/pre_sprint/immuannot_pilot/README.md):
      DRB1 Field 2 concordance is 40%, "roughly 25 points below the next-worst gene (A, 65%)";
      other genes range 65-94%.
   4. SpecImmune's own confidence flags (2026-07-22, same report): worst of any gene -- half of
      its DRB1 calls are flagged `lower_identity`.
   5. Immuannot's own confidence signal (2026-07-22, same report): `template_distance` is highest
      of any gene at DRB1, 1.82.
-  6. Confidence-matched-truth collapse (2026-07-24, reports/confidence_matched_truth/README.md +
-     reports/immuannot_pilot/README.md section 4): under a strict, math-grounded confidence
+  6. Confidence-matched-truth collapse (2026-07-24, reports/pre_sprint/confidence_matched_truth/README.md +
+     reports/pre_sprint/immuannot_pilot/README.md section 4): under a strict, math-grounded confidence
      filter, DRB1's confident-call count collapses (SpecImmune-truth 60->4, Immuannot-truth
      51->3(matched to 4)), and the direct SpecImmune-vs-Immuannot confident-overlap join drops to
      ZERO DRB1 pairs -- explicitly logged as "a sixth independent line of evidence."
 
-No single one of these would be conclusive alone (per reports/immuannot_pilot/README.md's own
+No single one of these would be conclusive alone (per reports/pre_sprint/immuannot_pilot/README.md's own
 words); together they are. This script exists to make that convergence visible in one figure.
 
 Writes: a 6-panel PNG + markdown table under --out-dir (no pipeline data read, so no --outroot/
@@ -65,7 +65,7 @@ EVIDENCE = [
     },
     {
         "title": "2. AoU callset validation --\nHardy-Weinberg proxy (2026-07-19)",
-        "citation": "reports/aou_callset_validation/README.md L67-69",
+        "citation": "reports/pre_sprint/aou_callset_validation/README.md L67-69",
         "kind": "bar_group",
         "ylabel": "Observed/expected homozygosity ratio",
         "groups": ["Pooled", "AMR", "EAS", "MID", "SAS"],
@@ -76,7 +76,7 @@ EVIDENCE = [
     },
     {
         "title": "3. Experiment F concordance\n(2026-07-22)",
-        "citation": "reports/immuannot_pilot/README.md",
+        "citation": "reports/pre_sprint/immuannot_pilot/README.md",
         "kind": "bar_pair",
         "ylabel": "Field 2 concordance (%)",
         "bars": [("DRB1", 40, DRB1_COLOR), ("A (next-worst)", 65, OTHER_COLOR)],
@@ -84,21 +84,21 @@ EVIDENCE = [
     },
     {
         "title": "4. SpecImmune's own\nconfidence flags (2026-07-22)",
-        "citation": "reports/immuannot_pilot/README.md",
+        "citation": "reports/pre_sprint/immuannot_pilot/README.md",
         "kind": "single_stat",
         "value": "50%",
         "note": "Half of SpecImmune's DRB1 calls flagged `lower_identity` -- worst of any gene.",
     },
     {
         "title": "5. Immuannot's own\ntemplate_distance (2026-07-22)",
-        "citation": "reports/immuannot_pilot/README.md",
+        "citation": "reports/pre_sprint/immuannot_pilot/README.md",
         "kind": "single_stat",
         "value": "1.82",
         "note": "Highest mean template_distance of any gene (lower = more confident everywhere else).",
     },
     {
         "title": "6. Confidence-matched-truth\ncollapse (2026-07-24)",
-        "citation": "reports/confidence_matched_truth/README.md,\nreports/immuannot_pilot/README.md sec.4",
+        "citation": "reports/pre_sprint/confidence_matched_truth/README.md,\nreports/immuannot_pilot/README.md sec.4",
         "kind": "before_after",
         "ylabel": "n confident DRB1 calls",
         "pairs": [("SpecImmune-truth", 60, 4), ("Immuannot-truth", 51, 3)],

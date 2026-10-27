@@ -360,7 +360,7 @@ with real start/stop timestamps in a future sprint if a firmer number is needed.
 ## 6. Open items — exact actions for you to take
 
 1. **VM cleanup.** Run the commands in
-   `sprints/S04_kir_recurrence_style_share/VM_CLEANUP_PLAN_v2.md` yourself (agent-side deletes are
+   `sprints/S04_kir_recurrence_style_share/ops/VM_CLEANUP_PLAN_v2.md` yourself (agent-side deletes are
    blocked by the permission classifier). Summary: archive `~/results`, `~/allele_geometry_scratch`,
    `~/pipeline_outputs_kir_test` into a new `~/archive/`; delete ~0.4 GB of confirmed-dead material
    (corrupted backups, patch fragments, `__pycache__`, the pip cache, and the already-uploaded

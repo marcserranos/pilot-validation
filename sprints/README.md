@@ -26,8 +26,8 @@ Rules:
 | S03 | `S03_call8_figures_kir_prediction` | — | closed |
 | S04 | `S04_kir_recurrence_style_share` | 44-49 | closed |
 | S05 | `S05_qc_phasing_kir_trb` | 50-69 | closed 2026-10-13 |
-| S06 | `S06_call_quality_metrics` | 70-79 | essentially complete (final report 79) |
+| S06 | `S06_call_quality_metrics` | 70-79 (80 folded into 90) | essentially complete (final report 79) |
 | S08 | `S08_case_browser` | 90-96 | complete |
 | S09 | `S09_discovery_loop` | 100-114 | think-tank loop; see its README/LEDGER |
 
-(S07 has no folder.) Script numbers are global; see `scripts/hla_popgen/README.md`.
+(S07 has no folder.) Folder conventions: finished sprint documents sit at the top of the folder; `critics/` holds adversarial reviews (S03, S04); `ops/` holds VM/operator hand-offs and cleanup plans (S04); S08 and S09 use `README`/`AGENT_BRIEF` + `LOG` instead of `SPRINT`/`JOURNAL`; S03–S06 and S08–S09 use `LOG.md` where S01/S02 use `JOURNAL.md`. Script numbers are global; see `scripts/hla_popgen/README.md`.

@@ -1,7 +1,7 @@
 # Sprint S04 — KIR recurrence/saturation, KIR vs HLA catalogue coverage, figure style, Cole data package, cleanup
 
 *Opened 2026-09-26. Branch `s04-kir-recurrence-style-share` (off S03 @ 5d5ef99). Owner: Marc.
-Orchestrator brief: [`ORCHESTRATOR_HANDOFF.md`](ORCHESTRATOR_HANDOFF.md). Log: [`LOG.md`](LOG.md).*
+Orchestrator brief: [`ORCHESTRATOR_HANDOFF.md`](ops/ORCHESTRATOR_HANDOFF.md). Log: [`LOG.md`](LOG.md).*
 
 ## Board
 

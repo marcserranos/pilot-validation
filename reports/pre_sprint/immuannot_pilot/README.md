@@ -51,7 +51,7 @@ own independent finding.
 
 57 of 60 attempted people produced calls; 0 were skipped before the pipeline even started
 (confirming all 60 cohort members do have revio-platform assembly data, per
-`reports/lr_data_census/`); only one haplotype failed, at the trim stage. Per-person total runtime:
+`reports/pre_sprint/lr_data_census/`); only one haplotype failed, at the trim stage. Per-person total runtime:
 median 6.9 min, range 1.4-10.0 min — comfortably inside the pipeline's own 30-min budget, and driven
 almost entirely by `immuannot.sh` itself (median ~3.1 min/haplotype), not the trim step (median
 ~17s/haplotype).
@@ -93,7 +93,7 @@ other, but each doubting itself there too.
 ## 4. Confidence-filtered direct concordance (2026-07-24 follow-up)
 
 Applies the same global, mathematically-grounded confidence bars used in
-`reports/confidence_matched_truth/` (SpecImmune `si_identity >= 0.9995`, not tied; Immuannot
+`reports/pre_sprint/confidence_matched_truth/` (SpecImmune `si_identity >= 0.9995`, not tied; Immuannot
 `template_distance <= 0`, no `template_warning`) directly to this report's own SpecImmune-vs-
 Immuannot comparison, instead of to AoU/SpecHLA. Unlike that report, this is one paired
 population (same (person, gene) slots before and after), so restricting to "both callers

@@ -3,7 +3,7 @@
 *Started 2026-09-22 night. Branch `s03-call8-figures-kir-prediction` (off `fig1-drafts-and-research-map` @ bff2de9).
 Orchestrator: Claude Opus; implementers: Sonnet subagents. Owner: Marc. Mode: autonomous overnight.*
 
-Inputs: [`../CALL_SUMMARY_2026-09-22.md`](../CALL_SUMMARY_2026-09-22.md) (root), S02 board, recon briefs (in LOG.md).
+Inputs: the 2026-09-22 call summary (private, kept locally in `sprints/_calls/`), S02 board, recon briefs (in LOG.md).
 Orchestrator log (schematic, source for the PI report): [`LOG.md`](LOG.md). VM recipe: [`VM_CHANNEL.md`](VM_CHANNEL.md).
 
 ## Resume here

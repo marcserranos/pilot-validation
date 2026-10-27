@@ -2,7 +2,7 @@
 """LOCAL-ONLY plotting script -- run on your Mac, not the VM. No pixi, no gcsfuse mount,
 no AoU access needed: it only reads the two aggregate CSVs already downloaded from the VM.
 
-Inputs (download via the JupyterLab file browser, see reports/aou_callset_validation.md):
+Inputs (download via the JupyterLab file browser, see reports/pre_sprint/aou_callset_validation/README.md):
   ~/pipeline_outputs/experiment_a2/allele_freq_by_ancestry.csv  (gene, ancestry, allele, freq, n_individuals)
   ~/pipeline_outputs/experiment_a3/allele_tree_data.csv         (gene, group_2field, catalogued_3field_variants,
                                                                    observed_3field_variants, n_individuals,

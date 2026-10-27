@@ -3,7 +3,7 @@
 Reviewed: `reports/hla_popgen/43_kir_full_cohort/` (README.md, all 6 TSVs, `fig_kir_full_cohort.png`
 read directly) and `scripts/hla_popgen/43_kir_full_aggregate.py` / `43b_kir_full_figure.py`,
 against `reports/hla_popgen/41_kir_scoping/README.md` (pilot/methods reference) and
-`sprints/S03_call8_figures_kir_prediction/CRITIC_1.md` (format). No disclosure violation found
+`sprints/S03_call8_figures_kir_prediction/critics/CRITIC_1.md` (format). No disclosure violation found
 (no 1-19 count printed as an exact number anywhere in README prose or the TSVs; every `<20`-band
 rate is blanked, not just the count; hatched cells verified to be the correct 7 gene×MID cells;
 no person_id anywhere). Arithmetic and figure-correctness spot-checks did turn up real issues.

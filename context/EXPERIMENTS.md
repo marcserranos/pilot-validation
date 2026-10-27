@@ -405,7 +405,7 @@ One real bug caught and fixed mid-analysis: initial ancestry-coloring logic rank
 carrier count, which is dominated by cohort composition (56.5% EUR) rather than biology — fixed
 to rank by within-group frequency instead (see `local_plot_allele_ancestry.py`).
 
-Full writeup, tables, and figures: **`reports/aou_callset_validation/README.md`** (delivery-ready,
+Full writeup, tables, and figures: **`reports/pre_sprint/aou_callset_validation/README.md`** (delivery-ready,
 sent to supervisors). Not duplicated here — this entry is a pointer, not a summary of the summary.
 
 ## 2026-07-12 — repo reorganized into folders (housekeeping, not an experiment)
@@ -418,15 +418,15 @@ Not a result — a structural note for anyone reading older entries above, which
 
 ## 2026-07-20 — Experiment E ("Operation DQ"): HLA×disease sanity check (celiac + narcolepsy)
 
-First-principles end-to-end validation of the whole pipeline (HLA calling → BigQuery diagnosis join → phenotype label → model) via two known large-effect HLA-disease associations, run on the AoU-native calls (n=535,658). L1-penalized logistic regression, 5-fold out-of-fold CV, evaluated pooled and per-ancestry. Headline: both diseases recover the known biology with zero disease-specific hints; **celiac** shows real, modest out-of-sample signal (pooled AUROC 0.74) with a well-powered ancestry gap (EUR 0.681 vs AFR 0.542); **narcolepsy** predicts at chance (pooled AUROC 0.592) despite the model landing on a true causal-haplotype partner — a concrete demonstration that recovering the right biology and predicting well on unseen people are different questions. Full writeup + raw CV log: `reports/disease_sanity_check/README.md`. (Committed in git as "Experiment E: Operation DQ"; the LR-census script was later renamed to resolve a naming collision with it — commit `606a563`.) Open follow-on logged in DECISIONS.md (Methodological): the 2-field vs 3-field vs hierarchical resolution/generalization study.
+First-principles end-to-end validation of the whole pipeline (HLA calling → BigQuery diagnosis join → phenotype label → model) via two known large-effect HLA-disease associations, run on the AoU-native calls (n=535,658). L1-penalized logistic regression, 5-fold out-of-fold CV, evaluated pooled and per-ancestry. Headline: both diseases recover the known biology with zero disease-specific hints; **celiac** shows real, modest out-of-sample signal (pooled AUROC 0.74) with a well-powered ancestry gap (EUR 0.681 vs AFR 0.542); **narcolepsy** predicts at chance (pooled AUROC 0.592) despite the model landing on a true causal-haplotype partner — a concrete demonstration that recovering the right biology and predicting well on unseen people are different questions. Full writeup + raw CV log: `reports/pre_sprint/disease_sanity_check/README.md`. (Committed in git as "Experiment E: Operation DQ"; the LR-census script was later renamed to resolve a naming collision with it — commit `606a563`.) Open follow-on logged in DECISIONS.md (Methodological): the 2-field vs 3-field vs hierarchical resolution/generalization study.
 
 ## 2026-07-20 — Experiment D field-level cascade (follow-on analysis, no new pipeline runs)
 
-Re-scoring of the existing Experiment D n=60 calls at cumulative field-by-field resolution (field 1 allele-group → field 2 protein → field 3 synonymous), AoU-native and SpecHLA each measured against SpecImmune-LR as truth, per gene. Quantifies where each method's agreement decays with depth (e.g. DQA1 100% at field 1 → 64% at field 2; AoU-native structurally caps at 3 fields, never reaching field 4 in anyone). Pure re-analysis of existing Experiment D output — no new runs. Report + heatmaps: `reports/experiment_d_field_cascade/` (git commit `cbe2fc1`).
+Re-scoring of the existing Experiment D n=60 calls at cumulative field-by-field resolution (field 1 allele-group → field 2 protein → field 3 synonymous), AoU-native and SpecHLA each measured against SpecImmune-LR as truth, per gene. Quantifies where each method's agreement decays with depth (e.g. DQA1 100% at field 1 → 64% at field 2; AoU-native structurally caps at 3 fields, never reaching field 4 in anyone). Pure re-analysis of existing Experiment D output — no new runs. Report + heatmaps: `reports/pre_sprint/experiment_d_field_cascade/` (git commit `cbe2fc1`).
 
 ## 2026-07-21 — Long-read data-format census: all 14,521 people have a real aligned BAM
 
-Exhaustive per-column existence census of the full v9 lrWGS manifest (15,424 rows / 14,521 unique people, 29 primary data-bearing columns), superseding the earlier 2,763-person "floor" (see ENVIRONMENT.md quirk #13). Every person has a real `grch38_bam`; AoU backfilled the previously-missing revio BAMs between 07-11 and 07-21, confirmed by spot-checking quirk #13's own documented dangling case (person 1008366). The long-read validation cohort is no longer capped near 2,763 — all 14,521 are viable for the SpecImmune-LR pipeline. Script `lr_manifest_format_census.py` (checkpointed/resumable after a real 5h data-loss incident — quirk #22). Full per-platform data-shape table + caveats: `reports/lr_data_census/README.md`. Resolves DECISIONS.md's "where are the aligned BAMs" open question.
+Exhaustive per-column existence census of the full v9 lrWGS manifest (15,424 rows / 14,521 unique people, 29 primary data-bearing columns), superseding the earlier 2,763-person "floor" (see ENVIRONMENT.md quirk #13). Every person has a real `grch38_bam`; AoU backfilled the previously-missing revio BAMs between 07-11 and 07-21, confirmed by spot-checking quirk #13's own documented dangling case (person 1008366). The long-read validation cohort is no longer capped near 2,763 — all 14,521 are viable for the SpecImmune-LR pipeline. Script `lr_manifest_format_census.py` (checkpointed/resumable after a real 5h data-loss incident — quirk #22). Full per-platform data-shape table + caveats: `reports/pre_sprint/lr_data_census/README.md`. Resolves DECISIONS.md's "where are the aligned BAMs" open question.
 
 ## 2026-07-22 — Experiment F: Immuannot (assembly-based caller) vs SpecImmune-LR, 60-person pilot
 
@@ -441,7 +441,7 @@ Aleix's HLA-Resolve/Lai arm remains the truth-anchored comparison. A padding-tig
 necessary, not wasteful — narrower cuts lose real calls, especially at DQA1/DQB1 — not adopted.
 Parallelizing the two haplotypes (`--parallel-haps`) gave no net speedup (halved per-hap threads
 roughly cancels the concurrency gain) — not adopted either. Full writeup + figures:
-`reports/immuannot_pilot/README.md`.
+`reports/pre_sprint/immuannot_pilot/README.md`.
 
 ## 2026-07-24 — Experiment F follow-on: Immuannot-as-truth field cascade + confidence-matched truth comparison
 
@@ -456,7 +456,7 @@ mathematically-grounded (not per-gene-tuned) confidence filter for both truth so
 count against the shared 480-slot denominator so neither truth source gets an inflated share
 (`analyze_confidence_matched_truth.py`, `plot_confidence_distributions.py`). DRB1 is nearly
 eliminated by the filter under both truth sources; DQA1's finding survives. Full writeup:
-`reports/confidence_matched_truth/README.md`, `reports/experiment_d_field_cascade/README.md`.
+`reports/pre_sprint/confidence_matched_truth/README.md`, `reports/pre_sprint/experiment_d_field_cascade/README.md`.
 Threshold derivation (sequencing-error-rate math, IMGT inter-allele spacing): `context/DECISIONS.md`.
 
 ## 2026-07-24 (cont.) — direct SpecImmune-vs-Immuannot concordance, confidence-filtered
@@ -471,7 +471,7 @@ flagged, not alarming). **Overall Field 2 concordance rises from 77.6% (n=379, u
 92.0% (n=112, confidence-matched)** — confirms low-confidence calls drive most of the raw
 disagreement. DRB1 drops to zero confident-overlap pairs (sixth independent line of evidence
 it's the hardest locus). Every other gene improves except C (92%→89%, n=19, almost certainly
-noise). Full writeup: `reports/immuannot_pilot/README.md` (section 4).
+noise). Full writeup: `reports/pre_sprint/immuannot_pilot/README.md` (section 4).
 
 ## 2026-07-25 — AoU srWGS x lrWGS x RNA-seq cohort overlap (new research thread: RNA-seq immune repertoire)
 

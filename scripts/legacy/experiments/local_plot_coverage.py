@@ -4,7 +4,7 @@
 Data below is the printed output of experiment_a3_allele_space_coverage.py (2026-07-19 run,
 535,658-person AoU-native cohort) -- reproduced here as a small static table since the coverage
 summary itself isn't written to a CSV by that script (only the per-group tree data is). Matches
-the table in reports/aou_callset_validation.md section 3 exactly.
+the table in reports/pre_sprint/aou_callset_validation/README.md section 3 exactly.
 
 Usage:
   python3 local_plot_coverage.py --out reports/figures/coverage_catalogued_vs_observed.png

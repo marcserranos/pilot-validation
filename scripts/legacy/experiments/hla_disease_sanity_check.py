@@ -29,7 +29,7 @@ independent checks, run together so they cross-validate each other:
 
 Both checks use AoU-native calls -- the only callset with population-scale coverage (our
 own SpecHLA/SpecImmune calling has only run on the n=60 pilot cohort) -- so this result is
-itself further evidence about AoU-native's reliability (see reports/aou_callset_validation.md).
+itself further evidence about AoU-native's reliability (see reports/pre_sprint/aou_callset_validation/README.md).
 
 AGGREGATE-ONLY OUTPUT: contingency counts and fitted model coefficients only -- never a
 participant-level row. Same egress discipline as every other script in this repo.

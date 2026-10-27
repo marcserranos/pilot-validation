@@ -308,4 +308,4 @@ Every stage's `_checkpoints/` (per-person identity sets) is UNCHANGED by `--disc
 excluded from the args fingerprint (`_ARGS_EXCLUDED_FROM_FINGERPRINT`), so a completed PUBLIC run's
 checkpoints can be reused, with `--resume`, to re-export the identical run as INTERNAL (or vice
 versa) without recomputing any per-person identity set. See
-`sprints/S04_kir_recurrence_style_share/VM_OPERATOR_HANDOFF.md` for the exact re-export commands.
+`sprints/S04_kir_recurrence_style_share/ops/VM_OPERATOR_HANDOFF.md` for the exact re-export commands.

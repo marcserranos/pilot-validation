@@ -14,7 +14,7 @@ allele-cluster ID joins), nothing about variant position.
 ## Who / where / when
 
 - **Author**: Marc Serrano, sole author on all relevant commits.
-- **File**: [09_mutation_topology.py](09_mutation_topology.py) — core logic at
+- **File**: [09_mutation_topology.py](../../../scripts/hla_popgen/09_mutation_topology.py) — core logic at
   `parse_codon_positions()` (~line 85) and `plot_lollipops()` (~line 130).
 - **Commits** (all 2026-09-06):
   - `719e963` 12:34 — script created ("Singleton-inclusive QC, discovery-rate curve fits, and

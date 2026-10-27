@@ -1,7 +1,7 @@
 # Confidence-matched truth comparison: AoU-native / SpecHLA vs. SpecImmune-LR and Immuannot, both restricted to high-confidence calls
 
-**2026-07-24.** Extends `reports/experiment_d_field_cascade/` (AoU/SpecHLA vs. SpecImmune-LR
-truth) and `reports/immuannot_pilot/` (AoU/SpecHLA vs. Immuannot truth, see
+**2026-07-24.** Extends `reports/pre_sprint/experiment_d_field_cascade/` (AoU/SpecHLA vs. SpecImmune-LR
+truth) and `reports/pre_sprint/immuannot_pilot/` (AoU/SpecHLA vs. Immuannot truth, see
 `scripts/legacy/experiments/analyze_experiment_d_field_cascade_immuannot.py`) with a single, objective, very
 restrictive confidence bar applied to BOTH long-read truth sources before scoring AoU-native
 and SpecHLA against them — Marc's explicit design constraints: **one global threshold per
@@ -25,7 +25,7 @@ are a *result* of that single global bar, not a per-gene knob.
 
 **Sample-size matching**: SpecImmune resolves all 480 possible (person, gene) slots in this
 60-person/8-gene cohort; Immuannot resolves only 403 (84.0%) — Immuannot **abstaining** on the
-rest, a separate, already-documented behavior (see `reports/immuannot_pilot/README.md`), kept
+rest, a separate, already-documented behavior (see `reports/pre_sprint/immuannot_pilot/README.md`), kept
 deliberately distinct from the confidence-threshold effect. Given that, sample-size matching
 is done by **equal absolute count**, rank-trimming whichever truth source's threshold-passing
 set is larger down to the smaller one's N (keeping its own most-confident calls, not a random
@@ -71,8 +71,8 @@ confidence-filtering is a pure win.
 - Script: `scripts/legacy/experiments/analyze_confidence_matched_truth.py`. Run via
   `pixi run -e spechla -- python3 scripts/legacy/experiments/analyze_confidence_matched_truth.py <cohort.tsv> --si-identity-threshold 0.9995 --immuannot-distance-threshold 0`
 - Reads the same per-person `comparison_log.csv`, `immuannot_calls.tsv`, and
-  `hap{1,2}.gtf.gz` files as `reports/immuannot_pilot/` and
-  `reports/experiment_d_field_cascade/` — no new VM run needed.
+  `hap{1,2}.gtf.gz` files as `reports/pre_sprint/immuannot_pilot/` and
+  `reports/pre_sprint/experiment_d_field_cascade/` — no new VM run needed.
 - Aggregate-only output (rates, counts, retention tables) — raw per-person calls stay on the
   Workbench VM per the standing egress rule (`context/DECISIONS.md`).
 - Full field-level tables (Field 1 and Field 2, unfiltered and confidence-matched, both truth

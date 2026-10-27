@@ -3,7 +3,7 @@
 
 Immuannot types HLA alleles from a PHASED ASSEMBLY contig (one haplotype's collapsed consensus
 FASTA), not reads/BAM -- see DECISIONS.md "Assembly-based HLA typing". Only people on the
-revio/sequel2e/sequel2 platforms have this data (reports/lr_data_census/README.md); ont-r10.4.1/
+revio/sequel2e/sequel2 platforms have this data (reports/pre_sprint/lr_data_census/README.md); ont-r10.4.1/
 ont-r9.4.1 do not and will be skipped with a clear reason, not silently dropped.
 
 TRIM STEP (2026-07-21, Marc: "trim the zone we need, not ridiculous paddings" before the 60-person
@@ -29,7 +29,7 @@ for the sequel2 motivation and Marc's ~700-750x-blowup concern that shaped this 
      No CIGAR/indel math, no risk of clipping a gene -- just less tight than tier 1.
   3. TIER 3 / SELF-ALIGN, opt-in via --enable-self-align-fallback -- used only when BOTH the .paf
      AND the aln-to-hg38 .bam are missing (sequel2's 991 people: raw assembly FASTA present, no
-     alignment-to-hg38 files at all, per reports/lr_data_census/README.md). Self-aligns the hap
+     alignment-to-hg38 files at all, per reports/pre_sprint/lr_data_census/README.md). Self-aligns the hap
      FASTA against a chr6-only reference slice with minimap2 (own synthetic .paf, parsed by the
      same regions_from_paf() as tier 1) instead of feeding Immuannot the whole ~3.1Gb/hap untrimmed
      assembly. UNTESTED AT SCALE as of 2026-08-04 -- smoke-test on real sequel2 people before
@@ -92,7 +92,7 @@ DEFAULT_REGION = "chr6:29500000-33500000"  # the project's standing HLA window (
 DEFAULT_PAD = 100_000
 # Tier 3 (self-align) constants -- untested at scale as of 2026-08-04, see --enable-self-align-
 # -fallback below. sequel2 (991 people) has assembly_hap{1,2}_fa but no assembly_hap{1,2}_aln2_hg38_
-# {bam,paf} -- reports/lr_data_census/README.md. Rather than feed Immuannot the whole ~3.1Gb/hap
+# {bam,paf} -- reports/pre_sprint/lr_data_census/README.md. Rather than feed Immuannot the whole ~3.1Gb/hap
 # untrimmed assembly (which the BRIEF.md fallback description originally implied -- estimated
 # ~700-750x bigger than the normal ~4.2Mb trimmed input, a real risk of blowing up time/cost, per
 # Marc's 2026-08-04 concern), self-align each hap FASTA against chr6 ONLY (not the whole genome)
@@ -814,7 +814,7 @@ def process_person(pid, lr, args, immuannot_script):
     if missing_fa:
         print(f"  SKIP: missing assembly FASTA {missing_fa} -- this person's platform likely lacks "
               f"assembly data entirely (only revio/sequel2e/sequel2 do -- "
-              f"reports/lr_data_census/README.md). Not treated as a bug -- flag which person_ids "
+              f"reports/pre_sprint/lr_data_census/README.md). Not treated as a bug -- flag which person_ids "
               f"hit this so the real usable fraction of the cohort is known.", file=sys.stderr)
         return [], []
     if missing_aln:
@@ -907,7 +907,7 @@ def main():
                     help="Attempt Tier 3 (two-stage self-align: region slice, then whole primary "
                          "GRCh38 via --self-align-confirm-ref) for any haplotype missing BOTH .paf "
                          "and aln-to-hg38 .bam -- the "
-                         "sequel2 gap (991 people, ~95%% AFR, per reports/lr_data_census/README.md). "
+                         "sequel2 gap (991 people, ~95%% AFR, per reports/pre_sprint/lr_data_census/README.md). "
                          "UNTESTED AT SCALE as of 2026-08-04 -- explicit smoke-test-first flag, not "
                          "the default. Without it, those haplotypes are SKIPped with a clear reason "
                          "instead of silently producing no calls.")

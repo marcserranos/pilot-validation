@@ -6,10 +6,10 @@ truth), but with Immuannot substituted as the truth column -- per Marc's 2026-07
 objective: "the same two matrices of discrepancy between genes ... (specHLA vs Immuannot,
 and AoU vs Immuannot), and then the same chart ... per level of resolution."
 
-METHODOLOGY -- NO GROUND TRUTH (same caveat as reports/immuannot_pilot/README.md and
+METHODOLOGY -- NO GROUND TRUTH (same caveat as reports/pre_sprint/immuannot_pilot/README.md and
 diagnose_immuannot_pilot.py): Immuannot is cross-method AGREEMENT, not accuracy. It has its
 own known weak spots (DRB1 worst of any gene by 5 independent lines of evidence -- see
-reports/immuannot_pilot/README.md). Read a low match rate here as "these two callers
+reports/pre_sprint/immuannot_pilot/README.md). Read a low match rate here as "these two callers
 diverge here", not "AoU/SpecHLA are wrong here".
 
 DB-VERSION CONFOUND: Immuannot ships IMGT release Data-2024Feb02; AoU-native/SpecHLA's

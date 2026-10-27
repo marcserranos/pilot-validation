@@ -3,7 +3,7 @@
 Reviewed: `reports/hla_popgen/47_naive_ml_tests/` (README.md, all 5 TSVs, `fig_naive_ml_auroc.png`
 read at native resolution) and `scripts/hla_popgen/47_naive_ml_tests.py` / `47b_naive_ml_figure.py`,
 against `sprints/S04_kir_recurrence_style_share/AGENT_PREAMBLE.md` and
-`sprints/S03_call8_figures_kir_prediction/CRITIC_2.md` (format). Scope: script 47/47b only —
+`sprints/S03_call8_figures_kir_prediction/critics/CRITIC_2.md` (format). Scope: script 47/47b only —
 44/45/46 untouched, per instructions (another critic owns those).
 
 ## Was the README/figure updated to v2?
