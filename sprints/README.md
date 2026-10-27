@@ -16,3 +16,18 @@ Rules:
 - Durable facts still graduate into `context/` per the root README (quirks → ENVIRONMENT.md,
   calls → DECISIONS.md, results → EXPERIMENTS.md pointer entries).
 - Aggregate-only in git. Participant counts 1–19 are written as `<20` in anything new.
+
+## Sprint index
+
+| Sprint | Folder | Scripts | Status |
+|---|---|---|---|
+| S01 | `S01_novelty_qc_coverage` | 2x-3x | closed |
+| S02 | `S02_supervisor_items` | — | closed |
+| S03 | `S03_call8_figures_kir_prediction` | — | closed |
+| S04 | `S04_kir_recurrence_style_share` | 44-49 | closed |
+| S05 | `S05_qc_phasing_kir_trb` | 50-69 | closed 2026-10-13 |
+| S06 | `S06_call_quality_metrics` | 70-79 | essentially complete (final report 79) |
+| S08 | `S08_case_browser` | 90-96 | complete |
+| S09 | `S09_discovery_loop` | 100-114 | think-tank loop; see its README/LEDGER |
+
+(S07 has no folder.) Script numbers are global; see `scripts/hla_popgen/README.md`.

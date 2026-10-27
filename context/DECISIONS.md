@@ -6,6 +6,10 @@
 
 ## Open questions
 
+- **(2026-10-27) Call notes remain in git history.** `sprints/_calls/*` private call notes (2026-09-22 brief/summary/Aleix handoff,
+  2026-10-06 summary) were tracked until commit 13e25ad/7237256 and stay reachable in history of `main` (and old WIP commits on
+  `s04-kir-recurrence-style-share`). Options: accept; rewrite history (`git filter-repo` + force-push, breaks Aleix's branch and clones);
+  make the repo private. Found by the 10-27 consolidation audit; no branch re-adds them. Marc to decide.
 - **(S05, 2026-10-13) Cumulative sweeps leak small steps by subtraction.** In 56b's public `refined_sweep.tsv`, neighbouring
   thresholds of the same item can differ by 1–19 records or errors (e.g. the ALL rows at score 0 → 1 and 1 → 2), and
   per-gene rows likely do the same. These are relative pair-gene records, not people, but each

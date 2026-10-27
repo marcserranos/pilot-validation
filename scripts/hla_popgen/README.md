@@ -142,6 +142,63 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 68_rnaseq_composition.py    → AoU blood RNA-seq composition: DRAGEN + RNA-SeQC 2 QC distributions and TPM share by gene family (cohort quantiles only)
 ```
 
+**S06 (2026-10-20 →) — call-quality metrics vs trio/pair typing error, HLA + KIR** (sprint folder `sprints/S06_call_quality_metrics/`; final report built by 79)
+```
+70_call_exon_depth.py       → exon-, CDS- and per-base long-read depth of every HLA gene, per person (VM).
+71_call_quality_table.py    → one table of per-call quality metrics, the typing-error truth sets, and the depth distributions (VM).
+71b_call_quality_stats.py   → how well does each per-call quality metric predict typing error, and what does pruning the worst calls do? (VM)
+71c_contig_truth_matrix.py  → contig co-location versus trio truth, for every pair of MHC genes (VM).
+71d_support_tables.py       → two small aggregate tables for the report, from 71's INTERNAL tables (VM only).
+71e_dropout_outcome.py      → the incomplete-genotype ("dropout") outcome, over the whole cohort (VM).
+71f_call_status_audit.py    → what does "one called haplotype" mean, and where do the trio / pair "errors" come from? A read-only audit (VM, aggregate output).
+72_call_quality_figures.py  → paper-grade figures for the call-quality sprint, drawn from the AGGREGATE tables of 70, 71, 71b and 71c.
+73_depth_schematic.py       → methodology schematics for the call-quality report (public reference coordinates only, simulated reads).
+74_build_report.py          → assemble the call-quality report (one self-contained HTML file) from the aggregate tables and the figures.
+75_trio_error_anatomy.py    → what is a trio "typing error", exactly? Anatomy of the Mendelian mismatches and four alternative definitions (VM).
+76_call_outcomes.py         → the three call outcomes, kept apart (VM; aggregate output + INTERNAL unit tables for 76b).
+76b_pruning_evidence.py     → pruning evidence per outcome, with transfer and robustness (VM; reads 76's INTERNAL unit tables, writes aggregate curves).
+77_kir_call_table.py        → per-call KIR table for the call-quality replication (VM; reads only the existing Immuannot GTFs, no re-annotation).
+77b_kir_trio_origin.py      → per-KIR-gene parental origin in trio children (KIR analogue of 57b; VM).
+77c_kir_trio_records.py     → Mendelian-mismatch records for KIR (trio / pair / twin), the KIR analogue of 71's records (VM).
+78_kir_gene_depth.py        → exon / CDS depth for the KIR genes that exist on primary chr19 of GRCh38 (VM; the KIR counterpart of 70).
+78b_kir_pruning_evidence.py → pruning evidence for the KIR genes (VM; the KIR counterpart of 76b, which supplies all curve / CV / transfer machinery).
+79_s06_final_report.py      → the final, standalone S06 report (HLA + KIR), built from AGGREGATE tables only (laptop).
+```
+
+**S08 (2026-10-23) — base-level case browser and novel-allele recheck** (sprint folder `sprints/S08_case_browser/`)
+```
+90_case_browser.py          → base-level case browser for HLA/KIR call errors (Immuannot alignment, Mendelian, switches).
+90_case_browser_extract.py  → extract (VM side): pick example calls and pull their sequences into one anonymised cases.json.
+90_case_browser_sr.py       → sr (VM side): do the short reads support the long-read variants in a case?
+90_case_browser_stats.py    → stats (VM side, aggregate output): how are Immuannot's novel calls made up, over EVERY call in the cohort?
+90_case_browser_viewer.html → viewer page for 90_case_browser
+91_novel_recurrence.py      → novel-call recurrence (VM side, aggregate output): which 'novel' substitution-only HLA calls recur, in whom, and are they inherited?
+92_novel_burden.py          → novel burden by sequencing platform and ancestry (VM side, aggregate output).
+93_shortlist_ipd_release.py → re-test the S08 shortlist against a CURRENT IPD-IMGT/HLA release (local; reads the gitignored case_browser/ files).
+94_s08_report.py            → S08 final report (HTML, inline SVG figures; no external assets).
+95_signature_context.py     → context tests for recurrent novel signatures (VM side; think-tank experiments that need no new sequencing data).
+96_f_signature_ase.py       → RNA-seq allele-specific expression of recurrent HLA-F signatures (VM side; think-tank experiment 'independent technology').
+```
+
+**S09 (2026-10-24) — discovery loop** (sprint folder `sprints/S09_discovery_loop/`; aggregate-only, counts <20 masked)
+```
+100_native_vs_lr.py              → native short-read HLA calls vs long-read truth (S09-01; VM side, aggregate output).
+101_rna_panel_extract.py         → extract a gene-panel TPM table from AoU blood RNA-seq (VM side; PRIVATE per-person output stays on the VM).
+102_expression_dosage_tests.py   → long-read-only features -> blood RNA expression (S09; VM side, aggregate output only).
+103_expression_within_g_group.py → expression differences between alleles identical over the peptide-binding exons (S09-11; VM side, aggregate output only).
+104_s09_report.py                → S09 discovery-loop report (HTML, inline SVG; aggregate numbers only, every count shown is >= 20 or '<20').
+104a_background.py               → Plain-language background drop-downs (inline SVG drawings) for the S09 report. Imported by 104_s09_report.py.
+105_novel_allele_evidence.py     → raw-read evidence package for candidate novel HLA alleles (S09-12; VM side, aggregate output only).
+106_nonclassical_landscape.py    → diversity landscape of HLA-E/F/G vs the classical genes, by ancestry (S09-13; VM side, aggregate output only).
+107_phewas_engine.py             → hypothesis-free HLA/KIR/C4 x ICD-10 phenome scan with controls (S09-14; VM side; person-level tables stay on the VM).
+108_mechanistic_rna_tests.py     → mechanistic hypotheses tested against blood RNA (S09-15, S09-16; VM side, aggregate output only).
+109_phewas_followup.py           → Within-ancestry follow-up of PheWAS leads from 107 (VM side).
+111_olink_nkg2a_test.py          → Plasma protein test of the HLA-E 107G -> NKG2A (KLRC1) association (VM side; All of Us Olink Explore HT, v9 batch-normalised).
+112_hla_kir_c4_pqtl_scan.py      → Immunogenetic loci -> plasma proteome scan (VM side; All of Us Olink Explore HT x long-read HLA / KIR / C4 calls).
+113_b1402_pqtl_dissection.py     → Dissect the B*14:02 / C*08:02 -> LRPAP1 / LRP1 / SGSH plasma-protein signal (VM side; Olink Explore HT x long-read HLA calls).
+114_b1402_rna_test.py            → Does HLA-B*14:02 shift blood RNA of LRPAP1 / LRP1 / SGSH (VM side)?
+```
+
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can
 settle — chiefly **whether the intermediate files survived on the production VM**. It is cheap
 (~2 minutes) and prints one JSON block to paste back. Nothing downstream should be trusted until it

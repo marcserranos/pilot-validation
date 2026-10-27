@@ -4,6 +4,15 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-10-27 — all sprint branches consolidated into `main`
+
+`main` now holds S05 (incl. 65b/65c), S06 call quality (70-79), S08 case browser (90-96) and S09 discovery loop (100-114).
+Merged: `s05-65b-results`, `s06-call-quality`, `s08-case-browser`, `s09-discovery-loop`, `s05-oct06-work` (only its call-note untracking;
+main's S05 text kept). Not carried over: `s05-65b-results`' early 67/68/69 scripts (superseded by main's 67/68, as noted in the S05 STATUS).
+Aleix's `aleix/hla-resolve-phase1` stays separate. Pipeline table: `scripts/hla_popgen/README.md`; sprint index: `sprints/README.md`.
+Open (human): call-note files remain in git history (`sprints/_calls/`, commits before 13e25ad) — history rewrite is a Marc decision, see DECISIONS.md.
+Script 80 (case browser, S06 copy) was folded into 90 (S08); the 79 final report builder is in `scripts/hla_popgen/79_s06_final_report.py`.
+
 ## As of 2026-10-24 ~00:50 — S06 call-quality sprint essentially complete (branch s06-call-quality)
 
 Final report (local, git-excluded): `reports/hla_popgen/79_s06_final/S06_FINAL_REPORT.html` (build: `python3 scripts/hla_popgen/79_s06_final_report.py --tables reports/hla_popgen/79_s06_final/aggregate_tables --out reports/hla_popgen/79_s06_final`).

@@ -902,5 +902,14 @@ course, a data trail for every analysis, and the independent review's correction
 
 ---
 
+## 17. Later sprints (S06, S08, S09) — pointers
+
+Written per sprint rather than folded in here; read these for the narrative and figures.
+- **S06 call quality (scripts 70-79):** `sprints/S06_call_quality_metrics/LOG.md`; final report built by `scripts/hla_popgen/79_s06_final_report.py` (local, from aggregate tables). Per-call exon/CDS depth and Immuannot metrics against trio/pair typing error, with pruning curves, for HLA and KIR.
+- **S08 case browser (90-96):** `sprints/S08_case_browser/LOG.md`, `reports/hla_popgen/90_case_browser/README.md`; most "novel" calls trace to IPD 3.55 bias or platform error; HLA-F signatures show allele-specific expression.
+- **S09 discovery loop (100-114):** `sprints/S09_discovery_loop/{README,LEDGER,LOG}.md`, aggregate-only report `reports/hla_popgen/S09_discovery_loop/S09_report.html` (counts <20 masked).
+
+---
+
 *End of comprehensive walkthrough. Underlying reports, raw tables, and all figures referenced above
 live under `reports/hla_popgen/`; script source lives under `scripts/hla_popgen/`.*
