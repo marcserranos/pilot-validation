@@ -1,7 +1,7 @@
 # S09 — discovery loop (think tank → falsifiable MVP → critics/literature → think tank …)
 
 Branch `s09-discovery-loop` (worktree `../pilot-validation-s09`), forked from S08 (`s08-case-browser`) on 2026-10-24. S08 answered "are the substitution-only
-novel HLA calls real?" (report: `reports/hla_popgen/91_novel_recurrence/S08_report.html`, scripts 91-96). S09 is open-ended exploration of what the full dataset
+novel HLA calls real?" (report: `reports/sprint_reports/S08_REPORT.html`, scripts 91-96). S09 is open-ended exploration of what the full dataset
 can discover. New scripts take numbers **100+**.
 
 ## The loop

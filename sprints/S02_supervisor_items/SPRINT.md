@@ -90,7 +90,7 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked/parked
 | WS4 | Figure 1 v3 + supplement dump, strict-admixture variants (A1, A9, A11) | `WS4_figure1_v3.md` + script 33 | ◐ panels c/d done; a (admixture) and b (ternary) need a VM rerun of scripts 06/10 |
 | WS5 | Selection: ARS vs non-ARS amino-acid diversity; class I vs II differentiation; literature (A7, A8, A10) | `WS_literature_selection.md`, `WS5_ars_definition.md`, script 31 + `reports/hla_popgen/31_aa_diversity/README.md` | ☑ done at exon level; the structural contact-vs-non-contact refinement is still pending a transfer function |
 | — | Short-read validation of novel alleles (A12) | — | ⏸ parked by Cole |
-| — | HLA × TCR/BCR join | `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` §3 | ⏸ Aleix |
+| — | HLA × TCR/BCR join | `reports/hla_popgen/_docs/NEXT_STEPS_AND_RESEARCH_MAP.md` §3 | ⏸ Aleix |
 
 ## 5. Resume here (always current)
 

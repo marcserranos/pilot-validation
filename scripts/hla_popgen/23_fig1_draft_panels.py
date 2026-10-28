@@ -245,9 +245,9 @@ def main():
     out = args.out_dir or os.path.join(root, "23_fig1_draft_panels")
     genes = CLASSICAL_GENES
 
-    novel = load_novel(os.path.join(root, "novel_alleles.tsv"))
-    richness = pd.read_csv(os.path.join(root, "allele_richness.tsv"), sep="\t")
-    spectrum = pd.read_csv(os.path.join(root, "frequency_spectrum.tsv"), sep="\t")
+    novel = load_novel(os.path.join(root, "00_foundation", "novel_alleles.tsv"))
+    richness = pd.read_csv(os.path.join(root, "00_foundation", "allele_richness.tsv"), sep="\t")
+    spectrum = pd.read_csv(os.path.join(root, "00_foundation", "frequency_spectrum.tsv"), sep="\t")
 
     rates = novel_rate_table(novel, richness, genes)
     recon = reconciliation_table(novel, richness, genes)

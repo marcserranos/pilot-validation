@@ -24,3 +24,7 @@ reports/hla_popgen/90_case_browser/*
 !reports/hla_popgen/90_case_browser/README.md
 case_browser/
 *.private.tsv
+
+# Sprint reports built from participant-derived or not-yet-masked tables stay local
+reports/sprint_reports/S06_FINAL_REPORT.html
+reports/sprint_reports/S08_REPORT.html

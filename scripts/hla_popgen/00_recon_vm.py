@@ -52,7 +52,7 @@ from collections import Counter, defaultdict
 # does not move.
 DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
 DEFAULT_OUTROOT = os.path.join(DEFAULT_DATA_ROOT, "people")
-DEFAULT_REPORT_DIR_NAME = "reports/hla_popgen"
+DEFAULT_REPORT_DIR_NAME = "reports/hla_popgen/00_foundation"
 
 # Files this script checks for, per haplotype -- exactly the set part E of
 # reference/IMMUANNOT_GTF_SPEC.md says SHOULD survive Immuannot's own + this project's cleanup.

@@ -399,7 +399,7 @@ as the ambitious extension.
 
 ## 6. Things to flag now
 
-- **Disclosure policy on the public repo.** `reports/hla_popgen/novel_alleles.tsv` (committed)
+- **Disclosure policy on the public repo.** `reports/hla_popgen/00_foundation/novel_alleles.tsv` (committed)
   lists per-cluster `n_persons` and per-ancestry `ancestry_counts` down to 1. Several other
   aggregate TSVs carry small cells too. The AoU Data and Statistics Dissemination Policy forbids
   publishing participant counts of 1–19 (verify the current wording). The new `23_*` outputs

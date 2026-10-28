@@ -70,7 +70,7 @@ from matplotlib.lines import Line2D
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))
-DEFAULT_REPORT_DIR = os.path.join(_REPO_ROOT, "reports", "hla_popgen")
+DEFAULT_REPORT_DIR = os.path.join(_REPO_ROOT, "reports", "hla_popgen", "00_foundation")
 
 CLASSICAL_GENES = ["HLA-A", "HLA-B", "HLA-C", "HLA-DPA1", "HLA-DPB1", "HLA-DQA1", "HLA-DQB1",
                    "HLA-DRB1"]

@@ -152,7 +152,7 @@ DEFAULT_OUTROOT = os.path.join(DATA_ROOT, "people")
 DEFAULT_OUT_DIR = os.path.expanduser("~/results/25_noncoding_novelty_paf")
 DEFAULT_LOCAL_DIR = os.path.join(DATA_ROOT, "s01_local")
 DEFAULT_REFDATA = os.path.expanduser("~/tools/Immuannot_refdata")
-DEFAULT_NOVEL_ALLELES = os.path.join(vc.DEFAULT_REPORT_ROOT, "novel_alleles.tsv")
+DEFAULT_NOVEL_ALLELES = os.path.join(vc.DEFAULT_REPORT_ROOT, "00_foundation", "novel_alleles.tsv")
 # Controlled data is auto-mounted here (verified on the VM 2026-09-16). 11's default
 # (~/mnt/aou-controlled) is stale and hangs processes, so it is deliberately NOT reused.
 DEFAULT_RELATEDNESS = os.path.expanduser(

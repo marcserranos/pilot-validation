@@ -18,7 +18,7 @@ final report is assembled from the ledger, the per-script READMEs and `LOG.md`.
 harmonizing pass over the whole sprint and delivers a single high-SNR but exhaustive HTML report,
 full of visuals, that explains every figure (what it shows, how to read it, what it means), the
 methods, findings and implications. It is published as an Artifact, and its source is committed here
-as `S05_REPORT.html`. Public-repo rules apply: no ids, and counts under 20 masked.
+as `reports/sprint_reports/S05_REPORT.html`. Public-repo rules apply: no ids, and counts under 20 masked.
 
 ## Board (re-planned 2026-10-11 after the 10-06 work, scripts 50–57c, landed on `main`)
 

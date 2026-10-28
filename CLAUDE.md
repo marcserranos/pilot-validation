@@ -25,7 +25,7 @@ tried and rejected.
 1. **Discuss intent with the human first.** Before planning experiments, confirm the
    direction, scope, and any open questions with whoever you're working with (Marc or
    Aleix) — don't infer a full research plan from a vague prompt. Check
-   `context/DECISIONS.md` (open questions) and `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md`
+   `context/DECISIONS.md` (open questions) and `reports/hla_popgen/_docs/NEXT_STEPS_AND_RESEARCH_MAP.md`
    if present for already-agreed directions before proposing new ones.
 2. **Plan as a numbered script + report pair.** Convention:
    `scripts/hla_popgen/NN_description.py` → `reports/hla_popgen/NN_description/`. Numbers
@@ -39,7 +39,7 @@ tried and rejected.
    current state + literal next commands).
 5. **Iterate** based on what the result shows — new question → back to step 1, informed by
    the result rather than the original plan.
-6. **At the end of a cycle, distill.** Update `reports/hla_popgen/COMPREHENSIVE_REPORT.md`
+6. **At the end of a cycle, distill.** Update `reports/hla_popgen/_docs/COMPREHENSIVE_REPORT.md`
    or the relevant per-experiment report so the narrative, rationale, and figures are
    traceable without reading the raw session transcript. A decision that will outlive this
    session belongs in `context/DECISIONS.md`, not just in the report prose.
@@ -106,7 +106,7 @@ construction — `context/ENVIRONMENT.md` quirk #8) and on separate git branches
 active workstream lives under `aleix/` **on his branch `aleix/hla-resolve-phase1` only — it is not in `main`'s tree** (its own `README.md`/`ENVIRONMENT_LOCAL.md`/`README.md`
 mirroring this same doc-tier convention, scoped to his local WSL2 setup rather than the
 shared Workbench VM). Before starting work that might overlap — a cohort selection, a shared
-resource, a joint analysis referenced in `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` —
+resource, a joint analysis referenced in `reports/hla_popgen/_docs/NEXT_STEPS_AND_RESEARCH_MAP.md` —
 check whether the relevant resource or result already exists on the other branch rather than
 redoing it.
 
@@ -119,5 +119,5 @@ redoing it.
 - `context/STATUS.md` — the only file fully rewritten each session. Compact, current-state
   only. Anything durable graduates out of it into one of the other three files above.
 - `reports/hla_popgen/NN_description/` — the delivery-ready writeup for script `NN`, with
-  figures. `reports/hla_popgen/COMPREHENSIVE_REPORT.md` is the standing narrative rollup
+  figures. `reports/hla_popgen/_docs/COMPREHENSIVE_REPORT.md` is the standing narrative rollup
   across experiments — update it, don't fork a parallel summary doc.

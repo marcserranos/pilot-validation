@@ -94,4 +94,4 @@ Fraction of `(person, hap, gene)` calls tagged novel, by ancestry. IPD-IMGT/HLA'
 | AMR | 0.303 | 202820 | 61531 |
 | EUR | 0.267 | 224541 | 59903 |
 
-Outputs: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/novel_alleles.tsv`, `/home/jupyter/pipeline_outputs/novel_alleles_seqs.fa` (VM-only, sequences never leave pipeline_outputs)
+Outputs: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/00_foundation/novel_alleles.tsv`, `/home/jupyter/pipeline_outputs/novel_alleles_seqs.fa` (VM-only, sequences never leave pipeline_outputs)

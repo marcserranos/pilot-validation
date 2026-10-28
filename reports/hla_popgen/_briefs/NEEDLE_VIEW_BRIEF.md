@@ -114,7 +114,7 @@ boundaries today; `01_extract_rich.py:264-291`'s GTF loop only handles `gene`/`t
 To get an actual per-position track across the full gene, the needed raw material is
 `mm2.ipd.gen.paf.gz` — the raw minimap2 PAF file with the full gene-level `cs:Z:` alignment tag
 (vs. `cds_mut`'s CDS-only `cs` substring). **CONFIRMED present** (updated 2026-09-07, resolving the
-"ambiguous" flag below): `reports/hla_popgen/recon_report.json`/`.md` (a real `00_recon_vm.py` run,
+"ambiguous" flag below): `reports/hla_popgen/00_foundation/recon_report.json`/`.md` (a real `00_recon_vm.py` run,
 50-person sample, Sep 5) shows `hap1/mm2.ipd.gen.paf.gz` and `hap2/mm2.ipd.gen.paf.gz` at **100%
 presence**, mean ~780KB/hap, ~19GB extrapolated total across the full ~12,000-person cohort per hap.
 `mm2.ipd.cds.paf.gz`, `gene.filtered.paf`, and `cds.fa.gz` are also 100% present in the same report.
@@ -245,7 +245,7 @@ sufficient; reach for parquet only if the summary table itself needs to be share
    matches the target=contig/query=reference-gene assumption above, confirm `cs:Z:` tag presence
    and format on real data.
 3. Resolve the candidate-vs-accepted-alignment question against Table 1 for one real person.
-4. Prototype on the existing 50-person recon sample (`reports/hla_popgen/recon_report.json`'s
+4. Prototype on the existing 50-person recon sample (`reports/hla_popgen/00_foundation/recon_report.json`'s
    sample) — sanity-check the resulting per-position track for HLA-A against known exon/CDS
    boundaries before trusting it.
 5. Time the 50-person prototype under both threading and multiprocessing to pick a worker model,

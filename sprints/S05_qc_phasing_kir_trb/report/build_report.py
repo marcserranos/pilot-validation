@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the S05 sprint report: src/*.html (joined in name order) -> ../S05_REPORT.html (one self-contained file).
+"""Build the S05 sprint report: src/*.html (joined in name order) -> reports/sprint_reports/S05_REPORT.html (one self-contained file).
 
 What the builder does:
   - <img data-src="reports/...png"> becomes an inline data: URI (PNG figures from the repo; wide
@@ -26,7 +26,7 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 SRC_DIR = os.path.join(HERE, "src")   # report source, one file per section, joined in name order
-OUT = os.path.join(os.path.dirname(HERE), "S05_REPORT.html")
+OUT = os.path.join(REPO, "reports", "sprint_reports", "S05_REPORT.html")
 ANC = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 ROOTS = [REPO]
 

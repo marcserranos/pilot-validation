@@ -2,7 +2,7 @@
 
 Built from aggregate numbers only (every count shown is >= 20 or written '<20'); no participant-level data. The think-tank section is read
 from an optional JSON file (--thinktank) so the report can be regenerated after more discussion rounds.
-  python3 scripts/hla_popgen/94_s08_report.py --out reports/hla_popgen/91_novel_recurrence/S08_report.html --thinktank thinktank.json
+  python3 scripts/hla_popgen/94_s08_report.py --out reports/sprint_reports/S08_REPORT.html --thinktank thinktank.json
 """
 import argparse
 import html

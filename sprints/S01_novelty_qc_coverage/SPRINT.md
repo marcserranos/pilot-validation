@@ -63,7 +63,7 @@ Status: ☐ todo · ◐ in progress · ☑ done · ⏸ blocked (reason)
 | WS4 | Figure 1 v2 from WS1–3 results | `WS4_figure1.md` | ☐ |
 | WS5 | Literature positioning (coverage estimators, long-read HLA at scale, IMGT submission) | `WS5_literature.md` | ◐ research agent running |
 | WS6 | Remaining supervisor items: LD (2), structural variation/KIR (6), selection lit (7) | `WS6_supervisor_items.md` | ☐ |
-| — | HLA × TCR/BCR (needs Aleix's join) | plan in `reports/hla_popgen/NEXT_STEPS_AND_RESEARCH_MAP.md` §3 | ⏸ Aleix |
+| — | HLA × TCR/BCR (needs Aleix's join) | plan in `reports/hla_popgen/_docs/NEXT_STEPS_AND_RESEARCH_MAP.md` §3 | ⏸ Aleix |
 
 VM: ⏸ Workbench tab is at the login page (2026-09-16) — Marc must sign in. Local work proceeds.
 

@@ -84,7 +84,7 @@ except ImportError:
 # identical note (~12,000 top-level entries breaks the Jupyter file browser, RUNBOOK.md has the fix).
 DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
 DEFAULT_OUTROOT = os.path.join(DEFAULT_DATA_ROOT, "people")
-DEFAULT_REPORTS_DIR_NAME = os.path.join("reports", "hla_popgen")
+DEFAULT_REPORTS_DIR_NAME = os.path.join("reports", "hla_popgen", "00_foundation")
 ANCESTRY_ORDER = ["AFR", "AMR", "EAS", "EUR", "MID", "SAS"]
 CLASSICAL_GENES = ["HLA-A", "HLA-B", "HLA-C", "HLA-DPA1", "HLA-DPB1", "HLA-DQA1", "HLA-DQB1",
                    "HLA-DRB1"]

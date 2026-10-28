@@ -179,12 +179,12 @@ numbers is the point: a standard population-genetics estimator built for neutral
 under-predicts how much allele space remains, because HLA isn't neutral.
 
 **Figures** (all in `reports/hla_popgen/`):
-![discovery_curves_novel](discovery_curves_novel.png)
-![discovery_curves_all](discovery_curves_all.png)
-![discovery_rate_convergence](discovery_rate_convergence.png)
-![frequency_spectrum_novel](frequency_spectrum_novel.png)
-![frequency_spectrum_known](frequency_spectrum_known.png)
-![frequency_spectrum_all](frequency_spectrum_all.png)
+![discovery_curves_novel](../00_foundation/discovery_curves_novel.png)
+![discovery_curves_all](../00_foundation/discovery_curves_all.png)
+![discovery_rate_convergence](../00_foundation/discovery_rate_convergence.png)
+![frequency_spectrum_novel](../00_foundation/frequency_spectrum_novel.png)
+![frequency_spectrum_known](../00_foundation/frequency_spectrum_known.png)
+![frequency_spectrum_all](../00_foundation/frequency_spectrum_all.png)
 
 ---
 
@@ -211,12 +211,12 @@ range across all ancestries — consistent with strong balancing selection keepi
 diverse everywhere, not just in one population.
 
 **Figures** (representative subset — all 8 genes have both a heatmap and bar chart):
-![heatmap_A](05_figures_frequency/lr/heatmap_A.png)
-![bar_A](05_figures_frequency/lr/bar_A.png)
-![heatmap_B](05_figures_frequency/lr/heatmap_B.png)
-![heatmap_DRB1](05_figures_frequency/lr/heatmap_DRB1.png)
-![diversity_indices](05_figures_frequency/lr/diversity_indices.png)
-![rank_frequency_spectrum](05_figures_frequency/lr/rank_frequency_spectrum.png)
+![heatmap_A](../05_figures_frequency/lr/heatmap_A.png)
+![bar_A](../05_figures_frequency/lr/bar_A.png)
+![heatmap_B](../05_figures_frequency/lr/heatmap_B.png)
+![heatmap_DRB1](../05_figures_frequency/lr/heatmap_DRB1.png)
+![diversity_indices](../05_figures_frequency/lr/diversity_indices.png)
+![rank_frequency_spectrum](../05_figures_frequency/lr/rank_frequency_spectrum.png)
 
 *(remaining per-gene heatmaps/bars for B, C, DPA1, DPB1, DQA1, DQB1 live in the same directory —
 worth a supplementary slide or appendix if the supervisor wants full-panel coverage.)*
@@ -255,12 +255,12 @@ discrete labels.
   the short-read cohort.
 
 **Figures (lr cohort):**
-![pca_pc1_pc2_by_ancestry](06_figures_structure/lr/pca_pc1_pc2_by_ancestry.png)
-![umap_by_ancestry](06_figures_structure/lr/umap_by_ancestry.png)
-![fst_dendrogram](06_figures_structure/lr/fst_dendrogram.png)
-![continuum_scatter_B](06_figures_structure/lr/continuum_scatter_B.png)
-![ternary_B](06_figures_structure/lr/ternary_B.png)
-![admixture_barcode](06_figures_structure/lr/admixture_barcode.png)
+![pca_pc1_pc2_by_ancestry](../06_figures_structure/lr/pca_pc1_pc2_by_ancestry.png)
+![umap_by_ancestry](../06_figures_structure/lr/umap_by_ancestry.png)
+![fst_dendrogram](../06_figures_structure/lr/fst_dendrogram.png)
+![continuum_scatter_B](../06_figures_structure/lr/continuum_scatter_B.png)
+![ternary_B](../06_figures_structure/lr/ternary_B.png)
+![admixture_barcode](../06_figures_structure/lr/admixture_barcode.png)
 
 The `lr_full` and `sr_full` variants of these figures live in
 `06_figures_structure/lr_full/` and `06_figures_structure/sr_full/` respectively — near-identical
@@ -313,15 +313,15 @@ the earlier TCR/BCR planning conversation (see the roadmap discussion) is actual
 on this data, not just theoretically possible.
 
 **Figures:**
-![sr_vs_lr_frequency_scatter](07_figures_crosscohort/lr/sr_vs_lr_frequency_scatter.png)
-![sr_lr_disagreement_by_ancestry](07_figures_crosscohort/lr/sr_lr_disagreement_by_ancestry.png)
-![template_distance_by_ancestry](07_figures_crosscohort/lr/template_distance_by_ancestry.png)
-![template_distance_sweep](07_figures_crosscohort/lr/template_distance_sweep.png)
-![resolution_cascade](07_figures_crosscohort/lr/resolution_cascade.png)
-![nonclassical_diversity](07_figures_crosscohort/lr/nonclassical_diversity.png)
-![gene_coverage_by_cohort](07_figures_crosscohort/lr/gene_coverage_by_cohort.png)
-![heterodimer_DQA1_DQB1](07_figures_crosscohort/lr/heterodimer_DQA1_DQB1.png)
-![heterodimer_DPA1_DPB1](07_figures_crosscohort/lr/heterodimer_DPA1_DPB1.png)
+![sr_vs_lr_frequency_scatter](../07_figures_crosscohort/lr/sr_vs_lr_frequency_scatter.png)
+![sr_lr_disagreement_by_ancestry](../07_figures_crosscohort/lr/sr_lr_disagreement_by_ancestry.png)
+![template_distance_by_ancestry](../07_figures_crosscohort/lr/template_distance_by_ancestry.png)
+![template_distance_sweep](../07_figures_crosscohort/lr/template_distance_sweep.png)
+![resolution_cascade](../07_figures_crosscohort/lr/resolution_cascade.png)
+![nonclassical_diversity](../07_figures_crosscohort/lr/nonclassical_diversity.png)
+![gene_coverage_by_cohort](../07_figures_crosscohort/lr/gene_coverage_by_cohort.png)
+![heterodimer_DQA1_DQB1](../07_figures_crosscohort/lr/heterodimer_DQA1_DQB1.png)
+![heterodimer_DPA1_DPB1](../07_figures_crosscohort/lr/heterodimer_DPA1_DPB1.png)
 
 ---
 
@@ -347,10 +347,10 @@ independent branch): 853/9,355 people (155 with >1) matched at least one of 11 H
 definitions, ranging from Ankylosing spondylitis (n=28) to Psoriasis (n=213).
 
 **Figures:**
-![embedding_matrix](08_embedding_compare/lr/matrix/embedding_matrix.png)
-![disease_real_diagnosis](08_embedding_compare/lr/disease/disease_real_diagnosis.png)
-![disease_alleles](08_embedding_compare/lr/disease/disease_alleles.png)
-![sanity_check](08_embedding_compare/lr/sanity_check/sanity_check.png)
+![embedding_matrix](../08_embedding_compare/lr/matrix/embedding_matrix.png)
+![disease_real_diagnosis](../08_embedding_compare/lr/disease/disease_real_diagnosis.png)
+![disease_alleles](../08_embedding_compare/lr/disease/disease_alleles.png)
+![sanity_check](../08_embedding_compare/lr/sanity_check/sanity_check.png)
 
 *(the full 12-panel grid's individual panels — `panel_full_enriched_*`, `panel_collapsed_nearest_ref_*`,
 `panel_known_only_*`, each in raw/PCA × ancestry/gradient — are in `08_embedding_compare/lr/matrix/`,
@@ -432,7 +432,7 @@ known peptide-binding-groove positions for the classical genes, consistent with 
 selection story that gets formally tested in §12.
 
 **Figure:**
-![mutation_topology_classical](09_mutation_topology/lr/mutation_topology_classical.png)
+![mutation_topology_classical](../09_mutation_topology/lr/mutation_topology_classical.png)
 
 ---
 
@@ -464,13 +464,13 @@ This is a large, systematic per-allele table (2,333 lines for gene B alone) rath
 of headline numbers — its natural output is the figures, not the table.
 
 **Figures (gene B pilot):**
-![pca_centroids_B](10_allele_ancestry_geometry/gene_B/pca_centroids_B.png)
-![ternary_B](10_allele_ancestry_geometry/gene_B/ternary_B.png)
-![tetrahedron_B](10_allele_ancestry_geometry/gene_B/tetrahedron_B.png)
+![pca_centroids_B](../10_allele_ancestry_geometry/gene_B/pca_centroids_B.png)
+![ternary_B](../10_allele_ancestry_geometry/gene_B/ternary_B.png)
+![tetrahedron_B](../10_allele_ancestry_geometry/gene_B/tetrahedron_B.png)
 
 **Figures (multi-gene extension):**
-![ternary_all_genes](10_allele_ancestry_geometry/multi_gene/ternary_all_genes.png)
-![ternary_gene_grid](10_allele_ancestry_geometry/multi_gene/ternary_gene_grid.png)
+![ternary_all_genes](../10_allele_ancestry_geometry/multi_gene/ternary_all_genes.png)
+![ternary_gene_grid](../10_allele_ancestry_geometry/multi_gene/ternary_gene_grid.png)
 
 *Status note: this is genuinely the newest, least-finalized workstream in the whole set (still
 untracked in git as of this report). Treat the gene-B numbers as solid (real cohort, real
@@ -609,9 +609,9 @@ story on its own** — exactly why this needed to be a systematic, cohort-wide c
 worked example.
 
 **Figures:**
-![diff_bases_histogram](17_raw_sequence_divergence/diff_bases_histogram.png)
-![diff_blocks_histogram](17_raw_sequence_divergence/diff_blocks_histogram.png)
-![shared_rate_by_class](17_raw_sequence_divergence/shared_rate_by_class.png)
+![diff_bases_histogram](../17_raw_sequence_divergence/diff_bases_histogram.png)
+![diff_blocks_histogram](../17_raw_sequence_divergence/diff_blocks_histogram.png)
+![shared_rate_by_class](../17_raw_sequence_divergence/shared_rate_by_class.png)
 
 **Read for slides:** the 94.82% exact-match headline is arguably the single strongest, most
 literally-worded validation of phasing quality in the entire report set — "19 times out of 20, real
@@ -655,7 +655,7 @@ already established as a general pattern (recovering the right biology and reach
 a given cohort size are different questions).
 
 **Figure:**
-![disease_allele_association_forest](13_disease_allele_association/disease_allele_association_forest.png)
+![disease_allele_association_forest](../13_disease_allele_association/disease_allele_association_forest.png)
 
 ---
 
@@ -783,19 +783,19 @@ that reports everything as hyperdiverse would be measuring noise, not selection.
   false positive being walked back; it's a case of genuine underpowering at small n.
 
 **Figures:**
-![panel_overview](21_hla_manhattan/panel_overview.png)
-![A_manhattan](21_hla_manhattan/A_manhattan.png)
-![B_manhattan](21_hla_manhattan/B_manhattan.png)
-![C_manhattan](21_hla_manhattan/C_manhattan.png)
-![DRB1_manhattan](21_hla_manhattan/DRB1_manhattan.png)
-![DQA1_manhattan](21_hla_manhattan/DQA1_manhattan.png)
-![DQB1_manhattan](21_hla_manhattan/DQB1_manhattan.png)
-![DPA1_manhattan](21_hla_manhattan/DPA1_manhattan.png)
-![DPB1_manhattan](21_hla_manhattan/DPB1_manhattan.png)
-![DRA_manhattan](21_hla_manhattan/DRA_manhattan.png)
-![E_manhattan](21_hla_manhattan/E_manhattan.png)
-![F_manhattan](21_hla_manhattan/F_manhattan.png)
-![G_manhattan](21_hla_manhattan/G_manhattan.png)
+![panel_overview](../21_hla_manhattan/panel_overview.png)
+![A_manhattan](../21_hla_manhattan/A_manhattan.png)
+![B_manhattan](../21_hla_manhattan/B_manhattan.png)
+![C_manhattan](../21_hla_manhattan/C_manhattan.png)
+![DRB1_manhattan](../21_hla_manhattan/DRB1_manhattan.png)
+![DQA1_manhattan](../21_hla_manhattan/DQA1_manhattan.png)
+![DQB1_manhattan](../21_hla_manhattan/DQB1_manhattan.png)
+![DPA1_manhattan](../21_hla_manhattan/DPA1_manhattan.png)
+![DPB1_manhattan](../21_hla_manhattan/DPB1_manhattan.png)
+![DRA_manhattan](../21_hla_manhattan/DRA_manhattan.png)
+![E_manhattan](../21_hla_manhattan/E_manhattan.png)
+![F_manhattan](../21_hla_manhattan/F_manhattan.png)
+![G_manhattan](../21_hla_manhattan/G_manhattan.png)
 
 **Honest limitations, stated in the source report and worth carrying into slides if this result is
 featured prominently:** insertions relative to the canonical reference have no coordinate and are
@@ -879,7 +879,7 @@ Pulled together in one place so nothing gets overstated when copied into slides:
 
 ## 16. Sprint S05 (October 2026): QC, phasing, KIR and the TRB insertion
 
-The full, figure-by-figure writeup is `sprints/S05_qc_phasing_kir_trb/S05_REPORT.html` (scripts 50–65). It has a background
+The full, figure-by-figure writeup is `reports/sprint_reports/S05_REPORT.html` (scripts 50–65). It has a background
 course, a data trail for every analysis, and the independent review's corrections. The headlines, with how far each one goes:
 
 - **Phasing.** In 179 trios, one-contig DQ, DR–DQ, DP and B~C pairs mix parents in fewer than 20 of ~250 cases (a masking
@@ -907,7 +907,7 @@ course, a data trail for every analysis, and the independent review's correction
 Written per sprint rather than folded in here; read these for the narrative and figures.
 - **S06 call quality (scripts 70-79):** `sprints/S06_call_quality_metrics/LOG.md`; final report built by `scripts/hla_popgen/79_s06_final_report.py` (local, from aggregate tables). Per-call exon/CDS depth and Immuannot metrics against trio/pair typing error, with pruning curves, for HLA and KIR.
 - **S08 case browser (90-96):** `sprints/S08_case_browser/LOG.md`, `reports/hla_popgen/90_case_browser/README.md`; most "novel" calls trace to IPD 3.55 bias or platform error; HLA-F signatures show allele-specific expression.
-- **S09 discovery loop (100-114):** `sprints/S09_discovery_loop/{README,LEDGER,LOG}.md`, aggregate-only report `reports/hla_popgen/S09_discovery_loop/S09_report.html` (counts <20 masked).
+- **S09 discovery loop (100-114):** `sprints/S09_discovery_loop/{README,LEDGER,LOG}.md`, aggregate-only report `reports/sprint_reports/S09_REPORT.html` (counts <20 masked).
 
 ---
 

@@ -1,6 +1,6 @@
 """104 S09 discovery-loop report (HTML, inline SVG; aggregate numbers only, every count shown is >= 20 or '<20').
 
-  python3 scripts/hla_popgen/104_s09_report.py --out reports/hla_popgen/S09_discovery_loop/S09_report.html
+  python3 scripts/hla_popgen/104_s09_report.py --out reports/sprint_reports/S09_REPORT.html
 Reuses the figure helpers of 94_s08_report.py.
 """
 import argparse

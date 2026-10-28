@@ -883,7 +883,7 @@ into `main`. Changes: 26 committed `.ipynb_checkpoints/` copies untracked and gi
 `*.pyc`); new `reports/hla_popgen/README.md` index (current vs superseded result folders, no
 folder moved); `context/STATUS.md` rewritten to current state only (older dated sections are in
 git history and in each sprint's `SPRINT.md`/`LOG.md`); disclosure flag on
-`reports/hla_popgen/novel_alleles.tsv` added to DECISIONS.md open questions; calls #9/#10
+`reports/hla_popgen/00_foundation/novel_alleles.tsv` added to DECISIONS.md open questions; calls #9/#10
 recorded as having no notes in `sprints/_calls/README.md`.
 
 ## 2026-10-11 — Repo sync: 10-06 S05 work committed; call notes untracked

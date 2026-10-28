@@ -105,7 +105,7 @@ import pandas as pd
 # (written by 01/02) actually live -- do not derive those paths from --outroot any more.
 DEFAULT_DATA_ROOT = os.path.expanduser("~/pipeline_outputs")
 DEFAULT_OUTROOT = os.path.join(DEFAULT_DATA_ROOT, "people")
-DEFAULT_REPORTS_DIR_NAME = os.path.join("reports", "hla_popgen")
+DEFAULT_REPORTS_DIR_NAME = os.path.join("reports", "hla_popgen", "00_foundation")
 
 # minimap2 short-form `cs` tag tokens: ':N' (N identical bases), '*xy' (substitution ref x, obs y),
 # '+seq'/'-seq' (insertion/deletion of seq). See reference/IMMUANNOT_GTF_SPEC.md part A/C.
@@ -667,7 +667,7 @@ def main():
                          "~/pipeline_outputs/cohort_membership.tsv")
     ap.add_argument("--out-dir", default=None,
                     help="Where to write novel_alleles.tsv + the markdown report (aggregate-only "
-                         "-- SCHEMA.md hard rule #5). Default: <repo_root>/reports/hla_popgen")
+                         "-- SCHEMA.md hard rule #5). Default: <repo_root>/reports/hla_popgen/00_foundation")
     ap.add_argument("--seqs-path", default=None,
                     help="Where to write the VM-only novel_alleles_seqs.fa (real nucleotide "
                          "sequences -- never belongs in a report or the repo). Default: "

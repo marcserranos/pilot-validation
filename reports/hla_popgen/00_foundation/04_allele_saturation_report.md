@@ -94,14 +94,14 @@ Chao2 above uses only Q1/Q2 (the two lowest rarity classes) at the CURRENT sampl
 Compare this table's `% discovered (Clench)` against the Chao2-based headline table above -- material disagreement between the two estimators on the same gene is a signal worth investigating (e.g. a gene where the rarefaction curve hasn't started bending yet will push Clench's S_max toward implausibly large values; a gene with Q2=0 will make Chao2 unstable instead). Full ancestry-stratified fits: `discovery_rate_fits.tsv`.
 
 
-Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/discovery_curves_novel.png`
+Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/00_foundation/discovery_curves_novel.png`
 
-Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/discovery_curves_all.png`
+Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/00_foundation/discovery_curves_all.png`
 
-Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/discovery_rate_convergence.png`
+Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/00_foundation/discovery_rate_convergence.png`
 
-Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/frequency_spectrum_novel.png`
+Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/00_foundation/frequency_spectrum_novel.png`
 
-Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/frequency_spectrum_known.png`
+Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/00_foundation/frequency_spectrum_known.png`
 
-Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/frequency_spectrum_all.png`
+Figure: `/home/jupyter/repos/pilot-validation/reports/hla_popgen/00_foundation/frequency_spectrum_all.png`
