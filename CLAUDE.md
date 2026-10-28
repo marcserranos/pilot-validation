@@ -112,6 +112,8 @@ redoing it.
 
 ## Report/traceability convention
 
+- Sprint reports (HTML or otherwise) go in `reports/sprint_reports/S0N_REPORT.html`, nothing else in `reports/` top level, no loose files in `reports/hla_popgen/` (only its `README.md`).
+
 - `context/EXPERIMENTS.md` — append-only, one entry per run (what, result, timing). This is
   the audit trail; never rewrite past entries.
 - `context/DECISIONS.md` — open questions at top, resolved decisions with rationale below.

@@ -10,5 +10,7 @@ The delivery-ready, self-contained document of each sprint lives here. Per-scrip
 | S08 case browser / novel recheck | `S08_REPORT.html` (local) | `scripts/hla_popgen/94_s08_report.py --out reports/sprint_reports/S08_REPORT.html` | no (participant-derived sequence) |
 | S09 discovery loop | [`S09_REPORT.html`](S09_REPORT.html) | `scripts/hla_popgen/104_s09_report.py --out reports/sprint_reports/S09_REPORT.html` | yes (aggregate only, counts <20 masked) |
 
+**Rule:** a sprint's report goes here as `S0N_REPORT.html` — never in a sprint folder or in `reports/hla_popgen/`. The builder's `--out` points here; per-script results stay in `reports/hla_popgen/NN_*/`.
+
 S01–S04 have no single report: their plain-language findings are `FINDINGS_FOR_MARC.md` in each sprint folder
 (`sprints/S0N_*/`), with the S04 figure catalogue in `FIGURES_INDEX.md`.
