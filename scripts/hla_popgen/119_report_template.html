@@ -21,6 +21,13 @@ svg{max-width:100%;height:auto}svg text{fill:var(--fg);font-family:inherit;font-
 <h1>Novel HLA alleles: how many, how sure, how many submittable</h1>
 <div id="datastate"></div>
 
+<h2>0. Three terms used throughout</h2>
+<div class="card">
+<p><b>Call.</b> For every person, every one of their two chromosome copies (haplotypes) and every HLA gene, the pipeline (Immuannot, run on the long-read assemblies) reports one allele name, e.g. <code>B*07:02:01:01</code>. That is one <i>call</i>: one observation in one person. 12,233 people × 2 haplotypes × ~14 genes gives hundreds of thousands of calls. A <b>novel call</b> is one the pipeline could not match to any allele in its own (old, release 3.55) reference list, so it names the closest known allele and marks the rest as “new”.</p>
+<p><b>Rebuildable call.</b> For a novel call the pipeline does not hand over the new sequence directly. It gives the closest known allele plus a list of differences from it. A call is <i>rebuildable</i> when we can take that known allele's public sequence, apply the list of differences, and get the complete novel coding sequence back, with every changed base known. 137 of the 8,015 novel calls cannot be rebuilt (the difference list stops short of the whole sequence, or disagrees with the reference), so we cannot say exactly what is different and leave them out. “Substitution-only” means the differences are all single-base swaps, with no inserted or deleted bases; those are the only calls we trust (section 2).</p>
+<p><b>Signature.</b> A signature is the fingerprint of one candidate allele: <i>gene + closest known allele + the exact set of base swaps</i>. If ten people carry the same new allele, that is ten calls (or more, if some carry it on both chromosomes) but one signature. So “675 calls collapse to 441 signatures” means: 675 person-haplotype observations turned out to be only 441 different candidate alleles; 392 of those were seen in a single person and 49 in two or more people. The new scripts (118/119) count by the resulting coding sequence rather than by closest-allele-plus-swaps, which merges the rare cases where two different closest alleles lead to the same new sequence; I call that unit an <b>allele</b> from section 1 on, and the numbers can differ slightly from the signature counts.</p>
+</div>
+
 <h2>1. The short answer</h2>
 <div class="kpis" id="kpis"></div>
 <p id="answer"></p>
@@ -31,7 +38,7 @@ svg{max-width:100%;height:auto}svg text{fill:var(--fg);font-family:inherit;font-
 
 <h2>2. Where the 8,015 "novel" calls go (funnel)</h2>
 <p>Immuannot called 8,015 novel HLA haplotype-genes in the long-read cohort. Most are not alleles at all. This figure uses the S08 log numbers; if the new VM table is loaded the second panel shows the recomputed funnel.</p>
-<figure><div id="fig_funnel"></div><figcaption>Static S08 numbers (<code>sprints/S08_case_browser/LOG.md</code>, 10-21 and 10-23 entries). Bars are on a log scale. 441 is the number of <i>signatures</i> (script 91); 54 exact + 8 partial matches to 3.66 are from the same run.</figcaption></figure>
+<figure><div id="fig_funnel"></div><figcaption>Static S08 numbers (<code>sprints/S08_case_browser/LOG.md</code>, 10-21 and 10-23 entries). Bars are on a log scale. 441 is the number of <i>signatures</i> (script 91; see section 0); 54 exact + 8 partial matches to 3.66 are from the same run.</figcaption></figure>
 <div id="funnel_vm"></div>
 <details><summary>Why indels are dropped: the evidence</summary>
 <p>Of 7,635 novel-protein calls, 86% are indel-only and 93% carry a frameshift; at 1 edit from the reference, 91% are indel-only and 72% of those sit in homopolymer or tandem runs. Indels do not recur at fixed loci (462 distinct sites for 486 events), and 41 of 140 indel-carrying cases restore the frame with a second indel. Indel-bearing novel calls per person are ≈2× higher on Sequel II than on Revio at every ancestry, whereas substitution-only calls are platform-flat. Short reads agree: only 4% of indels are supported (79% not seen, 8% contradicted). Reading: the indel “novelty” is assembly-consensus error, not new alleles.</p></details>
