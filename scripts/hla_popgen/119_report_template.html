@@ -1,0 +1,239 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Novel HLA alleles: how many, how sure, how many submittable</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#666a73;--card:#fff;--line:#e2e0d8;--a:#2f6f8f;--b:#c8693a;--c:#6a8f3a;--d:#c8a13a;--e:#b3402a;--hi:rgba(47,111,143,.09)}
+@media (prefers-color-scheme:dark){:root{--bg:#16181c;--fg:#ecebe6;--mut:#9aa0a8;--card:#1f2228;--line:#333842;--a:#6fb3d2;--b:#e8956a;--c:#9cc46a;--d:#e0c060;--e:#e8806a;--hi:rgba(111,179,210,.12)}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 -apple-system,Segoe UI,Helvetica,Arial,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:28px 16px 90px}h1{font-size:1.9rem;line-height:1.2;margin:.2em 0}h2{margin:2.2em 0 .4em;font-size:1.35rem;border-top:1px solid var(--line);padding-top:.8em}h3{font-size:1.05rem;margin:1.3em 0 .3em}
+p,li{max-width:76ch}.sub{color:var(--mut)}code{background:rgba(127,127,127,.15);padding:0 4px;border-radius:4px;font-size:.9em}
+.card,figure{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:14px 0}figcaption{color:var(--mut);font-size:.9rem;margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:var(--card)}th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}th{background:var(--hi)}
+.banner{border-left:4px solid var(--b);padding:8px 12px;background:rgba(200,105,58,.09);margin:14px 0;border-radius:4px}.ok{border-left-color:var(--c);background:rgba(106,143,58,.09)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}.kpi b{display:block;font-size:1.6rem;color:var(--a)}.kpi span{color:var(--mut);font-size:.85rem}
+details{border:1px solid var(--line);border-radius:10px;padding:2px 14px;margin:12px 0;background:rgba(128,128,128,.05)}summary{cursor:pointer;font-weight:600;padding:8px 0}
+svg{max-width:100%;height:auto}svg text{fill:var(--fg);font-family:inherit;font-size:12px}svg .m{fill:var(--mut)}svg .ax{stroke:var(--mut);stroke-width:1;fill:none}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 18px}.ctl fieldset{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0}.ctl legend{font-size:.82rem;color:var(--mut);padding:0 4px}
+.ctl label{display:block;font-size:.9rem}button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:4px 10px;cursor:pointer;margin:2px}button:hover{background:var(--hi)}button.on{border-color:var(--a);background:var(--hi)}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+@media(max-width:600px){h1{font-size:1.5rem}}
+</style></head><body><main>
+<p class="sub">Omni-HLA · sprint S08 follow-up · built __BUILT__ · IPD-IMGT/HLA reference release: <b id="relname">__REL__</b></p>
+<h1>Novel HLA alleles: how many, how sure, how many submittable</h1>
+<div id="datastate"></div>
+
+<h2>1. The short answer</h2>
+<div class="kpis" id="kpis"></div>
+<p id="answer"></p>
+<details><summary>What counts as one "novel allele" here, and what is excluded</summary>
+<p><b>Unit.</b> One distinct observed coding sequence (CDS) per gene. Script 91 (used in the S08 numbers below) keys on <i>reference allele + substitution set</i>, so it counts <i>signatures</i>; 118 collapses signatures that reach the same CDS, so the two counts can differ slightly.</p>
+<p><b>Pool = "minimally novel".</b> (i) Immuannot labelled the call "new" against its own (old, 3.55) reference set; (ii) the CDS can be rebuilt from the public reference allele plus the alignment string ("rebuildable"), so we know exactly which bases differ; (iii) it carries <b>no insertion or deletion</b>; (iv) it is <b>not an exact CDS of a named allele in the newest IPD-IMGT/HLA release</b> (3.66.0, 14 Oct 2026, verified on the GitHub mirror). A short-read check is then <i>a confidence axis</i>, not a gate: you decide below how much of it to require.</p>
+<p><b>What is not in the pool.</b> Indel-bearing calls (≈94% of "novel-protein" calls; most are consensus errors, see section 2); calls whose cs string cannot be replayed; novelty beyond the CDS (introns/UTRs; CDS identical); KIR and other non-HLA genes.</p></details>
+
+<h2>2. Where the 8,015 "novel" calls go (funnel)</h2>
+<p>Immuannot called 8,015 novel HLA haplotype-genes in the long-read cohort. Most are not alleles at all. This figure uses the S08 log numbers; if the new VM table is loaded the second panel shows the recomputed funnel.</p>
+<figure><div id="fig_funnel"></div><figcaption>Static S08 numbers (<code>sprints/S08_case_browser/LOG.md</code>, 10-21 and 10-23 entries). Bars are on a log scale. 441 is the number of <i>signatures</i> (script 91); 54 exact + 8 partial matches to 3.66 are from the same run.</figcaption></figure>
+<div id="funnel_vm"></div>
+<details><summary>Why indels are dropped: the evidence</summary>
+<p>Of 7,635 novel-protein calls, 86% are indel-only and 93% carry a frameshift; at 1 edit from the reference, 91% are indel-only and 72% of those sit in homopolymer or tandem runs. Indels do not recur at fixed loci (462 distinct sites for 486 events), and 41 of 140 indel-carrying cases restore the frame with a second indel. Indel-bearing novel calls per person are ≈2× higher on Sequel II than on Revio at every ancestry, whereas substitution-only calls are platform-flat. Short reads agree: only 4% of indels are supported (79% not seen, 8% contradicted). Reading: the indel “novelty” is assembly-consensus error, not new alleles.</p></details>
+
+<h2>3. How the short reads validate a call</h2>
+<p>The novel sequence comes from a long-read assembly, so the short reads (srWGS, a different instrument and chemistry) are the independent witness. For every carrier and every substitution that makes the allele novel we ask: do this person's own short reads carry the base that the assembly says is there?</p>
+<figure><div id="fig_sr"></div><figcaption>Method of script 90 <code>sr</code>: reads over the gene's hg38 locus are pulled from the person's CRAM, realigned with minimap2 to the <i>called haplotype's own</i> gene sequence (not GRCh38, which avoids the reference bias that plagues HLA), and counted at each difference as: carrying the called base (k), carrying the other haplotype's base, or carrying a third base.</figcaption></figure>
+<h3>Turning counts into a confidence number</h3>
+<p>With k reads of n carrying the called base, the log10 likelihood ratio (LOD) of “the variant sits on this haplotype” versus “it is absent and the reads are just noise” is
+<code>LOD = k·log10(p1/e) + (n−k)·log10((1−p1)/(1−e))</code>, with p1 = 0.5 at a heterozygous site (the other haplotype has a different base) or 0.98 at a homozygous one, and e = 0.02 as background (sequencing error, mis-assigned reads, residual reference bias). LOD ≥ 3 means 1,000:1. A carrier's score is its <b>weakest</b> site; an allele's level comes from its best carrier, and “independent support” counts carriers with score ≥ 3 after removing relatives.</p>
+<figure><div id="fig_lod"></div><figcaption>Expected LOD versus depth for three situations. A true heterozygous variant (half the reads) crosses LOD 3 at about 5 reads and keeps climbing; a pure-noise site (2% of reads) stays negative; a site with 15% of reads — typical of a paralog or reference-bias artefact — is barely positive and plateaus slowly. Depth, not just fraction, is what makes a call certain.</figcaption></figure>
+<div id="fig_srhist_wrap"></div>
+<details><summary>What the short reads said in the sampled S08 cases (static, 567 cases / 1,097 sites)</summary>
+<p>Indels: 79% not seen, 8% contradicted, 4% supported. Protein-altering substitutions: 60% supported, 13% “half the reads” (other haplotype call may differ), 18% not seen. Synonymous: 68% supported. Of 439 substitution-only cases with short reads, 281 had every checked site supported (189 with a protein-altering change). These come from a stratified sample, not population rates.</p></details>
+
+<h2>4. How often is each novel allele seen?</h2>
+<p>The selector in section 6 draws this histogram live; the first view below is the whole pool. Bars are coloured by the confidence bucket of section 5.</p>
+
+<h2>5. Confidence buckets (my version; edit your own in the selector)</h2>
+<figure><div id="fig_buckets"></div><figcaption>Rule order matters: the first bucket whose rule holds wins; “unlikely” catches everything that failed a hard check.</figcaption></figure>
+<table><tr><th>Bucket</th><th>Rule (all must hold)</th><th>What it would take to submit</th></tr>
+<tr><td><span class="sw" style="background:var(--a)"></span>1 ready to submit</td><td>clean template, ≤15 edits, SR LOD ≥ 3 in ≥2 independent carriers, ≥2 unrelated carriers, and either a parent also carries it or carriers sit on ≥2 sequencing platforms</td><td>Package the phased long-read haplotype (exons 2-3 for class I, exon 2 for class II at minimum), nearest allele, SR as second method; check the two-field typing of the donor.</td></tr>
+<tr><td><span class="sw" style="background:var(--c)"></span>2 submittable</td><td>clean template, ≤15 edits, SR LOD ≥ 3 in ≥1 carrier</td><td>IPD accepts single individuals; add raw-read evidence and, ideally, one more carrier or trio.</td></tr>
+<tr><td><span class="sw" style="background:var(--d)"></span>3 uncertain</td><td>clean template, ≤15 edits, but SR absent, not evaluated or weak (LOD 0-3)</td><td>Needs short-read or wet-lab confirmation first.</td></tr>
+<tr><td><span class="sw" style="background:var(--e)"></span>4 unlikely</td><td>suffix (N/L/S/C/A/Q) or truncated template, &gt;15 edits, or SR contradicts (LOD &lt; 0)</td><td>Treat as wrong-template or artefact until shown otherwise.</td></tr></table>
+
+<h2>6. Selector: change the strictness and watch the distribution</h2>
+<div class="card" id="selector">
+<div id="sel_nodata" class="banner">Load a <code>ladder_data.*.json</code> file from the VM run (or open the report built on the VM, which embeds it): <input type="file" id="fileIn" accept=".json"></div>
+<div id="sel_ui" style="display:none">
+<p>Presets: <span id="presets"></span></p>
+<div class="ctl">
+<fieldset><legend>Count carriers as</legend><label><input type="radio" name="unit" value="u" checked> unrelated persons only</label><label><input type="radio" name="unit" value="a"> all carriers (relatives included)</label>
+<label>minimum carriers <select id="minx"></select></label></fieldset>
+<fieldset><legend>Protein effect</legend><label><input type="checkbox" id="e0" checked> synonymous</label><label><input type="checkbox" id="e1" checked> missense</label><label><input type="checkbox" id="e2" checked> nonsense (stop-gain)</label></fieldset>
+<fieldset><legend>Against the newest IPD release</legend><label><input type="checkbox" id="ip1" checked> include “partial” matches (a shorter named entry sits inside the CDS)</label><label><input type="checkbox" id="g0" checked> classical genes</label><label><input type="checkbox" id="g1" checked> non-classical (E/F/G)</label></fieldset>
+<fieldset><legend>Short-read confidence</legend><label>minimum level <select id="srl"></select></label><label>independent carriers with LOD ≥ 3 <select id="srn"><option value="0">any</option><option value="1">≥ 1</option><option value="2">≥ 2</option></select></label></fieldset>
+<fieldset><legend>Quality bars</legend><label><input type="checkbox" id="rc"> clean template only (no suffix, not truncated)</label><label><input type="checkbox" id="near"> ≤ 15 edits from reference</label><label><input type="checkbox" id="mp"> unrelated carriers on ≥ 2 platforms</label><label><input type="checkbox" id="tr"> a parent also carries it</label><label><input type="checkbox" id="hm"> seen homozygous</label></fieldset>
+<fieldset><legend>Show buckets</legend><div id="bk"></div><label><input type="checkbox" id="logy"> log y-axis</label></fieldset>
+</div>
+<div class="kpis" id="selk" style="margin-top:12px"></div>
+<figure><div id="fig_hist"></div><figcaption id="hist_cap"></figcaption></figure>
+<div id="eff_tbl"></div>
+<p><button id="copyset">Copy these settings (JSON)</button> <span class="sub" id="copied"></span></p>
+<div id="imgtpanel"></div>
+</div></div>
+
+<h2>7. Saturation: how fast do we run out of new alleles?</h2>
+<p>Random orderings of persons; at every size the number of distinct alleles seen so far (median line, 5th-95th percentile band, 100 orderings). Only genes we call, only the pool, and the subsets we are fairly sure are real. A curve that flattens means the cohort has found most of what this method can find; a curve still rising means more people give more alleles.</p>
+<div class="card"><label><input type="radio" name="satmode" value="unrelated" checked> unrelated persons</label> <label><input type="radio" name="satmode" value="all"> all persons (relatives included)</label>
+<div id="fig_sat"></div></div>
+
+<h2>8. What IPD-IMGT/HLA requires, and what the literature did</h2>
+<div class="banner">Compiled by a research agent from search-result summaries on 2026-10-29; ebi.ac.uk and PMC were unreachable from the sandbox, so <b>nothing here was read from the primary page</b>. Check each row against the live guidelines before an actual submission.</div>
+<table><tr><th>Item</th><th>Finding</th><th>Status</th></tr>
+<tr><td>Minimum sequence</td><td>Exons 2 and 3 (class I), exon 2 (class II); full-length “required in the near future”. Novelty outside coding sequence needs full length.</td><td>from guideline snippet</td></tr>
+<tr><td>Confirmation</td><td>Repeat sequencing <i>or</i> a second DNA-based typing method. In a heterozygote the new allele must be sequenced apart from the other (phased).</td><td>from guideline snippet</td></tr>
+<tr><td>Source individual</td><td>Two-field typing of A, B, C, DRB1 expected; tumour-only material not accepted; primer sequence trimmed.</td><td>from guideline snippet</td></tr>
+<tr><td>Single individuals</td><td>Apparently acceptable (database encourages confirming alleles known from one person).</td><td>inference</td></tr>
+<tr><td>Depth / strands / Sanger / family data / number of individuals</td><td>No explicit numbers found.</td><td><b>not found</b></td></tr>
+<tr><td>Process</td><td>Online Submission Tool; closest named allele required; ~1 month curation; the Nomenclature Committee names at the next quarterly release.</td><td>from documentation snippets</td></tr>
+<tr><td>Suffixes</td><td>N = null, Q = questionable expression. No text found on indels, pseudogenes or non-classical genes (the database does hold HLA-E and pseudogene entries).</td><td>partly not found</td></tr>
+<tr><td>Bulk practice</td><td>No bulk policy found; semi-automated with TypeLoader2; DKMS submitted 1,056 full-length alleles with an Illumina + PacBio dual workflow.</td><td>literature</td></tr>
+<tr><td>Discovery rates</td><td>≈24-25 novel alleles in &gt;1,000 Africans (full-length NGS, 11 loci, vs 3.62; 4 non-synonymous in the groove); DKMS HLA-E: 345 novel sequences in 1,666 samples, 170 novel alleles (93 novel proteins) submitted.</td><td>literature, unverified</td></tr></table>
+<h3>What our data can and cannot satisfy</h3>
+<ul><li><b>Satisfied by construction:</b> phased haplotype (long-read assembly), indel-free CDS, nearest allele known, germline source.</li>
+<li><b>Satisfied only if the bucket says so:</b> a second independent method (short reads; LOD ≥ 3), replication in more than one person, transmission.</li>
+<li><b>Not checkable from the VM table:</b> full-length genomic extent beyond the CDS, two-field typing of the donor for A/B/C/DRB1, how IPD weighs short-read confirmation versus Sanger. These need a human look at the guideline.</li></ul>
+
+<h2>9. Should we also validate with long reads? My take</h2>
+<p><b>Yes, but for a different question.</b> The assembly itself is made from long reads, so a long-read pileup is <i>not independent</i> of the call; it cannot rescue a systematic error. What it adds: (1) it catches <b>consensus errors</b> — the 86% indel problem — because a pileup at the exact position shows whether individual reads agree or the assembler invented the base; (2) it tests <b>phase</b>, which IPD requires and short reads cannot give; (3) it gives per-read evidence to attach to a submission. Script 105 already does this for recurrent signatures against GRCh38 BAMs; its weakness is the same reference bias as any HLA pileup, so use it as a negative filter (reject) rather than a positive one. The strongest independent evidence we have is not a read pileup at all: <b>transmission across platforms</b> (child long-read, parent short-read) and <b>RNA</b> (the two HLA-F alleles are transcribed). I would add long-read pileup as one more column once the short-read table exists, not as a replacement.</p>
+
+<h2>10. Limits and disclosure</h2>
+<ul><li>Counts of 1-19 participants are never written outside the Workbench: the public build shows classes 1 / 2-19 and exact values only from 20 up. The exact-count build must be created and kept on the VM.</li>
+<li>Short-read evidence exists only for carriers that were extracted (<code>90 extract --exhaustive-snv</code> cap) and not for DRB3/4/5; “not evaluated” is a bucket, not a failure.</li>
+<li>Ancestry labels are AoU predictions; relatedness is thinned with a greedy rule, so unrelated counts are lower bounds.</li>
+<li>e = 0.02 and the ≤15-edit cut-off are judgement calls (S08 log, 10-23); the selector lets you move the bars, but not e. Re-run 118 with another e to change the LOD itself.</li></ul>
+</main>
+<script>
+var DATA=__DATA_JSON__;
+var BUCKETS=["1 ready to submit","2 submittable","3 uncertain","4 unlikely"],BC=["var(--a)","var(--c)","var(--d)","var(--e)"];
+var SRL=["not evaluated","contradicted (LOD<0)","weak (0-3)","moderate (3-6)","strong (≥6)"];
+function $(i){return document.getElementById(i)}
+function fmt(n){return n==null?"<20":String(n)}
+/*BUCKET-BEGIN*/
+function bucket(r){var xu=r.xu!=null?r.xu:(r.xuc===0?1:2);
+ if(!(r.rc&&r.near)||r.srl===1)return 3;
+ if(r.srl>=3&&r.srn>=2&&xu>=2&&(r.tr||r.mp))return 0;
+ if(r.srl>=3)return 1;return 2;}
+/*BUCKET-END*/
+/* ---------- tiny svg helpers ---------- */
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+function axisSvg(w,h,m){return {w:w,h:h,m:m}}
+function lineChart(el,series,opt){var W=720,H=300,m={l:52,r:14,t:14,b:40},iw=W-m.l-m.r,ih=H-m.t-m.b;
+ var xs=[].concat.apply([],series.map(function(s){return s.x})),ys=[].concat.apply([],series.map(function(s){return s.y.concat(s.hi||[],s.lo||[])}));
+ var x0=opt.xlog?Math.log10(Math.max(1,Math.min.apply(null,xs))):Math.min.apply(null,xs),x1=opt.xlog?Math.log10(Math.max.apply(null,xs)):Math.max.apply(null,xs);
+ var y0=opt.y0!=null?opt.y0:Math.min.apply(null,ys),y1=Math.max.apply(null,ys)*1.05||1;if(y1===y0)y1=y0+1;
+ function X(v){var t=opt.xlog?Math.log10(Math.max(1,v)):v;return m.l+(t-x0)/((x1-x0)||1)*iw}function Y(v){return m.t+ih-(v-y0)/(y1-y0)*ih}
+ var o='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.title||"")+'">';
+ for(var i=0;i<=4;i++){var v=y0+(y1-y0)*i/4;o+='<line x1="'+m.l+'" x2="'+(W-m.r)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--line)"/><text class="m" x="'+(m.l-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+(Math.abs(v)>=100?Math.round(v):v.toFixed(Math.abs(v)<10?1:0))+'</text>'}
+ var xt=opt.xticks||[];xt.forEach(function(v){o+='<text class="m" x="'+X(v)+'" y="'+(H-m.b+16)+'" text-anchor="middle">'+v+'</text><line class="ax" x1="'+X(v)+'" x2="'+X(v)+'" y1="'+(H-m.b)+'" y2="'+(H-m.b+4)+'"/>'});
+ o+='<line class="ax" x1="'+m.l+'" x2="'+(W-m.r)+'" y1="'+(H-m.b)+'" y2="'+(H-m.b)+'"/><line class="ax" x1="'+m.l+'" x2="'+m.l+'" y1="'+m.t+'" y2="'+(H-m.b)+'"/>';
+ if(opt.hline!=null)o+='<line x1="'+m.l+'" x2="'+(W-m.r)+'" y1="'+Y(opt.hline)+'" y2="'+Y(opt.hline)+'" stroke="var(--mut)" stroke-dasharray="4 3"/><text class="m" x="'+(W-m.r)+'" y="'+(Y(opt.hline)-4)+'" text-anchor="end">'+esc(opt.hlabel||"")+'</text>';
+ series.forEach(function(s){if(s.hi&&s.lo){var p=s.x.map(function(v,i){return X(v)+","+Y(s.hi[i])}).concat(s.x.map(function(v,i){return X(v)+","+Y(s.lo[i])}).reverse());o+='<polygon points="'+p.join(" ")+'" fill="'+s.c+'" opacity=".16"/>'}
+  o+='<polyline fill="none" stroke="'+s.c+'" stroke-width="2" points="'+s.x.map(function(v,i){return X(v)+","+Y(s.y[i])}).join(" ")+'"/>'});
+ o+='<text class="m" x="'+(m.l+iw/2)+'" y="'+(H-4)+'" text-anchor="middle">'+esc(opt.xl||"")+'</text><text class="m" transform="translate(13,'+(m.t+ih/2)+') rotate(-90)" text-anchor="middle">'+esc(opt.yl||"")+'</text>';
+ o+='</svg><div style="font-size:.85rem">'+series.map(function(s){return '<span class="sw" style="background:'+s.c+'"></span>'+esc(s.name)+'&nbsp;&nbsp; '}).join("")+'</div>';
+ el.innerHTML=o}
+function barChart(el,labels,stacks,opt){var W=720,H=300,m={l:52,r:14,t:14,b:56},iw=W-m.l-m.r,ih=H-m.t-m.b,n=labels.length;
+ var tot=labels.map(function(_,i){return stacks.reduce(function(a,s){return a+(s.v[i]||0)},0)}),mx=Math.max(1,Math.max.apply(null,tot));
+ var lg=opt.log,Y=function(v){return lg?(v<=0?0:Math.log10(v+1)/Math.log10(mx+1)):v/mx};
+ var o='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.title||"")+'">',bw=iw/n;
+ for(var i=0;i<=4;i++){var f=i/4,v=lg?Math.round(Math.pow(mx+1,f)-1):Math.round(mx*f);o+='<line x1="'+m.l+'" x2="'+(W-m.r)+'" y1="'+(m.t+ih-f*ih)+'" y2="'+(m.t+ih-f*ih)+'" stroke="var(--line)"/><text class="m" x="'+(m.l-6)+'" y="'+(m.t+ih-f*ih+4)+'" text-anchor="end">'+v+'</text>'}
+ labels.forEach(function(lb,i){var base=0,x=m.l+i*bw+bw*.15;stacks.forEach(function(s){var v=s.v[i]||0;if(!v)return;var y0=Y(base),y1=Y(base+v);o+='<rect x="'+x+'" y="'+(m.t+ih-y1*ih)+'" width="'+bw*.7+'" height="'+Math.max(0.5,(y1-y0)*ih)+'" fill="'+s.c+'"><title>'+esc(lb)+' · '+esc(s.name)+': '+v+'</title></rect>';base+=v});
+  if(tot[i])o+='<text class="m" x="'+(x+bw*.35)+'" y="'+(m.t+ih-Y(tot[i])*ih-3)+'" text-anchor="middle">'+tot[i]+'</text>';
+  o+='<text class="m" x="'+(x+bw*.35)+'" y="'+(H-m.b+14)+'" text-anchor="middle" transform="rotate(25 '+(x+bw*.35)+' '+(H-m.b+14)+')">'+esc(lb)+'</text>'});
+ o+='<line class="ax" x1="'+m.l+'" x2="'+(W-m.r)+'" y1="'+(H-m.b)+'" y2="'+(H-m.b)+'"/><text class="m" x="'+(m.l+iw/2)+'" y="'+(H-4)+'" text-anchor="middle">'+esc(opt.xl||"")+'</text><text class="m" transform="translate(13,'+(m.t+ih/2)+') rotate(-90)" text-anchor="middle">'+esc(opt.yl||"")+'</text></svg>';
+ o+='<div style="font-size:.85rem">'+stacks.map(function(s){return '<span class="sw" style="background:'+s.c+'"></span>'+esc(s.name)+'&nbsp;&nbsp; '}).join("")+'</div>';el.innerHTML=o}
+function hbars(el,rows,opt){var W=720,rh=30,H=rows.length*rh+16,lw=290,mx=Math.log10(Math.max.apply(null,rows.map(function(r){return r.v}))+1),o='<svg viewBox="0 0 '+W+' '+H+'">';
+ rows.forEach(function(r,i){var y=8+i*rh,w=Math.max(2,Math.log10(r.v+1)/mx*(W-lw-70));o+='<text x="'+(lw-8)+'" y="'+(y+17)+'" text-anchor="end">'+esc(r.l)+'</text><rect x="'+lw+'" y="'+y+'" width="'+w+'" height="21" fill="'+(r.c||"var(--a)")+'" rx="3"/><text x="'+(lw+w+6)+'" y="'+(y+16)+'">'+r.v.toLocaleString()+(r.n?" ":"")+(r.n||"")+'</text>'});el.innerHTML=o+'</svg>'}
+
+/* ---------- static figures ---------- */
+hbars($("fig_funnel"),[{l:"novel HLA calls with a CDS alignment",v:8015},{l:"… of which novel-protein",v:7635},{l:"… indel-only (artefact-dominated)",v:6566,c:"var(--e)",n:"(86%)"},{l:"substitution-only, rebuildable (pool input)",v:675,c:"var(--c)"},{l:"distinct signatures",v:441,c:"var(--c)"},{l:"not an exact named allele in 3.66",v:387,c:"var(--a)",n:"(54 exact removed; 8 of the 387 are partial)"},{l:"seen in ≥2 people (all signatures)",v:49,c:"var(--a)"},{l:"unnamed, recurrent, clean: HLA-F T237I and P205T",v:2,c:"var(--a)",n:"(plus a few small clusters, S08 log)"}],{});
+(function(){var W=760,H=262,o='<svg viewBox="0 0 '+W+' '+H+'">';
+ function ln(y,c,l){return '<line x1="40" x2="680" y1="'+y+'" y2="'+y+'" stroke="'+c+'" stroke-width="5"/><text class="m" x="40" y="'+(y-9)+'">'+l+'</text>'}
+ o+=ln(30,"var(--a)","long-read haplotype 1 (called allele, carries the novel base ▲)")+ln(75,"var(--mut)","long-read haplotype 2 (other allele)");
+ o+='<polygon points="360,18 354,30 366,30" fill="var(--b)"/><polygon points="360,63 354,75 366,75" fill="var(--mut)"/>';
+ var reads=[[250,420,1],[300,470,1],[180,340,0],[330,480,0],[260,400,1],[360,500,0],[210,370,1]];
+ o+='<text x="40" y="115" class="m">short reads from the same person, realigned to haplotype 1</text>';
+ reads.forEach(function(r,i){var y=128+i*13;o+='<line x1="'+r[0]+'" x2="'+r[1]+'" y1="'+y+'" y2="'+y+'" stroke="'+(r[2]?"var(--b)":"var(--mut)")+'" stroke-width="5" stroke-linecap="round"/>'});
+ o+='<rect x="545" y="120" width="200" height="86" rx="8" fill="none" stroke="var(--line)"/><text x="555" y="140">k = reads with ▲</text><text x="555" y="158">n = informative reads</text><text x="555" y="176">het site → expect k ≈ n/2</text><text x="555" y="194">score: LOD (formula below)</text>';
+ o+='<text class="m" x="40" y="236">orange = read carries the called base; grey = carries haplotype 2’s base.</text><text class="m" x="40" y="252">A real variant shows both colours in proportion; an assembly error shows only grey.</text></svg>';
+ $("fig_sr").innerHTML=o})();
+(function(){var n=[],het=[],noise=[],bias=[];function L(k,nn,p){return k*Math.log10(p/.02)+(nn-k)*Math.log10((1-p)/.98)}
+ for(var d=2;d<=60;d+=2){n.push(d);het.push(L(d*.5,d,.5));noise.push(L(d*.02,d,.5));bias.push(L(d*.15,d,.5))}
+ lineChart($("fig_lod"),[{name:"true het variant (50% of reads)",x:n,y:het,c:"var(--c)"},{name:"15% of reads (paralog / reference-bias like)",x:n,y:bias,c:"var(--d)"},{name:"2% of reads (noise)",x:n,y:noise,c:"var(--e)"}],{xl:"informative reads at the site (depth)",yl:"LOD (het site, p1=0.5, e=0.02)",hline:3,hlabel:"LOD 3 (1000:1)",xticks:[10,20,30,40,50,60],title:"LOD versus depth"})})();
+(function(){var W=720,H=190,o='<svg viewBox="0 0 '+W+' '+H+'">';
+ var bx=[["4 unlikely","suffix/truncated template, >15 edits, or SR contradicts",0,"var(--e)"],["3 uncertain","clean + near, but SR absent / weak",1,"var(--d)"],["2 submittable","clean + near + SR LOD≥3 in ≥1 carrier",2,"var(--c)"],["1 ready","… + ≥2 independent SR carriers, ≥2 unrelated, and transmitted or multi-platform",3,"var(--a)"]];
+ bx.forEach(function(b,i){var x=20+i*170,y=140-i*34;o+='<rect x="'+x+'" y="'+y+'" width="160" height="'+(i*34+44)+'" rx="8" fill="'+b[3]+'" opacity=".18" stroke="'+b[3]+'"/><text x="'+(x+8)+'" y="'+(y+20)+'" font-weight="700">'+b[0]+'</text>';
+  var words=b[1].split(" "),line="",yy=y+38;words.forEach(function(w){if((line+" "+w).length>22){o+='<text class="m" x="'+(x+8)+'" y="'+yy+'">'+esc(line)+'</text>';yy+=14;line=w}else line=(line+" "+w).trim()});o+='<text class="m" x="'+(x+8)+'" y="'+yy+'">'+esc(line)+'</text>'});
+ $("fig_buckets").innerHTML=o+'</svg>'})();
+
+/* ---------- data state ---------- */
+var recs=[],S={};
+function setData(d){DATA=d;recs=d.cube;init();draw()}
+$("fileIn").addEventListener("change",function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{setData(JSON.parse(r.result))}catch(x){alert("not a ladder_data json: "+x)}};r.readAsText(f)});
+function masked(){return !!(DATA&&DATA.meta.masked)}
+function tot(){return recs.reduce(function(a,r){return a+r.w},0)}
+function init(){
+ $("sel_nodata").style.display="none";$("sel_ui").style.display="";$("relname").textContent=DATA.meta.ipd_release;
+ $("datastate").innerHTML='<div class="banner ok">Data loaded: <b>'+(masked()?"cloud-safe build (carrier counts 1-19 masked as classes)":"EXACT build (stays inside the Workbench)")+'</b>, '+tot()+' candidate alleles, IPD '+esc(DATA.meta.ipd_release)+', '+DATA.meta.n_lr_persons.toLocaleString()+' long-read persons.</div>';
+ var mo=masked()?[[1,"1"],[2,"2"],[20,"20 (exact from here)"]]:[1,2,3,4,5,10,20,50].map(function(v){return [v,String(v)]});
+ $("minx").innerHTML=mo.map(function(v){return '<option value="'+v[0]+'">'+v[1]+'</option>'}).join("");
+ $("srl").innerHTML=SRL.map(function(s,i){return '<option value="'+i+'">'+(i===0?"any (including not evaluated)":"≥ "+s)+'</option>'}).join("");
+ $("bk").innerHTML=BUCKETS.map(function(b,i){return '<label><input type="checkbox" class="bkc" data-i="'+i+'" checked><span class="sw" style="background:'+BC[i]+'"></span>'+b+'</label>'}).join("");
+ var P=[["Everything minimal",{}],["My IMGT-submittable",{srl:3,srn:1,rc:1,near:1,e:[1,1,1],bk:[1,1,0,0]}],["Strict (bucket 1)",{srl:3,srn:2,rc:1,near:1,minx:2,bk:[1,0,0,0]}],["Recurrent only",{minx:2}],["Protein-altering, clean, SR-supported",{srl:3,rc:1,near:1,e:[0,1,1]}]];
+ $("presets").innerHTML=P.map(function(p,i){return '<button data-p="'+i+'">'+p[0]+'</button>'}).join("");
+ Array.prototype.forEach.call($("presets").children,function(b){b.onclick=function(){preset(P[+b.dataset.p][1],b)}});
+ Array.prototype.forEach.call(document.querySelectorAll("#selector input,#selector select"),function(e){if(e.id!=="fileIn")e.onchange=draw});
+ preset({}, $("presets").children[0]);
+}
+function preset(p,btn){$("minx").value=p.minx||1;$("srl").value=p.srl||0;$("srn").value=p.srn||0;["rc","near","mp","tr","hm"].forEach(function(k){$(k).checked=!!p[k]});
+ [0,1,2].forEach(function(i){$("e"+i).checked=p.e?!!p.e[i]:true});$("ip1").checked=true;$("g0").checked=$("g1").checked=true;
+ Array.prototype.forEach.call(document.querySelectorAll(".bkc"),function(c){c.checked=p.bk?!!p.bk[+c.dataset.i]:true});
+ Array.prototype.forEach.call($("presets").children,function(b){b.className=""});btn.className="on";draw()}
+function state(){var unit=document.querySelector("input[name=unit]:checked").value;
+ return {unit:unit,minx:+$("minx").value,srl:+$("srl").value,srn:+$("srn").value,rc:$("rc").checked,near:$("near").checked,mp:$("mp").checked,tr:$("tr").checked,hm:$("hm").checked,
+  e:[0,1,2].map(function(i){return $("e"+i).checked}),ip1:$("ip1").checked,g:[$("g0").checked,$("g1").checked],
+  bk:Array.prototype.map.call(document.querySelectorAll(".bkc"),function(c){return c.checked})}}
+function xval(r,u){return u==="u"?r.xu:r.xa}function xcls(r,u){return u==="u"?r.xuc:r.xac}
+function pass(r,s){var x=xval(r,s.unit),c=xcls(r,s.unit);
+ var lo=x!=null?x:(c===0?1:2);                 /* guaranteed lower bound on the carrier count */
+ if(lo<s.minx)return false;
+ if(!s.e[r.eff]||(!s.ip1&&r.ipd===1)||!s.g[r.gc])return false;
+ if(r.srl<s.srl||r.srn<s.srn)return false;
+ if((s.rc&&!r.rc)||(s.near&&!r.near)||(s.mp&&!r.mp)||(s.tr&&!r.tr)||(s.hm&&!r.hm))return false;
+ return s.bk[bucket(r)]}
+var HB=["1","2","3","4","5","6–7","8–10","11–19","20–49","50–99","100+"],HBm=["1","2–19","20–49","50–99","100+"];
+function binOf(r,u){var x=xval(r,u),c=xcls(r,u);if(masked()){if(x==null)return c===0?0:1;return x<50?2:x<100?3:4}
+ return x<=5?x-1:x<=7?5:x<=10?6:x<=19?7:x<50?8:x<100?9:10}
+function draw(){if(!DATA)return;var s=state(),L=masked()?HBm:HB,st=[0,1,2,3].map(function(){return L.map(function(){return 0})}),n=0,eff=[0,0,0],bt=[0,0,0,0],byb=[[0,0,0],[0,0,0],[0,0,0],[0,0,0]],single=0;
+ recs.forEach(function(r){if(!pass(r,s))return;var b=bucket(r);st[b][binOf(r,s.unit)]+=r.w;n+=r.w;eff[r.eff]+=r.w;bt[b]+=r.w;byb[b][r.eff]+=r.w;if(xcls(r,s.unit)===0)single+=r.w});
+ var pa=eff[1]+eff[2];
+ $("selk").innerHTML=[[n,"alleles in this selection"],[n?Math.round(100*pa/n)+"%":"–","protein-altering ("+pa+" of "+n+")"],[n?Math.round(100*eff[0]/n)+"%":"–","synonymous ("+eff[0]+")"],[n?Math.round(100*single/n)+"%":"–","seen in exactly one "+(s.unit==="u"?"unrelated person":"carrier")],[bt[0]+bt[1],"buckets 1+2 (submittable)"]].map(function(k){return '<div class="kpi"><b>'+k[0]+'</b><span>'+k[1]+'</span></div>'}).join("");
+ barChart($("fig_hist"),L,BUCKETS.map(function(b,i){return {name:b,v:st[i],c:BC[i]}}),{xl:"carriers of the allele ("+(s.unit==="u"?"unrelated persons":"all persons")+")",yl:"number of alleles",log:$("logy").checked,title:"alleles by carrier count"});
+ $("hist_cap").textContent=masked()?"Cloud-safe build: 1-19 carriers are pooled as classes (1 and 2–19) by the disclosure rule; exact bins start at 20.":"Exact build: one bar per carrier count up to 5, then bins.";
+ $("eff_tbl").innerHTML='<table><tr><th>bucket</th><th>synonymous</th><th>missense</th><th>nonsense</th><th>total</th></tr>'+byb.map(function(r,i){return '<tr><td>'+BUCKETS[i]+'</td><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+bt[i]+'</td></tr>'}).join("")+'</table>';
+ var imgt=[["Phased haplotype (long-read assembly)","auto",true],["No indel in the CDS","auto",true],["Closest named allele identified","auto",true],["Second independent method (short reads LOD ≥ 3)","data",s.srl>=3&&s.srn>=1],["Clean template, ≤15 edits","data",s.rc&&s.near],["Replication in ≥2 unrelated people","data",s.minx>=2],["Two-field typing of donor (A/B/C/DRB1)","manual",null],["Full-length genomic extent / exon 2-3 coverage","manual",null]];
+ $("imgtpanel").innerHTML='<h3>IPD-IMGT conditions vs this selection</h3><table>'+imgt.map(function(x){return '<tr><td>'+(x[1]==="manual"?"⚠":x[2]?"✔":"✘")+'</td><td>'+x[0]+'</td><td class="sub">'+(x[1]==="auto"?"true by construction":x[1]==="data"?(x[2]?"enforced by the current settings":"not enforced by the current settings"):"cannot be checked from the table; do by hand")+'</td></tr>'}).join("")+'</table>';
+ $("copyset").onclick=function(){var t=JSON.stringify(s);if(navigator.clipboard)navigator.clipboard.writeText(t);$("copied").textContent=t};
+ drawSat();drawKp();drawFunnelVm()}
+/* ---------- the rest of the data-driven parts ---------- */
+function drawKp(){var T=recs.reduce(function(a,r){var b=bucket(r);a[b]+=r.w;return a},[0,0,0,0]),n=tot(),pa=recs.filter(function(r){return r.eff>0}).reduce(function(a,r){return a+r.w},0);
+ $("kpis").innerHTML=[[n,"minimally novel alleles (no indel, not exact in IPD "+DATA.meta.ipd_release+")"],[T[0],"bucket 1: ready to submit"],[T[0]+T[1],"buckets 1+2: submittable"],[T[2],"bucket 3: uncertain"],[T[3],"bucket 4: unlikely"],[n?Math.round(100*pa/n)+"%":"–","protein-altering"]].map(function(k){return '<div class="kpi"><b>'+k[0]+'</b><span>'+k[1]+'</span></div>'}).join("");
+ $("answer").textContent="Of "+n+" minimally novel alleles, "+(T[0]+T[1])+" meet the submittable bars of buckets 1-2 ("+T[0]+" with the stronger replication evidence), "+T[2]+" are uncertain and "+T[3]+" look like template or artefact problems. Move the selector to see how those numbers respond to your own thresholds."}
+function drawFunnelVm(){var f=DATA.funnel;if(!f)return;var keys=Object.keys(f);$("funnel_vm").innerHTML='<h3>Recomputed on the VM</h3><table><tr><th>step</th><th>count</th></tr>'+keys.map(function(k){return '<tr><td><code>'+esc(k)+'</code></td><td>'+fmt(f[k])+'</td></tr>'}).join("")+'</table>';
+ var h=DATA.sr_lod_hist;if(h){var ks=Object.keys(h).map(Number).sort(function(a,b){return a-b});$("fig_srhist_wrap").innerHTML='<figure><div id="fig_srhist"></div><figcaption>Distribution of short-read case scores (weakest-site LOD per carrier case), clipped to −5…15. Cases with 1-19 per bin are shown as 0 in the cloud-safe build.</figcaption></figure>';
+  barChart($("fig_srhist"),ks.map(function(k){return k<=-5?"≤−5":k>=15?"≥15":String(k)}),[{name:"cases",v:ks.map(function(k){return h[k]||0}),c:"var(--a)"}],{xl:"case LOD (weakest site)",yl:"carrier cases"})}}
+function drawSat(){if(!DATA||!DATA.saturation||!Object.keys(DATA.saturation).length){$("fig_sat").innerHTML='<p class="banner">Waiting for the VM run.</p>';return}
+ var mode=document.querySelector("input[name=satmode]:checked").value,cols=["var(--mut)","var(--a)","var(--c)","var(--b)","var(--d)"],ser=[];
+ Object.keys(DATA.saturation).forEach(function(k,i){var s=DATA.saturation[k][mode];ser.push({name:k+" ("+s.n_alleles+")",x:s.n,y:s.med,hi:s.hi,lo:s.lo,c:cols[i%5]})});
+ lineChart($("fig_sat"),ser,{xl:"persons sampled ("+mode+")",yl:"distinct alleles found",xlog:true,y0:0,xticks:[10,100,1000,10000],title:"saturation"})}
+Array.prototype.forEach.call(document.getElementsByName("satmode"),function(e){e.onchange=drawSat});
+if(DATA){recs=DATA.cube;init()}else{$("datastate").innerHTML='<div class="banner">No VM table loaded yet: sections 2, 3, 5 and 8-10 are complete from logs and literature; the counts, selector and saturation curves fill in when <code>ladder_data.*.json</code> is loaded.</div>';$("kpis").innerHTML='<div class="kpi"><b>–</b><span>awaiting VM run (118)</span></div>';$("answer").textContent="From the S08 log alone: 675 substitution-only rebuildable calls collapse to 441 signatures; 387 are not an exact named allele in IPD 3.66.0 (8 extend a partial entry); only 49 signatures were seen in two or more people. How many of the 387 are short-read supported has not been computed cohort-wide yet; that is what the VM run produces."}
+</script></body></html>

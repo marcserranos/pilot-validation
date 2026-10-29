@@ -6,6 +6,12 @@
 
 ## Open questions
 
+- **(2026-10-29) Novel-allele ladder: what may leave the Workbench, and which bars define the buckets.** 118/119 (S08 follow-up) produce an allele-level
+  table of carrier-count *classes* crossed with quality flags (no gene, no sequence, no ids; counts 1-19 persons become classes 1 / 2-19, exact only from 20).
+  Same disclosure family as the `<20` item below: decide whether that cross-tab may be committed. Until then the exact-count build stays in the VM
+  (`*.private.html`) and `reports/sprint_reports/S08_REPORT.html` is gitignored. Also open: the bucket rule (clean template, <=15 edits, short-read LOD >= 3
+  in 1 / 2 independent carriers, transmitted or >= 2 platforms) and the LOD background e = 0.02 are Claude's first proposal, to be moved by Marc in the selector.
+  IPD guideline text was read only through search snippets (EBI blocked): re-check before a real submission.
 - **(2026-10-27) Call notes remain in git history.** `sprints/_calls/*` private call notes (2026-09-22 brief/summary/Aleix handoff,
   2026-10-06 summary) were tracked until commit 13e25ad/7237256 and stay reachable in history of `main` (and old WIP commits on
   `s04-kir-recurrence-style-share`). Options: accept; rewrite history (`git filter-repo` + force-push, breaks Aleix's branch and clones);

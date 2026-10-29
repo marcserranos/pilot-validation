@@ -13,6 +13,12 @@ Aleix's `aleix/hla-resolve-phase1` stays separate. Pipeline table: `scripts/hla_
 Open (human): call-note files remain in git history (`sprints/_calls/`, commits before 13e25ad) — history rewrite is a Marc decision, see DECISIONS.md.
 Script 80 (case browser, S06 copy) was folded into 90 (S08); the 79 final report builder is in `scripts/hla_popgen/79_s06_final_report.py`.
 
+## Pending VM run (2026-10-29): novel-allele ladder
+
+Cloud session built `118_novel_ladder.py` + `119_novel_ladder_report.py` (selector, saturation curves, IMGT section) but had no VM. Newest IPD = 3.66.0 (14 Oct 2026).
+Next commands: `sprints/S08_case_browser/RUNBOOK_novel_ladder.md` (extract with a large `--exhaustive-snv` cap, `90 sr`, then 118, then 119). Nothing in the report has real cohort-wide numbers until that runs.
+The WIP desktop commit 8e2febc (S09_REPORT.html edits + README rows pointing to nonexistent 116/117 scripts) was un-committed on purpose; its patch is recoverable from the object 8e2febc.
+
 ## Where to pick up (2026-10-27)
 
 - **S06** (call quality, 70–79): essentially complete. Open: sequence-level CDS comparison for KIR/HLA labels; haplotype-level yak origin check. Log: `sprints/S06_call_quality_metrics/LOG.md`; final report is a local build (`python3 scripts/hla_popgen/79_s06_final_report.py --tables reports/hla_popgen/79_s06_final/aggregate_tables --out reports/hla_popgen/79_s06_final`).

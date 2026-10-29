@@ -238,6 +238,8 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 112_hla_kir_c4_pqtl_scan.py      → Immunogenetic loci -> plasma proteome scan (VM side; All of Us Olink Explore HT x long-read HLA / KIR / C4 calls).
 113_b1402_pqtl_dissection.py     → Dissect the B*14:02 / C*08:02 -> LRPAP1 / LRP1 / SGSH plasma-protein signal (VM side; Olink Explore HT x long-read HLA calls).
 114_b1402_rna_test.py            → Does HLA-B*14:02 shift blood RNA of LRPAP1 / LRP1 / SGSH (VM side)?
+118_novel_ladder.py              → Full distribution of minimally novel HLA alleles (no indel, not exact in the newest IPD) with short-read LOD confidence, buckets, saturation (VM side; writes exact + masked JSON).
+119_novel_ladder_report.py       → Builds the interactive selector report from 118's JSON (`119_report_template.html`); refuses to put exact counts outside a *.private.html.
 ```
 
 `00` exists because the source-derived spec has genuinely ambiguous points that only real data can
