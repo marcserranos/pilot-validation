@@ -34,3 +34,8 @@ ladder_data.*.json
 *.private.json
 *.private.html
 S08_*LADDER*.html
+
+# S06 v2 call-confidence report: small cells unmasked, public repo
+reports/sprint_reports/S06_REPORT_v2.html
+reports/hla_popgen/130_call_confidence/
+scripts/hla_popgen/131_call_confidence_report.py
