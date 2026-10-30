@@ -238,6 +238,8 @@ _s05_common.py              → shared loaders (unrelated rule, ancestry upper-c
 112_hla_kir_c4_pqtl_scan.py      → Immunogenetic loci -> plasma proteome scan (VM side; All of Us Olink Explore HT x long-read HLA / KIR / C4 calls).
 113_b1402_pqtl_dissection.py     → Dissect the B*14:02 / C*08:02 -> LRPAP1 / LRP1 / SGSH plasma-protein signal (VM side; Olink Explore HT x long-read HLA calls).
 114_b1402_rna_test.py            → Does HLA-B*14:02 shift blood RNA of LRPAP1 / LRP1 / SGSH (VM side)?
+130_call_confidence.py           → S06 v2: error among CALLED alleles by cohort (template distance 0 / >0 / S10 novel), by distance and CDS depth, pruning policies, AUC (VM side; trio + pair truth sets).
+131_call_confidence_report.py    → (local only, not in git) figure + compact report for 130 -> reports/sprint_reports/S06_REPORT_v2.html.
 118_novel_ladder.py              → Full distribution of minimally novel HLA alleles (no indel, not exact in the newest IPD) with short-read LOD confidence, buckets, saturation (VM side; writes exact + masked JSON).
 119_novel_ladder_report.py       → Builds the interactive selector report from 118's JSON (`119_report_template.html`); refuses to put exact counts outside a *.private.html.
 ```

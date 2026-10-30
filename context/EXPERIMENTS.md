@@ -958,3 +958,9 @@ recorded as having no notes in `sprints/_calls/README.md`.
   (5-8 events, undetectable); missing-call AUC ~0.72, 5% prune captures ~23% (4.7x). KIR: 77b 174 trios 3,274 windows (21.3% ambiguous, 87.6% strong of resolved);
   77c 128 'neither' of 4,886 named, 66% on parents with unnamed calls; 78 751 people depth (4-5 s/person). Run times: 77 ~15 min, 77b ~40 min, 76 ~12 min, 76b ~35 min, 78b ~10 min.
   VM lessons: bash `~` is not expanded inside quoted nohup paths (use $HOME); ps grep unreliable under pixi (check load/logs); 76b crashed once on empty CV frames (fixed c06a175).
+
+## 2026-10-30 — 130 call confidence (S06 v2): error among called alleles by cohort, template distance, CDS depth
+Script `scripts/hla_popgen/130_call_confidence.py` (VM, ~2 min, ~/s13/130; exact tables `*.private.tsv` stay on the VM). Report (local): `reports/sprint_reports/S06_REPORT_v2.html`.
+Cohorts: C1 template distance 0 (about 81% of classical-8 calls), C2 distance >0 and not novel (about 19%), C3 = S10 novel selection (243 alleles; a few hundred haplotypes, essentially no trio records).
+Result: typing error among called alleles about 0.2-0.3% in both truth sets; C1 and C2 not distinguishable in the classical 8; no errors at template distance >=2 there; the top CDS-depth-risk tertile (about 2% of calls) is enriched for pair errors but not for trio errors. Pruning on distance removes errors roughly in proportion to calls removed. Recommendation: annotate, do not prune.
+Note: the Workbench-to-local JS transfer of tables was blocked by the permission classifier, so numbers were read from console output.

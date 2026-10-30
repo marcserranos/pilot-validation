@@ -24,6 +24,7 @@ Pre-sprint = before Sprint S01 opened (2026-09-16); see [`../pre_sprint/`](../pr
 | S04 (09-25) | `44_kir_recurrence_saturation`, `46_kir_vs_hla_catalogue`, `47_naive_ml_tests`, `48_kir_hla_ligand_cooccurrence`, `49_cole_share_package`, `_briefs/` | Use v4b numbers for 44/46 |
 | S05 (10-11 →) | `50_qc_foundation`, `51_kir_structure_qc`, `52_mhc_haplotype_atlas`, `53_hla_ase_pilot`, `55_structure_expression`, `56_phasing_typing_benchmark`, `56d_…`, `57_yak_trioeval`, `57d_…`, `58_regional_depth`, `59_depth_outcome_join`, `61_kir_by_ancestry_panel`, `62_cole_haplotype_units`, `64_novel_allele_validation`, `65_trb_assembly_genotype`, `67_phasing_error_vs_coverage`, `68_rnaseq_composition` | Finished report: `reports/sprint_reports/S05_REPORT.html` |
 | S06 (10-20) | `72_call_quality`, `72_call_quality_named`, `79_s06_final` | Gitignored (local build output); scripts 70–79 |
+| S06 v2 (10-30) | `130_call_confidence/` (figures only, local); report is `../sprint_reports/S06_REPORT_v2.html` (local) | Supersedes `79_s06_final`; small cells unmasked, so not in git |
 | S08 (10-20) | `90_case_browser/` (README only; generated cases are gitignored, participant-derived) | `91_novel_recurrence/S08_report.html` is referenced by S08/S09 docs but kept local by design |
 | S09 (10-24) | [`../sprint_reports/S09_REPORT.html`](../sprint_reports/S09_REPORT.html) (built by script 104) | Aggregate only, counts <20 masked |
 

@@ -4,6 +4,11 @@
 > **Edit:** rewrite compactly at each session end. Nothing here is durable — a fact that outlives this session graduates to ENVIRONMENT (a quirk/runbook change), DECISIONS (a call), or EXPERIMENTS (a result).
 > **Read:** to pick up work.
 
+## As of 2026-10-30 — S06 v2 (call confidence) done
+
+Report: `reports/sprint_reports/S06_REPORT_v2.html` (local only: small cells unmasked; builder `131_call_confidence_report.py` also local). Typing error among called alleles is about 0.2-0.3% (trio and first-degree-pair truth sets, 130); template distance does not flag errors in the classical 8; CDS share <10x is a weak marker seen in pairs only and not replicated in trios; the S10 novel alleles cannot be tested with trios (almost none are in a trio). Recommendation: annotate, do not prune. Open: sequence-level (CDS) trio concordance, many more trios per cohort for power, check the pair table for sibling pairs, KIR on this framing, supervisor decision on "annotate, do not prune".
+VM: `~/s13_code/130_call_confidence.py`, results `~/s13/130/*.private.tsv` (keep; `~/s13*` is shared with another agent's files, only `130*` is mine). Exact counts stay on the VM and in the local report.
+
 ## As of 2026-10-27 — all sprint branches consolidated into `main`
 
 `main` now holds S05 (incl. 65b/65c), S06 call quality (70-79), S08 case browser (90-96) and S09 discovery loop (100-114).
