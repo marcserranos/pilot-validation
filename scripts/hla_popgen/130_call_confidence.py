@@ -32,6 +32,7 @@ CLASSICAL8 = {"A", "B", "C", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"}
 SRL_MIN = 3          # short-read level moderate or better
 THRESH = 20
 N_PERM = 100
+DEPTH_RAW = ("rel_cds", "cds_p10_rel", "cds_min_rel")   # oriented columns of 71 (higher = worse): median / 10th percentile / minimum CDS depth relative to the genome
 
 
 def wilson(k, n, z=1.96):
@@ -99,6 +100,9 @@ def edges(call_depth):
 
 def bin_metric(metric, v, depth_edges):
     v = np.nan_to_num(np.asarray(v, float), nan=0.0)
+    if metric in DEPTH_RAW:
+        q = pd.qcut(pd.Series(v).rank(method="first"), 4, labels=["Q1 best", "Q2", "Q3", "Q4 worst"])
+        return q.astype(str).to_numpy()
     if metric == "template_distance":
         return pd.cut(v, [-1, 0, 1, 2, 5, 1e9], labels=["0", "1", "2", "3-5", "6+"]).astype(str)
     if metric == "n_aa_changes":
@@ -195,7 +199,7 @@ def main():
                                other_parent_only=int(g.oth.sum())))
             fam = sub["family"] if "family" in sub else sub["person"]
             for pre in prefs:
-                for metric in ("template_distance", "cds_share_lt10", "n_aa_changes"):
+                for metric in ("template_distance", "cds_share_lt10", "n_aa_changes") + tuple(m for m in DEPTH_RAW if f"{pre}_{m}" in sub):
                     v = sub[f"{pre}_{metric}"].to_numpy(float)
                     b = bin_metric(metric, v, depth_edges)
                     for subset, m in (("all", np.ones(len(sub), bool)), ("C1_only", (sub.cohort == "C1").to_numpy()),
@@ -214,7 +218,8 @@ def main():
                 d = np.nan_to_num(sub[f"{pre}_template_distance"].to_numpy(float), nan=0.0)
                 p = np.nan_to_num(sub[f"{pre}_cds_share_lt10"].to_numpy(float), nan=0.0)
                 comb = (pd.Series(d).rank(pct=True) + pd.Series(p).rank(pct=True)).to_numpy() / 2
-                for mname, s in (("template_distance", d), ("cds_share_lt10", p), ("combined", comb)):
+                extra = [(m, np.nan_to_num(sub[f"{pre}_{m}"].to_numpy(float), nan=0.0)) for m in DEPTH_RAW if f"{pre}_{m}" in sub]
+                for mname, s in [("template_distance", d), ("cds_share_lt10", p), ("combined", comb)] + extra:
                     fr, cap = curve(sub.err.to_numpy(), s)
                     for f, c in zip(fr, cap):
                         e4.append(dict(record_set=sname, scope=scope, metric_of=pre, metric=mname,

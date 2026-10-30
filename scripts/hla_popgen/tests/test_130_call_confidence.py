@@ -39,6 +39,7 @@ def test_end_to_end(tmp_path):
             d[f"{p}_template_distance"] = rng.choice([0, 0, 1, 4], k).astype(float)
             d[f"{p}_cds_share_lt10"] = rng.random(k)
             d[f"{p}_n_aa_changes"] = rng.integers(0, 3, k).astype(float)
+            d[f"{p}_rel_cds"] = -rng.random(k)
         return pd.DataFrame(d)
     T = rec(300, ["c", "w"]); T["cls"] = rng.choice(["match", "neither", "other_parent_only"], 300, p=[.96, .02, .02])
     Q = rec(300, ["w"]); Q["bad"] = rng.random(300) < .03
@@ -54,5 +55,6 @@ def test_end_to_end(tmp_path):
         assert (out / f"{name}.private.tsv").exists() and (out / f"{name}.pub.tsv").exists()
     e = pd.read_csv(out / "error_by_cohort.private.tsv", sep="\t")
     assert e[(e.record_set == "trio") & (e.scope == "all_genes") & (e.cohort == "all")].n.iloc[0] == 300
+    assert "rel_cds" in set(pd.read_csv(out / "predictor_auc.private.tsv", sep="\t").metric)
     pub = pd.read_csv(out / "error_by_cohort.pub.tsv", sep="\t", dtype=str)
     assert "<20" in set(pub.errors)
