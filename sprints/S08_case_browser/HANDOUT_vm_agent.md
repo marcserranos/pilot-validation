@@ -17,7 +17,7 @@ All "minimally novel" HLA alleles: Immuannot-novel calls that are rebuildable fr
 7. Do not quote or cite anything from `sprints/_calls/`.
 
 ## Steps (all outputs under `~/s10` and `~/s10_cb`)
-1. Setup: fresh clone of branch `main-si057v` into `~/cb_code` (`git clone` works; auto-clone does not, quirk #3). Verify `ls ~/pipeline_outputs/hla_calls_rich.tsv ~/pipeline_outputs/cohort_membership.tsv ~/tools/Immuannot_refdata ~/case_browser/case_map.private.tsv`.
+1. Setup: fresh clone of `main` into `~/cb_code` (`git clone` works; auto-clone does not, quirk #3). Verify `ls ~/pipeline_outputs/hla_calls_rich.tsv ~/pipeline_outputs/cohort_membership.tsv ~/tools/Immuannot_refdata ~/case_browser/case_map.private.tsv`.
 2. IPD: `curl -O https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/hla_nuc.fasta` (43 MB). If the Workbench cannot reach GitHub, ask Marc to upload it. Check the release: `curl -s https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/release_version.txt | head -3` should say 3.66.0 (or newer: then pass that number as `--ipd-release` and tell Marc).
 3. Short-read evidence for every substitution-only novel call (cap raised from the earlier 60 per gene):
    - `cd ~/cb_code && python3 scripts/hla_popgen/90_case_browser.py extract --out-dir ~/s10_cb --exhaustive-snv 5000` (see `--help`; the 10-21 run used the same entry point). Check the log line `exhaustive_snv_total:*` against ~675 substitution-only novel calls.

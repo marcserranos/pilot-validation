@@ -6,7 +6,7 @@ Newest IPD release: **3.66.0 (14 Oct 2026)**, verified from `release_version.txt
 
 Assume the VM restarted: remount the bucket and `ls` first (ENVIRONMENT quirk #14). Everything below is read-only on shared paths; outputs go to `~/s10` and `~/case_browser`.
 
-1. Code: fresh `git clone` of `main-si057v` (or main once merged) into `~/cb_code`.
+1. Code: fresh `git clone` of `main` into `~/cb_code`.
 2. IPD: `curl -O https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/hla_nuc.fasta` (43 MB; needs GitHub raw reachable from the Workbench — otherwise upload it).
 3. Short-read evidence for **every** substitution-only novel call (the S08 run capped F and G at 60):
    Use a NEW out-dir (`~/s10_cb`): a fresh extract renumbers case ids, so writing into `~/case_browser` would orphan its existing `sr.jsonl`.
