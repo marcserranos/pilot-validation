@@ -13,7 +13,7 @@ All "minimally novel" HLA alleles: Immuannot-novel calls that are rebuildable fr
 3. **`git commit` / `git push` typed via computer-use is often blocked.** Try at most 2–3 times, then give Marc the exact command. Prefer not to commit from the VM at all.
 4. **Ask Marc before** killing a running process, restarting, or writing to a path another run may write to (quirk #23). Use fresh out-dirs (`~/s10`, `~/s10_cb`); **never write into `~/case_browser`** (a fresh extract renumbers case ids and would orphan its `sr.jsonl`).
 5. **No job longer than one day**; use `--max-minutes` and resume (`sr.jsonl` is checkpointed).
-6. **Data-publication rule (repo is public):** `*.private.*`, `ladder_data.private.json`, `novel_ladder.private.tsv`, `*.private.html` never leave the VM: no copy to the repo, to chat, to a screenshot you upload, or to a commit message. Counts of 1–19 participants must not appear in anything you paste back to the cloud session. The only file meant to leave is `ladder_data.pub.json`, and **only after Marc says yes** (open item in `context/DECISIONS.md`).
+6. **Exploratory relaxation (Marc, 2026-10-30):** for this exploratory run the `<20` blur is relaxed. You may use and report **exact counts** (including 1–19) to Marc, and the exact-count selector report is the main deliverable. What stays strict: the repo is public, so **no exact or small-count result is ever committed or pushed** (no commit messages, no copied tables, no figures with exact small counts). Everything that holds exact counts is gitignored (`*.private.*`, `ladder_data.*.json`, `S08_*LADDER*.html`, `~/s10`, `~/s10_cb`): keep it on the VM, never `git add -f`, never copy it into a clone. Do not move exact files off the VM on your own; if Marc wants one elsewhere he will say so (All of Us's own small-cell dissemination rule still applies to anything that leaves the Workbench, and that is Marc's call, not yours).
 7. Do not quote or cite anything from `sprints/_calls/`.
 
 ## Steps (all outputs under `~/s10` and `~/s10_cb`)
@@ -25,13 +25,13 @@ All "minimally novel" HLA alleles: Immuannot-novel calls that are rebuildable fr
 4. Ladder: `python3 scripts/hla_popgen/118_novel_ladder.py --ipd-nuc ~/hla_nuc.fasta --ipd-release 3.66.0 --out-dir ~/s10 --sr-dir ~/s10_cb`
    Sanity checks before trusting it: the funnel in the log should show ~8,015 novel rows in the LR cohort and ~675 `pool_calls`; `drop:indel_*` should be the large majority of novel-protein rows (86% indel-only per S08); the number of alleles flagged `ipd_exact` should be in the tens (S08 found 54 exact signatures); if any of these is wildly off, stop and tell Marc.
 5. Exact report (stays on the VM): `python3 scripts/hla_popgen/119_novel_ladder_report.py --data ~/s10/ladder_data.private.json --out ~/s10/S08_NOVEL_LADDER.private.html` and have Marc open it from JupyterLab (File Browser → right-click → Open With → Notebook/HTML viewer, or "Trust HTML"). Check in the selector that the "Everything minimal" preset total matches the 118 log.
-6. Cloud-safe build: `119 ... --data ~/s10/ladder_data.pub.json --out ~/s10/S08_REPORT.html`. Do **not** copy it anywhere until Marc agrees.
+6. Optional masked build (only if Marc asks): `119 ... --data ~/s10/ladder_data.pub.json --out ~/s10/S08_REPORT.html`. Do **not** copy it anywhere until Marc agrees.
 7. Cleanup (ask first): remove `~/cb_code` and `~/hla_nuc.fasta`. Keep `~/s10`, `~/s10_cb` (mode-600 files stay).
 
-## What to report back to Marc (counts ≥ 20 only, no 1–19 cells)
-- Funnel totals from the 118 log; number of alleles in the pool; number per bucket (1–4); share protein-altering vs synonymous; share of alleles seen in exactly one unrelated person (a percentage, not a count).
+## What to report back to Marc (exact counts are fine in this exploratory run)
+- Funnel totals from the 118 log; number of alleles in the pool; number per bucket (1–4); share protein-altering vs synonymous; exact histogram of carrier counts (alleles per number of unrelated carriers, 1, 2, 3 …), all vs unrelated, and per bucket; saturation numbers at a few sample sizes.
 - Every code change you had to make (diff), every anomaly, runtime per step.
 - Anything you could not verify. Do not guess numbers; do not tell Marc something ran if it did not.
 
 ## Hand-offs to Marc
-`git commit`/`git push` of any fixes; deciding whether `ladder_data.pub.json` may leave the VM; deleting merged remote branches (see `context/STATUS.md`).
+`git commit`/`git push` of any fixes; deciding whether anything (including `ladder_data.pub.json`) may leave the VM or be published; deleting merged remote branches (see `context/STATUS.md`).

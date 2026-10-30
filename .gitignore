@@ -28,3 +28,9 @@ case_browser/
 # Sprint reports built from participant-derived or not-yet-masked tables stay local
 reports/sprint_reports/S06_FINAL_REPORT.html
 reports/sprint_reports/S08_REPORT.html
+
+# Novel-ladder (118/119) exact-count outputs: exploratory, never committed
+ladder_data.*.json
+*.private.json
+*.private.html
+S08_*LADDER*.html
